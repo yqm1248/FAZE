@@ -1,0 +1,39 @@
+{
+  "expo": {
+    "name": "法泽",
+    "slug": "faze",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "faze",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "icon": "./assets/legacy/logo.png",
+    "splash": {
+      "image": "./assets/legacy/logo.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#F7F8FA"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.faze.app"
+    },
+    "android": {
+      "package": "com.faze.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/legacy/logo.png",
+        "backgroundColor": "#F7F8FA"
+      },
+      "edgeToEdgeEnabled": true
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "favicon": "./assets/legacy/logo.png"
+    },
+    "plugins": ["expo-router"],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

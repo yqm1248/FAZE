@@ -1,0 +1,41 @@
+{
+  "name": "faze-mobile-app",
+  "version": "1.0.0",
+  "private": true,
+  "main": "expo-router/entry",
+  "description": "法泽 APP —— 普惠型法律服务平台 UI 复刻（Expo / React Native）",
+  "scripts": {
+    "start": "expo start",
+    "web": "expo start --web",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "typecheck": "tsc --noEmit",
+    "lint": "tsc --noEmit && eslint .",
+    "lint:fix": "eslint . --fix"
+  },
+  "dependencies": {
+    "@expo/metro-runtime": "~6.1.2",
+    "@expo/vector-icons": "^15.0.3",
+    "expo": "~54.0.0",
+    "expo-image": "~3.0.11",
+    "expo-linear-gradient": "~15.0.8",
+    "expo-router": "~6.0.24",
+    "expo-splash-screen": "~31.0.13",
+    "expo-status-bar": "~3.0.9",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "react-native": "0.81.5",
+    "react-native-safe-area-context": "~5.6.0",
+    "react-native-screens": "~4.16.0",
+    "react-native-web": "^0.21.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@types/react": "~19.1.0",
+    "babel-preset-expo": "~54.0.10",
+    "eslint": "^9.39.4",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "typescript": "~5.8.3",
+    "typescript-eslint": "^8.72.0"
+  }
+}
