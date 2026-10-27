@@ -46,7 +46,7 @@
 | AI | 豆包 API（SSE 流式）+ 本地法条库检索 |
 | 文书 | `poi-tl`（Word）+ **LibreOffice headless 或 Chromium 打印**（PDF）——`openhtmltopdf` 无法排阿拉伯系连写，不得使用 |
 
-禁用清单见技术路线 v2.2 的 2.4 节。
+禁用清单见技术路线 **2.4 节**（版本以 `docs/architecture/` 下的最新版为准，当前为 v2.3）。
 
 ---
 
