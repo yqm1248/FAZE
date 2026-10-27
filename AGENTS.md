@@ -95,6 +95,7 @@ services/faze-api/src/main/java/com/faze/
 6. **状态迁移由服务端校验**：客户端只发意图，不发状态。
 7. **新增依赖必须先说明理由**，并登记到 `docs/architecture/依赖清单.md`。
 8. **改动设计令牌必须同步三处**：`tokens.json`、`tokens.ts`、`docs/design/设计令牌.md`。
+9. **实施顺序以 `docs/architecture/法泽FAZE_分期交付计划_v1.0.md` 为准**：不得跳过第 0 段（没有可安装包则一切验收失效）；每段开始前先读该段章节并从验收清单逐条勾选；每段结束时在 `docs/CHANGELOG.md` 记录实际完成情况、验收结果与偏差。
 
 ## 5. 禁止做的事
 
@@ -141,8 +142,13 @@ services/faze-api/src/main/java/com/faze/
 
 | 文档 | 位置 |
 | --- | --- |
-| 技术路线（最新） | `docs/architecture/法泽FAZE_技术路线_v2.2.md` |
+| **分期交付计划（最新，实施顺序以此为准）** | `docs/architecture/法泽FAZE_分期交付计划_v1.0.md` |
+| 技术路线（最新） | `docs/architecture/法泽FAZE_技术路线_v2.3.md` |
 | 页面导航树 | `docs/design/法泽APP_页面导航树_v1.4.md` |
+| 变更日志（每次推送必看） | `docs/CHANGELOG.md` |
 | 工程规范 | `docs/standards/` |
 | 设计依据 | `docs/design/` |
 | 决策记录 | `docs/analysis/` |
+
+> 技术路线 v2.3 的 §23「实施计划」已整体废弃（按技术层横切、按周排期），
+> **实施顺序只以《分期交付计划_v1.0》为准**。
