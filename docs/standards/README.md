@@ -20,12 +20,22 @@
 
 详细的对应关系见 [../analysis/参考项目规范提取.md](../analysis/参考项目规范提取.md)。
 
-## 与参考项目的差异（必读）
+## 与参考项目的关系（必读）
 
-参考项目是 Java 后端 + 多端 monorepo，本项目是**单一 Expo 应用**，因此：
+> ⚠️ **本节原写于「纯 UI 复刻」阶段，当时本项目只有移动端、没有后端，所以结论是「不套用 Java 分层」。**
+> 项目已转为**真实上线**，现在是 Expo 移动端 + Spring Boot 服务端 + RuoYi PC 后台三端，
+> 与参考项目同构，**该结论已部分作废**。以下为现行口径。
 
-1. **不套用 Java 分层**。没有 Mapper、Service、Entity；对应位置是 `features/<domain>/` + `__fixtures__`。
-2. **保留注释密度要求**，但把"类头 Javadoc"换成"文件头块注释"，把"`@param/@return`"换成
-   JSDoc 风格的 `@param` / `@returns`。密度不降，形式适配。
-3. **不引入 `uniwind`/`tailwind`**。参考项目用了 Tailwind v4 类方案，本项目只用 `StyleSheet`，
-   原因是样式类字符串无法静态检查是否使用了令牌，与"禁止令牌外字面量"的规则冲突。
+参考项目 `D:\gitzxz\zxz-bi-server` 是 Java 后端，`E:\项目文件\jxyd200` 是多端 monorepo。现行规则：
+
+1. **服务端套用 Java 分层**。`controller / dto / entity / mapper / service / config / util` 齐全，
+   规则照搬 `zxz-bi-server`，落点为 `services/faze-api/src/main/java/com/faze/`。
+2. **移动端不套用 Java 分层**。对应位置是 `features/<domain>/{pages,components,api,types}` + `hooks/`。
+3. **注释密度要求三端一致，形式各自适配**：
+   - Java：类头 Javadoc（`@Description` / `@Author` / `@Date`）+ 方法注释（动作、参数、返回）
+   - TS：文件头块注释 + JSDoc 风格 `@param` / `@returns`
+   - 密度不降，只是形式不同。
+4. **移动端不引入 `uniwind`/`tailwind`**。参考项目用了 Tailwind v4 类方案，本项目只用 `StyleSheet`，
+   原因是样式类字符串无法静态检查是否使用了令牌，与「禁止令牌外字面量」的规则冲突。
+5. **PC 后台不改 RuoYi 框架层**。业务页面隔离在 `src/views/biz/`，确需改动走配置覆盖，
+   并记录到 `docs/analysis/ruoyi-patches.md`。
