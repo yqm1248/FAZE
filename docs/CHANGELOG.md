@@ -4,10 +4,63 @@
 
 ---
 
-## [未发布] —— 待合入
+## 2026-10-28 · 技术路线 v2.3 正式版（28 条修复全部合入）
 
-- 把 v2.3 缺陷修复（28 条）实际合入 v2.2 主文档，产出 v2.3 正式版
-- 补齐 v2.3 修复方案里提到的 17 张新表的完整 DDL 到主文档第五章
+**这一版改了什么：**
+
+### 诞生方式
+
+把 `法泽FAZE_技术路线_v2.3_缺陷修复.md` 里 28 条修复方案**实际合入 v2.2**，产出正式版 `法泽FAZE_技术路线_v2.3.md`（3,793 行 / 156 KB）。v2.3_缺陷修复 保留作为"修复过程记录"，v2.3 是"合并后的成品"。
+
+### 一、数据库（F-1，5 条）
+
+| 项 | 改动 |
+|---|---|
+| 软删字段 | **5.2 改为按表的三类性质分类**：业务实体表补 `deleted_at`+`updated_at`；追加型流水表（`conversation_message`/`payment_record`/`signature`/`balance_flow`/`login_log`/`operation_log`）**不补**；状态机表只补 `updated_at`。理由：给证据链表加软删 = 允许删除证据 |
+| 索引 | 各表 DDL 补齐 `idx_review_lawyer`、`idx_complaint_user`、`idx_lawyer_audit_region`、`idx_notify_user_read`、`idx_order_user_status` 等 |
+| 收藏/关注 | `favorite` + `follow` 合并为 **`social_action`**；4.2 新增 **`social` 业务域**（12 域）；4.2.1 明确跨域只能调 Service 不能调 Mapper |
+| 文章表 | **5.8 整节重写**：中文存主表、`title`/`content` 补齐、`content` 由 MEDIUMTEXT 改 **JSON 块**（支持法条引用绑定 `law_item`）、5.8.1 定义**状态机唯一真相**、5.8.2 给出译文过期检测 SQL |
+| 案例表 | 拆为 `case_library` + `case_library_translation`，与文章同构 |
+
+### 二、新增 15 张支撑表（F-2）→ 5.11
+
+`user_device`、`user_violation`、`lawyer_application_log`、`sys_config`、`notify_template`、`sensitive_word`、`content_review`、`service_ticket`、`reconciliation_diff`、`invoice`、`file_record`、`login_log`、`operation_log`、`share_poster`、`i18n_glossary`
+
+### 三、机制与流程（F-3，13 条）
+
+| 项 | 落点 | 要点 |
+|---|---|---|
+| 业务缓存 | 4.7.1 | 9 类数据的 Key/TTL/失效时机；Key 集中定义、写后主动删、TTL 加抖动防雪崩 |
+| 深色模式 | 3.4.1 | 令牌结构从开始就预留 light/dark 两套，第一阶段只实现 light |
+| 日期本地化 | 13.7 | **自建格式化表，不依赖 `Intl`**（Hermes 对 `kk_Arab`/`ug_Arab` 可能静默回退英文） |
+| 术语表 | 13.8 + 5.11.5 | `i18n_glossary` 三方共用（AI / 模板翻译 / 后台录入） |
+| 敏感词 | 16.2 重写 | **原文落库 + 命中标注 + 展示层拦截**。原写法"实时替换"在法律业务下等于篡改证据 |
+| AI 隐式标识 | 12.3.2 | PDF 元数据 + 图片 EXIF 写入 `Faze-Content-Type` 等 5 个字段 |
+| AI 禁用清单 | 11.7 | 三层防护：输入侧意图识别 → Prompt → 输出侧正则校验 |
+| 文书后处理 | 10.5 | 下载 PDF/Word、保存相册、打印、分享、`form_snapshot` 回填；含 A4 边距规范 |
+| 客服角色 | 6.2 + 5.11 | `customer_service` 角色；客服会话用 `service_ticket` 而非共用 `(user_id, lawyer_id)` |
+| 分享海报 | 3.7 + 5.11 | Java2D 合成 + ZXing 二维码 + 短链统计 |
+| 性能基线 | 19.4.2 | 9 项指标（冷启≤2.5s、列表≥55fps、APK≤60MB 等） |
+| 种子数据 | 24.1 | 开发/测试/演示三套 + 一键重置脚本（含生产库拒执行保护） |
+
+### 四、附录 F 改为追溯表
+
+原 28 条清单已全部修复，附录 F 保留为「原问题 → v2.3 落点」的对照表，便于查证。
+
+### 五、顺带修正
+
+- 24 章「资质」行删掉「AI 备案」（已确认不做）
+- 5.1 表清单从「34 张」更新为「51 张」，并注明 v2.1 的 30 这个数字本身未经逐表核对
+- 文档头补 V2.3 变更记录
+
+### 核对结果
+
+| 项 | 结果 |
+|---|---|
+| 章节完整性 | ✅ 一～二十五 全部在位（修复了一处中途丢失的「# 十二」标题） |
+| 表数量 | ✅ CREATE TABLE 51 条 = 声称 51 张 |
+| 附录 F 引用 | ✅ 15 处章节引用全部存在，无悬空 |
+| 旧结构清理 | ✅ `CREATE TABLE user` / `favorite` / `follow` / `case` 均为 0 |
 
 ---
 
