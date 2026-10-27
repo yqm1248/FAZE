@@ -6,6 +6,7 @@
 
 | 我想知道 | 去哪里 |
 | --- | --- |
+| 每一版改了什么 | [CHANGELOG.md](CHANGELOG.md) |
 | 这个仓库要做什么、技术栈是什么 | [../README.md](../README.md) |
 | 有哪 12 个页面、怎么跳转 | [design/页面清单与信息架构.md](design/页面清单与信息架构.md) |
 | 颜色/字号/间距取什么值、为什么 | [design/设计令牌.md](design/设计令牌.md) |
