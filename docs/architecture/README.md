@@ -109,3 +109,9 @@ API ──► Hook（features/<domain>/hooks/useXxx.ts）──► page ──�
 | 多语言 | 引入 i18n 后，文案从 `features/<domain>/constants/` 抽取；禁止页面内建翻译表 |
 | 新页面 | 先更新 `docs/design/页面清单与信息架构.md`，再建 feature 目录与路由壳 |
 | 设计令牌调整 | 三处同步：`tokens.json`、`tokens.ts`、`docs/design/设计令牌.md` |
+
+
+---
+
+> **【文档基线 v1.0】** 本文件属于「法泽 FAZE 文档基线 v1.0」（2026-10-28 确立）。
+> **后续一切文档从这里开始。** 基线清单与文件指纹见 `docs/BASELINE.md`。

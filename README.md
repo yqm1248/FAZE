@@ -87,3 +87,9 @@ pnpm run lint       # tsc --noEmit + eslint
 - 每个页面文件顶部必须有块注释：页面用途、路由路径、数据来源、跳转去向。
 - 假数据集中在 `features/<domain>/__fixtures__/`，页面内不得内联长数组。
 - 详见 [docs/standards/](docs/standards/)。
+
+
+---
+
+> **【文档基线 v1.0】** 本文件属于「法泽 FAZE 文档基线 v1.0」（2026-10-28 确立）。
+> **后续一切文档从这里开始。** 基线清单与文件指纹见 `docs/BASELINE.md`。
