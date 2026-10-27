@@ -671,7 +671,7 @@ HTTP 状态码：**成功一律 200**（含业务失败也返回 200 + code）�
 
 | 序号 | 表名 | 用途 |
 |---|---|---|
-| 1 | `user` | 用户表 |
+| 1 | `app_user` | C 端用户表（后台管理员在 RuoYi 的 sys_user） |
 | 2 | `lawyer` | 律师表 |
 | 3 | `lawyer_application` | 律师入驻申请 |
 | 4 | `realname_auth` | 实名认证 |
@@ -714,25 +714,35 @@ HTTP 状态码：**成功一律 200**（含业务失败也返回 200 + code）�
 ## 5.3 用户与认证
 
 ```sql
--- 1. 用户表
-CREATE TABLE `user` (
+-- 1. 用户表（C 端用户）
+-- V2.3 变更：表名 user → app_user。两个原因：
+--   ① `USER` 在 MySQL 是函数名，容易与关键字混淆；
+--   ② RuoYi-Vue3 自带 `sys_user`（PC 后台管理员），两者必须明确区分。
+-- 本项目 app_user 承载 C 端用户与律师；PC 后台管理员一律走 RuoYi 的 sys_user。
+CREATE TABLE app_user (
   id              BIGINT PRIMARY KEY AUTO_INCREMENT,
   phone           VARCHAR(20)  NOT NULL,
   password_hash   VARCHAR(100),
   nickname        VARCHAR(50),
   avatar_url      VARCHAR(500),
   gender          TINYINT      DEFAULT 0,        -- 0未知 1男 2女
-  role            VARCHAR(20)  DEFAULT 'user',   -- user / lawyer / admin
+  birth_date      DATE,                          -- 出生日期：未成年人识别（见 F-3-23）
+  role            VARCHAR(20)  DEFAULT 'user',   -- user / lawyer / customer_service / admin
   lang            VARCHAR(20)  DEFAULT 'zh-Hans',
   realname_status VARCHAR(20)  DEFAULT 'none',   -- none / pending / approved / rejected
+  is_minor        TINYINT      NOT NULL DEFAULT 0,  -- 14–18 岁标记
+  guardian_phone  VARCHAR(20),                   -- 监护人手机号（未成年人必填）
+  guardian_consent_at DATETIME,                  -- 监护人同意时间
   status          VARCHAR(20)  DEFAULT 'active', -- active / blocked / cancelled
   last_login_at   DATETIME,
   last_login_ip   VARCHAR(50),
   created_at      DATETIME NOT NULL,
   updated_at      DATETIME NOT NULL,
   deleted_at      DATETIME,
-  UNIQUE KEY uk_user_phone (phone)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+  UNIQUE KEY uk_app_user_phone (phone),
+  KEY idx_app_user_role_status (role, status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  COMMENT='C 端用户表；PC 后台管理员见 RuoYi 的 sys_user，两者不混用';
 
 -- 2. 律师表
 CREATE TABLE lawyer (
@@ -1347,28 +1357,69 @@ CREATE TABLE ai_message (
 
 ## 5.11 ER 关系说明
 
+> **V2.3 更新**：本文的实体名已按 v2.3 的改名同步——
+> `user` → `app_user`，`case` → `legal_case`，`favorite`/`follow` → `social_action`。
+
 ```text
-user 1───0..1 lawyer
-user 1───0..1 realname_auth
-user 1───0..1 enterprise_auth
-user 1───* conversation *───1 lawyer
+# ── 账户与身份 ──
+app_user 1───0..1 lawyer
+app_user 1───0..1 realname_auth
+app_user 1───0..1 enterprise_auth
+app_user 1───* user_device
+app_user 1───* user_violation
+app_user 1───1 user_balance
+app_user 1───* balance_flow          （owner_type='user'）
+
+# ── 律师 ──
+lawyer 1───* lawyer_application 1───* lawyer_application_log
+lawyer 1───1 lawyer_balance
+lawyer 1───* balance_flow            （owner_type='lawyer'）
+lawyer 1───* withdraw_record
+lawyer 1───* review
+
+# ── 会话 ──
+app_user 1───* conversation *───1 lawyer
 conversation 1───* conversation_message
-user 1───* orders *───0..1 lawyer
+conversation 1───* message_offline
+conversation_message 1───0..* content_review
+
+# ── 交易 ──
+app_user 1───* orders *───0..1 lawyer
 orders 1───* payment_record
 orders 1───0..1 refund_record
 orders 1───0..1 review
-lawyer 1───* withdraw_record
-user 1───* document
+orders 1───0..1 invoice
+app_user 1───* recharge_record
+recharge_record 1───0..* reconciliation_diff
+
+# ── 文书 ──
+app_user 1───* document
+doc_template 1───* document          （按 template_id + template_version）
 document 1───* signature
-user 1───* case *───0..1 lawyer
-case 1───* case_progress
+
+# ── 案件 ──
+app_user 1───* legal_case *───0..1 lawyer
+legal_case 1───* case_progress
+
+# ── 内容 ──
 article 1───* article_translation
-user 1───* favorite
-user 1───* follow
-user 1───* notification
-user 1───* complaint
-user 1───* feedback
-user 1───* ai_session 1───* ai_message
+case_library 1───* case_library_translation
+law_item （独立，被 AI 与文书引用）
+
+# ── 社交 ──
+app_user 1───* social_action          （favorite / follow / like / history 统一表）
+
+# ── 运营 ──
+app_user 1───* notification
+app_user 1───* complaint
+app_user 1───* feedback
+app_user 1───* ai_session 1───* ai_message
+app_user 1───* service_ticket *───0..1 agent
+
+# ── 基础设施 ──
+app_user 1───* file_record
+app_user 1───* login_log
+operator → operation_log              （operator_type 区分 user/lawyer/admin）
 ```
 
 ---
@@ -1388,11 +1439,15 @@ user 1───* ai_session 1───* ai_message
 
 ## 6.2 授权（角色权限）
 
+> **命名说明**：下表第一列是**角色枚举值**（对应 `app_user.role` 字段），不是表名。
+> 表名是 `app_user`（C 端用户），角色值才是 `'user'`。
+
 | 角色 | 权限 |
 |---|---|
 | `user` | C 端全部功能 |
 | `lawyer` | 继承 user + 律师工作台（`@LawyerOnly`） |
-| `admin` | 管理后台 |
+| `customer_service` | 继承 user + 客服工单与会话 |
+| `admin` | 管理后台（实际走 RuoYi 的 `sys_user`，一般不建 `app_user` 记录） |
 
 实现：
 - `JwtFilter` 解析 token，写入 `SecurityContext`
