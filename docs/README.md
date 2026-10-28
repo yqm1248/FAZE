@@ -25,9 +25,13 @@
 
 | 我想知道 | 去哪里 |
 | --- | --- |
-| **哪些文档是现行版、哪份已过期** | [BASELINE.md](BASELINE.md)（基线 v1.0，含 18 份资产的文件指纹） |
+| **哪些文档是现行版、哪份已过期** | [BASELINE.md](BASELINE.md)（基线 v1.0，含 18 份资产的文件指纹；第 0 段 5 份规划文档待出 v1.1） |
 | **现在该做哪一段** | [architecture/法泽FAZE_分期交付计划_v1.0.md](architecture/法泽FAZE_分期交付计划_v1.0.md) |
 | **这一段怎么算做完** | 同上，每段末尾的「验收标准」勾选清单 |
+| **第 0 段具体怎么做** | [architecture/法泽FAZE_第0段执行计划_v2.0.md](architecture/法泽FAZE_第0段执行计划_v2.0.md)（24 个任务的前置 / 步骤 / 产出 / 验收 / 失败出口） |
+| **第 0 段按什么顺序做** | [architecture/法泽FAZE_第0段串行执行序列_v1.0.md](architecture/法泽FAZE_第0段串行执行序列_v1.0.md)（24 任务串行 + 24 个门禁 + 每任务 DoD） |
+| **第 0 段要建哪两张表** | [architecture/法泽FAZE_V1基线表结构_v1.0.md](architecture/法泽FAZE_V1基线表结构_v1.0.md) |
+| **错误码怎么编号** | [architecture/法泽FAZE_错误码规范_v1.0.md](architecture/法泽FAZE_错误码规范_v1.0.md)（78 个码 + HTTP 状态码规则） |
 | 为什么是这个顺序、能不能调 | 同上，第 2.3 节「六处关键裁决」+ 第 2.4 节「依赖关系」 |
 | 哪些外部资质会卡住我 | 同上，第十二节「并行轨道」 |
 | 每一版改了什么 | [CHANGELOG.md](CHANGELOG.md) |
@@ -58,10 +62,15 @@ docs/
   architecture/
     README.md                            运行时架构、目录职责、依赖清单（⚠️ 部分过期，待第 0 段重写）
     法泽FAZE_分期交付计划_v1.0.md          ★ 起点：九段切分、每段验收标准、并行轨道
+    法泽FAZE_第0段执行计划_v2.0.md          ★ 第 0 段 24 任务细节（前置/步骤/产出/验收/失败出口）
+    法泽FAZE_第0段串行执行序列_v1.0.md      ★ 第 0 段 24 任务串行顺序 + 24 个门禁 + DoD
+    法泽FAZE_V1基线表结构_v1.0.md           ★ V1 只建 app_user + law_item，完整 DDL
+    法泽FAZE_错误码规范_v1.0.md              ★ 78 个错误码 + HTTP 状态码规则
     法泽FAZE_技术路线_v2.3.md              ★ 现行技术路线（最新，一～二十五章 + 附录）
     法泽FAZE_技术路线_v2.2.md              历史版本
     法泽FAZE_技术路线_v2.1.md              历史版本
     法泽FAZE_技术路线_v2.3_缺陷修复.md      28 条修复单（过程记录，结论已合入 v2.3）
+    法泽FAZE_第0段任务分解_v1.0.md          ⚠️ 已作废（含 docker 方案），仅作对照
     技术路线.md                           最早的 v1.0（已被取代）
   design/                                设计依据
     README.md
