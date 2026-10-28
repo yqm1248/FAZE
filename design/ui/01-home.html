@@ -122,6 +122,44 @@
   white-space: nowrap;
 }
 
+/* ---------- 快捷功能区 ---------- */
+.quick-actions {
+  padding: var(--sp-md) var(--sp-xs);
+}
+
+.quick-actions__grid {
+  display: flex;
+}
+
+.quick-actions__item {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: var(--sp-sm) 2px;
+  text-decoration: none;
+  color: var(--text-body);
+  border-radius: var(--r-sm);
+}
+
+.quick-actions__item:active {
+  background: var(--bg-canvas);
+}
+
+.quick-actions__item svg {
+  width: 26px;
+  height: 26px;
+  color: var(--brand-primary);
+}
+
+.quick-actions__label {
+  font-size: var(--fs-caption);
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
 /* ---------- 每日学法卡 ---------- */
 .law-card {
   padding: var(--sp-lg) var(--sp-lg) var(--sp-xs);
@@ -274,6 +312,44 @@
                   stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
           <span class="quick-grid__label">查询进程</span>
+        </a>
+      </div>
+    </section>
+
+    <section class="card quick-actions">
+      <div class="quick-actions__grid">
+        <a class="quick-actions__item" href="20-filing.html">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M5.6 3.4h8.2l5 5v11.2a1.8 1.8 0 0 1-1.8 1.8H5.6a1.8 1.8 0 0 1-1.8-1.8V5.2a1.8 1.8 0 0 1 1.8-1.8Z"
+                  stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+            <path d="M13.6 3.6v5.2h5" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+            <path d="M8.4 13.6h7.2M8.4 17h4.6" stroke="currentColor" stroke-width="1.8"
+                  stroke-linecap="round"/>
+          </svg>
+          <span class="quick-actions__label">在线立案</span>
+        </a>
+        <a class="quick-actions__item" href="50-my-cases.html">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M3.2 7.6a1.8 1.8 0 0 1 1.8-1.8h4l2 2.2h7.8a1.8 1.8 0 0 1 1.8 1.8v9.6a1.8 1.8 0 0 1-1.8 1.8H5a1.8 1.8 0 0 1-1.8-1.8V7.6Z"
+                  stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+          </svg>
+          <span class="quick-actions__label">我的案件</span>
+        </a>
+        <a class="quick-actions__item" href="22-service.html">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <rect x="2.8" y="5.2" width="18.4" height="13.6" rx="2" stroke="currentColor" stroke-width="1.8"/>
+            <path d="m3.6 6.8 8.4 6 8.4-6" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+          </svg>
+          <span class="quick-actions__label">案件送达</span>
+        </a>
+        <a class="quick-actions__item" href="58-all-features.html">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <rect x="3.2" y="3.2" width="7.4" height="7.4" rx="1.8" stroke="currentColor" stroke-width="1.8"/>
+            <rect x="13.4" y="3.2" width="7.4" height="7.4" rx="1.8" stroke="currentColor" stroke-width="1.8"/>
+            <rect x="3.2" y="13.4" width="7.4" height="7.4" rx="1.8" stroke="currentColor" stroke-width="1.8"/>
+            <rect x="13.4" y="13.4" width="7.4" height="7.4" rx="1.8" stroke="currentColor" stroke-width="1.8"/>
+          </svg>
+          <span class="quick-actions__label">全部功能</span>
         </a>
       </div>
     </section>

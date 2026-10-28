@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390, initial-scale=1">
+<meta name="dsh-design" content="app">
+<title>隐私弹窗</title>
+<link rel="stylesheet" href="tokens.css">
+<style>
+/* ==========================================================================
+   启动页 · 首次启动隐私弹窗 —— 原项目无参考图，按导航树延展
+   依据：《页面导航树》模块 0「🪟 隐私政策弹窗（首次启动，⚠️ 合规硬要求）」
+   这是启动页的一种状态，不是独立页面：背景仍是品牌页，上面覆盖弹窗
+   ========================================================================== */
+
+body {
+  background: linear-gradient(180deg, #5266EC 0%, #4053D0 100%);
+  color: var(--text-on-brand);
+  display: flex;
+  flex-direction: column;
+}
+
+/* 背景：与启动页一致，整体压暗以突出弹窗 */
+.splash-bg {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding-block-end: 80px;
+}
+
+.logo {
+  width: 88px;
+  height: 88px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.logo svg {
+  width: 52px;
+  height: 52px;
+}
+
+.splash-name {
+  margin-block-start: 26px;
+  font-size: 30px;
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.14em;
+  text-indent: 0.14em;
+  line-height: 1.2;
+}
+
+.splash-slogan {
+  margin-block-start: 12px;
+  font-size: var(--fs-md);
+  letter-spacing: 0.04em;
+  line-height: var(--lh-normal);
+}
+
+/* ---------- 遮罩 ---------- */
+.mask {
+  position: absolute;
+  inset: 0;
+  background: var(--overlay-scrim, rgba(0, 0, 0, 0.6));
+  z-index: 40;
+}
+
+/* ---------- 弹窗 ---------- */
+.dialog {
+  position: absolute;
+  inset-inline: 35px;
+  inset-block-start: 50%;
+  transform: translateY(-50%);
+  z-index: 50;
+  background: var(--bg-surface);
+  border-radius: 16px;
+  padding: 26px 22px 18px;
+  text-align: center;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.24);
+}
+
+.dialog__icon {
+  width: 52px;
+  height: 52px;
+  margin: 0 auto;
+  border-radius: 50%;
+  background: var(--brand-primary-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dialog__icon svg {
+  width: 27px;
+  height: 27px;
+  color: var(--brand-primary);
+}
+
+.dialog__title {
+  margin-block-start: 14px;
+  font-size: 18px;
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  line-height: 1.35;
+}
+
+.dialog__body {
+  margin-block-start: 10px;
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+  line-height: 1.7;
+  text-align: justify;
+}
+
+.dialog__body a {
+  color: var(--brand-primary);
+  text-decoration: none;
+  font-weight: var(--fw-medium);
+}
+
+.dialog__agree {
+  margin-block-start: 20px;
+  width: 100%;
+  height: 46px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: linear-gradient(135deg, var(--login-btn-start) 0%, var(--login-btn-end) 100%);
+  color: var(--text-on-brand);
+  font-family: inherit;
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-bold);
+  cursor: pointer;
+  box-shadow: var(--shadow-pill);
+  min-height: 44px;
+}
+
+.dialog__decline {
+  margin-block-start: 10px;
+  width: 100%;
+  height: 40px;
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: var(--fs-md);
+  cursor: pointer;
+  min-height: 44px;
+}
+
+.dialog__decline:active {
+  color: var(--text-secondary);
+}
+</style>
+</head>
+<body>
+
+<header class="statusbar statusbar--light">
+  <span>9:41</span>
+  <span class="statusbar__icons">
+    <svg width="17" height="11" viewBox="0 0 17 11" fill="none" aria-hidden="true">
+      <rect x="0" y="7" width="3" height="4" rx="1" fill="currentColor"/>
+      <rect x="4.5" y="5" width="3" height="6" rx="1" fill="currentColor"/>
+      <rect x="9" y="2.5" width="3" height="8.5" rx="1" fill="currentColor"/>
+      <rect x="13.5" y="0" width="3" height="11" rx="1" fill="currentColor"/>
+    </svg>
+    <svg width="16" height="11" viewBox="0 0 16 11" fill="none" aria-hidden="true">
+      <path d="M1 3.2A10.5 10.5 0 0 1 15 3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M3.6 5.9a7 7 0 0 1 8.8 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M6.2 8.6a3.4 3.4 0 0 1 3.6 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden="true">
+      <rect x="0.6" y="0.6" width="21" height="10.8" rx="3" stroke="currentColor" stroke-opacity="0.4" stroke-width="1.2"/>
+      <rect x="2.2" y="2.2" width="15" height="7.6" rx="1.8" fill="currentColor"/>
+      <path d="M23.4 4.2v3.6" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+  </span>
+</header>
+
+<div class="splash-bg">
+  <div class="logo" aria-hidden="true">
+    <svg viewBox="0 0 64 64" fill="none">
+      <path d="M32 11v33" stroke="#F5B942" stroke-width="3.6" stroke-linecap="round"/>
+      <path d="M22 48h20" stroke="#F5B942" stroke-width="3.6" stroke-linecap="round"/>
+      <path d="M15 19h34" stroke="#F5B942" stroke-width="3.6" stroke-linecap="round"/>
+      <path d="M15 19 7.6 30.4a7.6 7.6 0 0 0 14.8 0L15 19Z" fill="#F5B942"/>
+      <path d="M49 19l-7.4 11.4a7.6 7.6 0 0 0 14.8 0L49 19Z" fill="#F5B942"/>
+      <circle cx="32" cy="11" r="3.2" fill="#F5B942"/>
+    </svg>
+  </div>
+  <h1 class="splash-name">法泽</h1>
+  <p class="splash-slogan">法护民生 · 智慧法律服务</p>
+</div>
+
+<i class="mask"></i>
+
+<div class="dialog" role="dialog" aria-modal="true" aria-labelledby="dlg-title">
+  <div class="dialog__icon" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none">
+      <path d="M12 2.9 4.4 5.8v6.1c0 4.4 3.1 8.2 7.6 9.2 4.5-1 7.6-4.8 7.6-9.2V5.8L12 2.9Z"
+            stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/>
+      <path d="m9 12 2.2 2.2 4-4.3" stroke="currentColor" stroke-width="1.9"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </div>
+
+  <h2 class="dialog__title" id="dlg-title">隐私政策与用户协议</h2>
+
+  <p class="dialog__body">
+    欢迎使用法泽。在使用前，请你阅读并同意<a href="10-agreement.html">《用户服务协议》</a>
+    与<a href="11-privacy.html">《隐私政策》</a>。
+    我们只收集为你提供服务所必需的信息，并依照《个人信息保护法》保护你的个人信息。
+    你可以随时在「我的 — 隐私设置」里查看和管理。
+  </p>
+
+  <button class="dialog__agree" type="button" data-agree-splash>同意并继续</button>
+  <button class="dialog__decline" type="button" data-decline-splash>不同意</button>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

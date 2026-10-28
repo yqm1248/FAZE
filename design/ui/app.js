@@ -27,6 +27,8 @@
     "05-profile.html",
     "06-login.html",
     "07-splash.html",
+    "07b-privacy-prompt.html",
+    "07c-language-picker.html",
     "08-register.html",
     "09-forgot.html",
     "10-agreement.html",
@@ -150,7 +152,131 @@
     });
   });
 
-  /* ---------- 3. 点击涟漪 ---------- */
+  /* ---------- 3. 密码强度提示（注册页） ---------- */
+  var strengthWrap = document.querySelector("[data-pw-strength]");
+  var pwInput = document.querySelector("[data-pw-input]");
+
+  if (strengthWrap && pwInput) {
+    var strengthText = strengthWrap.querySelector("[data-pw-text]");
+
+    var renderStrength = function (value) {
+      if (!value) {
+        strengthWrap.setAttribute("hidden", "");
+        return;
+      }
+      strengthWrap.removeAttribute("hidden");
+
+      var level = "weak";
+      var label = "密码强度：弱";
+
+      if (value.length >= 8) {
+        var hasLetter = /[a-zA-Z]/.test(value);
+        var hasDigit = /\d/.test(value);
+        var hasSymbol = /[^a-zA-Z0-9]/.test(value);
+
+        if (hasLetter && hasDigit && (hasSymbol || value.length >= 12)) {
+          level = "strong";
+          label = "密码强度：强";
+        } else {
+          level = "medium";
+          label = "密码强度：中";
+        }
+      }
+
+      strengthWrap.classList.remove(
+        "pw-strength--weak",
+        "pw-strength--medium",
+        "pw-strength--strong"
+      );
+      strengthWrap.classList.add("pw-strength--" + level);
+      if (strengthText) strengthText.textContent = label;
+    };
+
+    pwInput.addEventListener("input", function () {
+      renderStrength(pwInput.value);
+    });
+  }
+
+  /* ---------- 4. 协议勾选控制注册按钮（注册页） ---------- */
+  var agreeBox = document.querySelector("[data-agree]");
+  var registerBtn = document.querySelector("[data-register-btn]");
+
+  if (agreeBox && registerBtn) {
+    agreeBox.addEventListener("change", function () {
+      if (agreeBox.checked) {
+        registerBtn.classList.remove("is-disabled");
+        registerBtn.removeAttribute("aria-disabled");
+      } else {
+        registerBtn.classList.add("is-disabled");
+        registerBtn.setAttribute("aria-disabled", "true");
+      }
+    });
+  }
+
+  /* ---------- 5. 登录方式 Tab 切换（登录页） ---------- */
+  var loginTabs = document.querySelectorAll("[data-login-tab]");
+  var loginPanes = document.querySelectorAll("[data-pane]");
+
+  if (loginTabs.length && loginPanes.length) {
+    Array.prototype.forEach.call(loginTabs, function (tab) {
+      tab.addEventListener("click", function () {
+        var mode = tab.getAttribute("data-login-tab");
+
+        Array.prototype.forEach.call(loginTabs, function (item) {
+          if (item === tab) {
+            item.classList.add("is-active");
+          } else {
+            item.classList.remove("is-active");
+          }
+        });
+
+        Array.prototype.forEach.call(loginPanes, function (pane) {
+          if (pane.getAttribute("data-pane") === mode) {
+            pane.removeAttribute("hidden");
+          } else {
+            pane.setAttribute("hidden", "");
+          }
+        });
+      });
+    });
+  }
+
+  /* ---------- 6. 首启隐私弹窗（启动页状态） ---------- */
+  var agreeSplash = document.querySelector("[data-agree-splash]");
+  var declineSplash = document.querySelector("[data-decline-splash]");
+
+  if (agreeSplash) {
+    agreeSplash.addEventListener("click", function () {
+      window.location.href = "01-home.html";
+    });
+  }
+
+  if (declineSplash) {
+    declineSplash.addEventListener("click", function () {
+      showToast("需要同意隐私政策后才能继续使用");
+    });
+  }
+
+  /* ---------- 7. 首启语言选择（启动页状态） ---------- */
+  var langList = document.querySelector("[data-lang-list]");
+
+  if (langList) {
+    var langItems = langList.querySelectorAll("[data-lang]");
+
+    Array.prototype.forEach.call(langItems, function (item) {
+      item.addEventListener("click", function () {
+        Array.prototype.forEach.call(langItems, function (other) {
+          if (other === item) {
+            other.classList.add("is-active");
+          } else {
+            other.classList.remove("is-active");
+          }
+        });
+      });
+    });
+  }
+
+  /* ---------- 8. 点击涟漪 ---------- */
   var rippleTargets = ".btn-primary, .btn-pill-sm, .login-btn, .tabbar__item, .lawyer-card__cta";
 
   document.addEventListener(
