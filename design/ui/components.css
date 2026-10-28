@@ -1,0 +1,763 @@
+/* ==========================================================================
+   法泽 FAZE · 跨屏复用组件
+   ==========================================================================
+   职责：一个以上屏要用的组件样式。第 1 批到第 2 批这些组件写在各自 <style> 里，
+         从第 3 批开始必须收在这里 —— 分享面板、确认框、Loading、骨架屏这些
+         第 4（律师详情 / IM）、5（AI 对话）、6（案例详情）、8（文书预览）批
+         还要用，每屏复制一份必然分叉。
+
+   数据来源：全部取 tokens.css 的变量，不写字面量（遮罩与阴影除外，规则同 tokens.css）
+
+   包含：
+     1. .navbar        二级页导航栏（返回 + 标题 + 右侧操作）
+     2. .refresher     下拉刷新提示
+     3. .loadmore      上拉加载更多
+     4. .skeleton      骨架屏
+     5. .empty         空状态
+     6. .errorbox      错误状态（含断网）
+     7. .offline-bar   断网提示条
+     8. .mask / .sheet 底部弹出层（分享面板用它）
+     9. .share-grid    分享渠道网格
+    10. .dialog        居中二次确认框
+    11. .loading       遮罩式加载
+
+   注意：
+     1. 所有定位用逻辑属性（inset-inline-*），RTL 下自动镜像
+     2. 打开 / 关闭用 [hidden] 与 .is-open 两个开关，app.js 只改 class 不写内联样式
+     3. 遮罩层 z-index 从 60 起，.dialog 70，.loading 80 —— 低于演示用的 .demo-toast(999)
+   ========================================================================== */
+
+/* ==========================================================================
+   1. 二级页导航栏
+   ==========================================================================
+   顶部安全区（54px 状态栏）已经在 .navbar 的 padding 里吃掉，
+   内容区不需要再留顶部间距。
+   ========================================================================== */
+.navbar {
+  flex: 0 0 auto;
+  position: relative;
+  /* 必须低于 .statusbar 的 20，否则白底会把状态栏的时间/电量盖掉 */
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  padding-block-start: calc(var(--statusbar-h) + 2px);
+  padding-block-end: 6px;
+  padding-inline: var(--sp-sm) var(--sp-md);
+  background: var(--bg-surface);
+  min-height: calc(var(--statusbar-h) + var(--navbar-h) + 2px);
+}
+
+.navbar--plain {
+  background: var(--bg-canvas);
+}
+
+.navbar__back {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.navbar__back:active {
+  background: var(--bg-input);
+}
+
+.navbar__back svg {
+  width: 22px;
+  height: 22px;
+}
+
+/* 返回箭头在 RTL 下要翻方向：逻辑属性做不到，单独覆盖。
+   这条是第 3 批给 RTL 轨道留的第一处镜像 —— 第 4 批定白名单时并入统一规则。 */
+[dir="rtl"] .navbar__back svg {
+  transform: scaleX(-1);
+}
+
+.navbar__title {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: var(--fs-h2);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.navbar__title--center {
+  text-align: center;
+}
+
+.navbar__actions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-xxs);
+  margin-inline-start: auto;
+}
+
+/* 导航栏右侧图标按钮 */
+.navbar__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+  text-decoration: none;
+  position: relative;
+}
+
+.navbar__icon:active {
+  background: var(--bg-input);
+}
+
+.navbar__icon svg {
+  width: 23px;
+  height: 23px;
+}
+
+/* 已收藏：图标填充 + 主色 */
+.navbar__icon.is-on {
+  color: var(--brand-primary);
+}
+
+.navbar__icon.is-on svg {
+  fill: currentColor;
+}
+
+/* ==========================================================================
+   2. 下拉刷新提示
+   ==========================================================================
+   平时 display: none 完全不占位，展开时才参与布局。
+   不能用 height: 0 + overflow: hidden —— 那样文字在几何上仍会溢出容器，
+   走查工具会判为「文字被切掉」，而且过渡动画的中间态会被量到。
+   ========================================================================== */
+.refresher {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-xs);
+  height: 46px;
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+}
+
+.is-pulling .refresher {
+  display: flex;
+}
+
+.refresher svg {
+  width: 16px;
+  height: 16px;
+}
+
+.refresher.is-spinning svg {
+  animation: spin 900ms linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ==========================================================================
+   3. 上拉加载更多
+   ========================================================================== */
+.loadmore {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-xs);
+  min-height: 52px;
+  padding-block: var(--sp-sm);
+  color: var(--text-muted);
+  font-size: var(--fs-caption);
+}
+
+.loadmore svg {
+  width: 15px;
+  height: 15px;
+}
+
+.loadmore.is-spinning svg {
+  animation: spin 900ms linear infinite;
+}
+
+/* 到底了：一行细线夹着「没有更多了」 */
+.loadmore--end::before,
+.loadmore--end::after {
+  content: "";
+  width: 28px;
+  height: 1px;
+  background: var(--border-outline);
+}
+
+/* ==========================================================================
+   4. 骨架屏
+   ==========================================================================
+   用 background-image 渐变扫光，比纯灰块更像真实加载。
+   ========================================================================== */
+.skeleton {
+  background-color: var(--bg-input);
+  background-image: linear-gradient(
+    90deg,
+    var(--bg-input) 0%,
+    #ECEFF3 50%,
+    var(--bg-input) 100%
+  );
+  background-size: 200% 100%;
+  border-radius: var(--r-xs);
+  animation: skeleton-sweep 1.3s ease-in-out infinite;
+}
+
+@keyframes skeleton-sweep {
+  from {
+    background-position: 140% 0;
+  }
+  to {
+    background-position: -40% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
+}
+
+/* ==========================================================================
+   5. 空状态
+   ==========================================================================
+   图形 + 一句说明 + 一个可点的下一步，三样缺一不可（计划 §6.1）。
+   ========================================================================== */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-huge) var(--sp-xl) var(--sp-xxxl);
+  text-align: center;
+}
+
+.empty__art {
+  width: 96px;
+  height: 96px;
+  color: #C6CDD6;
+}
+
+.empty__title {
+  margin-block-start: var(--sp-lg);
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-medium);
+  color: var(--text-body);
+  line-height: 1.4;
+}
+
+.empty__desc {
+  margin-block-start: var(--sp-xs);
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  line-height: var(--lh-relaxed);
+  max-width: 260px;
+}
+
+.empty__action {
+  margin-block-start: var(--sp-xl);
+}
+
+/* ==========================================================================
+   6. 错误状态
+   ========================================================================== */
+.errorbox {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-huge) var(--sp-xl) var(--sp-xxxl);
+  text-align: center;
+}
+
+.errorbox__art {
+  width: 88px;
+  height: 88px;
+  color: #C6CDD6;
+}
+
+.errorbox__title {
+  margin-block-start: var(--sp-lg);
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-medium);
+  color: var(--text-body);
+  line-height: 1.4;
+}
+
+.errorbox__desc {
+  margin-block-start: var(--sp-xs);
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  line-height: var(--lh-relaxed);
+  max-width: 280px;
+}
+
+/* 重试按钮：描边款，和主色的「去别处看看」区分开 */
+.errorbox__retry {
+  margin-block-start: var(--sp-xl);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-xs);
+  min-width: 120px;
+  height: 44px;
+  padding-inline: var(--sp-xl);
+  border: 1px solid var(--brand-primary);
+  border-radius: var(--r-pill);
+  background: var(--bg-surface);
+  color: var(--brand-primary);
+  font-family: inherit;
+  font-size: var(--fs-md);
+  font-weight: var(--fw-medium);
+  cursor: pointer;
+}
+
+.errorbox__retry:active {
+  background: var(--brand-primary-soft);
+}
+
+.errorbox__retry svg {
+  width: 17px;
+  height: 17px;
+}
+
+/* ==========================================================================
+   7. 断网提示条
+   ==========================================================================
+   压在安全区下面、导航栏上面，占满宽度。不遮内容，只是提示 + 重试入口。
+   ========================================================================== */
+.offline-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  padding: var(--sp-sm) var(--sp-md);
+  background: var(--state-warning-soft);
+  color: var(--state-warning-deep);
+  font-size: var(--fs-caption);
+  line-height: 1.4;
+}
+
+.offline-bar svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.offline-bar__text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.offline-bar__retry {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* 「重试」只有两个字，靠 padding 撑不到 44 宽，必须给 min-width */
+  min-width: 44px;
+  min-height: 44px;
+  margin-block: -13px;
+  padding-inline: var(--sp-sm);
+  border: 0;
+  background: transparent;
+  color: var(--state-warning-deep);
+  font-family: inherit;
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-bold);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* ==========================================================================
+   8. 遮罩 + 底部弹出层
+   ========================================================================== */
+.mask {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  background: rgba(0, 0, 0, 0.45);
+  animation: mask-in 180ms ease;
+}
+
+@keyframes mask-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.sheet {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: 0;
+  z-index: 61;
+  padding-block-end: var(--safe-bottom);
+  border-start-start-radius: var(--r-lg);
+  border-start-end-radius: var(--r-lg);
+  background: var(--bg-surface);
+  animation: sheet-up 240ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+}
+
+/* 顶部小把手 */
+.sheet__handle {
+  width: 36px;
+  height: 4px;
+  margin: var(--sp-sm) auto 0;
+  border-radius: var(--r-pill);
+  background: var(--border-outline);
+}
+
+.sheet__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-md);
+  padding: var(--sp-md) var(--sp-xl) var(--sp-sm);
+}
+
+.sheet__title {
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+.sheet__close {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  margin-block: -8px;
+  margin-inline-end: -10px;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.sheet__close svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* 底部红色危险操作（清空 / 退出 / 删除） */
+.sheet__danger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 52px;
+  margin-block-start: var(--sp-sm);
+  border: 0;
+  border-block-start: 1px solid var(--border-divider);
+  background: transparent;
+  color: var(--state-danger);
+  font-family: inherit;
+  font-size: var(--fs-lg);
+  cursor: pointer;
+}
+
+/* ==========================================================================
+   9. 分享渠道网格
+   ========================================================================== */
+.share-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--sp-xl) var(--sp-md);
+  padding: var(--sp-sm) var(--sp-xl) var(--sp-xl);
+}
+
+.share-grid__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-sm);
+  min-height: 72px;
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  color: var(--text-body);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.share-grid__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 50px;
+  height: 50px;
+  border-radius: var(--r-lg);
+  background: var(--bg-input);
+}
+
+.share-grid__icon svg {
+  width: 25px;
+  height: 25px;
+}
+
+/* 微信绿 / 朋友圈绿 / 主色 / 中性 —— 渠道色是品牌识别，不并入令牌 */
+.share-grid__item--wechat .share-grid__icon {
+  background: #E8F7EC;
+  color: #1AAD19;
+}
+
+.share-grid__item--moments .share-grid__icon {
+  background: #E8F7EC;
+  color: #07C160;
+}
+
+.share-grid__item--link .share-grid__icon {
+  background: var(--brand-primary-soft);
+  color: var(--brand-primary);
+}
+
+.share-grid__label {
+  font-size: var(--fs-caption);
+  line-height: 1.3;
+  color: var(--text-secondary);
+}
+
+/* 分享面板底部「取消」 */
+.sheet__cancel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 54px;
+  border: 0;
+  border-block-start: 1px solid var(--border-divider);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: var(--fs-lg);
+  cursor: pointer;
+}
+
+.sheet__cancel:active {
+  background: var(--bg-input);
+}
+
+/* ==========================================================================
+   10. 居中二次确认框
+   ==========================================================================
+   用于删除 / 退出 / 注销 / 清空这类不可撤销操作。
+   ========================================================================== */
+.dialog {
+  position: absolute;
+  z-index: 70;
+  inset-inline: 40px;
+  inset-block-start: 50%;
+  transform: translateY(-50%);
+  padding-block-start: var(--sp-xxl);
+  border-radius: var(--r-md);
+  background: var(--bg-surface);
+  overflow: hidden;
+  animation: dialog-in 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(-50%) scale(0.94);
+  }
+}
+
+.dialog__title {
+  padding-inline: var(--sp-xl);
+  font-size: var(--fs-h2);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  text-align: center;
+  line-height: 1.35;
+}
+
+.dialog__body {
+  margin-block-start: var(--sp-md);
+  padding-inline: var(--sp-xl);
+  font-size: var(--fs-md);
+  color: var(--text-secondary);
+  line-height: var(--lh-relaxed);
+  text-align: center;
+}
+
+/* 后果说明：用暖色底块强调，不靠红字恐吓 */
+.dialog__hint {
+  margin: var(--sp-lg) var(--sp-xl) 0;
+  padding: var(--sp-md);
+  border-radius: var(--r-sm);
+  background: var(--state-warning-soft);
+  color: var(--state-warning-deep);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-normal);
+  text-align: start;
+}
+
+.dialog__actions {
+  display: flex;
+  margin-block-start: var(--sp-xl);
+  border-block-start: 1px solid var(--border-divider);
+}
+
+.dialog__btn {
+  flex: 1;
+  min-height: 52px;
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  font-size: var(--fs-lg);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.dialog__btn + .dialog__btn {
+  border-inline-start: 1px solid var(--border-divider);
+}
+
+.dialog__btn--primary {
+  color: var(--brand-primary);
+  font-weight: var(--fw-bold);
+}
+
+.dialog__btn--danger {
+  color: var(--state-danger);
+  font-weight: var(--fw-bold);
+}
+
+.dialog__btn:active {
+  background: var(--bg-input);
+}
+
+/* ==========================================================================
+   11. 遮罩式 Loading
+   ==========================================================================
+   用于「提交中 / 生成中 / 支付中」这类会卡住操作的动作。
+   只是转圈、没有文案的纯遮罩会让人以为卡死，所以下面必须有一句说明。
+   ========================================================================== */
+.loading {
+  position: absolute;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-md);
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.loading__box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-md);
+  min-width: 132px;
+  padding: var(--sp-xl) var(--sp-xxl);
+  border-radius: var(--r-md);
+  background: rgba(26, 26, 26, 0.9);
+}
+
+.loading__spinner {
+  width: 30px;
+  height: 30px;
+  border: 2.5px solid rgba(255, 255, 255, 0.28);
+  border-block-start-color: var(--text-on-brand);
+  border-radius: 50%;
+  animation: spin 800ms linear infinite;
+}
+
+.loading__text {
+  font-size: var(--fs-sm);
+  color: var(--text-on-brand);
+  line-height: 1.4;
+  text-align: center;
+}
+
+/* ==========================================================================
+   12. 横向分类筛选条
+   ==========================================================================
+   第 1 批写在 02-lawyer.html 的 <style> 里，第 3 批起提到这里共用：
+   律师列表、文章列表、案例列表、我的案件、订单列表都用同一套 chips。
+   ========================================================================== */
+.filter {
+  display: flex;
+  gap: 10px;
+  padding: var(--sp-lg) var(--sp-xl) var(--sp-md);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.filter::-webkit-scrollbar {
+  display: none;
+}
+
+.filter__chip {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 44px;
+  padding: 0 var(--sp-xxl);
+  border-radius: var(--r-pill);
+  background: var(--bg-input);
+  color: var(--text-body);
+  font-size: var(--fs-lg);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.filter__chip--active {
+  background: var(--brand-primary);
+  color: var(--text-on-brand);
+  font-weight: var(--fw-medium);
+}
+
+/* ==========================================================================
+   13. 主色标签（分类标签用，与灰底 .tag 区分）
+   ==========================================================================
+   文字色用 brand-primary-pressed 而不是 brand-primary：
+   #4A66EE 压在 #EEF2FF 上只有 4.24:1，达不到 4.5:1。
+   #3A53D4 压同一底色是 5.51:1，过了。底色与主色都仍在令牌内。
+   ========================================================================== */
+.tag--brand {
+  background: var(--brand-primary-soft);
+  color: var(--brand-primary-pressed);
+  font-weight: var(--fw-medium);
+}
+
+/* ==========================================================================
+   14. 浮层开关（app.js 只切这个）
+   ========================================================================== */
+[hidden] {
+  display: none !important;
+}
