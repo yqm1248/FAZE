@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390, initial-scale=1">
+<meta name="dsh-design" content="app">
+<title>文章详情</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   文章详情页（第 3 批 · 延展，无参考图）
+   ==========================================================================
+   职责：法律科普文章的阅读页。从首页「每日学法」或文章列表进入。
+   母版：律师详情（详情页母版）+ 用户服务协议（长文母版）
+         —— 导航栏与底部结构照详情页，正文排版照长文页
+   数据来源：后台内容管理录入的富文本，4 语言各自独立录入
+
+   四态：data-state="normal|loading|empty|error"。详情页的「空」指文章已下架，
+         结构与列表页不同（返回列表 + 推荐替代内容），本文件已标出。
+
+   ★ 重要说明：本页正文里的法律条文文本是**排版示例**，用来撑出富文本的
+     真实长度与法条引用块的形态，不是终版内容。正式实现时正文与法条
+     必须从后台富文本字段与本地法条库取值，并经法务审核。
+     页面底部已放免责声明，这一条不能删。
+
+   与原项目的差异：
+     1. 头图定 16:9（390×219 满宽）。列表缩略图是 4:3（96×72），两处比例
+        不同：列表要密度，详情要质感。
+     2. 收藏 / 分享放在导航栏右上角，不占用底部固定栏 —— 文章没有交易动作，
+        底部加一条操作栏会挤压正文，也没有实际用途。
+   ========================================================================== */
+
+body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.screen {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  scrollbar-width: none;
+  min-height: 0;
+  background: var(--bg-surface);
+  padding-bottom: calc(var(--safe-bottom) + var(--sp-xl));
+}
+.screen::-webkit-scrollbar {
+  display: none;
+}
+
+/* ---------- 标题区 ---------- */
+.article {
+  padding: var(--sp-md) var(--sp-xl) 0;
+}
+
+.article__title {
+  font-size: 22px;
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  line-height: 1.35;
+  letter-spacing: -0.01em;
+}
+
+.article__meta {
+  margin-block-start: var(--sp-md);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-xs);
+  flex-wrap: wrap;
+  font-size: var(--fs-micro);
+  color: var(--text-muted);
+}
+
+.article__meta .tag {
+  height: 20px;
+  padding-inline: 6px;
+}
+
+.article__dot {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.article__nums {
+  font-family: var(--font-num);
+  unicode-bidi: isolate;
+}
+
+/* ---------- 头图 16:9 满宽 ---------- */
+.article__cover {
+  margin-block: var(--sp-lg) 0;
+  margin-inline: calc(-1 * var(--sp-xl));
+  aspect-ratio: 16 / 9;
+  background: linear-gradient(135deg, #E6ECFB 0%, #DCE6F8 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #7E90BF;
+}
+
+.article__cover svg {
+  width: 64px;
+  height: 64px;
+}
+
+/* ---------- 正文：长文母版（同 10-agreement.html） ---------- */
+.article__body {
+  padding: var(--sp-xl) var(--sp-xl) 0;
+}
+
+.article__body p {
+  margin-block-start: var(--sp-md);
+  font-size: var(--fs-lg);
+  color: var(--text-body);
+  line-height: 1.75;
+}
+
+.article__lede {
+  margin-block-start: var(--sp-lg) !important;
+  font-size: var(--fs-lg);
+  color: var(--text-secondary);
+  line-height: 1.75;
+}
+
+.article__body h2 {
+  margin-block-start: var(--sp-xxxl);
+  font-size: var(--fs-h2);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.article__body ul {
+  margin-block-start: var(--sp-md);
+  padding-inline-start: var(--sp-xl);
+  list-style: none;
+}
+
+.article__body li {
+  position: relative;
+  margin-block-start: var(--sp-sm);
+  font-size: var(--fs-lg);
+  color: var(--text-body);
+  line-height: 1.75;
+}
+
+/* 自绘圆点：默认 list-style 在 RTL 下位置会偏 */
+.article__body li::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: -14px;
+  inset-block-start: 11px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--brand-primary);
+}
+
+/* ---------- 法条引用块 ---------- */
+.law-ref {
+  margin-block: var(--sp-lg);
+  margin-inline: 0;
+  padding: var(--sp-md) var(--sp-lg);
+  border-inline-start: 3px solid var(--brand-primary);
+  background: var(--brand-primary-soft);
+  /* 竖线在起始侧，圆角只加在结束侧的两个角（逻辑属性，RTL 自动镜像） */
+  border-start-start-radius: 0;
+  border-start-end-radius: var(--r-xs);
+  border-end-end-radius: var(--r-xs);
+  border-end-start-radius: 0;
+}
+
+.law-ref__text {
+  margin-block-start: 0 !important;
+  font-size: var(--fs-md) !important;
+  color: var(--text-body);
+  line-height: 1.8 !important;
+}
+
+/* 出处文字用 pressed 档：#4A66EE 压在 #EEF2FF 上只有 4.24:1，不到 4.5:1 */
+.law-ref__source {
+  display: block;
+  margin-block-start: var(--sp-sm);
+  font-size: var(--fs-caption);
+  font-style: normal;
+  color: var(--brand-primary-pressed);
+  font-weight: var(--fw-medium);
+}
+
+/* ---------- 免责声明 ---------- */
+.article__disclaimer {
+  margin-block-start: var(--sp-xxxl);
+  margin-inline: var(--sp-xl);
+  padding: var(--sp-md);
+  border-radius: var(--r-sm);
+  background: var(--bg-canvas);
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: var(--lh-relaxed);
+}
+
+/* ---------- 相关推荐 ---------- */
+.related {
+  margin-block-start: var(--sp-xxxl);
+  padding-inline: var(--sp-xl);
+}
+
+.related__title {
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+.related__list {
+  margin-block-start: var(--sp-xs);
+}
+
+.related__item {
+  display: block;
+  padding-block: var(--sp-lg) var(--sp-md);
+  border-block-end: 1px solid var(--border-divider);
+  text-decoration: none;
+}
+
+.related__item:last-child {
+  border-block-end: 0;
+}
+
+.related__name {
+  font-size: var(--fs-md);
+  color: var(--text-body);
+  line-height: var(--lh-relaxed);
+}
+
+.related__meta {
+  margin-block-start: var(--sp-xs);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-xs);
+  font-size: var(--fs-micro);
+  color: var(--text-muted);
+}
+
+/* ---------- 已下架（空态） ---------- */
+.article-gone {
+  padding: var(--sp-huge) var(--sp-xl) var(--sp-xxxl);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+</style>
+</head>
+<body>
+
+<header class="statusbar">
+  <span>9:41</span>
+  <span class="statusbar__icons">
+    <svg width="17" height="11" viewBox="0 0 17 11" fill="none" aria-hidden="true">
+      <rect x="0" y="7" width="3" height="4" rx="1" fill="currentColor"/>
+      <rect x="4.5" y="5" width="3" height="6" rx="1" fill="currentColor"/>
+      <rect x="9" y="2.5" width="3" height="8.5" rx="1" fill="currentColor"/>
+      <rect x="13.5" y="0" width="3" height="11" rx="1" fill="currentColor"/>
+    </svg>
+    <svg width="16" height="11" viewBox="0 0 16 11" fill="none" aria-hidden="true">
+      <path d="M1 3.2A10.5 10.5 0 0 1 15 3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M3.6 5.9a7 7 0 0 1 8.8 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M6.2 8.6a3.4 3.4 0 0 1 3.6 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden="true">
+      <rect x="0.6" y="0.6" width="21" height="10.8" rx="3" stroke="currentColor" stroke-opacity="0.4" stroke-width="1.2"/>
+      <rect x="2.2" y="2.2" width="15" height="7.6" rx="1.8" fill="currentColor"/>
+      <path d="M23.4 4.2v3.6" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+  </span>
+</header>
+
+<div class="navbar">
+  <a class="navbar__back" href="12-articles.html" aria-label="返回资讯列表">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M15.2 4.6 7.8 12l7.4 7.4" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </a>
+  <span class="navbar__title"></span>
+  <div class="navbar__actions">
+    <button class="navbar__icon" type="button" data-fav aria-label="收藏文章" aria-pressed="false">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M6.4 4.2h11.2a1.4 1.4 0 0 1 1.4 1.4v14.6l-7-4.2-7 4.2V5.6a1.4 1.4 0 0 1 1.4-1.4Z"
+              stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/>
+      </svg>
+    </button>
+    <button class="navbar__icon" type="button" data-share-open aria-label="分享文章">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <circle cx="17.6" cy="5.8" r="2.9" stroke="currentColor" stroke-width="1.9"/>
+        <circle cx="6.4" cy="12" r="2.9" stroke="currentColor" stroke-width="1.9"/>
+        <circle cx="17.6" cy="18.2" r="2.9" stroke="currentColor" stroke-width="1.9"/>
+        <path d="m9 10.6 6.1-3.3M9 13.4l6.1 3.3" stroke="currentColor" stroke-width="1.9"
+              stroke-linecap="round"/>
+      </svg>
+    </button>
+  </div>
+</div>
+
+<main class="screen" id="screen">
+
+  <!-- ======================================================================
+       正常态
+       ====================================================================== -->
+  <div data-state="normal">
+
+    <article class="article">
+      <h1 class="article__title">未约定借款期限和借款利息，可以主张逾期利息吗？</h1>
+      <p class="article__meta">
+        <span class="tag tag--brand">借款合同</span>
+        <span>2026年2月1日</span>
+        <i class="article__dot"></i>
+        <span class="article__nums">236</span>
+        <span>阅读</span>
+        <i class="article__dot"></i>
+        <span>法泽律师团队</span>
+      </p>
+    </article>
+
+    <figure class="article__cover" aria-label="文章配图占位">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M3.6 6.2h16.8v11.6a1.2 1.2 0 0 1-1.2 1.2H4.8a1.2 1.2 0 0 1-1.2-1.2V6.2Z"
+              stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+        <path d="m3.8 16 4.6-4.4 3.4 3.2 3.2-3 4.4 4.2" stroke="currentColor" stroke-width="1.5"
+              stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="9" cy="9.4" r="1.6" stroke="currentColor" stroke-width="1.5"/>
+      </svg>
+    </figure>
+
+    <div class="article__body">
+
+      <p class="article__lede">
+        亲戚朋友之间借钱，常常只有一句话，就转了过去 —— 既没写借条，也没说利息。
+        到期不还，出借人能不能主张利息？
+      </p>
+
+      <p>
+        这个问题在伊犁本地的法律咨询里出现频率很高。答案是：<strong>要看是哪一段时间的利息</strong>。
+        借期内的利息和逾期之后的利息，法律规则完全不同。
+      </p>
+
+      <h2>一、借期内利息：没有约定，就视为没有</h2>
+
+      <p>
+        《民法典》把借款合同分了两类来对待：一类是银行等金融机构的借款，
+        另一类是自然人之间（也就是个人对个人）的借款。两者的利息规则不一样。
+      </p>
+
+      <blockquote class="law-ref">
+        <p class="law-ref__text">
+          禁止高利放贷，借款的利率不得违反国家有关规定。<br>
+          借款合同对支付利息没有约定的，视为没有利息。
+        </p>
+        <cite class="law-ref__source">《中华人民共和国民法典》第六百八十条</cite>
+      </blockquote>
+
+      <p>
+        也就是说，如果借条上只写了「今借到某某人民币五万元」，没写利息，
+        那么这段时间就<b>不能主张利息</b>，只能要回本金。
+        这一点很多人不清楚，觉得「借了这么久总得给点利息」，但法律上站不住。
+      </p>
+
+      <h2>二、逾期利息：没有约定，也可以主张</h2>
+
+      <p>
+        借款到期不还，性质就变了。这时候出借人可以主张逾期利息，
+        依据是《民法典》第六百七十六条 —— 借款人未按照约定的期限返还借款的，
+        应当按照约定或者国家有关规定支付逾期利息。
+      </p>
+
+      <p>
+        注意，这一条是<b>法定责任</b>，不需要双方事先约定。也就是说，
+        即使借条上完全没提利息，只要对方到期不还，你仍然可以主张这笔钱。
+      </p>
+
+      <ul>
+        <li>约定了利率的：按约定主张，但不得超过合同成立时一年期 LPR 的四倍</li>
+        <li>没约定利率的：可以按一年期 LPR 主张逾期利息</li>
+        <li>另外约定了违约金的：违约金与利息合计，仍然受四倍 LPR 上限约束</li>
+      </ul>
+
+      <h2>三、难的不是法律，是证据</h2>
+
+      <p>
+        口头借款真正的麻烦，从来不是法条怎么规定，而是你能不能证明「这笔钱是借款」。
+        转账记录只能证明你给他转了一笔钱，对方完全可以辩称这是还款、货款或者赠予。
+      </p>
+
+      <p>
+        所以建议保留这几类材料：银行转账凭证或微信、支付宝的支付记录（不要撤回、不要清理聊天记录）；
+        能补写借条的就补写，写清借款时间、金额、还款期限和利息；
+        催收时的短信、微信记录甚至通话录音，既能证明对方承认借款，
+        也能作为主张逾期利息的起算依据。
+      </p>
+
+      <p>
+        如果金额较大或者对方已经开始躲，建议尽早咨询律师。诉讼时效是三年，
+        从约定的还款期限届满之日起算 —— 拖过这个时间，法律就帮不了你了。
+      </p>
+
+    </div>
+
+    <div class="article__disclaimer">
+      本文仅作普法参考，不构成针对具体案件的法律意见。具体纠纷的处理，
+      请结合完整证据咨询执业律师。文中法条以正式发布的文本为准。
+    </div>
+
+    <section class="related">
+      <h2 class="related__title">相关推荐</h2>
+      <div class="related__list">
+        <a class="related__item" href="13-article.html">
+          <p class="related__name">借条怎么写才有法律效力？这七点写漏一条都可能输</p>
+          <p class="related__meta">
+            <span>2026年1月28日</span>
+            <i class="article__dot"></i>
+            <span class="article__nums">1.4k</span>
+            <span>阅读</span>
+          </p>
+        </a>
+        <a class="related__item" href="13-article.html">
+          <p class="related__name">对方一直拖着不还钱，什么时候该去起诉？</p>
+          <p class="related__meta">
+            <span>2026年1月22日</span>
+            <i class="article__dot"></i>
+            <span class="article__nums">908</span>
+            <span>阅读</span>
+          </p>
+        </a>
+        <a class="related__item" href="13-article.html">
+          <p class="related__name">诉讼时效过期了还能要回钱吗？三种中断方式</p>
+          <p class="related__meta">
+            <span>2026年1月15日</span>
+            <i class="article__dot"></i>
+            <span class="article__nums">652</span>
+            <span>阅读</span>
+          </p>
+        </a>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- ======================================================================
+       加载态：正文骨架（点击列表进入、内容还在拉取时）
+       ====================================================================== -->
+  <div data-state="loading" hidden>
+    <div class="article">
+      <div class="skeleton" style="height:26px;width:100%"></div>
+      <div class="skeleton" style="height:26px;width:64%;margin-block-start:10px"></div>
+      <div class="skeleton" style="height:12px;width:52%;margin-block-start:16px"></div>
+    </div>
+    <div class="skeleton" style="aspect-ratio:16/9;border-radius:0;margin-block-start:16px"></div>
+    <div class="article__body">
+      <div class="skeleton" style="height:15px;width:100%"></div>
+      <div class="skeleton" style="height:15px;width:94%;margin-block-start:10px"></div>
+      <div class="skeleton" style="height:15px;width:78%;margin-block-start:10px"></div>
+      <div class="skeleton" style="height:15px;width:100%;margin-block-start:22px"></div>
+      <div class="skeleton" style="height:15px;width:88%;margin-block-start:10px"></div>
+    </div>
+  </div>
+
+  <!-- ======================================================================
+       空态：文章已下架 / 被删除
+       ====================================================================== -->
+  <div data-state="empty" hidden>
+    <div class="article-gone">
+      <svg class="empty__art" viewBox="0 0 96 96" fill="none" aria-hidden="true">
+        <path d="M22 26h30l14 14v32a4 4 0 0 1-4 4H22a4 4 0 0 1-4-4V30a4 4 0 0 1 4-4Z"
+              stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"/>
+        <path d="M52 26v14h14" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"/>
+        <path d="m36 52 16 16M52 52 36 68" stroke="currentColor" stroke-width="2.4"
+              stroke-linecap="round"/>
+      </svg>
+      <p class="empty__title">这篇文章已经下架了</p>
+      <p class="empty__desc">可能是内容正在更新，也可能是作者撤回了。去看看其他文章吧。</p>
+      <a class="btn-primary empty__action" href="12-articles.html">返回资讯列表</a>
+    </div>
+  </div>
+
+  <!-- ======================================================================
+       错误态：正文加载失败
+       ====================================================================== -->
+  <div data-state="error" hidden>
+    <div class="errorbox">
+      <svg class="errorbox__art" viewBox="0 0 96 96" fill="none" aria-hidden="true">
+        <circle cx="48" cy="48" r="30" stroke="currentColor" stroke-width="2.4"/>
+        <path d="M48 32v20" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
+        <circle cx="48" cy="62" r="2.4" fill="currentColor"/>
+      </svg>
+      <p class="errorbox__title">正文没有加载出来</p>
+      <p class="errorbox__desc">网络不稳定或者服务器维护中。稍等一下再试试。</p>
+      <button class="errorbox__retry" type="button" data-retry>
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M20.2 12a8.2 8.2 0 1 1-2.4-5.8" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round"/>
+          <path d="M20.4 3.6v4.6h-4.6" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        重新加载
+      </button>
+    </div>
+  </div>
+
+</main>
+
+<!-- ========================================================================
+     浮层：分享面板（第 3 批要交付的全局浮层之一）
+     ======================================================================== -->
+<div class="mask" data-share-mask hidden></div>
+
+<div class="sheet" data-share-sheet hidden role="dialog" aria-modal="true" aria-label="分享文章">
+  <div class="sheet__handle"></div>
+  <div class="sheet__head">
+    <h2 class="sheet__title">分享到</h2>
+    <button class="sheet__close" type="button" data-share-close aria-label="关闭分享面板">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="m6.4 6.4 11.2 11.2M17.6 6.4 6.4 17.6" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round"/>
+      </svg>
+    </button>
+  </div>
+  <div class="share-grid">
+    <button class="share-grid__item share-grid__item--wechat" type="button" data-share-to="微信">
+      <span class="share-grid__icon">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M9.4 4.2c-3.7 0-6.7 2.4-6.7 5.4 0 1.7 1 3.2 2.5 4.2l-.7 2.2 2.4-1.2c.8.2 1.6.4 2.5.4"
+                stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M15.4 9.2c-3.1 0-5.6 2-5.6 4.5s2.5 4.5 5.6 4.5c.7 0 1.4-.1 2-.3l2 1-.6-1.8c1.2-.8 2-2 2-3.4 0-2.5-2.5-4.5-5.4-4.5Z"
+                stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </span>
+      <span class="share-grid__label">微信</span>
+    </button>
+    <button class="share-grid__item share-grid__item--moments" type="button" data-share-to="朋友圈">
+      <span class="share-grid__icon">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="12" cy="12" r="8.6" stroke="currentColor" stroke-width="1.8"/>
+          <circle cx="12" cy="12" r="3.4" stroke="currentColor" stroke-width="1.8"/>
+          <circle cx="18.4" cy="5.6" r="1.6" fill="currentColor"/>
+        </svg>
+      </span>
+      <span class="share-grid__label">朋友圈</span>
+    </button>
+    <button class="share-grid__item share-grid__item--link" type="button" data-share-to="链接">
+      <span class="share-grid__icon">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M10.2 13.8a3.6 3.6 0 0 0 5.1 0l2.6-2.6a3.6 3.6 0 0 0-5.1-5.1l-1.3 1.3"
+                stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          <path d="M13.8 10.2a3.6 3.6 0 0 0-5.1 0l-2.6 2.6a3.6 3.6 0 0 0 5.1 5.1l1.3-1.3"
+                stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+      </span>
+      <span class="share-grid__label">复制链接</span>
+    </button>
+    <button class="share-grid__item" type="button" data-share-to="海报">
+      <span class="share-grid__icon">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <rect x="3.6" y="4.6" width="16.8" height="14.8" rx="2" stroke="currentColor"
+                stroke-width="1.8"/>
+          <circle cx="8.8" cy="9.6" r="1.5" stroke="currentColor" stroke-width="1.6"/>
+          <path d="m4.4 17 4.6-4.4 3.2 3 3-2.8 4.4 4.2" stroke="currentColor" stroke-width="1.8"
+                stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </span>
+      <span class="share-grid__label">生成海报</span>
+    </button>
+  </div>
+  <button class="sheet__cancel" type="button" data-share-close>取消</button>
+</div>
+
+<!-- ========================================================================
+     浮层：遮罩式 Loading（第 3 批交付的全局浮层之一）
+     宿主场景 = 分享面板里的「生成海报」。真实项目里提交表单、AI 生成、
+     支付等待也用它 —— 转圈 + 一句说明，不能只有转圈，否则像卡死。
+     ======================================================================== -->
+<div class="loading" data-loading hidden role="status" aria-live="polite">
+  <div class="loading__box">
+    <div class="loading__spinner"></div>
+    <p class="loading__text" data-loading-text>正在生成海报…</p>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

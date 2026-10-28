@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390, initial-scale=1">
+<meta name="dsh-design" content="app">
+<title>法律资讯</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   文章列表页（第 3 批 · 延展，无参考图）
+   ==========================================================================
+   职责：首页「每日学法 → 更多」的目标页，浏览平台法律科普文章
+   母版：律师列表（吸顶分类 + 卡片列表）—— 本页把搜索框换成了导航栏，
+         因为导航树里文章列表页的子项只有「分类筛选」，搜索属于全局搜索模块
+   数据来源：后台内容管理录入，4 语言各自独立录入
+
+   四态：本文件用 data-state="normal|loading|empty|error" 标出全部结构，
+         默认只显示 normal，其余 hidden。集中走查看 _12-articles-states.html。
+
+   与原项目的差异：
+     1. 原项目首页「每日学法」是纯文字条目，本页是它的放大版，加了 4:3 缩略图。
+        理由：390 宽下纯文字列表每屏只有 6 行标题，视觉上过于空；缩略图能让
+        「今天有什么内容」一眼可见。列表缩略图定 4:3（96×72），详情页头图
+        另定 16:9 —— 两处比例不同，因为详情页只有一张图，够大才有质感。
+     2. 分类标签用主色浅底（.tag--brand），和灰底 .tag 区分「分类」与「状态」。
+   ========================================================================== */
+
+body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.topbar {
+  flex: 0 0 auto;
+  background: var(--bg-surface);
+  position: relative;
+  z-index: 10;
+}
+
+/* 导航栏下面的分类条：上间距收到 8，否则和导航栏叠出 21px 空白 */
+.topbar .filter {
+  padding-block-start: var(--sp-sm);
+}
+
+/* ---------- 滚动区 ---------- */
+.screen {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  scrollbar-width: none;
+  min-height: 0;
+  background: var(--bg-canvas);
+  padding-bottom: calc(var(--safe-bottom) + var(--sp-md));
+}
+.screen::-webkit-scrollbar {
+  display: none;
+}
+
+.list {
+  padding: 0 var(--sp-xl);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-md);
+}
+
+/* ---------- 文章卡片：左文右图 ---------- */
+.article-card {
+  display: flex;
+  gap: var(--sp-md);
+  padding: var(--sp-md);
+  align-items: stretch;
+  text-decoration: none;
+  color: inherit;
+}
+
+.article-card:active {
+  background: var(--bg-canvas);
+}
+
+.article-card__body {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.article-card__title {
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+  line-height: var(--lh-normal);
+  /* 两行截断：列表里标题必须等高，否则卡片高度参差 */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.article-card__meta {
+  margin-block-start: auto;
+  padding-block-start: var(--sp-sm);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-xs);
+  flex-wrap: wrap;
+  font-size: var(--fs-micro);
+  color: var(--text-muted);
+}
+
+.article-card__meta .tag {
+  height: 20px;
+  padding-inline: 6px;
+}
+
+.article-card__dot {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  flex-shrink: 0;
+}
+
+/* 阅读数：数字单独包一层，RTL 下不被 bidi 重排 */
+.article-card__views {
+  font-family: var(--font-num);
+  unicode-bidi: isolate;
+}
+
+/* ---------- 缩略图 96×72 = 4:3 ---------- */
+.article-card__cover {
+  flex: 0 0 auto;
+  width: 96px;
+  min-height: 72px;
+  align-self: stretch;
+  border-radius: var(--r-xs);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.article-card__cover svg {
+  width: 34px;
+  height: 34px;
+}
+
+/* 封面配色跟着分类走，让列表有节奏感；正式版这里是后台配图 */
+.cover--loan {
+  background: var(--brand-primary-soft);
+  color: var(--brand-primary);
+}
+
+.cover--labor {
+  background: var(--state-success-soft);
+  color: var(--state-success);
+}
+
+.cover--civil {
+  background: var(--state-warning-soft);
+  color: var(--state-warning-deep);
+}
+
+.cover--marriage {
+  background: var(--brand-accent-soft);
+  color: var(--brand-accent);
+}
+
+.cover--contract {
+  background: #EDF1F5;
+  color: #5B6B7C;
+}
+
+/* ---------- 空态 / 错误态容器 ----------
+   断网条要贴顶、错误框要在剩余空间里居中，所以容器不做整体居中，
+   改成列布局 + 让里面的 .errorbox / .empty 自己撑满去居中。 */
+.state-wrap {
+  min-height: calc(var(--screen-h) - var(--statusbar-h) - var(--navbar-h) - 68px);
+  display: flex;
+  flex-direction: column;
+}
+
+.state-wrap .errorbox,
+.state-wrap .empty {
+  flex: 1 1 auto;
+}
+
+/* ---------- 骨架卡片 ---------- */
+.sk-card {
+  display: flex;
+  gap: var(--sp-md);
+  padding: var(--sp-md);
+}
+
+.sk-card__body {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-sm);
+  padding-block-start: 2px;
+}
+
+.sk-line {
+  height: 15px;
+}
+
+.sk-line--w100 {
+  width: 100%;
+}
+
+.sk-line--w76 {
+  width: 76%;
+}
+
+.sk-line--sm {
+  height: 12px;
+}
+
+.sk-card__cover {
+  flex: 0 0 auto;
+  width: 96px;
+  min-height: 72px;
+  border-radius: var(--r-xs);
+}
+</style>
+</head>
+<body>
+
+<header class="statusbar">
+  <span>9:41</span>
+  <span class="statusbar__icons">
+    <svg width="17" height="11" viewBox="0 0 17 11" fill="none" aria-hidden="true">
+      <rect x="0" y="7" width="3" height="4" rx="1" fill="currentColor"/>
+      <rect x="4.5" y="5" width="3" height="6" rx="1" fill="currentColor"/>
+      <rect x="9" y="2.5" width="3" height="8.5" rx="1" fill="currentColor"/>
+      <rect x="13.5" y="0" width="3" height="11" rx="1" fill="currentColor"/>
+    </svg>
+    <svg width="16" height="11" viewBox="0 0 16 11" fill="none" aria-hidden="true">
+      <path d="M1 3.2A10.5 10.5 0 0 1 15 3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M3.6 5.9a7 7 0 0 1 8.8 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M6.2 8.6a3.4 3.4 0 0 1 3.6 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden="true">
+      <rect x="0.6" y="0.6" width="21" height="10.8" rx="3" stroke="currentColor" stroke-opacity="0.4" stroke-width="1.2"/>
+      <rect x="2.2" y="2.2" width="15" height="7.6" rx="1.8" fill="currentColor"/>
+      <path d="M23.4 4.2v3.6" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+  </span>
+</header>
+
+<div class="topbar">
+  <div class="navbar">
+    <a class="navbar__back" href="01-home.html" aria-label="返回首页">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M15.2 4.6 7.8 12l7.4 7.4" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </a>
+    <h1 class="navbar__title">法律资讯</h1>
+  </div>
+
+  <div class="filter" data-drag-scroll>
+    <a class="filter__chip filter__chip--active" href="12-articles.html">全部</a>
+    <a class="filter__chip" href="12-articles.html">民法典</a>
+    <a class="filter__chip" href="12-articles.html">劳动纠纷</a>
+    <a class="filter__chip" href="12-articles.html">婚姻家事</a>
+    <a class="filter__chip" href="12-articles.html">合同纠纷</a>
+    <a class="filter__chip" href="12-articles.html">刑事普法</a>
+  </div>
+</div>
+
+<main class="screen" id="screen">
+
+  <!-- 下拉刷新提示：正常态高度 0，进入页面时演示一次「正在刷新」 -->
+  <div class="refresher" data-refresher>
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M20.2 12a8.2 8.2 0 1 1-2.4-5.8" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round"/>
+      <path d="M20.4 3.6v4.6h-4.6" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <span data-refresher-text>下拉刷新</span>
+  </div>
+
+  <!-- ======================================================================
+       正常态
+       ====================================================================== -->
+  <section class="list" data-state="normal">
+
+    <a class="card article-card" href="13-article.html">
+      <div class="article-card__body">
+        <h2 class="article-card__title">未约定借款期限和借款利息，可以主张逾期利息吗？</h2>
+        <p class="article-card__meta">
+          <span class="tag tag--brand">借款合同</span>
+          <span>2026年2月1日</span>
+          <i class="article-card__dot"></i>
+          <span class="article-card__views">236</span>
+          <span>阅读</span>
+        </p>
+      </div>
+      <div class="article-card__cover cover--loan" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none">
+          <path d="M4.6 4.6h4.9c1.4 0 2.5 1.1 2.5 2.5v12.3c0-1.4-1.1-2.5-2.5-2.5H4.6V4.6Z"
+                stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+          <path d="M19.4 4.6h-4.9c-1.4 0-2.5 1.1-2.5 2.5v12.3c0-1.4 1.1-2.5 2.5-2.5h4.9V4.6Z"
+                stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+        </svg>
+      </div>
+    </a>
+
+    <a class="card article-card" href="13-article.html">
+      <div class="article-card__body">
+        <h2 class="article-card__title">注意！劳务合同与劳动合同的区别，签错了损失巨大</h2>
+        <p class="article-card__meta">
+          <span class="tag tag--brand">劳动纠纷</span>
+          <span>2026年2月3日</span>
+          <i class="article-card__dot"></i>
+          <span class="article-card__views">560</span>
+          <span>阅读</span>
+        </p>
+      </div>
+      <div class="article-card__cover cover--labor" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none">
+          <path d="M12 3.4v16.2M6.8 20.6h10.4" stroke="currentColor" stroke-width="1.8"
+                stroke-linecap="round"/>
+          <path d="M3.6 8.2h16.8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          <path d="M3.6 8.2 1.4 13.6a3 3 0 0 0 4.4 0L3.6 8.2Z" stroke="currentColor"
+                stroke-width="1.8" stroke-linejoin="round"/>
+          <path d="M20.4 8.2l-2.2 5.4a3 3 0 0 0 4.4 0l-2.2-5.4Z" stroke="currentColor"
+                stroke-width="1.8" stroke-linejoin="round"/>
+        </svg>
+      </div>
+    </a>
+
+    <a class="card article-card" href="13-article.html">
+      <div class="article-card__body">
+        <h2 class="article-card__title">【干货】起诉状怎么写？掌握这五个要素就够了</h2>
+        <p class="article-card__meta">
+          <span class="tag tag--brand">民事诉讼</span>
+          <span>2026年2月5日</span>
+          <i class="article-card__dot"></i>
+          <span class="article-card__views">892</span>
+          <span>阅读</span>
+        </p>
+      </div>
+      <div class="article-card__cover cover--civil" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none">
+          <path d="M6.4 3.4h7.4l5 5v12.2a1.6 1.6 0 0 1-1.6 1.6H6.4a1.6 1.6 0 0 1-1.6-1.6V5a1.6 1.6 0 0 1 1.6-1.6Z"
+                stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+          <path d="M13.6 3.6v5.2h5" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+          <path d="M8.2 13.4h7.6M8.2 16.8h4.8" stroke="currentColor" stroke-width="1.8"
+                stroke-linecap="round"/>
+        </svg>
+      </div>
+    </a>
+
+    <a class="card article-card" href="13-article.html">
+      <div class="article-card__body">
+        <h2 class="article-card__title">离婚时房子归谁？民法典下的五种情形一次说清</h2>
+        <p class="article-card__meta">
+          <span class="tag tag--brand">婚姻家事</span>
+          <span>2026年2月7日</span>
+          <i class="article-card__dot"></i>
+          <span class="article-card__views">1.2k</span>
+          <span>阅读</span>
+        </p>
+      </div>
+      <div class="article-card__cover cover--marriage" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none">
+          <path d="M3.4 10.4 12 3.2l8.6 7.2" stroke="currentColor" stroke-width="1.8"
+                stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M5.6 9.2V19a1.4 1.4 0 0 0 1.4 1.4h10a1.4 1.4 0 0 0 1.4-1.4V9.2"
+                stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          <path d="M10 20.4v-4.6h4v4.6" stroke="currentColor" stroke-width="1.8"
+                stroke-linejoin="round"/>
+        </svg>
+      </div>
+    </a>
+
+    <a class="card article-card" href="13-article.html">
+      <div class="article-card__body">
+        <h2 class="article-card__title">被拖欠工资怎么办？从协商到仲裁的完整流程</h2>
+        <p class="article-card__meta">
+          <span class="tag tag--brand">劳动纠纷</span>
+          <span>2026年2月9日</span>
+          <i class="article-card__dot"></i>
+          <span class="article-card__views">731</span>
+          <span>阅读</span>
+        </p>
+      </div>
+      <div class="article-card__cover cover--contract" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none">
+          <path d="M5.2 4.4h9.2l4.4 4.4v11a1.6 1.6 0 0 1-1.6 1.6H5.2a1.6 1.6 0 0 1-1.6-1.6V6a1.6 1.6 0 0 1 1.6-1.6Z"
+                stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+          <path d="M14.2 4.6v4.2h4.2" stroke="currentColor" stroke-width="1.8"
+                stroke-linejoin="round"/>
+          <path d="m8 14.4 2 2 4.4-4.2" stroke="currentColor" stroke-width="1.9"
+                stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+    </a>
+
+    <!-- 上拉加载更多放在正常态容器内，否则切到空态 / 错误态时它还会露在页面上 -->
+    <div class="loadmore" data-loadmore>
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M20.2 12a8.2 8.2 0 1 1-2.4-5.8" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round"/>
+        <path d="M20.4 3.6v4.6h-4.6" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span data-loadmore-text>上拉加载更多</span>
+    </div>
+
+  </section>
+
+  <!-- ======================================================================
+       加载态：骨架屏（首次进入 / 切分类时）
+       ====================================================================== -->
+  <section class="list" data-state="loading" hidden>
+
+    <article class="card sk-card">
+      <div class="sk-card__body">
+        <div class="skeleton sk-line sk-line--w100"></div>
+        <div class="skeleton sk-line sk-line--w76"></div>
+        <div class="skeleton sk-line sk-line--sm sk-line--w76"></div>
+      </div>
+      <div class="skeleton sk-card__cover"></div>
+    </article>
+
+    <article class="card sk-card">
+      <div class="sk-card__body">
+        <div class="skeleton sk-line sk-line--w100"></div>
+        <div class="skeleton sk-line sk-line--w76"></div>
+        <div class="skeleton sk-line sk-line--sm sk-line--w76"></div>
+      </div>
+      <div class="skeleton sk-card__cover"></div>
+    </article>
+
+    <article class="card sk-card">
+      <div class="sk-card__body">
+        <div class="skeleton sk-line sk-line--w100"></div>
+        <div class="skeleton sk-line sk-line--w76"></div>
+        <div class="skeleton sk-line sk-line--sm sk-line--w76"></div>
+      </div>
+      <div class="skeleton sk-card__cover"></div>
+    </article>
+
+    <article class="card sk-card">
+      <div class="sk-card__body">
+        <div class="skeleton sk-line sk-line--w100"></div>
+        <div class="skeleton sk-line sk-line--w76"></div>
+        <div class="skeleton sk-line sk-line--sm sk-line--w76"></div>
+      </div>
+      <div class="skeleton sk-card__cover"></div>
+    </article>
+
+  </section>
+
+  <!-- ======================================================================
+       空态：该分类下没有内容
+       ====================================================================== -->
+  <section class="state-wrap" data-state="empty" hidden>
+    <div class="empty">
+      <svg class="empty__art" viewBox="0 0 96 96" fill="none" aria-hidden="true">
+        <rect x="20" y="26" width="56" height="46" rx="8" stroke="currentColor" stroke-width="2.4"/>
+        <path d="M20 40h56" stroke="currentColor" stroke-width="2.4"/>
+        <path d="M34 22v8M62 22v8" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+        <path d="M38 54h6M38 62h6M52 54h6M52 62h6" stroke="currentColor" stroke-width="2.4"
+              stroke-linecap="round"/>
+      </svg>
+      <p class="empty__title">这个分类下还没有文章</p>
+      <p class="empty__desc">我们正在整理相关内容，先看看全部文章吧</p>
+      <a class="btn-primary empty__action" href="12-articles.html" data-empty-action>看看全部</a>
+    </div>
+  </section>
+
+  <!-- ======================================================================
+       错误态：加载失败 / 断网
+       ====================================================================== -->
+  <section class="state-wrap" data-state="error" hidden>
+    <div class="offline-bar">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M1.6 3.4 22.4 20.6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <path d="M5.2 9.6a14 14 0 0 1 4-2.3M13.4 7.1a14 14 0 0 1 5.4 2.5"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <path d="M8.6 13.2a8 8 0 0 1 2.6-1.4M15.6 11.9a8 8 0 0 1 1.8 1.3"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <circle cx="12" cy="17.4" r="1.5" fill="currentColor"/>
+      </svg>
+      <span class="offline-bar__text">当前网络不可用，内容可能不是最新的</span>
+      <button class="offline-bar__retry" type="button" data-retry>重试</button>
+    </div>
+    <div class="errorbox">
+      <svg class="errorbox__art" viewBox="0 0 96 96" fill="none" aria-hidden="true">
+        <circle cx="48" cy="48" r="30" stroke="currentColor" stroke-width="2.4"/>
+        <path d="M48 32v20" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
+        <circle cx="48" cy="62" r="2.4" fill="currentColor"/>
+      </svg>
+      <p class="errorbox__title">文章没有加载出来</p>
+      <p class="errorbox__desc">可能是网络不稳定，也可能是服务器在维护。稍等一下再试试。</p>
+      <button class="errorbox__retry" type="button" data-retry>
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M20.2 12a8.2 8.2 0 1 1-2.4-5.8" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round"/>
+          <path d="M20.4 3.6v4.6h-4.6" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        重新加载
+      </button>
+    </div>
+  </section>
+
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

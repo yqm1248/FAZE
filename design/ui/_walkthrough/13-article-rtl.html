@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="ug" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390, initial-scale=1">
+<meta name="dsh-design" content="app">
+<title>文章详情 · RTL 对照</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../components.css">
+<style>
+/* ==========================================================================
+   文章详情页 · 维吾尔文 RTL 对照版（第 3 批 · RTL 轨道首个验证件）
+   ==========================================================================
+   依据：计划 §7.1「每批挑 1 屏出 RTL 对照版，验证镜像后布局不塌」
+
+   ★★ 文本性质声明 ★★
+   本文件里的维吾尔文是**阿拉伯字母占位文本**，只为模拟真实维语的词长、
+      连写形态与行数，**不是译文，也不能当译文用**。
+      真实译文必须由维语专业人员提供并校对 —— 法律文案翻错比排版错严重得多。
+      本文件唯一用途：验证 dir="rtl" 之后版式是否镜像正确、有没有塌。
+
+   为什么挑这一屏验 RTL：
+     文章详情是全部屏里 bidi 最复杂的 —— 标题长、meta 行有日期和阅读数、
+     正文有法条引用块（带起始侧竖线）、还有自定义圆点的列表。
+     这一屏镜像不出问题，其他屏基本不会出问题。
+
+   已知要镜像的元素（本文件已处理）：
+     1. 返回箭头      components.css 里的 [dir="rtl"] .navbar__back svg { scaleX(-1) }
+     2. 法条竖线      border-inline-start → 自动跑到右侧
+     3. 列表圆点      inset-inline-start: -14px → 自动跑到右侧
+     4. 标题字距      letter-spacing: -0.01em 在连写文字上会把字形拉开，RTL 下归零
+     5. 数字与日期    包 unicode-bidi: isolate，避免被 bidi 重排
+
+   ★ 本批还发现一个必须记进文档的问题：
+     中文的 --font-sans 栈里没有任何阿拉伯系字体，浏览器只能靠系统 fallback，
+     不同机器上维语的观感会不一致。真实项目要在 tokens 里补一条
+     --font-arabic（推荐 "Noto Naskh Arabic" 打包进 App，不依赖系统）。
+     本文件先用 Tahoma 兜底，见下面 [dir="rtl"] body 的覆盖。
+   ========================================================================== */
+
+body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* 阿拉伯系字体兜底：中文字体栈里没有阿拉伯字形 */
+[dir="rtl"] body {
+  font-family: "Segoe UI", Tahoma, "Noto Naskh Arabic", sans-serif;
+}
+
+/* 连写文字不能调字距 */
+[dir="rtl"] .article__title {
+  letter-spacing: 0;
+  line-height: 1.6;
+}
+
+.screen {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  scrollbar-width: none;
+  min-height: 0;
+  background: var(--bg-surface);
+  padding-bottom: calc(var(--safe-bottom) + var(--sp-xl));
+}
+.screen::-webkit-scrollbar {
+  display: none;
+}
+
+.article {
+  padding: var(--sp-md) var(--sp-xl) 0;
+}
+
+.article__title {
+  font-size: 22px;
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  line-height: 1.35;
+  letter-spacing: -0.01em;
+}
+
+.article__meta {
+  margin-block-start: var(--sp-md);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-xs);
+  flex-wrap: wrap;
+  font-size: var(--fs-micro);
+  color: var(--text-muted);
+}
+
+.article__meta .tag {
+  height: 20px;
+  padding-inline: 6px;
+}
+
+.article__dot {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.article__nums {
+  font-family: var(--font-num);
+  unicode-bidi: isolate;
+}
+
+.article__cover {
+  margin-block: var(--sp-lg) 0;
+  margin-inline: calc(-1 * var(--sp-xl));
+  aspect-ratio: 16 / 9;
+  background: linear-gradient(135deg, #E6ECFB 0%, #DCE6F8 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #7E90BF;
+}
+
+.article__cover svg {
+  width: 64px;
+  height: 64px;
+}
+
+.article__body {
+  padding: var(--sp-xl) var(--sp-xl) 0;
+}
+
+.article__body p {
+  margin-block-start: var(--sp-md);
+  font-size: var(--fs-lg);
+  color: var(--text-body);
+  line-height: 2;
+}
+
+.article__lede {
+  margin-block-start: var(--sp-lg) !important;
+  color: var(--text-secondary);
+}
+
+.article__body h2 {
+  margin-block-start: var(--sp-xxxl);
+  font-size: var(--fs-h2);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+
+.article__body ul {
+  margin-block-start: var(--sp-md);
+  padding-inline-start: var(--sp-xl);
+  list-style: none;
+}
+
+.article__body li {
+  position: relative;
+  margin-block-start: var(--sp-sm);
+  font-size: var(--fs-lg);
+  color: var(--text-body);
+  line-height: 2;
+}
+
+.article__body li::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: -14px;
+  inset-block-start: 14px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--brand-primary);
+}
+
+.law-ref {
+  margin-block: var(--sp-lg);
+  margin-inline: 0;
+  padding: var(--sp-md) var(--sp-lg);
+  border-inline-start: 3px solid var(--brand-primary);
+  background: var(--brand-primary-soft);
+  border-start-start-radius: 0;
+  border-start-end-radius: var(--r-xs);
+  border-end-end-radius: var(--r-xs);
+  border-end-start-radius: 0;
+}
+
+.law-ref__text {
+  margin-block-start: 0 !important;
+  font-size: var(--fs-md) !important;
+  color: var(--text-body);
+  line-height: 2 !important;
+}
+
+.law-ref__source {
+  display: block;
+  margin-block-start: var(--sp-sm);
+  font-size: var(--fs-caption);
+  font-style: normal;
+  color: var(--brand-primary-pressed);
+  font-weight: var(--fw-medium);
+}
+
+.related {
+  margin-block-start: var(--sp-xxxl);
+  padding-inline: var(--sp-xl);
+}
+
+.related__title {
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.related__item {
+  display: block;
+  padding-block: var(--sp-lg) var(--sp-md);
+  border-block-end: 1px solid var(--border-divider);
+  text-decoration: none;
+}
+
+.related__item:last-child {
+  border-block-end: 0;
+}
+
+.related__name {
+  font-size: var(--fs-md);
+  color: var(--text-body);
+  line-height: 1.9;
+}
+
+.related__meta {
+  margin-block-start: var(--sp-xs);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-xs);
+  font-size: var(--fs-micro);
+  color: var(--text-muted);
+}
+</style>
+</head>
+<body>
+
+<!-- 状态栏：RTL 下时间应该跑到右边、图标跑到左边。
+     这里靠 dir="rtl" 让 flex 的 justify-content: space-between 自动交换。 -->
+<header class="statusbar">
+  <span>9:41</span>
+  <span class="statusbar__icons">
+    <svg width="17" height="11" viewBox="0 0 17 11" fill="none" aria-hidden="true">
+      <rect x="0" y="7" width="3" height="4" rx="1" fill="currentColor"/>
+      <rect x="4.5" y="5" width="3" height="6" rx="1" fill="currentColor"/>
+      <rect x="9" y="2.5" width="3" height="8.5" rx="1" fill="currentColor"/>
+      <rect x="13.5" y="0" width="3" height="11" rx="1" fill="currentColor"/>
+    </svg>
+    <svg width="16" height="11" viewBox="0 0 16 11" fill="none" aria-hidden="true">
+      <path d="M1 3.2A10.5 10.5 0 0 1 15 3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M3.6 5.9a7 7 0 0 1 8.8 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M6.2 8.6a3.4 3.4 0 0 1 3.6 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden="true">
+      <rect x="0.6" y="0.6" width="21" height="10.8" rx="3" stroke="currentColor" stroke-opacity="0.4" stroke-width="1.2"/>
+      <rect x="2.2" y="2.2" width="15" height="7.6" rx="1.8" fill="currentColor"/>
+      <path d="M23.4 4.2v3.6" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+  </span>
+</header>
+
+<div class="navbar">
+  <a class="navbar__back" href="../12-articles.html" aria-label="返回">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M15.2 4.6 7.8 12l7.4 7.4" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </a>
+  <span class="navbar__title"></span>
+  <div class="navbar__actions">
+    <button class="navbar__icon" type="button" data-fav aria-label="收藏">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M6.4 4.2h11.2a1.4 1.4 0 0 1 1.4 1.4v14.6l-7-4.2-7 4.2V5.6a1.4 1.4 0 0 1 1.4-1.4Z"
+              stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/>
+      </svg>
+    </button>
+    <button class="navbar__icon" type="button" data-share-open aria-label="分享">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <circle cx="17.6" cy="5.8" r="2.9" stroke="currentColor" stroke-width="1.9"/>
+        <circle cx="6.4" cy="12" r="2.9" stroke="currentColor" stroke-width="1.9"/>
+        <circle cx="17.6" cy="18.2" r="2.9" stroke="currentColor" stroke-width="1.9"/>
+        <path d="m9 10.6 6.1-3.3M9 13.4l6.1 3.3" stroke="currentColor" stroke-width="1.9"
+              stroke-linecap="round"/>
+      </svg>
+    </button>
+  </div>
+</div>
+
+<main class="screen">
+
+  <div data-state="normal">
+
+    <article class="article">
+      <!-- 占位标题：长度按真实维语标题估（中文 24 字 ≈ 维语 70–90 字符） -->
+      <h1 class="article__title">
+        قەرز پۇل ۋە ئۆسۈم توغرىسىدا كېلىشىم بولمىسا، ئۆسۈم تەلەپ قىلىشقا بولامدۇ يوق
+      </h1>
+      <p class="article__meta">
+        <span class="tag tag--brand">قەرز كېلىشىمى</span>
+        <span class="article__nums">2026-02-01</span>
+        <i class="article__dot"></i>
+        <span class="article__nums">236</span>
+        <i class="article__dot"></i>
+        <span>قانۇن بويىچە</span>
+      </p>
+    </article>
+
+    <figure class="article__cover" aria-label="配图占位">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M3.6 6.2h16.8v11.6a1.2 1.2 0 0 1-1.2 1.2H4.8a1.2 1.2 0 0 1-1.2-1.2V6.2Z"
+              stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+        <path d="m3.8 16 4.6-4.4 3.4 3.2 3.2-3 4.4 4.2" stroke="currentColor" stroke-width="1.5"
+              stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="9" cy="9.4" r="1.6" stroke="currentColor" stroke-width="1.5"/>
+      </svg>
+    </figure>
+
+    <div class="article__body">
+
+      <p class="article__lede">
+        ئۇرۇق تۇغقان ۋە دوستلار ئارىسىدا پۇل بېرىش ئادەتتە ئېغىزاكى بولىدۇ،
+        يازما كېلىشىم ۋە ئۆسۈم توغرىسىدا ھېچقانداق سۆز بولمايدۇ.
+      </p>
+
+      <p>
+        بۇ سوئال بىزنىڭ رايونىمىزدا كۆپ ئۇچرايدۇ. جاۋابى پۇل بېرىلگەن
+        مەزگىلگە باغلىق: كېلىشىم مەزگىلىدىكى ئۆسۈم بىلەن مۇددىتى ئۆتكەندىن
+        كېيىنكى ئۆسۈمنىڭ قانۇنىي ئاساسى پۈتۈنلەي ئوخشاش ئەمەس.
+      </p>
+
+      <h2>بىرىنچى، كېلىشىم مەزگىلىدىكى ئۆسۈم</h2>
+
+      <p>
+        ئەگەر كېلىشىمدە ئۆسۈم توغرىسىدا ھېچقانداق سۆز بولمىسا، قانۇن
+        بويىچە ئۆسۈم يوق دەپ قارىلىدۇ. يەنى پەقەت ئاساسىي پۇلنى تەلەپ
+        قىلغىلى بولىدۇ، ئۆسۈمنى تەلەپ قىلغىلى بولمايدۇ.
+      </p>
+
+      <blockquote class="law-ref">
+        <p class="law-ref__text">
+          كېلىشىمدە ئۆسۈم توغرىسىدا كېلىشىم بولمىسا، ئۆسۈم يوق دەپ قارىلىدۇ؛
+          تەبىئىي شەخسلەر ئارىسىدىكى قەرز ئۈچۈن ئۆسۈم يوق دەپ قارىلىدۇ.
+        </p>
+        <cite class="law-ref__source">جۇڭخۇا خەلق جۇمھۇرىيىتىنىڭ ئەھۋال قانۇنى · 680-ماددا</cite>
+      </blockquote>
+
+      <h2>ئىككىنچى، مۇددىتى ئۆتكەندىن كېيىنكى ئۆسۈم</h2>
+
+      <p>
+        مۇددىتى ئۆتكەندىن كېيىن ئەھۋال ئۆزگىرىدۇ. بۇ چاغدا ئۆسۈم تەلەپ
+        قىلىشقا بولىدۇ، چۈنكى بۇ قانۇن بەلگىلىگەن مەجبۇرىيەت بولۇپ،
+        ئالدىن كېلىشىش تەلەپ قىلىنمايدۇ.
+      </p>
+
+      <ul>
+        <li>ئۆسۈم نىسبىتى كېلىشىلگەن بولسا، كېلىشىم بويىچە تەلەپ قىلىنىدۇ</li>
+        <li>ئۆسۈم نىسبىتى كېلىشىلمىگەن بولسا، يىللىق LPR بويىچە ھېسابلىنىدۇ</li>
+        <li>جەرىمانە كېلىشىلگەن بولسا، ئۆسۈم بىلەن قوشۇلۇپ يۇقىرى چەكتىن ئاشمايدۇ</li>
+      </ul>
+
+      <h2>ئۈچىنچى، ئىسپات مەسىلىسى</h2>
+
+      <p>
+        ئېغىزاكى قەرزدە ئەڭ قىيىن نەرسە قانۇن ئەمەس، ئىسپات. بانكا
+        يۆتكەش خاتىرىسى ياكى ۋېيشىن، ئاليپاي تۆلەم خاتىرىسىنى ساقلاڭ؛
+        ئىمكان بار بولسا يازما كېلىشىم تولۇقلاڭ.
+      </p>
+
+    </div>
+
+    <section class="related">
+      <h2 class="related__title">تەۋسىيە</h2>
+      <a class="related__item" href="../13-article.html">
+        <p class="related__name">
+          قەرز خېتىنى قانداق يېزىش كېرەك، قايسى ئىشلارنى ئېنىق يېزىش لازىم
+        </p>
+        <p class="related__meta">
+          <span class="article__nums">2026-01-28</span>
+          <i class="article__dot"></i>
+          <span class="article__nums">1.4k</span>
+        </p>
+      </a>
+      <a class="related__item" href="../13-article.html">
+        <p class="related__name">
+          قەرزنى قايتۇرمىسا، قاچان سوتقا ئەرز قىلىش كېرەك
+        </p>
+        <p class="related__meta">
+          <span class="article__nums">2026-01-22</span>
+          <i class="article__dot"></i>
+          <span class="article__nums">908</span>
+        </p>
+      </a>
+    </section>
+
+  </div>
+
+</main>
+
+<script src="../app.js"></script>
+</body>
+</html>

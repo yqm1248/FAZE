@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>走查 · 浮层</title>
+<style>
+/* ==========================================================================
+   走查页：第 3 批要交付的全局浮层
+   ==========================================================================
+   计划 §三 要求第 3 批交付 5 个全局浮层：Loading / Toast / 二次确认 Modal /
+   分享面板 / 断网提示。它们都是「组件」形态，必须长在真实宿主页里演示，
+   所以本页用 iframe 带 hash 把它们打开，而不是另画一个 demo 屏。
+
+   hash 开关在 app.js §17，只有精确匹配才动作，不影响正常使用。
+   Toast 没法静态摆出来（1.8 秒自己消失），要看得去 13-article 点收藏。
+
+   注意：本页不是交付屏，放 _walkthrough/ 子目录，不上画布、不计入 68 屏。
+   ========================================================================== */
+* { box-sizing: border-box; }
+
+/* 单列 + 零内边距：走查用截图工具按 390 宽打开，这样每个 iframe 正好贴合视口，
+   用 selector 截 .walk__item:nth-of-type(n) iframe 就能拿到完整的一屏。 */
+body {
+  margin: 0;
+  padding: 0;
+  background: #EDEFF3;
+  font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  color: #1A1A1A;
+}
+
+.walk {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.walk__item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 390px;
+  padding: 12px 0 20px;
+}
+
+.walk__head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding-inline: 12px;
+}
+
+.walk__name {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.walk__tag {
+  font-size: 11px;
+  font-weight: 500;
+  color: #3A53D4;
+  background: #EEF2FF;
+  padding: 2px 7px;
+  border-radius: 4px;
+  line-height: 1.5;
+}
+
+.walk__note {
+  font-size: 12px;
+  color: #63696E;
+  line-height: 1.6;
+  padding-inline: 12px;
+}
+
+.walk__host {
+  font-size: 11px;
+  color: #8A9098;
+  font-family: "Consolas", monospace;
+  padding-inline: 12px;
+}
+
+iframe {
+  width: 390px;
+  height: 844px;
+  border: 0;
+  display: block;
+}
+</style>
+</head>
+<body>
+
+<div class="walk">
+
+  <section class="walk__item">
+    <div class="walk__head">
+      <h2 class="walk__name">分享面板</h2>
+      <span class="walk__tag">sheet</span>
+    </div>
+    <p class="walk__note">
+      遮罩 + 底部圆角弹层 + 拖拽把手。四个渠道（微信 / 朋友圈 / 复制链接 / 生成海报），
+      底部分离的「取消」。点遮罩或取消都能关，Esc 也行。
+    </p>
+    <span class="walk__host">宿主：13-article.html · 导航栏右上角分享图标</span>
+    <iframe src="../13-article.html#open-share" title="分享面板"></iframe>
+  </section>
+
+  <section class="walk__item">
+    <div class="walk__head">
+      <h2 class="walk__name">二次确认</h2>
+      <span class="walk__tag">dialog</span>
+    </div>
+    <p class="walk__note">
+      居中卡片 + 后果说明 + 左右两个按钮。危险动作在右侧、用红色；
+      取消在左侧、用中性色。删除 / 清空 / 注销复用同一个组件。
+    </p>
+    <span class="walk__host">宿主：05-profile.html · 最下方「退出当前账号」</span>
+    <iframe src="../05-profile.html#open-logout" title="退出登录二次确认"></iframe>
+  </section>
+
+  <section class="walk__item">
+    <div class="walk__head">
+      <h2 class="walk__name">遮罩 Loading</h2>
+      <span class="walk__tag">loading</span>
+    </div>
+    <p class="walk__note">
+      转圈 + 一句「正在生成海报…」。只有转圈没有文案会让人以为卡死，
+      所以这句说明是必需的。提交表单、AI 生成、支付等待都用它。
+    </p>
+    <span class="walk__host">宿主：13-article.html · 分享面板里的「生成海报」</span>
+    <iframe src="../13-article.html#open-loading" title="遮罩加载"></iframe>
+  </section>
+
+  <section class="walk__item">
+    <div class="walk__head">
+      <h2 class="walk__name">断网 + 加载失败</h2>
+      <span class="walk__tag">offline / error</span>
+    </div>
+    <p class="walk__note">
+      顶部暖色断网条（不吓人，带重试）+ 中间错误说明 + 描边重试按钮。
+      主按钮留给「去别处看看」，重试用描边，避免两个实心按钮抢注意力。
+    </p>
+    <span class="walk__host">宿主：12-articles.html · 列表加载失败</span>
+    <iframe src="../12-articles.html#state-error" title="断网与加载失败"></iframe>
+  </section>
+
+</div>
+
+</body>
+</html>
