@@ -106,23 +106,27 @@ body {
   display: flex;
   gap: 10px;
   padding: var(--sp-md);
+  align-items: stretch;
 }
 
+/* 头像位撑满卡片上下，避免底部行左侧留一块空白。
+   真实律师照片上传后按这个比例 cover 裁切。 */
 .lawyer-card__avatar {
   flex: 0 0 auto;
   width: 65px;
-  height: 80px;
+  align-self: stretch;
+  min-height: 80px;
   border-radius: var(--r-xs);
   overflow: hidden;
   background: #E8EDFB;
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: center;
 }
 
 .lawyer-card__avatar svg {
-  width: 52px;
-  height: 52px;
+  width: 46px;
+  height: 46px;
   color: #9AA9D4;
 }
 
