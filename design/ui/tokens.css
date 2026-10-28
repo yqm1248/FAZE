@@ -240,7 +240,161 @@ body {
   background: var(--text-primary);
 }
 
-/* ---------- 通用卡片 ---------- */
+/* ==========================================================================
+   演示交互（配合 app.js）
+   ==========================================================================
+   设计稿只做「手感」，不做业务。真实项目里这些由 RN 组件承担。
+   ========================================================================== */
+
+/* 横向拖拽容器 */
+[data-drag-scroll] {
+  cursor: grab;
+  scroll-behavior: smooth;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
+}
+
+[data-drag-scroll]:active {
+  cursor: grabbing;
+}
+
+/* 分类 chips 是链接，浏览器默认允许拖拽链接，会打断横向滑动 */
+[data-drag-scroll] a {
+  -webkit-user-drag: none;
+  user-select: none;
+}
+
+/* 演示提示 */
+.demo-toast {
+  position: absolute;
+  inset-inline-start: 50%;
+  inset-block-end: 140px;
+  transform: translateX(-50%);
+  max-width: 300px;
+  padding: 10px 18px;
+  border-radius: var(--r-sm);
+  background: rgba(26, 26, 26, 0.88);
+  color: var(--text-on-brand);
+  font-size: var(--fs-sm);
+  line-height: 1.4;
+  text-align: center;
+  z-index: 999;
+  pointer-events: none;
+  animation: toast-in 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* 纵向滚动容器：防止滚到底后带动外层 */
+.screen,
+.list,
+.chat-body,
+.content {
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* flex 子项要能真正滚动，必须允许收缩 */
+.screen,
+.list,
+.chat-body,
+.content {
+  min-height: 0;
+}
+
+/* 按下反馈：涟漪 */
+.tap-ripple {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.42);
+  transform: scale(0);
+  animation: tap-ripple 500ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  pointer-events: none;
+  z-index: 1;
+}
+
+@keyframes tap-ripple {
+  to {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+
+/* 涟漪需要一个定位祖先；这几个可能有 overflow:hidden，单独放开 */
+.btn-primary,
+.btn-pill-sm,
+.login-btn,
+.lawyer-card__cta,
+.tabbar__item {
+  position: relative;
+  overflow: hidden;
+}
+
+/* 按下时轻微缩一下，配合涟漪 */
+.btn-primary:active,
+.btn-pill-sm:active,
+.login-btn:active,
+.lawyer-card__cta:active .btn-pill-sm,
+.filter__chip:active {
+  transform: scale(0.97);
+}
+
+.btn-primary,
+.btn-pill-sm,
+.login-btn,
+.filter__chip {
+  transition: transform 140ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    background-color 140ms ease;
+}
+
+/* 输入框聚焦：下划线变主色，图标跟着变 */
+.field {
+  transition: border-block-end-color 160ms ease;
+}
+
+.field:focus-within {
+  border-block-end-color: var(--brand-primary);
+}
+
+.field:focus-within svg {
+  color: var(--brand-primary);
+}
+
+.field input {
+  cursor: text;
+}
+
+/* 密码眼睛激活态 */
+.field__toggle.is-on {
+  color: var(--brand-primary);
+}
+
+/* 禁用动效偏好 */
+@media (prefers-reduced-motion: reduce) {
+  .tap-ripple,
+  .btn-primary,
+  .btn-pill-sm,
+  .login-btn,
+  .filter__chip {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
+}
+
+/* ==========================================================================
+   通用卡片
+   ========================================================================== */
 .card {
   background: var(--bg-surface);
   border-radius: var(--r-md);
