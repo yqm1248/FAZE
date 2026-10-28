@@ -101,6 +101,9 @@ body {
   font-family: var(--font-num);
   font-size: var(--fs-caption);
   font-weight: var(--fw-bold);
+  /* <i> 浏览器默认斜体，数字会看着偏右，必须显式关掉 */
+  font-style: normal;
+  line-height: 1;
   background: var(--bg-input);
   color: var(--text-muted);
   position: relative;
