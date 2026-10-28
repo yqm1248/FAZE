@@ -6,6 +6,7 @@
 <meta name="dsh-design" content="app">
 <title>我的</title>
 <link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
 <style>
 /* ==========================================================================
    我的页（Tab 5）—— 复刻原项目 pages/my/my.vue
@@ -278,14 +279,18 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 100%;
   height: var(--btn-h);
+  border: 0;
   background: var(--bg-surface);
   border-radius: var(--r-sm);
   color: var(--state-danger);
+  font-family: inherit;
   font-size: var(--fs-lg);
   font-weight: var(--fw-bold);
   text-decoration: none;
   box-shadow: var(--shadow-card);
+  cursor: pointer;
 }
 
 .logout:active {
@@ -487,8 +492,27 @@
       </a>
     </section>
 
-    <a class="logout" href="06-login.html">退出当前账号</a>
+    <!-- 退出登录：第 3 批把二次确认浮层补上了（计划 §3.2「第 1 批菜单已做，浮层待补」） -->
+    <button class="logout" type="button" data-logout-open>退出当前账号</button>
 
+  </div>
+</div>
+
+<!-- ========================================================================
+     浮层：退出登录二次确认（第 3 批交付的全局浮层之一）
+     样式在 components.css 的 .mask / .dialog
+     ======================================================================== -->
+<div class="mask" data-logout-mask hidden></div>
+
+<div class="dialog" data-logout-dialog hidden role="alertdialog" aria-modal="true"
+     aria-labelledby="logout-title" aria-describedby="logout-desc">
+  <h2 class="dialog__title" id="logout-title">确定要退出当前账号？</h2>
+  <p class="dialog__body" id="logout-desc">
+    退出后需要重新登录才能继续咨询、查看案件和使用已保存的文书。
+  </p>
+  <div class="dialog__actions">
+    <button class="dialog__btn" type="button" data-logout-close>取消</button>
+    <button class="dialog__btn dialog__btn--danger" type="button" data-logout-confirm>退出登录</button>
   </div>
 </div>
 
