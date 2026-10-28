@@ -1,0 +1,465 @@
+/* ==========================================================================
+   法泽 FAZE · APP 设计变量
+   ==========================================================================
+   职责：所有屏共用的颜色、字体、字号、间距、圆角、阴影、尺寸
+   数据来源：design/tokens/tokens.json（唯一来源，本文件是它的 CSS 投影）
+   注意：
+     1. 所有值必须与 tokens.json 一致；这里新增的只有「图标三色」，
+        它们是从原项目首页三宫格截图取色，尚未并入 tokens.json（待第 1 批定稿后并）
+     2. 不写 rgba() 字面量给业务色，半透明只用于遮罩与阴影（与令牌规则一致）
+     3. 位置属性一律用逻辑属性（inline-start / inline-end），为 RTL 语言留路
+   ========================================================================== */
+
+:root {
+  /* ---------- 品牌色 ---------- */
+  --brand-primary: #4A66EE;
+  --brand-primary-pressed: #3A53D4;
+  --brand-primary-soft: #EEF2FF;
+  --brand-accent: #8A2BE2;
+  --brand-accent-soft: #F1E9FD;
+
+  /* ---------- 背景 ---------- */
+  --bg-canvas: #F7F8FA;
+  --bg-surface: #FFFFFF;
+  --bg-input: #F5F5F5;
+
+  /* ---------- 文字 ----------
+     注意：muted 由原项目的 #999999 改为 #63696E。
+     原因：原值在白底只有 2.85:1、在 #F5F5F5 底只有 2.61:1，均低于 4.5:1，
+     而本产品的目标用户包含中老年人。这是本套设计对原图的唯一主动偏离。 */
+  --text-primary: #1A1A1A;
+  --text-body: #333333;
+  --text-secondary: #666666;
+  --text-muted: #63696E;
+  --text-on-brand: #FFFFFF;
+
+  /* ---------- 边框 ---------- */
+  --border-subtle: #F0F0F0;
+  --border-divider: #F5F5F5;
+  --border-outline: #EEEEEE;
+
+  /* ---------- 状态 ---------- */
+  --state-success: #1F7A7A;
+  --state-success-soft: #EBF5F5;
+  --state-warning: #FF9500;
+  --state-danger: #EE0A24;
+
+  /* ---------- 渐变 ---------- */
+  --banner-start: #D2E3FB;
+  --banner-end: #F7F8FA;
+  --profile-start: #5A67E0;
+  --profile-end: #4A66EE;
+  --login-btn-start: #6C7DF8;
+  --login-btn-end: #4A66EE;
+
+  /* 登录页标题色：原图比主色更偏紫一档 */
+  --login-title: #5B6CF8;
+
+  /* ---------- 图标三色（复刻原项目首页三宫格） ---------- */
+  --icon-doc: #3FC8BE;
+  --icon-lawyer: #4A66EE;
+  --icon-progress: #F5A623;
+
+  /* ---------- 字体 ---------- */
+  --font-sans: "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Microsoft YaHei",
+    system-ui, -apple-system, sans-serif;
+  --font-num: "Inter", -apple-system, "PingFang SC", system-ui, sans-serif;
+
+  /* ---------- 字号（对应 tokens.json fontSize） ---------- */
+  --fs-h1: 24px;      /* 首页 slogan、登录页主标题 */
+  --fs-h2: 17px;      /* 页面标题 */
+  --fs-h3: 16px;      /* 区块标题 */
+  --fs-lg: 15px;      /* 正文、律师姓名 */
+  --fs-md: 14px;      /* 列表正文 */
+  --fs-sm: 13px;      /* 次要说明 */
+  --fs-caption: 12px; /* 功能卡文字、标签 */
+  --fs-micro: 11px;   /* meta 时间、状态标签 */
+
+  /* ---------- 字重 ---------- */
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-bold: 700;
+
+  /* ---------- 行高 ---------- */
+  --lh-tight: 1.3;
+  --lh-normal: 1.5;
+  --lh-relaxed: 1.6;
+  --lh-loose: 1.8;
+
+  /* ---------- 间距（对应 tokens.json spacing，含 15 / 25 这类 rpx 原值） ---------- */
+  --sp-xxs: 2px;
+  --sp-xs: 6px;
+  --sp-sm: 8px;
+  --sp-md: 12px;
+  --sp-lg: 15px;
+  --sp-xl: 20px;
+  --sp-xxl: 25px;
+  --sp-xxxl: 30px;
+  --sp-huge: 50px;
+
+  /* ---------- 圆角 ---------- */
+  --r-xs: 4px;
+  --r-sm: 6px;
+  --r-md: 12px;
+  --r-lg: 20px;
+  --r-pill: 999px;
+
+  /* ---------- 阴影 ---------- */
+  --shadow-card: 0 2px 10px rgba(0, 0, 0, 0.05);
+  --shadow-raised: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-pill: 0 4px 10px rgba(78, 110, 242, 0.3);
+
+  /* ---------- 尺寸 ---------- */
+  --screen-w: 390px;
+  --screen-h: 844px;
+  --statusbar-h: 54px;
+  --tabbar-h: 50px;
+  --safe-bottom: 34px;
+  --navbar-h: 44px;
+  --btn-h: 50px;
+  --input-h: 45px;
+}
+
+/* ==========================================================================
+   布局与基础
+   ========================================================================== */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  width: var(--screen-w);
+  height: var(--screen-h);
+  overflow: hidden;
+  position: relative;
+  font-family: var(--font-sans);
+  font-size: var(--fs-md);
+  line-height: var(--lh-normal);
+  color: var(--text-body);
+  background: var(--bg-canvas);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 内容滚动区。底栏是 fixed 的，所以底部必须留出它的高度 */
+.screen {
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+  padding-bottom: calc(var(--tabbar-h) + var(--safe-bottom));
+}
+.screen::-webkit-scrollbar {
+  display: none;
+}
+
+/* 没有 tabbar 的屏（登录页）用这个 */
+.screen--full {
+  padding-bottom: 0;
+}
+
+/* ---------- 沉浸式状态栏：透明，浮在内容上 ---------- */
+.statusbar {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline: 0;
+  height: var(--statusbar-h);
+  z-index: 20;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding: 0 var(--sp-xl) 8px;
+  font-family: var(--font-num);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  pointer-events: none;
+}
+
+.statusbar--light {
+  color: var(--text-on-brand);
+}
+
+.statusbar__icons {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* ---------- 底部标签栏 ---------- */
+.tabbar {
+  position: absolute;
+  inset-block-end: 0;
+  inset-inline: 0;
+  z-index: 30;
+  height: calc(var(--tabbar-h) + var(--safe-bottom));
+  padding-bottom: var(--safe-bottom);
+  background: var(--bg-surface);
+  border-block-start: 1px solid var(--border-divider);
+  display: flex;
+  align-items: flex-start;
+}
+
+.tabbar__item {
+  flex: 1;
+  height: var(--tabbar-h);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  text-decoration: none;
+  color: var(--text-primary);
+  font-size: var(--fs-micro);
+  line-height: 1;
+}
+
+.tabbar__item[aria-current="page"] {
+  color: var(--brand-primary);
+}
+
+.tabbar__item svg {
+  width: 23px;
+  height: 23px;
+}
+
+.tabbar__home-indicator {
+  position: absolute;
+  inset-block-end: 8px;
+  inset-inline-start: 50%;
+  transform: translateX(-50%);
+  width: 134px;
+  height: 5px;
+  border-radius: var(--r-pill);
+  background: var(--text-primary);
+}
+
+/* ==========================================================================
+   演示交互（配合 app.js）
+   ==========================================================================
+   设计稿只做「手感」，不做业务。真实项目里这些由 RN 组件承担。
+   ========================================================================== */
+
+/* 横向拖拽容器 */
+[data-drag-scroll] {
+  cursor: grab;
+  scroll-behavior: smooth;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
+}
+
+[data-drag-scroll]:active {
+  cursor: grabbing;
+}
+
+/* 分类 chips 是链接，浏览器默认允许拖拽链接，会打断横向滑动 */
+[data-drag-scroll] a {
+  -webkit-user-drag: none;
+  user-select: none;
+}
+
+/* 演示提示 */
+.demo-toast {
+  position: absolute;
+  inset-inline-start: 50%;
+  inset-block-end: 140px;
+  transform: translateX(-50%);
+  max-width: 300px;
+  padding: 10px 18px;
+  border-radius: var(--r-sm);
+  background: rgba(26, 26, 26, 0.88);
+  color: var(--text-on-brand);
+  font-size: var(--fs-sm);
+  line-height: 1.4;
+  text-align: center;
+  z-index: 999;
+  pointer-events: none;
+  animation: toast-in 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* 纵向滚动容器：防止滚到底后带动外层 */
+.screen,
+.list,
+.chat-body,
+.content {
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* flex 子项要能真正滚动，必须允许收缩 */
+.screen,
+.list,
+.chat-body,
+.content {
+  min-height: 0;
+}
+
+/* 按下反馈：涟漪 */
+.tap-ripple {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.42);
+  transform: scale(0);
+  animation: tap-ripple 500ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  pointer-events: none;
+  z-index: 1;
+}
+
+@keyframes tap-ripple {
+  to {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+
+/* 涟漪需要一个定位祖先；这几个可能有 overflow:hidden，单独放开 */
+.btn-primary,
+.btn-pill-sm,
+.login-btn,
+.lawyer-card__cta,
+.tabbar__item {
+  position: relative;
+  overflow: hidden;
+}
+
+/* 按下时轻微缩一下，配合涟漪 */
+.btn-primary:active,
+.btn-pill-sm:active,
+.login-btn:active,
+.lawyer-card__cta:active .btn-pill-sm,
+.filter__chip:active {
+  transform: scale(0.97);
+}
+
+.btn-primary,
+.btn-pill-sm,
+.login-btn,
+.filter__chip {
+  transition: transform 140ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    background-color 140ms ease;
+}
+
+/* 输入框聚焦：下划线变主色，图标跟着变 */
+.field {
+  transition: border-block-end-color 160ms ease;
+}
+
+.field:focus-within {
+  border-block-end-color: var(--brand-primary);
+}
+
+.field:focus-within svg {
+  color: var(--brand-primary);
+}
+
+.field input {
+  cursor: text;
+}
+
+/* 密码眼睛激活态 */
+.field__toggle.is-on {
+  color: var(--brand-primary);
+}
+
+/* 禁用动效偏好 */
+@media (prefers-reduced-motion: reduce) {
+  .tap-ripple,
+  .btn-primary,
+  .btn-pill-sm,
+  .login-btn,
+  .filter__chip {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
+}
+
+/* ==========================================================================
+   通用卡片
+   ========================================================================== */
+.card {
+  background: var(--bg-surface);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-card);
+}
+
+/* ---------- 主按钮 ---------- */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--btn-h);
+  padding: 0 var(--sp-xl);
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--brand-primary);
+  color: var(--text-on-brand);
+  font-family: inherit;
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-bold);
+  text-decoration: none;
+  cursor: pointer;
+  min-width: 44px;
+}
+
+.btn-primary:active {
+  background: var(--brand-primary-pressed);
+}
+
+.btn-pill-sm {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 34px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--brand-primary);
+  color: var(--text-on-brand);
+  font-family: inherit;
+  font-size: var(--fs-md);
+  font-weight: var(--fw-medium);
+  text-decoration: none;
+  cursor: pointer;
+  min-width: 44px;
+  position: relative;
+}
+
+/* 视觉高度保持原图的 34，点击区补到 44 */
+.btn-pill-sm::after {
+  content: "";
+  position: absolute;
+  inset-block: -5px;
+  inset-inline: 0;
+}
+
+/* ---------- 标签 ---------- */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 var(--sp-sm);
+  border-radius: var(--r-xs);
+  background: var(--bg-input);
+  color: var(--text-secondary);
+  font-size: var(--fs-micro);
+  line-height: 1;
+}

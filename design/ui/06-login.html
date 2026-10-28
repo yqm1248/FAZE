@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390, initial-scale=1">
+<meta name="dsh-design" content="app">
+<title>登录</title>
+<link rel="stylesheet" href="tokens.css">
+<style>
+/* ==========================================================================
+   登录页 —— 复刻原项目 pages/auth/login.vue
+   版式：关闭按钮 + 大标题 + 下划线表单 + 渐变主按钮 + 协议
+   与原图差异（第 1 批已记录）：
+     1. 原项目表单图标是 emoji（📱🔒🙈），换成同一套线性 SVG
+     2. 登录按钮保留原项目的紫蓝渐变与蓝色投影
+   ========================================================================== */
+
+body {
+  background: var(--bg-surface);
+}
+
+.login {
+  padding: calc(var(--statusbar-h) + 16px) var(--sp-xl) 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.close {
+  width: 44px;
+  height: 44px;
+  margin-inline-start: -10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: none;
+  color: var(--text-primary);
+  cursor: pointer;
+  padding: 0;
+  text-decoration: none;
+  border-radius: var(--r-sm);
+}
+
+.close svg {
+  width: 22px;
+  height: 22px;
+}
+
+.login__title {
+  margin-top: 34px;
+  font-size: 28px;
+  font-weight: var(--fw-bold);
+  color: var(--login-title);
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.login__sub {
+  margin-top: var(--sp-md);
+  font-size: var(--fs-lg);
+  color: var(--text-secondary);
+  line-height: var(--lh-normal);
+}
+
+/* ---------- 表单 ---------- */
+.fields {
+  margin-top: var(--sp-huge);
+}
+
+.field {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-md);
+  height: 58px;
+  border-block-end: 1px solid var(--border-outline);
+}
+
+.field svg {
+  width: 21px;
+  height: 21px;
+  flex-shrink: 0;
+  color: var(--text-secondary);
+}
+
+.field input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  outline: 0;
+  background: none;
+  font-family: inherit;
+  font-size: var(--fs-h3);
+  color: var(--text-primary);
+}
+
+.field input::placeholder {
+  color: var(--text-muted);
+}
+
+.field__toggle {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  margin-inline-end: -12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0;
+}
+
+.field__toggle svg {
+  width: 21px;
+  height: 21px;
+}
+
+/* ---------- 忘记密码 ---------- */
+.forgot {
+  align-self: flex-end;
+  margin-top: var(--sp-md);
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  font-size: var(--fs-md);
+  color: var(--text-secondary);
+  text-decoration: none;
+}
+
+/* ---------- 主按钮 ---------- */
+.login-btn {
+  margin-top: 34px;
+  height: var(--btn-h);
+  width: 100%;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: linear-gradient(135deg, var(--login-btn-start) 0%, var(--login-btn-end) 100%);
+  color: var(--text-on-brand);
+  font-family: inherit;
+  font-size: var(--fs-h2);
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  box-shadow: var(--shadow-pill);
+  min-height: 44px;
+}
+
+.login-btn:active {
+  filter: brightness(0.95);
+}
+
+/* ---------- 注册 ---------- */
+.signup {
+  margin-top: var(--sp-xxxl);
+  text-align: center;
+  font-size: var(--fs-lg);
+  color: var(--text-secondary);
+}
+
+.signup a {
+  color: var(--brand-primary);
+  font-weight: var(--fw-bold);
+  text-decoration: none;
+  margin-inline-start: 4px;
+}
+
+/* ---------- 底部协议 ---------- */
+.agreement {
+  margin-top: auto;
+  padding-bottom: calc(var(--safe-bottom) + var(--sp-lg));
+  text-align: center;
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: var(--lh-relaxed);
+}
+
+.agreement a {
+  color: var(--text-secondary);
+  text-decoration: none;
+}
+</style>
+</head>
+<body>
+
+<header class="statusbar">
+  <span>9:41</span>
+  <span class="statusbar__icons">
+    <svg width="17" height="11" viewBox="0 0 17 11" fill="none" aria-hidden="true">
+      <rect x="0" y="7" width="3" height="4" rx="1" fill="currentColor"/>
+      <rect x="4.5" y="5" width="3" height="6" rx="1" fill="currentColor"/>
+      <rect x="9" y="2.5" width="3" height="8.5" rx="1" fill="currentColor"/>
+      <rect x="13.5" y="0" width="3" height="11" rx="1" fill="currentColor"/>
+    </svg>
+    <svg width="16" height="11" viewBox="0 0 16 11" fill="none" aria-hidden="true">
+      <path d="M1 3.2A10.5 10.5 0 0 1 15 3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M3.6 5.9a7 7 0 0 1 8.8 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M6.2 8.6a3.4 3.4 0 0 1 3.6 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden="true">
+      <rect x="0.6" y="0.6" width="21" height="10.8" rx="3" stroke="currentColor" stroke-opacity="0.4" stroke-width="1.2"/>
+      <rect x="2.2" y="2.2" width="15" height="7.6" rx="1.8" fill="currentColor"/>
+      <path d="M23.4 4.2v3.6" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+  </span>
+</header>
+
+<div class="login">
+
+  <a class="close" href="01-home.html" aria-label="关闭">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="m5.6 5.6 12.8 12.8M18.4 5.6 5.6 18.4" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round"/>
+    </svg>
+  </a>
+
+  <h1 class="login__title">欢迎登录</h1>
+  <p class="login__sub">法泽万物 · 法护民生</p>
+
+  <form class="fields" onsubmit="return false;">
+    <label class="field">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <rect x="6.4" y="2.6" width="11.2" height="18.8" rx="2.6" stroke="currentColor" stroke-width="1.9"/>
+        <path d="M10.6 5.6h2.8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+      </svg>
+      <input type="tel" inputmode="numeric" placeholder="请输入手机号" autocomplete="tel">
+    </label>
+    <label class="field">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <rect x="4.8" y="10.4" width="14.4" height="10.2" rx="2.2" stroke="currentColor" stroke-width="1.9"/>
+        <path d="M8.4 10.4V7.8a3.6 3.6 0 0 1 7.2 0v2.6" stroke="currentColor" stroke-width="1.9"
+              stroke-linecap="round"/>
+      </svg>
+      <input type="password" placeholder="请输入密码" autocomplete="current-password">
+      <button class="field__toggle" type="button" aria-label="显示密码" data-pw-toggle>
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M1.9 12S5.7 5.6 12 5.6 22.1 12 22.1 12 18.3 18.4 12 18.4 1.9 12 1.9 12Z"
+                stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/>
+          <circle cx="12" cy="12" r="3.1" stroke="currentColor" stroke-width="1.9"/>
+        </svg>
+      </button>
+    </label>
+  </form>
+
+  <a class="forgot" href="09-forgot.html">忘记密码？</a>
+
+  <a class="login-btn" href="01-home.html" style="display:flex;align-items:center;justify-content:center;text-decoration:none;">登录</a>
+
+  <p class="signup">还没有账号？<a href="08-register.html">立即注册</a></p>
+
+  <p class="agreement">登录即代表您同意<a href="10-agreement.html">《用户服务协议》</a>及<a href="11-privacy.html">《隐私政策》</a></p>
+
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390, initial-scale=1">
+<meta name="dsh-design" content="app">
+<title>首页</title>
+<link rel="stylesheet" href="tokens.css">
+<style>
+/* ==========================================================================
+   首页（Tab 1）—— 复刻原项目 pages/index/index.vue
+   版式：浅蓝渐变 hero + 负边距压上去的 AI 解答卡 + 每日学法卡
+   与原图差异（第 1 批已记录）：图标由位图改为线性 SVG，保留青/蓝/橙三色
+   ========================================================================== */
+
+.hero {
+  background: linear-gradient(180deg, var(--banner-start) 0%, var(--banner-end) 100%);
+  height: 252px;
+  padding: calc(var(--statusbar-h) + 20px) var(--sp-xl) 0;
+}
+
+.hero__greeting {
+  font-size: var(--fs-md);
+  color: var(--text-body);
+  line-height: var(--lh-normal);
+}
+
+.hero__title {
+  margin-top: var(--sp-xs);
+  font-size: var(--fs-h1);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  line-height: var(--lh-tight);
+  letter-spacing: -0.02em;
+}
+
+.hero__sub {
+  margin-top: var(--sp-sm);
+  font-size: var(--fs-md);
+  color: var(--text-secondary);
+  line-height: var(--lh-normal);
+}
+
+.content {
+  padding: 0 var(--sp-xl);
+  margin-top: -76px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-md);
+}
+
+/* ---------- AI 解答卡 ---------- */
+.ai-card {
+  padding: var(--sp-lg) var(--sp-lg) var(--sp-xl);
+}
+
+.ai-card__title {
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-bold);
+  color: var(--brand-accent);
+  line-height: var(--lh-tight);
+}
+
+.ai-card__search {
+  margin-top: var(--sp-md);
+  height: var(--input-h);
+  border-radius: var(--r-sm);
+  background: var(--bg-input);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  padding: 0 var(--sp-md);
+  color: var(--text-muted);
+}
+
+.ai-card__search svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.ai-card__search span {
+  font-size: var(--fs-md);
+}
+
+.quick-grid {
+  margin-top: var(--sp-lg);
+  display: flex;
+  gap: 10px;
+}
+
+.quick-grid__item {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-sm);
+  padding: var(--sp-md) 4px var(--sp-md);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-xs);
+  text-decoration: none;
+  color: var(--text-body);
+  transition: background 160ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.quick-grid__item:active {
+  background: var(--bg-canvas);
+}
+
+.quick-grid__item svg {
+  width: 30px;
+  height: 30px;
+}
+
+.quick-grid__label {
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-bold);
+  line-height: 1.2;
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* ---------- 每日学法卡 ---------- */
+.law-card {
+  padding: var(--sp-lg) var(--sp-lg) var(--sp-xs);
+}
+
+.law-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.law-card__title {
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  line-height: var(--lh-tight);
+}
+
+.law-card__more {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  margin-block: -9px;
+  text-decoration: none;
+}
+
+.law-card__more span {
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid var(--border-outline);
+  border-radius: var(--r-xs);
+  color: var(--text-secondary);
+  font-size: var(--fs-caption);
+}
+
+.law-list {
+  margin-top: var(--sp-xs);
+}
+
+.law-list__item {
+  display: block;
+  padding: var(--sp-lg) 0 var(--sp-md);
+  border-block-end: 1px solid var(--border-divider);
+  text-decoration: none;
+}
+
+.law-list__item:last-child {
+  border-block-end: 0;
+}
+
+.law-list__title {
+  font-size: var(--fs-md);
+  color: var(--text-body);
+  line-height: var(--lh-relaxed);
+}
+
+.law-list__meta {
+  margin-top: var(--sp-sm);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-xs);
+  font-family: var(--font-num);
+  font-size: var(--fs-micro);
+  color: var(--text-muted);
+}
+
+.law-list__dot {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--text-muted);
+}
+</style>
+</head>
+<body>
+
+<header class="statusbar">
+  <span>9:41</span>
+  <span class="statusbar__icons">
+    <svg width="17" height="11" viewBox="0 0 17 11" fill="none" aria-hidden="true">
+      <rect x="0" y="7" width="3" height="4" rx="1" fill="currentColor"/>
+      <rect x="4.5" y="5" width="3" height="6" rx="1" fill="currentColor"/>
+      <rect x="9" y="2.5" width="3" height="8.5" rx="1" fill="currentColor"/>
+      <rect x="13.5" y="0" width="3" height="11" rx="1" fill="currentColor"/>
+    </svg>
+    <svg width="16" height="11" viewBox="0 0 16 11" fill="none" aria-hidden="true">
+      <path d="M1 3.2A10.5 10.5 0 0 1 15 3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M3.6 5.9a7 7 0 0 1 8.8 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M6.2 8.6a3.4 3.4 0 0 1 3.6 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden="true">
+      <rect x="0.6" y="0.6" width="21" height="10.8" rx="3" stroke="currentColor" stroke-opacity="0.4" stroke-width="1.2"/>
+      <rect x="2.2" y="2.2" width="15" height="7.6" rx="1.8" fill="currentColor"/>
+      <path d="M23.4 4.2v3.6" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+  </span>
+</header>
+
+<div class="screen">
+
+  <section class="hero">
+    <p class="hero__greeting">下午好!</p>
+    <h1 class="hero__title">站在你的角度</h1>
+    <p class="hero__sub">为你争取和维护最大的权益</p>
+  </section>
+
+  <div class="content">
+
+    <section class="card ai-card">
+      <h2 class="ai-card__title">AI 解答</h2>
+      <div class="ai-card__search" role="button" tabindex="0">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="1.9"/>
+          <path d="m15.4 15.4 4.1 4.1" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+        </svg>
+        <span>请输入关键词</span>
+      </div>
+      <div class="quick-grid">
+        <a class="quick-grid__item" href="24-doc-lawsuit.html">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M4.6 6.8h14.8v12.4a1.8 1.8 0 0 1-1.8 1.8H6.4a1.8 1.8 0 0 1-1.8-1.8V6.8Z"
+                  stroke="var(--icon-doc)" stroke-width="1.9" stroke-linejoin="round"/>
+            <path d="M3.4 6.8 12 3l8.6 3.8" stroke="var(--icon-doc)" stroke-width="1.9"
+                  stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M8.4 10.6h7.2M8.4 14.2h5" stroke="var(--icon-doc)" stroke-width="1.9" stroke-linecap="round"/>
+          </svg>
+          <span class="quick-grid__label">生成起诉状</span>
+        </a>
+        <a class="quick-grid__item" href="02-lawyer.html">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="9.2" cy="8.4" r="3.3" stroke="var(--icon-lawyer)" stroke-width="1.9"/>
+            <path d="M2.9 19.6c0-3.3 2.8-5.4 6.3-5.4s6.3 2.1 6.3 5.4"
+                  stroke="var(--icon-lawyer)" stroke-width="1.9" stroke-linecap="round"/>
+            <circle cx="17.6" cy="9.4" r="2.3" stroke="var(--icon-lawyer)" stroke-width="1.9"/>
+            <path d="M16.6 15.2c2.7.2 4.5 2 4.5 4.4"
+                  stroke="var(--icon-lawyer)" stroke-width="1.9" stroke-linecap="round"/>
+          </svg>
+          <span class="quick-grid__label">律师咨询</span>
+        </a>
+        <a class="quick-grid__item" href="51-case-progress.html">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M3.2 12.6a8.8 8.8 0 1 1 2.6 6.2" stroke="var(--icon-progress)" stroke-width="1.9"
+                  stroke-linecap="round"/>
+            <path d="M3.1 8.4v4.4h4.4" stroke="var(--icon-progress)" stroke-width="1.9"
+                  stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M12 8.4V12l2.8 1.7" stroke="var(--icon-progress)" stroke-width="1.9"
+                  stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span class="quick-grid__label">查询进程</span>
+        </a>
+      </div>
+    </section>
+
+    <section class="card law-card">
+      <div class="law-card__head">
+        <h2 class="law-card__title">每日学法</h2>
+        <a class="law-card__more" href="12-articles.html"><span>更多</span></a>
+      </div>
+      <div class="law-list">
+        <a class="law-list__item" href="13-article.html">
+          <p class="law-list__title">未约定借款期限和借款利息，可以主张逾期利息吗？</p>
+          <p class="law-list__meta">
+            <span>2026年2月1号</span><i class="law-list__dot"></i><span>236</span>
+          </p>
+        </a>
+        <a class="law-list__item" href="13-article.html">
+          <p class="law-list__title">注意！劳务合同与劳动合同的区别，签错了损失巨大。</p>
+          <p class="law-list__meta">
+            <span>2026年2月3号</span><i class="law-list__dot"></i><span>560</span>
+          </p>
+        </a>
+        <a class="law-list__item" href="13-article.html">
+          <p class="law-list__title">【干货】起诉状怎么写？掌握这五个要素就够了。</p>
+          <p class="law-list__meta">
+            <span>2026年2月5号</span><i class="law-list__dot"></i><span>892</span>
+          </p>
+        </a>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<nav class="tabbar">
+  <a class="tabbar__item" href="01-home.html" aria-current="page">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M3.4 10.6 12 3.2l8.6 7.4" stroke="currentColor" stroke-width="1.9"
+            stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M5.6 9.4V20a1 1 0 0 0 1 1h10.8a1 1 0 0 0 1-1V9.4" stroke="currentColor"
+            stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <span>首页</span>
+  </a>
+  <a class="tabbar__item" href="02-lawyer.html">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="9.2" cy="8.4" r="3.3" stroke="currentColor" stroke-width="1.9"/>
+      <path d="M2.9 19.6c0-3.3 2.8-5.4 6.3-5.4s6.3 2.1 6.3 5.4" stroke="currentColor"
+            stroke-width="1.9" stroke-linecap="round"/>
+      <circle cx="17.6" cy="9.4" r="2.3" stroke="currentColor" stroke-width="1.9"/>
+      <path d="M16.6 15.2c2.7.2 4.5 2 4.5 4.4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+    </svg>
+    <span>律师</span>
+  </a>
+  <a class="tabbar__item" href="03-agent.html">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M20.4 12.2c0 4-3.8 7.2-8.4 7.2-1 0-2-.15-2.9-.42L4.1 20.4l1.3-3.5a7 7 0 0 1-1.9-4.7c0-4 3.8-7.2 8.5-7.2s8.4 3.2 8.4 7.2Z"
+            stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/>
+      <circle cx="8.6" cy="12.2" r="1.05" fill="currentColor"/>
+      <circle cx="12.1" cy="12.2" r="1.05" fill="currentColor"/>
+      <circle cx="15.6" cy="12.2" r="1.05" fill="currentColor"/>
+    </svg>
+    <span>智能体</span>
+  </a>
+  <a class="tabbar__item" href="04-case.html">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="2.9" y="7.4" width="18.2" height="12.8" rx="2.2" stroke="currentColor" stroke-width="1.9"/>
+      <path d="M8.8 7.4V5.9a2 2 0 0 1 2-2h2.4a2 2 0 0 1 2 2v1.5" stroke="currentColor"
+            stroke-width="1.9" stroke-linecap="round"/>
+      <path d="M2.9 12.4h18.2" stroke="currentColor" stroke-width="1.9"/>
+    </svg>
+    <span>案件</span>
+  </a>
+  <a class="tabbar__item" href="05-profile.html">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="12" cy="8.2" r="3.6" stroke="currentColor" stroke-width="1.9"/>
+      <path d="M4.9 20.3c0-3.7 3.2-6.3 7.1-6.3s7.1 2.6 7.1 6.3" stroke="currentColor"
+            stroke-width="1.9" stroke-linecap="round"/>
+    </svg>
+    <span>我的</span>
+  </a>
+  <i class="tabbar__home-indicator"></i>
+</nav>
+
+<script src="app.js"></script>
+</body>
+</html>

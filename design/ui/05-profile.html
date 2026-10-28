@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390, initial-scale=1">
+<meta name="dsh-design" content="app">
+<title>我的</title>
+<link rel="stylesheet" href="tokens.css">
+<style>
+/* ==========================================================================
+   我的页（Tab 5）—— 复刻原项目 pages/my/my.vue
+   版式：品牌渐变头（标语 + 天秤）+ 负边距用户卡 + 三栏快捷 + 菜单列表 + 退出
+   与原图差异（第 1 批已记录）：
+     1. 原项目这一页用了一整套 emoji 当图标（蓝盾/蓝心/紫人/泡泡/红问号/紫叹号/
+        紫齿轮），全部换成同一套线性 SVG，颜色仍按原项目的蓝/紫/红三系
+     2. 头像改为占位（将来用户自己上传）
+     3. 天秤由半透明 emoji 改为半透明白色线性 SVG，位置与大小保持
+   ========================================================================== */
+
+.hero {
+  background: linear-gradient(180deg, var(--profile-start) 0%, var(--profile-end) 100%);
+  /* 高度必须容得下：状态栏 54 + 上边距 18 + 标语两行约 65 + 与用户卡的间距 15 + 卡片上压 44 */
+  height: 196px;
+  padding: calc(var(--statusbar-h) + 18px) var(--sp-xl) 0;
+  position: relative;
+  overflow: hidden;
+}
+
+/* 状态栏在渐变上，给它同色背景，避免可读性判定取到页面底色 */
+.statusbar--light {
+  background: var(--profile-start);
+}
+
+.hero__slogan {
+  font-size: var(--fs-h1);
+  font-weight: var(--fw-bold);
+  color: var(--text-on-brand);
+  line-height: 1.35;
+  letter-spacing: 0.04em;
+}
+
+.hero__scale {
+  position: absolute;
+  inset-block-start: calc(var(--statusbar-h) + 6px);
+  inset-inline-end: 18px;
+  width: 88px;
+  height: 88px;
+  color: rgba(255, 255, 255, 0.34);
+}
+
+.content {
+  padding: 0 var(--sp-xl);
+  margin-top: -44px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-md);
+}
+
+/* ---------- 用户卡 ---------- */
+.user-card {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-lg);
+  padding: var(--sp-xl) var(--sp-lg);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-raised);
+}
+
+.avatar {
+  flex: 0 0 auto;
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  background: var(--bg-canvas);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.avatar svg {
+  width: 46px;
+  height: 46px;
+  color: #C7CCD6;
+}
+
+.user-card__name {
+  font-size: 20px;
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+.user-card__phone {
+  margin-top: 4px;
+  font-family: var(--font-num);
+  font-size: var(--fs-lg);
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+}
+
+/* ---------- 三栏快捷 ---------- */
+.quick-links {
+  display: flex;
+  padding: var(--sp-lg) 0;
+}
+
+.quick-links__item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-sm);
+  text-decoration: none;
+  color: var(--text-body);
+  position: relative;
+}
+
+.quick-links__item + .quick-links__item::before {
+  content: "";
+  position: absolute;
+  inset-block: 4px;
+  inset-inline-start: 0;
+  width: 1px;
+  background: var(--border-divider);
+}
+
+.quick-links__item svg {
+  width: 30px;
+  height: 30px;
+}
+
+.quick-links__label {
+  font-size: var(--fs-md);
+  color: var(--text-body);
+}
+
+/* ---------- 菜单 ---------- */
+.menu {
+  overflow: hidden;
+}
+
+.menu__row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-md);
+  padding: 15px var(--sp-lg);
+  text-decoration: none;
+  color: var(--text-body);
+  border-block-end: 1px solid var(--border-divider);
+  min-height: 52px;
+}
+
+.menu__row:last-child {
+  border-block-end: 0;
+}
+
+.menu__row:active {
+  background: var(--bg-canvas);
+}
+
+.menu__row svg {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+}
+
+.menu__label {
+  flex: 1 1 auto;
+  font-size: var(--fs-lg);
+}
+
+.menu__chevron {
+  width: 16px;
+  height: 16px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+/* ---------- 退出 ---------- */
+.logout {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--btn-h);
+  background: var(--bg-surface);
+  border-radius: var(--r-sm);
+  color: var(--state-danger);
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-bold);
+  text-decoration: none;
+  box-shadow: var(--shadow-card);
+}
+
+.logout:active {
+  background: var(--bg-canvas);
+}
+</style>
+</head>
+<body>
+
+<header class="statusbar statusbar--light">
+  <span>9:41</span>
+  <span class="statusbar__icons">
+    <svg width="17" height="11" viewBox="0 0 17 11" fill="none" aria-hidden="true">
+      <rect x="0" y="7" width="3" height="4" rx="1" fill="currentColor"/>
+      <rect x="4.5" y="5" width="3" height="6" rx="1" fill="currentColor"/>
+      <rect x="9" y="2.5" width="3" height="8.5" rx="1" fill="currentColor"/>
+      <rect x="13.5" y="0" width="3" height="11" rx="1" fill="currentColor"/>
+    </svg>
+    <svg width="16" height="11" viewBox="0 0 16 11" fill="none" aria-hidden="true">
+      <path d="M1 3.2A10.5 10.5 0 0 1 15 3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M3.6 5.9a7 7 0 0 1 8.8 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M6.2 8.6a3.4 3.4 0 0 1 3.6 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden="true">
+      <rect x="0.6" y="0.6" width="21" height="10.8" rx="3" stroke="currentColor" stroke-opacity="0.4" stroke-width="1.2"/>
+      <rect x="2.2" y="2.2" width="15" height="7.6" rx="1.8" fill="currentColor"/>
+      <path d="M23.4 4.2v3.6" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+  </span>
+</header>
+
+<div class="screen">
+
+  <section class="hero">
+    <h1 class="hero__slogan">法泽万物<br>法护民生</h1>
+    <svg class="hero__scale" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+      <path d="M32 6v44M20 54h24M32 12 13 18M32 12l19 6" stroke="currentColor"
+            stroke-width="2.4" stroke-linecap="round"/>
+      <path d="M13 18 5.5 31.5a7.5 7.5 0 0 0 15 0L13 18ZM51 18l-7.5 13.5a7.5 7.5 0 0 0 15 0L51 18Z"
+            stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"/>
+    </svg>
+  </section>
+
+  <div class="content">
+
+    <section class="card user-card">
+      <div class="avatar" aria-label="头像占位">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="12" cy="9" r="3.7" fill="currentColor"/>
+          <path d="M4.6 21c0-4.1 3.3-6.9 7.4-6.9s7.4 2.8 7.4 6.9" fill="currentColor"/>
+        </svg>
+      </div>
+      <div>
+        <p class="user-card__name">用户名</p>
+        <p class="user-card__phone">187****1576</p>
+      </div>
+    </section>
+
+    <section class="card quick-links">
+      <a class="quick-links__item" href="46-verify-company.html">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 2.9 4.4 5.8v6.1c0 4.4 3.1 8.2 7.6 9.2 4.5-1 7.6-4.8 7.6-9.2V5.8L12 2.9Z"
+                fill="#4E8DF2" fill-opacity="0.16" stroke="#4E8DF2" stroke-width="1.9" stroke-linejoin="round"/>
+          <path d="m8.9 11.8 2.2 2.2 4-4.3" stroke="#4E8DF2" stroke-width="1.9"
+                stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span class="quick-links__label">企业认证</span>
+      </a>
+      <a class="quick-links__item" href="48-favorites.html">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 20.6C7.2 17.4 3.4 14.2 3.4 10.2a4.6 4.6 0 0 1 8.6-2.3 4.6 4.6 0 0 1 8.6 2.3c0 4-3.8 7.2-8.6 10.4Z"
+                fill="#4E8DF2" fill-opacity="0.16" stroke="#4E8DF2" stroke-width="1.9" stroke-linejoin="round"/>
+        </svg>
+        <span class="quick-links__label">我的收藏</span>
+      </a>
+      <a class="quick-links__item" href="49-following.html">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="12" cy="8.2" r="3.6" fill="#8A2BE2" fill-opacity="0.16" stroke="#8A2BE2" stroke-width="1.9"/>
+          <path d="M4.9 20.3c0-3.7 3.2-6.3 7.1-6.3s7.1 2.6 7.1 6.3" stroke="#8A2BE2"
+                stroke-width="1.9" stroke-linecap="round"/>
+        </svg>
+        <span class="quick-links__label">关注律师</span>
+      </a>
+    </section>
+
+    <section class="card menu">
+      <a class="menu__row" href="52-support.html">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M20.4 12.2c0 4-3.8 7.2-8.4 7.2-1 0-2-.15-2.9-.42L4.1 20.4l1.3-3.5a7 7 0 0 1-1.9-4.7c0-4 3.8-7.2 8.5-7.2s8.4 3.2 8.4 7.2Z"
+                fill="#8A2BE2" fill-opacity="0.14" stroke="#8A2BE2" stroke-width="1.9" stroke-linejoin="round"/>
+        </svg>
+        <span class="menu__label">客服帮助</span>
+        <svg class="menu__chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="m9.5 5.5 6.5 6.5-6.5 6.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </a>
+      <a class="menu__row" href="15-lawyer-join.html">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="12" cy="8.2" r="3.6" fill="#8A2BE2" fill-opacity="0.14" stroke="#8A2BE2" stroke-width="1.9"/>
+          <path d="M4.9 20.3c0-3.7 3.2-6.3 7.1-6.3s7.1 2.6 7.1 6.3" stroke="#8A2BE2"
+                stroke-width="1.9" stroke-linecap="round"/>
+        </svg>
+        <span class="menu__label">律师/学生入驻</span>
+        <svg class="menu__chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="m9.5 5.5 6.5 6.5-6.5 6.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </a>
+      <a class="menu__row" href="53-faq.html">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="12" cy="12" r="9.1" stroke="#EE0A24" stroke-width="1.9"/>
+          <path d="M9.6 9.3a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 1.8-2.4 3.4" stroke="#EE0A24"
+                stroke-width="1.9" stroke-linecap="round"/>
+          <circle cx="12" cy="17.1" r="1.15" fill="#EE0A24"/>
+        </svg>
+        <span class="menu__label">常见问题</span>
+        <svg class="menu__chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="m9.5 5.5 6.5 6.5-6.5 6.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </a>
+      <a class="menu__row" href="54-complaint.html">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 3.6v10.2" stroke="#8A2BE2" stroke-width="2.2" stroke-linecap="round"/>
+          <circle cx="12" cy="18.6" r="1.35" fill="#8A2BE2"/>
+        </svg>
+        <span class="menu__label">关于投诉</span>
+        <svg class="menu__chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="m9.5 5.5 6.5 6.5-6.5 6.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </a>
+      <a class="menu__row" href="38-settings.html">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="12" cy="12" r="3.1" stroke="#8A2BE2" stroke-width="1.9"/>
+          <path d="M19.5 14.9a1.7 1.7 0 0 0 .35 1.9l.06.06a2.1 2.1 0 1 1-2.95 2.95l-.06-.06a1.7 1.7 0 0 0-1.9-.35 1.7 1.7 0 0 0-1 1.55v.16a2.1 2.1 0 1 1-4.2 0v-.09a1.7 1.7 0 0 0-1.09-1.55 1.7 1.7 0 0 0-1.9.35l-.06.06a2.1 2.1 0 1 1-2.95-2.95l.06-.06a1.7 1.7 0 0 0 .35-1.9 1.7 1.7 0 0 0-1.55-1H2.5a2.1 2.1 0 1 1 0-4.2h.09a1.7 1.7 0 0 0 1.55-1.09 1.7 1.7 0 0 0-.35-1.9l-.06-.06a2.1 2.1 0 1 1 2.95-2.95l.06.06a1.7 1.7 0 0 0 1.9.35h.08a1.7 1.7 0 0 0 1-1.55V2.5a2.1 2.1 0 1 1 4.2 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.9-.35l.06-.06a2.1 2.1 0 1 1 2.95 2.95l-.06.06a1.7 1.7 0 0 0-.35 1.9v.08a1.7 1.7 0 0 0 1.55 1h.16a2.1 2.1 0 1 1 0 4.2h-.09a1.7 1.7 0 0 0-1.55 1Z"
+                stroke="#8A2BE2" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span class="menu__label">设置</span>
+        <svg class="menu__chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="m9.5 5.5 6.5 6.5-6.5 6.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </a>
+    </section>
+
+    <a class="logout" href="06-login.html">退出当前账号</a>
+
+  </div>
+</div>
+
+<nav class="tabbar">
+  <a class="tabbar__item" href="01-home.html">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M3.4 10.6 12 3.2l8.6 7.4" stroke="currentColor" stroke-width="1.9"
+            stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M5.6 9.4V20a1 1 0 0 0 1 1h10.8a1 1 0 0 0 1-1V9.4" stroke="currentColor"
+            stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <span>首页</span>
+  </a>
+  <a class="tabbar__item" href="02-lawyer.html">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="9.2" cy="8.4" r="3.3" stroke="currentColor" stroke-width="1.9"/>
+      <path d="M2.9 19.6c0-3.3 2.8-5.4 6.3-5.4s6.3 2.1 6.3 5.4" stroke="currentColor"
+            stroke-width="1.9" stroke-linecap="round"/>
+      <circle cx="17.6" cy="9.4" r="2.3" stroke="currentColor" stroke-width="1.9"/>
+      <path d="M16.6 15.2c2.7.2 4.5 2 4.5 4.4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+    </svg>
+    <span>律师</span>
+  </a>
+  <a class="tabbar__item" href="03-agent.html">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M20.4 12.2c0 4-3.8 7.2-8.4 7.2-1 0-2-.15-2.9-.42L4.1 20.4l1.3-3.5a7 7 0 0 1-1.9-4.7c0-4 3.8-7.2 8.5-7.2s8.4 3.2 8.4 7.2Z"
+            stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/>
+      <circle cx="8.6" cy="12.2" r="1.05" fill="currentColor"/>
+      <circle cx="12.1" cy="12.2" r="1.05" fill="currentColor"/>
+      <circle cx="15.6" cy="12.2" r="1.05" fill="currentColor"/>
+    </svg>
+    <span>智能体</span>
+  </a>
+  <a class="tabbar__item" href="04-case.html">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="2.9" y="7.4" width="18.2" height="12.8" rx="2.2" stroke="currentColor" stroke-width="1.9"/>
+      <path d="M8.8 7.4V5.9a2 2 0 0 1 2-2h2.4a2 2 0 0 1 2 2v1.5" stroke="currentColor"
+            stroke-width="1.9" stroke-linecap="round"/>
+      <path d="M2.9 12.4h18.2" stroke="currentColor" stroke-width="1.9"/>
+    </svg>
+    <span>案件</span>
+  </a>
+  <a class="tabbar__item" href="05-profile.html" aria-current="page">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="12" cy="8.2" r="3.6" stroke="currentColor" stroke-width="1.9"/>
+      <path d="M4.9 20.3c0-3.7 3.2-6.3 7.1-6.3s7.1 2.6 7.1 6.3" stroke="currentColor"
+            stroke-width="1.9" stroke-linecap="round"/>
+    </svg>
+    <span>我的</span>
+  </a>
+  <i class="tabbar__home-indicator"></i>
+</nav>
+
+<script src="app.js"></script>
+</body>
+</html>
