@@ -19,7 +19,8 @@
 
 .hero {
   background: linear-gradient(180deg, var(--profile-start) 0%, var(--profile-end) 100%);
-  height: 176px;
+  /* 高度必须容得下：状态栏 54 + 上边距 18 + 标语两行约 65 + 与用户卡的间距 15 + 卡片上压 44 */
+  height: 196px;
   padding: calc(var(--statusbar-h) + 18px) var(--sp-xl) 0;
   position: relative;
   overflow: hidden;
