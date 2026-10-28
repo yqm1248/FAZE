@@ -1,93 +1,103 @@
 # 法泽 FAZE
 
-> 普惠型法律服务平台 APP 的 UI 复刻工程。
-> 本仓库是对既有 uni-app 项目 `FazeApp`（2026-04 打包）的**界面复刻**，不继承其代码与技术债。
+> 面向新疆伊犁地区的普惠型法律服务平台。**目标是真实上线运营**，不是原型、不是演示、不是参赛作品。
+> 平台范围：移动端 APP（Android 优先）+ 服务端 API + PC 管理后台；**4 种语言**（简体中文 / 藏文 / 维吾尔文 / 哈萨克文）。
 
-## 这是什么
+---
 
-一份**纯 UI 复刻**：12 个页面、5 个底部 tab、完整页面跳转关系全部还原，数据为本地假数据，
-后端接口在后续迭代中接入。当前目标只有一个——**让观感、版式、信息密度与原项目一致，但工程结构合规**。
+## 现在在做什么
 
-原项目遗留的技术债清单见 [docs/analysis/原项目技术债清单.md](docs/analysis/原项目技术债清单.md)。
+项目按 **9 个段（第 0~8 段）串行推进**，段与段之间不并行。当前处于 **第 0 段：可安装底座 + 三项探针**。
 
-## 技术栈
+| 想知道 | 看哪里 |
+|---|---|
+| 9 段怎么切、现在第几段 | [docs/architecture/法泽FAZE_分期交付计划_v1.0.md](docs/architecture/法泽FAZE_分期交付计划_v1.0.md) |
+| **第 0 段具体怎么做**（单线，从第一行读到最后一行） | [docs/architecture/法泽FAZE_第0段执行计划_v3.0.md](docs/architecture/法泽FAZE_第0段执行计划_v3.0.md) |
+| 哪些文档是现行版 | [docs/BASELINE.md](docs/BASELINE.md) |
 
-| 项 | 选型 |
-| --- | --- |
-| 应用端 | Expo SDK 54 / React Native 0.81 / React 19 |
-| 路由 | `expo-router` 6（`app/` 只放薄路由壳，页面实现位于 `features/`） |
-| 语言 | TypeScript strict，禁止 `any` |
-| 样式 | `StyleSheet` + 设计令牌（`shared/theme`），不引入 Tailwind 类方案 |
-| 图标 | `@expo/vector-icons`（矢量），业务位图沿用原项目 PNG 素材 |
-| 渐变 | `expo-linear-gradient` |
-| 国际化 | 仅简体中文，不含藏文（原项目的藏文字体为死代码，已废弃） |
-| 目标平台 | Android / iOS / Web 预览。**不做微信小程序** |
+---
 
-## 根目录导航
+## ⚠️ 仓库当前状态（读代码前必看）
+
+`apps/mobile-app/` 里目前是**旧原型**——12 个页面的纯 UI 复刻，数据是本地假数据，只有简体中文。
+
+**它会在第 0 段的 T0-02 被整体删除重建**（代码留在 git 历史里，可查）。在这个前提下：
+
+- 不要以 `apps/mobile-app/` 现有代码为工程范本——它的目录结构、假数据层、单语言假设都会消失；
+- 不要相信任何文档里的「已完成」字样，除非第 0 段的 13 条验收清单已全绿。
+
+工程规范以 [AGENTS.md](AGENTS.md) 为准，不以现有代码为准。
+
+---
+
+## 技术栈（已锁定）
+
+| 层 | 选型 |
+|---|---|
+| 移动端 | Expo SDK 54 / React Native 0.81 / React 19 / expo-router 6 / TypeScript strict |
+| 服务端 | Java 17 / Spring Boot 3.5 / MyBatis-Plus 3.5.12 / MySQL 8.0 / Redis |
+| PC 后台 | RuoYi-Vue3（业务代码隔离在 `src/views/biz/`） |
+| 实时通信 | 自建 WebSocket + 第三方离线推送 |
+| AI | 豆包 API（SSE 流式）+ 本地法条库检索（MySQL ngram 全文索引，**不用向量库**） |
+| 文书 | `poi-tl`（Word）+ LibreOffice headless / Chromium 打印（PDF） |
+| 包管理器 | **npm** |
+| 容器 | **不用 docker**，本地依次启动服务 |
+
+---
+
+## 目录
 
 ```text
 apps/
-  mobile-app/        APP（Expo Router）；app/ 只放薄路由，页面实现在 features/
-
-design/
-  tokens/            设计令牌唯一来源（颜色、字号、间距、圆角）
-  legacy-assets/     从原项目迁入的位图素材（保持原文件，不做二次压缩）
-
-docs/
-  README.md          文档总索引
-  standards/         目录命名、代码注释、代码审查三类工程规范
-  design/            页面清单与信息架构、设计令牌说明、组件清单
-  architecture/      运行时架构与目录职责边界
-  analysis/          原项目技术债清单、参考项目规范提取
-
-scripts/             启动、验证、静态检查的唯一脚本入口
+  mobile-app/       APP（Expo + expo-router）；app/ 只放薄路由，页面实现在 features/
+services/
+  faze-api/         Spring Boot 服务端
+database/           建库脚本 + Flyway 迁移
+deploy/             start-services.ps1（按顺序起 MySQL / Redis，不用 docker）
+design/             设计令牌唯一来源
+docs/               全部文档，入口是 docs/README.md
+scripts/            静态检查与验证脚本
+tools/              取证、字体检查等工具脚本
 ```
+
+> 除 `apps/`、`design/`、`docs/` 外，其余目录在第 0 段逐步建立（见执行计划 T0-11）。
+
+---
 
 ## 常用入口
 
 | 目的 | 位置 |
-| --- | --- |
+|---|---|
 | 文档总索引 | [docs/README.md](docs/README.md) |
-| 页面清单与跳转关系 | [docs/design/页面清单与信息架构.md](docs/design/页面清单与信息架构.md) |
+| 65 个页面清单与跳转关系 | [docs/design/法泽APP_页面导航树_v1.4.md](docs/design/法泽APP_页面导航树_v1.4.md) |
 | 设计令牌取值依据 | [docs/design/设计令牌.md](docs/design/设计令牌.md) |
-| 12 页运行截图 | [docs/design/screenshots/](docs/design/screenshots/) |
-| 代码注释规范 | [docs/standards/代码注释规范.md](docs/standards/代码注释规范.md) |
-| 目录与命名规范 | [docs/standards/目录与命名规范.md](docs/standards/目录与命名规范.md) |
+| 工程规范 | [docs/standards/](docs/standards/) |
 | 协作与 agent 规则 | [AGENTS.md](AGENTS.md) |
+| 每一版改了什么 | [docs/CHANGELOG.md](docs/CHANGELOG.md) |
 
-## 当前状态
+---
 
-12 个页面全部实现，`tsc --noEmit` 与 `eslint` 零错误零告警，Web 产物可构建、可运行。
-
-| 项 | 数值 |
-| --- | --- |
-| 页面 | 12（5 个 tab + 3 个认证页 + 4 个二级页） |
-| TypeScript 代码 | 约 4,650 行（含注释） |
-| 文档 | 10 份，约 875 行 |
-| 共享组件 | 8 个 |
-| 设计令牌 | 颜色 22 项、字号 8 档、间距 9 档、圆角 5 档、尺寸 16 项 |
-
-已知限制见 [apps/mobile-app/README.md](apps/mobile-app/README.md) 末节「尚未实现」。
-
-## 启动
+## 启动（旧原型，第 0 段删除前的临时说明）
 
 ```bash
 cd apps/mobile-app
-pnpm install
-pnpm run web        # 浏览器预览（无需 Android SDK）
-pnpm run lint       # tsc --noEmit + eslint
+npm install
+npm run web        # 浏览器预览，无需 Android SDK
+npm run lint       # tsc --noEmit + eslint
 ```
 
-真机调试使用 `pnpm run android` / `pnpm run ios`，需要本机 Android SDK 或 Expo Go。
+第 0 段完成后的启动方式以届时 `deploy/start-services.ps1` 与各子目录 README 为准。
 
-## 工程约定（摘要）
+---
+
+## 工程约定（摘要，完整见 AGENTS.md）
 
 - 页面实现放 `features/<domain>/pages/`，`app/` 下的路由文件只能是一行 re-export。
 - 颜色、字号、间距、圆角禁止在页面内写字面量，一律来自 `shared/theme`。
-- 每个页面文件顶部必须有块注释：页面用途、路由路径、数据来源、跳转去向。
-- 假数据集中在 `features/<domain>/__fixtures__/`，页面内不得内联长数组。
-- 详见 [docs/standards/](docs/standards/)。
-
+- 所有面向用户的字符串走 `t()`，**4 种语言全做**（含两个 RTL 语言）。
+- 禁止 `any`、`@ts-ignore`、`as unknown as`；禁止 `left` / `right`，一律 `start` / `end`。
+- 金额一律整数分（`BIGINT`），禁浮点。
+- 每个文件顶部必须有块注释：职责、调用方、数据来源、注意事项。
 
 ---
 

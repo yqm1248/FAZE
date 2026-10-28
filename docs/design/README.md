@@ -49,7 +49,7 @@
 5. 接真实接口：features/<domain>/api/ + hooks/，不写 __fixtures__
 6. 写 app/ 下的路由壳（1 行 re-export）
 7. 四语言 key 补齐（至少 zh-Hans + ug-Arab-CN），页面四态（正常/加载/空/错误）齐全
-8. pnpm run lint（tsc --noEmit + eslint 零告警）
+8. npm run lint（tsc --noEmit + eslint 零告警）
 9. 回《页面清单与信息架构》把状态改成「已完成」
 ```
 
