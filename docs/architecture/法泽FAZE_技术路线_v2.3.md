@@ -7,6 +7,13 @@
 > 参考工程：`zxz-bi-server`（工程规范）、`wgcloud`（安全细节）、`jxyd200`（RuoYi + Expo 多端实践）
 > 工程规则：以仓库根目录 `AGENTS.md` v2.0 为准
 > 上一版本：`法泽FAZE_技术路线_v2.2.md`
+>
+> **发布后修订（2026-10-28，不升版本号）**
+> ① §20.6 未成年人策略：由「不面向未成年人，年龄识别」改为「**不限制注册年龄**，采集 `birth_date` 算年龄，**不满 18 周岁一律需监护人同意**；不满 14 周岁按《个人信息保护法》第 31 条须监护人单独同意 + 专门处理规则」
+> ② §5.3 `is_minor` 语义：「14–18 岁标记」→「**不满 18 周岁即置 1**」
+> ③ §5.3 `birth_date` 注释随之更新
+>
+> **原因**：项目负责人 2026-10-28 决定不限制注册年龄。原 F-3-23 的「未满 14 周岁禁止注册」前提因此失效，`is_minor` 必须覆盖全部未成年人。详细论证见 `法泽FAZE_V1基线表结构_v1.0.md` §3.1.1。
 
 ## V2.3 变更记录（2026-10-28）
 
@@ -866,7 +873,7 @@ CREATE TABLE app_user (
   nickname        VARCHAR(50),
   avatar_url      VARCHAR(500),
   gender          TINYINT      DEFAULT 0,        -- 0未知 1男 2女
-  birth_date      DATE,                          -- 出生日期：未成年人识别（见 F-3-23）
+  birth_date      DATE,                          -- 出生日期：用于算年龄、判断 is_minor（不满 18 周岁即 1）
   role            VARCHAR(20)  DEFAULT 'user',   -- user / lawyer / customer_service / admin
   lang            VARCHAR(20)  DEFAULT 'zh-Hans',
   realname_status VARCHAR(20)  DEFAULT 'none',   -- none / pending / approved / rejected
@@ -3485,7 +3492,7 @@ volumes:
 | 账号注销 | 注销入口，7 天冷静期，数据删除 |
 | 第三方共享 | 清单化披露 |
 | 个人信息保护影响评估（PIA） | 处理敏感信息前完成 |
-| 未成年人 | 不面向未成年人，年龄识别 |
+| 未成年人 | **不限制注册年龄**（项目负责人 2026-10-28 决定，取代原「不面向未成年人」）。采集 `birth_date` 计算年龄，**不满 18 周岁一律需监护人同意**；不满 14 周岁按《个人信息保护法》第 31 条处理——其个人信息属**敏感个人信息**，须取得监护人**单独同意**并制定**专门处理规则** |
 | SDK 合规 | 每个 SDK 名称、用途、收集字段，列入隐私政策 |
 
 ## 20.7 应用商店

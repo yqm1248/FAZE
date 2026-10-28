@@ -262,3 +262,9 @@ error.<域>.<场景>
 - [ ] 服务端 `ErrorCode` 枚举与本表逐行对应
 - [ ] 客户端 `no-hardcoded-error-msg` lint 规则能拦住直接展示 `msg` 的写法（T0-22 实现）
 - [ ] 单元测试：故意抛 `BusinessException(402001)` → 响应 HTTP 200 + code 402001；故意让 token 过期 → 响应 HTTP 401 + code 402002
+
+
+---
+
+> **【文档基线 v1.1】** 本文件属于「法泽 FAZE 文档基线 v1.1」（2026-10-28 确立）。
+> **后续一切文档从这里开始。** 基线清单与文件指纹见 `docs/BASELINE.md`。

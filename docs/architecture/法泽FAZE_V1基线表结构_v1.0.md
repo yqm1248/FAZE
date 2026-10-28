@@ -33,7 +33,7 @@
 | 存储引擎 | `InnoDB` | ngram 解析器是 InnoDB 内置，MyISAM 不可用 |
 | `ngram_token_size` | `2` | 默认值即为 2，**不改 my.ini**（只读参数，改了要重启服务）。**已实测双字可命中、单字命中 0 条** |
 | 应用账号 | `faze_app`@`localhost` | 只授权 `faze.*`，**不用 root 跑应用** |
-| 时区 | 见 §五待确认项 | — |
+| 时区 | **已定：`DATETIME` 存 UTC**（见 §5.1） | — |
 
 ---
 
@@ -62,7 +62,7 @@ CREATE TABLE app_user (
   role                VARCHAR(20)  DEFAULT 'user'                   COMMENT 'user / lawyer / customer_service / admin',
   lang                VARCHAR(20)  DEFAULT 'zh-Hans'                COMMENT '语言偏好：zh-Hans / bo / ug-Arab-CN / kk-Arab-CN',
   realname_status     VARCHAR(20)  DEFAULT 'none'                   COMMENT 'none / pending / approved / rejected',
-  is_minor            TINYINT      NOT NULL DEFAULT 0               COMMENT '14–18 岁标记',
+  is_minor            TINYINT      NOT NULL DEFAULT 0               COMMENT '不满 18 周岁即置 1；注册不限年龄',
   guardian_phone      VARCHAR(20)                                   COMMENT '监护人手机号，未成年人必填',
   guardian_consent_at DATETIME                                      COMMENT '监护人同意时间',
   status              VARCHAR(20)  DEFAULT 'active'                 COMMENT 'active / blocked / cancelled',
@@ -90,17 +90,32 @@ CREATE TABLE app_user (
 | `status` | `blocked` 用于封禁；`cancelled` 用于**注销账号**（第 8 段应用商店硬要求） | 第 1 段、第 7 段风控、第 8 段注销 |
 | `deleted_at` | 软删除。用户数据不能物理删（合规留痕） | 全段 |
 
-### 3.1.1 一处我建议改的（照抄了文档，但逻辑有疑）
+### 3.1.1 `is_minor` 的定稿：不满 18 周岁即置 1
 
-`is_minor` 的注释是「**14–18 岁**标记」。这是技术路线 v2.3 的原文，但我认为这个范围有问题：
+**先说一段我搞错的事，留作记录**：我最初看到注释「14–18 岁标记」时判断它是错的。查过之后发现**它当时是对的** —— 因为 F-3-23 规定「未满 14 周岁禁止注册」，表里不可能有 <14 岁的人，`is_minor=1` 自然只覆盖 14–18。
 
-- 法律上未成年人 = **不满 18 周岁**，不是「14 到 18 岁」
-- 14 岁是**刑事责任年龄**的分界，不是未成年人的下界
-- 若只标 14–18，那么 **10 岁用户会 `is_minor=0`，被当成成年人** —— 而小学生咨询校园欺凌是完全可能的场景
+**但项目负责人 2026-10-28 决定「不限制年龄」，前提变了**：
 
-**建议**：`is_minor` 的含义改为「**不满 18 周岁即置 1**」，注释同步改。`birth_date` 已能算出准确年龄，判断逻辑放服务端（不在客户端算，客户端时间可被改）。
+- 注册不再有 14 岁下限 → 表里可能出现任意年龄的用户
+- 因此 `is_minor` 的语义必须改为「**不满 18 周岁即置 1**」
+- 注释随之改为「不满 18 周岁即置 1；注册不限年龄」
 
-**但这会改变字段语义，需要你确认。** 若确认改，我同步更新技术路线 v2.3 的对应注释。
+**判断逻辑放服务端**（不放客户端——客户端时间可被篡改）：
+
+```java
+// 年龄按周岁计算
+isMinor = Period.between(birthDate, LocalDate.now(ZoneOffset.UTC)).getYears() < 18;
+```
+
+**⚠ 法律提醒（这不是产品选择，是义务）**
+
+「不限制注册年龄」不等于「不承担未成年人保护义务」。两条硬约束：
+
+1. **《个人信息保护法》第 31 条**：处理**不满 14 周岁**未成年人的个人信息，属**敏感个人信息**，必须取得监护人**单独同意**，并制定**专门的处理规则**。
+   → 所以 `guardian_phone` + `guardian_consent_at` 对 <14 岁**更是必需**，不是可选。
+2. **民事行为能力**：<8 周岁为无民事行为能力人（所签合同无效）；8–18 周岁为限制民事行为能力人（只能实施与其年龄、智力相适应的行为）。**付费咨询合同对未成年人是否有效，要单独评估。**
+
+**建议**：监护人同意的触发条件从「14–18 岁」放宽为「**全部 <18 岁**」，<14 岁额外留单独同意记录。第 1 段（注册流程）落实，第 8 段（上架合规）再核。
 
 ## 3.2 三个设计说明（容易踩坑的地方）
 
@@ -162,19 +177,25 @@ CREATE TABLE law_item (
 
 ---
 
-# 五、我建议加、但需要你确认的三项
+# 五、三项建议的处置结果
 
-这三项**不在技术路线 v2.3 里**，我认为该加，但加了就是偏离文档，所以列出来由你定：
+| # | 事项 | 结果 |
+|---|---|---|
+| 1 | `app_user` 加 `KEY idx_app_user_phone_status (phone, status)` | **不加**。现有 `uk_app_user_phone` 足够，加这个只省一次回表，收益不成比例 |
+| 2 | `law_item` 加 `FULLTEXT KEY ft_law_keywords (keywords)` | **第 3 段再定**（全量法条导入时才需要） |
+| 3 | 时区策略 | ✅ **已定：`DATETIME` 存 UTC，出参 ISO-8601 带 `+08:00`**（项目负责人 2026-10-28 拍板） |
 
-| # | 建议 | 理由 | 不加的后果 |
-|---|---|---|---|
-| 1 | `app_user` 加 `KEY idx_app_user_phone_status (phone, status)` | 登录查询 `WHERE phone=? AND status='active'` 走复合索引 | 现在有 `uk_phone` 单列唯一索引，够用；加这个只是少一次回表。**收益小，可不加** |
-| 2 | `law_item` 加 `FULLTEXT KEY ft_law_keywords (keywords)` | 让关键词也能走全文检索 | 关键词只能 `LIKE` 查。**第 3 段再定** |
-| 3 | 两表统一时区策略：`DATETIME` 存 **UTC**，出参 ISO-8601 带 `+08:00` | 新疆业务跨时区展示必错 | 若存本地时间，将来导出/对接必须做时区换算，**且不可逆** |
+## 5.1 时区约定（已定稿）
 
-**第 3 项是我最想让你拍板的**，因为它是**数据层面的不可逆选择**——一旦数据写进去，改时区语义要全表重刷。
+| 项 | 约定 |
+|---|---|
+| 数据库存储 | 所有 `DATETIME` 字段**存 UTC** |
+| 服务端取时 | `LocalDateTime.now(ZoneOffset.UTC)`，**禁止用系统默认时区** |
+| 接口出参 | ISO-8601 带偏移，如 `2026-10-28T15:00:00+08:00` |
+| 客户端展示 | 按用户 locale 转；国内用户默认 `Asia/Shanghai` |
+| JSON 序列化 | Jackson 全局统一配置，**不允许各接口各写一套** |
 
-我的建议：**存 UTC**。理由：`DATETIME` 不带时区信息，存 UTC 是通用做法；展示时用 `Asia/Shanghai`（或后续按用户 locale）转换。代价是每次查询要记得转，收益是永远不会出现「这条记录到底是几点」的歧义。
+**为什么定 UTC**：`DATETIME` 本身不带时区信息，存本地时间等于把「这条记录到底几点」交给约定。一旦以后要做数据导出、跨区域部署、对接第三方，都必须全表重刷。存 UTC 是唯一不用还债的选择。代价是每次查询要记得转 —— 所以「服务端取时禁止用系统默认时区」要作为硬规则写进 ADR。
 
 ---
 
@@ -203,3 +224,9 @@ CREATE TABLE law_item (
 
 > 字段数核对：`app_user` 数得 19（id, phone, password_hash, nickname, avatar_url, gender, birth_date, role, lang, realname_status, is_minor, guardian_phone, guardian_consent_at, status, last_login_at, last_login_ip, created_at, updated_at, deleted_at）✓
 > `law_item` 数得 12（id, law_code, law_name, article_no, article_seq, content, effective_date, expire_date, status, keywords, created_at, updated_at）✓
+
+
+---
+
+> **【文档基线 v1.1】** 本文件属于「法泽 FAZE 文档基线 v1.1」（2026-10-28 确立）。
+> **后续一切文档从这里开始。** 基线清单与文件指纹见 `docs/BASELINE.md`。
