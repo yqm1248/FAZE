@@ -25,7 +25,12 @@
     "03-agent.html",
     "04-case.html",
     "05-profile.html",
-    "06-login.html"
+    "06-login.html",
+    "07-splash.html",
+    "08-register.html",
+    "09-forgot.html",
+    "10-agreement.html",
+    "11-privacy.html"
   ];
 
   /* ---------- 轻提示 ---------- */

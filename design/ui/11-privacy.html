@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390, initial-scale=1">
+<meta name="dsh-design" content="app">
+<title>隐私政策</title>
+<link rel="stylesheet" href="tokens.css">
+<style>
+/* ==========================================================================
+   隐私政策页 —— 原项目无参考图，按「法律长文」母版延展
+   依据：《页面导航树》模块 0「隐私政策页 ⚠️ 合规硬要求」
+   排版与《用户服务协议》完全一致，只换内容
+   ========================================================================== */
+
+body {
+  background: var(--bg-surface);
+  display: flex;
+  flex-direction: column;
+}
+
+.navbar {
+  flex: 0 0 auto;
+  padding: calc(var(--statusbar-h) + 4px) var(--sp-xl) var(--sp-md);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  border-block-end: 1px solid var(--border-divider);
+  background: var(--bg-surface);
+}
+
+.navbar__back {
+  width: 44px;
+  height: 44px;
+  margin-inline-start: -12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: none;
+  color: var(--text-primary);
+  text-decoration: none;
+  padding: 0;
+  border-radius: var(--r-sm);
+  flex-shrink: 0;
+}
+
+.navbar__back svg {
+  width: 22px;
+  height: 22px;
+}
+
+.navbar__title {
+  font-size: var(--fs-h2);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  line-height: 1.25;
+}
+
+.doc {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  min-height: 0;
+  padding: var(--sp-xl) var(--sp-xl) calc(var(--safe-bottom) + var(--sp-xxl));
+}
+
+.doc__title {
+  font-size: 22px;
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  line-height: 1.35;
+  letter-spacing: -0.01em;
+}
+
+.doc__meta {
+  margin-block-start: var(--sp-md);
+  font-family: var(--font-num);
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: var(--lh-relaxed);
+}
+
+.doc__lead {
+  margin-block-start: var(--sp-lg);
+  padding: var(--sp-md) var(--sp-lg);
+  border-radius: var(--r-sm);
+  background: var(--brand-primary-soft);
+  font-size: var(--fs-sm);
+  color: var(--text-body);
+  line-height: var(--lh-relaxed);
+}
+
+.doc h2 {
+  margin-block-start: 30px;
+  font-size: var(--fs-h2);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  line-height: 1.35;
+}
+
+.doc h3 {
+  margin-block-start: var(--sp-xl);
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.doc p {
+  margin-block-start: var(--sp-md);
+  font-size: var(--fs-lg);
+  color: var(--text-body);
+  line-height: 1.75;
+  text-align: justify;
+}
+
+.doc ol,
+.doc ul {
+  margin-block-start: var(--sp-md);
+  padding-inline-start: 1.35em;
+}
+
+.doc li {
+  margin-block-start: var(--sp-sm);
+  font-size: var(--fs-lg);
+  color: var(--text-body);
+  line-height: 1.75;
+}
+
+.doc strong {
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+}
+
+/* 未成年人专章：合规重点，加底色区分 */
+.doc .minors {
+  margin-block-start: var(--sp-lg);
+  padding: var(--sp-lg);
+  border-radius: var(--r-sm);
+  background: var(--brand-accent-soft);
+}
+
+.doc .minors h2 {
+  margin-block-start: 0;
+}
+
+.doc__table {
+  margin-block-start: var(--sp-md);
+  border: 1px solid var(--border-divider);
+  border-radius: var(--r-sm);
+  overflow: hidden;
+}
+
+.doc__row {
+  display: flex;
+  border-block-end: 1px solid var(--border-divider);
+}
+
+.doc__row:last-child {
+  border-block-end: 0;
+}
+
+.doc__cell {
+  padding: var(--sp-md);
+  font-size: var(--fs-sm);
+  color: var(--text-body);
+  line-height: 1.6;
+}
+
+.doc__cell--k {
+  flex: 0 0 42%;
+  background: var(--bg-canvas);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+}
+
+.doc__cell--v {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.doc__end {
+  margin-block-start: var(--sp-huge);
+  padding-block-start: var(--sp-lg);
+  border-block-start: 1px solid var(--border-divider);
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  line-height: var(--lh-relaxed);
+  text-align: center;
+}
+</style>
+</head>
+<body>
+
+<header class="statusbar">
+  <span>9:41</span>
+  <span class="statusbar__icons">
+    <svg width="17" height="11" viewBox="0 0 17 11" fill="none" aria-hidden="true">
+      <rect x="0" y="7" width="3" height="4" rx="1" fill="currentColor"/>
+      <rect x="4.5" y="5" width="3" height="6" rx="1" fill="currentColor"/>
+      <rect x="9" y="2.5" width="3" height="8.5" rx="1" fill="currentColor"/>
+      <rect x="13.5" y="0" width="3" height="11" rx="1" fill="currentColor"/>
+    </svg>
+    <svg width="16" height="11" viewBox="0 0 16 11" fill="none" aria-hidden="true">
+      <path d="M1 3.2A10.5 10.5 0 0 1 15 3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M3.6 5.9a7 7 0 0 1 8.8 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M6.2 8.6a3.4 3.4 0 0 1 3.6 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden="true">
+      <rect x="0.6" y="0.6" width="21" height="10.8" rx="3" stroke="currentColor" stroke-opacity="0.4" stroke-width="1.2"/>
+      <rect x="2.2" y="2.2" width="15" height="7.6" rx="1.8" fill="currentColor"/>
+      <path d="M23.4 4.2v3.6" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+  </span>
+</header>
+
+<div class="navbar">
+  <a class="navbar__back" href="06-login.html" aria-label="返回">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="m14.5 5.5-6.5 6.5 6.5 6.5" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </a>
+  <h1 class="navbar__title">隐私政策</h1>
+</div>
+
+<main class="doc">
+
+  <h1 class="doc__title">法泽平台隐私政策</h1>
+  <p class="doc__meta">更新日期：2026 年 9 月 28 日<br>生效日期：2026 年 10 月 8 日</p>
+
+  <p class="doc__lead">
+    法泽平台重视你的个人信息保护。本政策说明我们收集哪些信息、为什么收集、
+    如何使用与保护，以及你对自己的信息享有哪些权利。
+    本政策依据《中华人民共和国个人信息保护法》《网络安全法》《数据安全法》制定。
+  </p>
+
+  <h2>一、适用范围</h2>
+  <p>
+    本政策适用于法泽移动客户端及配套服务。第三方通过本平台向你提供的服务，
+    适用该第三方的隐私政策，我们会在相应页面提示。
+  </p>
+
+  <h2>二、我们收集哪些信息</h2>
+  <p>我们只收集实现具体功能所必需的信息，不收集与所提供服务无关的信息。</p>
+
+  <div class="doc__table">
+    <div class="doc__row">
+      <div class="doc__cell doc__cell--k">注册与登录</div>
+      <div class="doc__cell doc__cell--v">手机号码、密码（加密存储）、短信验证码</div>
+    </div>
+    <div class="doc__row">
+      <div class="doc__cell doc__cell--k">年龄判定</div>
+      <div class="doc__cell doc__cell--v">出生日期。仅用于判断是否未成年人，不对外展示</div>
+    </div>
+    <div class="doc__row">
+      <div class="doc__cell doc__cell--k">实名认证<br>（仅在你选择使用涉及身份核验的功能时）</div>
+      <div class="doc__cell doc__cell--v">姓名、身份证号、证件影像</div>
+    </div>
+    <div class="doc__row">
+      <div class="doc__cell doc__cell--k">律师入驻</div>
+      <div class="doc__cell doc__cell--v">执业证信息、执业机构、执业年限、头像照片</div>
+    </div>
+    <div class="doc__row">
+      <div class="doc__cell doc__cell--k">咨询与订单</div>
+      <div class="doc__cell doc__cell--v">你提交的问题描述、上传的材料、与律师的沟通记录、订单与支付记录</div>
+    </div>
+    <div class="doc__row">
+      <div class="doc__cell doc__cell--k">设备与日志</div>
+      <div class="doc__cell doc__cell--v">设备型号、操作系统版本、应用版本、崩溃日志、访问时间与 IP 地址</div>
+    </div>
+    <div class="doc__row">
+      <div class="doc__cell doc__cell--k">相册与相机<br>（仅在你主动使用上传功能时）</div>
+      <div class="doc__cell doc__cell--v">你选择上传的图片。我们不会在未经你操作的情况下读取相册</div>
+    </div>
+  </div>
+
+  <p>
+    上表中的<strong>姓名、身份证号、证件影像属于敏感个人信息</strong>，
+    仅在身份核验时收集，不作其他用途，也不会在界面上完整展示。
+  </p>
+  <p>
+    <strong>我们不会收集你的通讯录、短信内容、通话记录、精确位置轨迹。</strong>
+  </p>
+
+  <h2>三、我们如何使用信息</h2>
+  <p>收集的信息仅用于下列目的：</p>
+  <ol>
+    <li>完成账号注册、登录与身份识别；</li>
+    <li>判断是否未成年人并触发相应的监护人同意流程；</li>
+    <li>撮合你与律师，交付咨询、文书、案件进度等服务；</li>
+    <li>完成订单结算、开具凭证与处理退款；</li>
+    <li>基于法律法规数据库生成智能法律问答结果；</li>
+    <li>排查故障、保障系统与账号安全；</li>
+    <li>在取得你同意的前提下，向你推送服务通知与法律科普内容。</li>
+  </ol>
+  <p>
+    如需将信息用于本政策未载明的其他目的，我们会再次征得你的同意。
+  </p>
+
+  <h2>四、信息的共享、转让与公开披露</h2>
+  <p>
+    4.1 <strong>我们不会出售你的个人信息。</strong>
+  </p>
+  <p>
+    4.2 为实现服务目的，我们会向下列对象提供必要信息：
+  </p>
+  <ul>
+    <li><strong>你选择的律师</strong>：为完成咨询，向其提供你提交的问题描述与相关材料；</li>
+    <li><strong>短信服务商</strong>：提供手机号码以发送验证码；</li>
+    <li><strong>支付渠道</strong>：提供订单金额与订单号以完成充值；</li>
+    <li><strong>云服务商</strong>：在境内存储与处理数据，签署数据处理协议。</li>
+  </ul>
+  <p>
+    4.3 除法律法规要求、司法机关或行政机关依法定程序要求外，我们不会公开披露你的个人信息。
+  </p>
+  <p>
+    4.4 本平台发生合并、分立或运营主体变更时，我们会要求承接方继续受本政策约束，
+    否则将重新征得你的同意。
+  </p>
+
+  <h2>五、信息的存储与保护</h2>
+  <p>
+    5.1 <strong>存储地点</strong>：你的个人信息存储于中华人民共和国境内。目前我们不向境外提供个人信息。
+  </p>
+  <p>
+    5.2 <strong>存储期限</strong>：在你使用本平台期间持续保存。账号注销后，
+    除法律法规要求留存的记录（如交易记录依法留存）外，我们将删除或匿名化处理。
+  </p>
+  <p>
+    5.3 <strong>安全措施</strong>：密码采用不可逆加密存储；传输使用 HTTPS；
+    敏感信息在日志与错误上报中脱敏；按最小必要原则控制内部访问权限并留有审计记录。
+  </p>
+  <p>
+    5.4 若不幸发生个人信息安全事件，我们将按法律法规要求及时告知你，
+    并向主管部门报告。
+  </p>
+
+  <h2>六、你的权利</h2>
+  <p>依据《个人信息保护法》，你对自己的个人信息享有下列权利：</p>
+  <ul>
+    <li><strong>查阅与复制</strong>：在「我的 — 个人资料」查看，或申请获取副本；</li>
+    <li><strong>更正与补充</strong>：在「我的 — 个人资料编辑」自行修改；</li>
+    <li><strong>删除</strong>：在符合法定条件时请求删除；</li>
+    <li><strong>撤回同意</strong>：在「我的 — 隐私设置」撤回非必要信息处理的授权；</li>
+    <li><strong>注销账号</strong>：在「我的 — 设置 — 注销账号」申请；</li>
+    <li><strong>解释说明</strong>：要求我们说明个人信息处理规则。</li>
+  </ul>
+  <p>
+    我们会在收到请求并验证身份后十五个工作日内答复。
+  </p>
+
+  <section class="minors">
+    <h2>七、未成年人保护</h2>
+    <p>
+      7.1 本平台<strong>不限制注册年龄</strong>。但我们依照《个人信息保护法》
+      对未成年人个人信息给予特别保护。
+    </p>
+    <p>
+      7.2 <strong>不满十八周岁的用户</strong>，注册与使用本平台服务应当取得监护人的同意。
+      我们在注册流程中通过出生日期判断年龄，并触发监护人验证。
+    </p>
+    <p>
+      7.3 <strong>不满十四周岁的用户</strong>，其个人信息属于
+      <strong>敏感个人信息</strong>。依据《个人信息保护法》第三十一条，
+      我们已就此类信息的处理取得<strong>监护人的单独同意</strong>，
+      并制定了专门的处理规则：仅收集完成咨询所必需的信息；
+      不进行个性化推荐与定向推送；咨询记录在服务完成后按最短必要期限保存。
+    </p>
+    <p>
+      7.4 监护人如发现未成年人在未取得同意的情况下注册或使用本平台，
+      可通过「我的 — 客服帮助」联系我们要求删除相关信息或注销账号，
+      我们会在核实后及时处理。
+    </p>
+  </section>
+
+  <h2>八、第三方服务</h2>
+  <p>
+    8.1 本平台的智能法律问答由第三方人工智能服务提供推理能力。
+    我们仅向其传输你当前提问的文本，不传输你的手机号、身份证等可识别身份的信息。
+  </p>
+  <p>
+    8.2 本平台可能包含第三方链接。离开本平台后，你的信息处理适用该第三方的政策，
+    请你在使用前阅读。
+  </p>
+
+  <h2>九、政策的更新</h2>
+  <p>
+    9.1 本政策更新后将在本页面公布，并标注更新日期。
+  </p>
+  <p>
+    9.2 <strong>更新涉及你的权利发生实质变化时，我们会以显著方式提示，
+    并在必要时重新征得你的同意。</strong>
+  </p>
+
+  <h2>十、联系我们</h2>
+  <p>
+    对本政策或你的个人信息有任何疑问、意见或投诉，可通过以下方式联系：
+  </p>
+  <ul>
+    <li>平台内「我的 — 客服帮助」提交工单</li>
+    <li>平台内「我的 — 关于投诉」提交投诉</li>
+    <li>个人信息保护负责人联系方式以平台公示信息为准</li>
+  </ul>
+
+  <p class="doc__end">
+    法泽平台运营方<br>
+    2026 年 9 月 28 日
+  </p>
+
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>
