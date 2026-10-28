@@ -110,10 +110,10 @@ body {
 }
 
 /* 头像位撑满卡片上下，避免底部行左侧留一块空白。
-   真实律师照片上传后按这个比例 cover 裁切。 */
+   88 × 约 132 ≈ 1 : 1.5，接近竖版人像比例，真实照片按 cover 裁切。 */
 .lawyer-card__avatar {
   flex: 0 0 auto;
-  width: 65px;
+  width: 88px;
   align-self: stretch;
   min-height: 80px;
   border-radius: var(--r-xs);
@@ -125,8 +125,8 @@ body {
 }
 
 .lawyer-card__avatar svg {
-  width: 46px;
-  height: 46px;
+  width: 50px;
+  height: 50px;
   color: #9AA9D4;
 }
 
@@ -181,19 +181,19 @@ body {
   border-block-start: 1px solid var(--border-divider);
   display: flex;
   align-items: center;
-  gap: var(--sp-xs);
+  gap: 4px;
 }
 
 .status-online {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 26px;
-  padding: 0 10px;
-  border-radius: var(--r-xs);
+  height: 22px;
+  padding: 0 7px;
+  border-radius: 3px;
   background: var(--state-success);
   color: var(--text-on-brand);
-  font-size: var(--fs-caption);
+  font-size: var(--fs-micro);
   font-weight: var(--fw-medium);
   line-height: 1;
   white-space: nowrap;
@@ -203,21 +203,22 @@ body {
 .rating {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: 2px;
   font-family: var(--font-num);
-  font-size: var(--fs-md);
+  font-size: var(--fs-caption);
   font-weight: var(--fw-bold);
   color: var(--text-body);
+  flex-shrink: 0;
 }
 
 .rating svg {
-  width: 15px;
-  height: 15px;
+  width: 13px;
+  height: 13px;
   color: var(--state-warning);
 }
 
 .consulted {
-  font-size: var(--fs-caption);
+  font-size: var(--fs-micro);
   color: var(--text-muted);
   white-space: nowrap;
   min-width: 0;
@@ -232,12 +233,16 @@ body {
   display: inline-flex;
   align-items: center;
   min-height: 44px;
-  margin-block: -5px;
+  margin-block: -7px;
   text-decoration: none;
 }
 
+/* 底部这组整体比常规按钮小一号，给头像让出宽度；
+   视觉 30 高，外层 44 高保证点击区 */
 .lawyer-card__cta .btn-pill-sm {
-  padding: 0 15px;
+  height: 30px;
+  padding: 0 10px;
+  font-size: var(--fs-caption);
 }
 </style>
 </head>
