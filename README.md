@@ -69,7 +69,10 @@ tools/              取证、字体检查等工具脚本
 | 目的 | 位置 |
 |---|---|
 | 文档总索引 | [docs/README.md](docs/README.md) |
-| 65 个页面清单与跳转关系 | [docs/design/法泽APP_页面导航树_v1.4.md](docs/design/法泽APP_页面导航树_v1.4.md) |
+| **文档基线（哪些文档现行有效、指纹）** | [docs/BASELINE.md](docs/BASELINE.md) |
+| 68 个页面清单与跳转关系 | [docs/design/法泽APP_页面导航树_v1.4.md](docs/design/法泽APP_页面导航树_v1.4.md)（文件名 v1.4，内容 v1.5） |
+| APP 设计稿本体（71 个 HTML） | [design/ui/](design/ui/) —— 从 `01-home.html` 起看 |
+| 设计顺序与每屏依据 | [docs/design/法泽APP_UI设计顺序_v1.0.md](docs/design/法泽APP_UI设计顺序_v1.0.md)（内容 V2.8） |
 | 设计令牌取值依据 | [docs/design/设计令牌.md](docs/design/设计令牌.md) |
 | 工程规范 | [docs/standards/](docs/standards/) |
 | 协作与 agent 规则 | [AGENTS.md](AGENTS.md) |
