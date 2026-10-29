@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390, initial-scale=1">
+<meta name="dsh-design" content="app">
+<title>收入与提现</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   律师收入与提现（第 17 批 · 延展，无参考图，含金额 —— 本批风险最高）
+   ==========================================================================
+   职责：律师的收入概览、明细、提现入口与规则说明。
+   入口：62-workbench 六宫格「收入提现」
+   数据来源：律师收入接口（可提现余额 / 待结算 / 明细 / 提现记录）
+
+   ★ 这是全项目唯一「钱可以出去」的页面。用户侧的余额不可提现（只能消费），
+     律师侧的收入可以提 —— 这两条规则方向相反，所以页面必须把
+     「可提现」三个字写在余额标题上，不能只写「余额」。
+
+   ★ 三个金额必须分开，不能合成一个大数字：
+       可提现   —— 现在就能取走的
+       待结算   —— 用户还在 7 天退款期内，能不能到手还没定
+       本月收入 —— 业绩，不是能取的钱
+     合成一个数，律师会以为能一次全提，提不出来就要投诉。
+     这是收入页最常见的信任崩塌点。
+
+   ★ 平台服务费必须在明细里逐笔显示，不能只在页脚写一句「按规则收取」。
+     律师对自己每一单到账多少极其敏感，藏起来只会换来一堆追问。
+     费率的具体数字以商务协议为准，本稿用 15% 作占位。
+
+   ★ 提现要有二次确认，确认框里写清三件事：提多少、到哪个账户、
+     多久到账。少写一样，事后都要客服来解释。
+
+   ★ 提现账户必须与实名一致（税务与反洗钱要求）。这条写在提现面板里，
+     而不是等用户绑了别人的卡再拒绝。
+   ========================================================================== */
+
+body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-canvas);
+}
+
+.screen {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding: 0 var(--sp-xl) var(--sp-xxl);
+}
+.screen::-webkit-scrollbar {
+  display: none;
+}
+
+/* ---------- 可提现余额卡：深色，与工作台同一条视觉带 ---------- */
+.wallet {
+  margin-block-start: var(--sp-md);
+  padding: var(--sp-lg);
+  border-radius: var(--r-md);
+  background: var(--bg-workbench);
+  color: var(--text-on-brand);
+}
+
+.wallet__label {
+  font-size: var(--fs-caption);
+  color: rgba(255, 255, 255, 0.72);
+  line-height: 1.5;
+}
+
+/* 金额是全屏唯一焦点，用 display 档 */
+.wallet__amount {
+  margin-block-start: 4px;
+  font-family: var(--font-num);
+  font-size: var(--fs-display);
+  font-weight: var(--fw-bold);
+  line-height: 1.15;
+  letter-spacing: -0.5px;
+}
+
+.wallet__sym {
+  /* 用令牌档位而不是 0.52em：em 会算出 17.7px 这种档位外的字号，
+     屏内字号种类一下就多起来，也和别处的 ¥ 大小不一致 */
+  font-size: var(--fs-h2);
+  font-weight: var(--fw-medium);
+  margin-inline-end: 2px;
+}
+
+.wallet__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-md);
+  margin-block-start: var(--sp-md);
+  padding-block-start: var(--sp-sm);
+  border-block-start: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.wallet__pending {
+  font-size: var(--fs-caption);
+  color: rgba(255, 255, 255, 0.72);
+  line-height: 1.6;
+}
+
+.wallet__pending b {
+  font-family: var(--font-num);
+  font-weight: var(--fw-bold);
+  color: var(--text-on-brand);
+}
+
+.wallet__btn {
+  flex: 0 0 auto;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  padding-inline: var(--sp-lg);
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--bg-surface);
+  color: var(--brand-primary-pressed);
+  font-family: inherit;
+  font-size: var(--fs-md);
+  font-weight: var(--fw-bold);
+  cursor: pointer;
+}
+
+/* 视觉 36，热区补到 44 */
+.wallet__btn::after {
+  content: "";
+  position: absolute;
+  inset-block: -4px;
+  inset-inline: 0;
+}
+
+/* ---------- 概览三列 ---------- */
+.overview {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-block-start: var(--sp-md);
+}
+
+.ov {
+  padding: var(--sp-md) var(--sp-sm);
+  border-radius: var(--r-md);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+  text-align: center;
+}
+
+.ov__num {
+  display: block;
+  font-family: var(--font-num);
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+.ov__num i {
+  font-style: normal;
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-medium);
+}
+
+.ov__label {
+  display: block;
+  margin-block-start: 2px;
+  font-size: var(--fs-micro);
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+/* ---------- 明细 ---------- */
+.block-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-sm);
+  padding-block: var(--sp-xl) var(--sp-sm);
+}
+
+.block-title__name {
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+}
+
+.block-title__more {
+  position: relative;
+  font-size: var(--fs-caption);
+  color: var(--brand-primary-pressed);
+  text-decoration: none;
+}
+
+.block-title__more::after {
+  content: "";
+  position: absolute;
+  inset-block: -13px;
+  inset-inline: -12px;
+}
+
+.income-list {
+  border-radius: var(--r-md);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+
+.income {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-md);
+  padding: 13px var(--sp-lg);
+  border-block-end: 1px solid var(--border-divider);
+}
+
+.income:last-child {
+  border-block-end: 0;
+}
+
+.income__body {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.income__name {
+  display: block;
+  font-size: var(--fs-md);
+  color: var(--text-primary);
+  line-height: 1.5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 服务费逐笔显示：律师最在意的就是「为什么少了」 */
+.income__fee {
+  display: block;
+  margin-block-start: 2px;
+  font-size: var(--fs-micro);
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.income__amount {
+  flex: 0 0 auto;
+  font-family: var(--font-num);
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-bold);
+  color: var(--state-success);
+}
+
+.income__amount--out {
+  color: var(--text-secondary);
+}
+
+/* ---------- 规则说明 ---------- */
+.rules {
+  margin-block-start: var(--sp-md);
+  padding: var(--sp-md) var(--sp-lg);
+  border-radius: var(--r-md);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.rules__title {
+  font-size: var(--fs-md);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+
+.rules__list {
+  margin-block-start: var(--sp-sm);
+  padding-inline-start: 0;
+  list-style: none;
+}
+
+.rules__list li {
+  position: relative;
+  padding-inline-start: 16px;
+  margin-block-start: 7px;
+  font-size: var(--fs-caption);
+  color: var(--text-secondary);
+  line-height: 1.75;
+}
+
+.rules__list li::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: 3px;
+  inset-block-start: 9px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--border-outline);
+}
+
+.rules__list b {
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+}
+
+/* ---------- 提现面板 ---------- */
+.wd-amount {
+  margin-inline: var(--sp-xl);
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin: var(--sp-md) 0 var(--sp-lg);
+  padding-block-end: var(--sp-sm);
+  border-block-end: 1px solid var(--border-divider);
+}
+
+.wd-amount__sym {
+  font-family: var(--font-num);
+  font-size: var(--fs-h1);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+}
+
+.wd-amount input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 44px;
+  border: 0;
+  background: transparent;
+  font-family: var(--font-num);
+  font-size: var(--fs-h1);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  outline: none;
+}
+
+.wd-amount__all {
+  flex: 0 0 auto;
+  min-height: 44px;
+  border: 0;
+  background: transparent;
+  color: var(--brand-primary-pressed);
+  font-family: inherit;
+  font-size: var(--fs-md);
+  cursor: pointer;
+}
+
+.wd-row {
+  margin-inline: var(--sp-xl);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-md);
+  padding-block: 11px;
+  border-block-end: 1px solid var(--border-divider);
+  font-size: var(--fs-md);
+}
+
+.wd-row:last-of-type {
+  border-block-end: 0;
+}
+
+.wd-row__key {
+  flex: 0 0 auto;
+  color: var(--text-secondary);
+}
+
+.wd-row__val {
+  flex: 1 1 0;
+  min-width: 0;
+  color: var(--text-primary);
+  text-align: end;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wd-tip {
+  margin-inline: var(--sp-xl);
+  margin-block-start: var(--sp-sm);
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.7;
+}
+
+.wd-confirm {
+  width: calc(100% - 2 * var(--sp-xl));
+  margin-inline: var(--sp-xl);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--btn-h);
+  margin-block-start: var(--sp-lg);
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--brand-primary);
+  color: var(--text-on-brand);
+  font-family: inherit;
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-bold);
+  cursor: pointer;
+}
+</style>
+</head>
+<body>
+
+<header class="statusbar statusbar--light">
+  <span>9:41</span>
+  <span class="statusbar__icons">
+    <svg width="17" height="11" viewBox="0 0 17 11" fill="none" aria-hidden="true">
+      <rect x="0" y="7" width="3" height="4" rx="1" fill="currentColor"/>
+      <rect x="4.5" y="5" width="3" height="6" rx="1" fill="currentColor"/>
+      <rect x="9" y="2.5" width="3" height="8.5" rx="1" fill="currentColor"/>
+      <rect x="13.5" y="0" width="3" height="11" rx="1" fill="currentColor"/>
+    </svg>
+    <svg width="16" height="11" viewBox="0 0 16 11" fill="none" aria-hidden="true">
+      <path d="M1 3.2A10.5 10.5 0 0 1 15 3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M3.6 5.9a7 7 0 0 1 8.8 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M6.2 8.6a3.4 3.4 0 0 1 3.6 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden="true">
+      <rect x="0.6" y="0.6" width="21" height="10.8" rx="3" stroke="currentColor" stroke-opacity="0.4" stroke-width="1.2"/>
+      <rect x="2.2" y="2.2" width="15" height="7.6" rx="1.8" fill="currentColor"/>
+      <path d="M23.4 4.2v3.6" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+  </span>
+</header>
+
+<div class="navbar navbar--dark">
+  <a class="navbar__back" href="62-workbench.html" aria-label="返回工作台">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M15.2 4.6 7.8 12l7.4 7.4" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </a>
+  <h1 class="navbar__title">收入与提现</h1>
+</div>
+
+<main class="screen">
+
+  <section class="wallet">
+    <p class="wallet__label">可提现余额</p>
+    <p class="wallet__amount"><span class="wallet__sym">¥</span>8,640.00</p>
+    <div class="wallet__row">
+      <span class="wallet__pending">待结算 <b>¥1,200.00</b> · 7 天退款期后转入</span>
+      <button class="wallet__btn" type="button" data-withdraw-open>提现</button>
+    </div>
+  </section>
+
+  <div class="overview">
+    <div class="ov">
+      <span class="ov__num"><i>¥</i>1,280</span>
+      <span class="ov__label">本周收入</span>
+    </div>
+    <div class="ov">
+      <span class="ov__num"><i>¥</i>4,860</span>
+      <span class="ov__label">本月收入</span>
+    </div>
+    <div class="ov">
+      <span class="ov__num"><i>¥</i>28,600</span>
+      <span class="ov__label">累计收入</span>
+    </div>
+  </div>
+
+  <div class="block-title">
+    <h2 class="block-title__name">收入明细</h2>
+    <a class="block-title__more" href="66-income.html">全部</a>
+  </div>
+
+  <div class="income-list">
+    <div class="income">
+      <div class="income__body">
+        <span class="income__name">图文咨询 · 马合木提·艾山</span>
+        <span class="income__fee">订单 ¥60.00 · 平台服务费 ¥9.00（15%）</span>
+      </div>
+      <span class="income__amount">+¥51.00</span>
+    </div>
+    <div class="income">
+      <div class="income__body">
+        <span class="income__name">文书代写 · 民事起诉状</span>
+        <span class="income__fee">订单 ¥200.00 · 平台服务费 ¥30.00（15%）</span>
+      </div>
+      <span class="income__amount">+¥170.00</span>
+    </div>
+    <div class="income">
+      <div class="income__body">
+        <span class="income__name">提现到 招商银行（尾号 4821）</span>
+        <span class="income__fee">2026-10-26 14:20 · 已到账</span>
+      </div>
+      <span class="income__amount income__amount--out">-¥2,000.00</span>
+    </div>
+    <div class="income">
+      <div class="income__body">
+        <span class="income__name">电话咨询 · 30 分钟 · 阿依古丽</span>
+        <span class="income__fee">订单 ¥99.00 · 平台服务费 ¥14.85（15%）</span>
+      </div>
+      <span class="income__amount">+¥84.15</span>
+    </div>
+  </div>
+
+  <section class="rules">
+    <p class="rules__title">钱怎么算、怎么到账</p>
+    <ul class="rules__list">
+      <li><b>平台服务费按订单金额的 15% 计收</b>，在收入到账时直接扣除，明细里逐笔可见。费率以你签署的《律师入驻协议》为准，调整会提前 30 天通知。</li>
+      <li>用户付款后，这一单进入<b>待结算</b>；用户有 7 天时间申请退款，7 天后自动转为可提现余额。</li>
+      <li>提现<b>1 至 3 个工作日</b>到账，工作日 16:00 前提交的当日处理，之后的次日处理。</li>
+      <li>提现账户必须是<b>本人实名一致的银行卡</b>，不支持提现到他人账户 —— 这是税务和反洗钱的要求，平台无法放宽。</li>
+    </ul>
+  </section>
+
+</main>
+
+<!-- ======================================================================
+     提现面板（#open-withdraw 走查）
+     ★ 三个金额分开写在这里，用户点「全部提现」时不会把待结算的也算进去
+     ====================================================================== -->
+<div class="mask" data-withdraw-mask hidden></div>
+<div class="sheet" data-withdraw-sheet hidden role="dialog" aria-modal="true" aria-label="提现">
+  <div class="sheet__handle"></div>
+  <div class="sheet__head">
+    <h2 class="sheet__title">提现</h2>
+    <button class="sheet__close" type="button" data-withdraw-close aria-label="关闭">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="m6.4 6.4 11.2 11.2M17.6 6.4 6.4 17.6" stroke="currentColor"
+              stroke-width="2" stroke-linecap="round"/>
+      </svg>
+    </button>
+  </div>
+
+  <div class="wd-amount">
+    <span class="wd-amount__sym">¥</span>
+    <input type="text" inputmode="decimal" value="2000.00" aria-label="提现金额" data-withdraw-amount>
+    <button class="wd-amount__all" type="button" data-withdraw-all>全部提现</button>
+  </div>
+
+  <div class="wd-row">
+    <span class="wd-row__key">到账账户</span>
+    <span class="wd-row__val">招商银行 · 尾号 4821</span>
+  </div>
+  <div class="wd-row">
+    <span class="wd-row__key">账户姓名</span>
+    <span class="wd-row__val">张领（与实名一致）</span>
+  </div>
+  <div class="wd-row">
+    <span class="wd-row__key">预计到账</span>
+    <span class="wd-row__val">1 至 3 个工作日</span>
+  </div>
+
+  <p class="wd-tip">
+    提现后不可撤销。可提现余额 ¥8,640.00，其中 ¥1,200.00 仍在 7 天退款期内，暂不可提。
+  </p>
+
+  <button class="wd-confirm" type="button" data-withdraw-confirm>确认提现 ¥2,000.00</button>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

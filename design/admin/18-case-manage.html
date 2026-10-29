@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="dsh-design" content="web 1440x900">
+<title>案件管理 · 法泽管理后台</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   A-19 案件管理
+   --------------------------------------------------------------------------
+   职责：App 在线立案后的案件列表、立案材料审核入口、进度节点纠错、
+         送达记录查看（送达范围见《未完成需备注》§7）。
+   依据：《PC 后台开发计划_v1.0》§2.6 A-19（技术路线 §15.1 未列，本计划补）
+   接口：**缺**。见《未完成需备注》§1
+   说明：
+     1. 结构套 A-03 用户列表母版：页头 → 提示条 → 查询栏 → 工具栏（含状态 chips）
+        → 表格 → 分页。
+     2. 这一页最容易做错的地方是「以为后台能改案件进度」。实际职责边界的定论是：
+        进度由承办律师在 App 端推进，后台只做「立案材料审核」和「节点纠错」
+        （纠错要留痕，所以操作叫「推进节点」而不是「修改状态」）。
+        提示条必须放在最上面，否则运营会按「后台能改一切」的直觉去操作。
+     3. 状态 chips 放进表格工具栏而不是页面顶部：它筛的就是这张表，
+        贴着表比悬在页头下面更符合「筛选器跟着结果走」。
+     4. 当事人列两行写原告 / 被告：案件列表最常见的检索方式就是「我记得对面是谁」，
+        两行比「张某诉某公司」一行好扫。
+     5. 高度预算（内容区 776）：
+        页头 41 + 提示条 29 + 下间距 8 + 查询栏 58 + 间距 12 + 表格卡 622 = 770
+        表格卡 = 工具栏 48（chips 28 高，不撑高）+ 表头 40 + 10 行 × 48 + 分页 52 + 边框 2
+    ========================================================================== */
+
+/* 列宽：计划书给的八列（含操作）合计 100%，实测三处不够：
+   案件号 19 字符等宽串要 14%；「待立案审核」5 字状态标签要 10%；
+   承办律师要放下「迪丽热巴·艾山」+ 头像，13%。从当前节点/操作里收。 */
+.case-mgmt-table col.c-no { width: 14%; }
+.case-mgmt-table col.c-type { width: 9%; }
+.case-mgmt-table col.c-party { width: 14%; }
+.case-mgmt-table col.c-lawyer { width: 13%; }
+.case-mgmt-table col.c-node { width: 14%; }
+.case-mgmt-table col.c-time { width: 12%; }
+.case-mgmt-table col.c-state { width: 10%; }
+.case-mgmt-table col.c-ops { width: 14%; }
+
+/* 页头下间距 16 → 12：页头右侧按钮 32 高（比标题高），加上提示条后
+   内容会多出 2px 触发整页滚动，压掉 4px 正好一屏 776 */
+.case-mgmt__head {
+  margin-bottom: var(--sp-3);
+}
+
+/* 顶部提示条：句子长（含文档引用），把通用 .alert span 的 44em 限宽放开，
+   否则会折成两行、把表格第 10 行挤到滚动区外 */
+.case-mgmt__notice {
+  padding: var(--sp-1) var(--sp-4);
+  margin-bottom: var(--sp-2);
+}
+
+.case-mgmt__notice span {
+  max-width: none;
+}
+
+/* 查询栏上下 12（默认 16）：省下的 8px 让给表格第 10 行 */
+.case-mgmt__query .query-bar {
+  padding: var(--sp-3) var(--sp-5);
+}
+
+/* 案件号、立案时间用等宽，竖排能对齐 */
+.case-mgmt-table .mono-time {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+
+/* 当事人第二行：原告/被告前缀用次级文字，名字仍要被看见 */
+.case-mgmt-table .party-sub {
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+</style>
+</head>
+<body class="shell" data-page="18-case-manage">
+
+<aside class="sidebar" id="sidebar"></aside>
+
+<div class="main">
+  <header class="navbar" id="navbar"></header>
+  <div class="tags-view" id="tags-view"></div>
+
+  <main class="app-container scroll-y">
+
+    <!-- ==================== 页头 ==================== -->
+    <div class="page-head case-mgmt__head">
+      <div>
+        <h1 class="page-head__title">案件管理</h1>
+      </div>
+      <div class="page-head__actions">
+        <button class="btn" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"
+               style="width:14px;height:14px">
+            <path d="M12 3.8v11.4"/><path d="m7.6 11 4.4 4.4 4.4-4.4"/>
+            <path d="M4.4 18.6v1.2h15.2v-1.2"/>
+          </svg>
+          导出案件
+        </button>
+      </div>
+    </div>
+
+    <!-- ==================== 提示条 ==================== -->
+    <div class="alert alert--warning case-mgmt__notice">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="8.6"/>
+        <path d="M12 11v5.4"/><path d="M12 7.8v.2"/>
+      </svg>
+      <span>案件进度由承办律师在 App 端推进，后台只做立案材料审核与节点纠错；电子送达范围待定（见《未完成需备注》）</span>
+    </div>
+
+    <!-- ==================== 查询栏 ==================== -->
+    <div class="card case-mgmt__query">
+      <form class="query-bar" method="get">
+        <div class="field-inline">
+          <label class="field-inline__label" for="q-kw">案件号或当事人</label>
+          <input class="input input--wide" id="q-kw" type="text" placeholder="案件号 / 原告 / 被告">
+        </div>
+
+        <div class="field-inline">
+          <label class="field-inline__label" for="q-type">案件类型</label>
+          <select class="select" id="q-type">
+            <option>全部</option>
+            <option>民事</option>
+            <option>刑事</option>
+            <option>行政</option>
+            <option>劳动仲裁</option>
+            <option>家事</option>
+          </select>
+        </div>
+
+        <div class="field-inline">
+          <label class="field-inline__label" for="q-lawyer">承办律师</label>
+          <input class="input" id="q-lawyer" type="text" placeholder="律师姓名">
+        </div>
+
+        <div class="query-bar__actions">
+          <button class="btn" type="submit">查询</button>
+          <button class="btn" type="reset">重置</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- ==================== 表格 ==================== -->
+    <div class="card card--flush" style="margin-top:var(--sp-3)">
+      <div class="toolbar">
+        <div class="toolbar__left">
+          <a class="chip chip--active" href="#">全部 <span class="chip__count">207</span></a>
+          <a class="chip" href="#">待立案审核 <span class="chip__count">3</span></a>
+          <a class="chip" href="#">立案中 <span class="chip__count">12</span></a>
+          <a class="chip" href="#">审理中 <span class="chip__count">28</span></a>
+          <a class="chip" href="#">已结案 <span class="chip__count">164</span></a>
+        </div>
+        <div class="toolbar__right">
+          <span class="toolbar__count">共 <b>207</b> 条</span>
+          <button class="icon-btn" type="button" title="刷新" aria-label="刷新">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M20 12a8 8 0 1 1-2.4-5.7"/>
+              <path d="M20.2 4.6v4.2H16"/>
+            </svg>
+          </button>
+          <button class="icon-btn" type="button" title="列设置" aria-label="列设置">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="3.6" y="4.4" width="16.8" height="15.2" rx="2"/>
+              <path d="M9.4 4.4v15.2"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="table case-mgmt-table">
+          <colgroup>
+            <col class="c-no">
+            <col class="c-type">
+            <col class="c-party">
+            <col class="c-lawyer">
+            <col class="c-node">
+            <col class="c-time">
+            <col class="c-state">
+            <col class="c-ops">
+          </colgroup>
+          <thead>
+            <tr>
+              <th>案件号</th>
+              <th>类型</th>
+              <th>当事人</th>
+              <th>承办律师</th>
+              <th>当前节点</th>
+              <th>立案时间</th>
+              <th>状态</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="cell-id">FAZE-CASE-2026-0087</span></td>
+              <td><span class="tag tag--outline">民事</span></td>
+              <td>
+                <div class="cell-stack">
+                  <span class="cell-strong">阿依努尔·买买提</span>
+                  <span class="party-sub">被告：伊宁市宏源商贸</span>
+                </div>
+              </td>
+              <td>
+                <div class="cell-person">
+                  <span class="cell-person__avatar">张</span>
+                  <span class="cell-strong">张建国</span>
+                </div>
+              </td>
+              <td><span class="tag tag--dot tag--warning node-tag">立案审查</span></td>
+              <td><span class="mono-time">2026-10-29 10:12</span></td>
+              <td><span class="tag tag--dot tag--warning">待立案审核</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">详情</button>
+                  <button class="btn btn--text" type="button">推进节点</button>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="cell-id">FAZE-CASE-2026-0086</span></td>
+              <td><span class="tag tag--outline">劳动仲裁</span></td>
+              <td>
+                <div class="cell-stack">
+                  <span class="cell-strong">艾力·热合曼</span>
+                  <span class="party-sub">被告：奎屯远景物流</span>
+                </div>
+              </td>
+              <td>
+                <div class="cell-person">
+                  <span class="cell-person__avatar">迪</span>
+                  <span class="cell-strong">迪丽热巴·艾山</span>
+                </div>
+              </td>
+              <td><span class="tag tag--dot tag--warning node-tag">材料补正</span></td>
+              <td><span class="mono-time">2026-10-29 09:35</span></td>
+              <td><span class="tag tag--dot tag--warning">待立案审核</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">详情</button>
+                  <button class="btn btn--text" type="button">推进节点</button>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="cell-id">FAZE-CASE-2026-0085</span></td>
+              <td><span class="tag tag--outline">家事</span></td>
+              <td>
+                <div class="cell-stack">
+                  <span class="cell-strong">古丽娜尔·哈力克</span>
+                  <span class="party-sub">被告：哈力克·吐尔逊</span>
+                </div>
+              </td>
+              <td>
+                <div class="cell-person">
+                  <span class="cell-person__avatar">王</span>
+                  <span class="cell-strong">王海涛</span>
+                </div>
+              </td>
+              <td><span class="text-sm">待开庭</span></td>
+              <td><span class="mono-time">2026-10-28 15:20</span></td>
+              <td><span class="tag tag--dot tag--primary">审理中</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">详情</button>
+                  <button class="btn btn--text" type="button">推进节点</button>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="cell-id">FAZE-CASE-2026-0084</span></td>
+              <td><span class="tag tag--outline">刑事</span></td>
+              <td>
+                <div class="cell-stack">
+                  <span class="cell-strong">赵雪梅</span>
+                  <span class="party-sub">被害人：李伟</span>
+                </div>
+              </td>
+              <td>
+                <div class="cell-person">
+                  <span class="cell-person__avatar">李</span>
+                  <span class="cell-strong">李国强</span>
+                </div>
+              </td>
+              <td><span class="text-sm">判决书送达</span></td>
+              <td><span class="mono-time">2026-10-27 14:08</span></td>
+              <td><span class="tag tag--dot tag--primary">审理中</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">详情</button>
+                  <button class="btn btn--text" type="button">推进节点</button>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="cell-id">FAZE-CASE-2026-0083</span></td>
+              <td><span class="tag tag--outline">行政</span></td>
+              <td>
+                <div class="cell-stack">
+                  <span class="cell-strong">李伟</span>
+                  <span class="party-sub">被告：察布查尔县水利局</span>
+                </div>
+              </td>
+              <td>
+                <div class="cell-person">
+                  <span class="cell-person__avatar">张</span>
+                  <span class="cell-strong">张建国</span>
+                </div>
+              </td>
+              <td><span class="text-sm">开庭排期</span></td>
+              <td><span class="mono-time">2026-10-27 11:22</span></td>
+              <td><span class="tag tag--dot tag--primary">审理中</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">详情</button>
+                  <button class="btn btn--text" type="button">推进节点</button>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="cell-id">FAZE-CASE-2026-0082</span></td>
+              <td><span class="tag tag--outline">民事</span></td>
+              <td>
+                <div class="cell-stack">
+                  <span class="cell-strong">阿卜杜拉·肉孜</span>
+                  <span class="party-sub">被告：霍城诚信农资</span>
+                </div>
+              </td>
+              <td>
+                <div class="cell-person">
+                  <span class="cell-person__avatar">王</span>
+                  <span class="cell-strong">王海涛</span>
+                </div>
+              </td>
+              <td><span class="text-sm">已结案</span></td>
+              <td><span class="mono-time">2026-10-25 09:10</span></td>
+              <td><span class="tag tag--dot tag--success">已结案</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">详情</button>
+                  <button class="btn btn--text" type="button">推进节点</button>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="cell-id">FAZE-CASE-2026-0081</span></td>
+              <td><span class="tag tag--outline">劳动仲裁</span></td>
+              <td>
+                <div class="cell-stack">
+                  <span class="cell-strong">帕提古丽·阿布都</span>
+                  <span class="party-sub">被申请人：伊宁县纺织厂</span>
+                </div>
+              </td>
+              <td>
+                <div class="cell-person">
+                  <span class="cell-person__avatar">迪</span>
+                  <span class="cell-strong">迪丽热巴·艾山</span>
+                </div>
+              </td>
+              <td><span class="text-sm">已结案</span></td>
+              <td><span class="mono-time">2026-10-24 17:30</span></td>
+              <td><span class="tag tag--dot tag--success">已结案</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">详情</button>
+                  <button class="btn btn--text" type="button">推进节点</button>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="cell-id">FAZE-CASE-2026-0080</span></td>
+              <td><span class="tag tag--outline">家事</span></td>
+              <td>
+                <div class="cell-stack">
+                  <span class="cell-strong">张小燕</span>
+                  <span class="party-sub">被告：马军</span>
+                </div>
+              </td>
+              <td>
+                <div class="cell-person">
+                  <span class="cell-person__avatar">李</span>
+                  <span class="cell-strong">李国强</span>
+                </div>
+              </td>
+              <td><span class="tag tag--dot tag--danger node-tag">立案驳回</span></td>
+              <td><span class="mono-time">2026-10-23 15:44</span></td>
+              <td><span class="tag tag--dot tag--danger">已驳回</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">详情</button>
+                  <button class="btn btn--text" type="button">推进节点</button>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="cell-id">FAZE-CASE-2026-0079</span></td>
+              <td><span class="tag tag--outline">民事</span></td>
+              <td>
+                <div class="cell-stack">
+                  <span class="cell-strong">买买提江·艾沙</span>
+                  <span class="party-sub">被告：尼勒克县合作社</span>
+                </div>
+              </td>
+              <td>
+                <div class="cell-person">
+                  <span class="cell-person__avatar">张</span>
+                  <span class="cell-strong">张建国</span>
+                </div>
+              </td>
+              <td><span class="text-sm">二审待开庭</span></td>
+              <td><span class="mono-time">2026-10-22 13:05</span></td>
+              <td><span class="tag tag--dot tag--primary">审理中</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">详情</button>
+                  <button class="btn btn--text" type="button">推进节点</button>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="cell-id">FAZE-CASE-2026-0078</span></td>
+              <td><span class="tag tag--outline">刑事</span></td>
+              <td>
+                <div class="cell-stack">
+                  <span class="cell-strong">阿依古丽·斯迪克</span>
+                  <span class="party-sub">被害人：新源县某商户</span>
+                </div>
+              </td>
+              <td>
+                <div class="cell-person">
+                  <span class="cell-person__avatar">王</span>
+                  <span class="cell-strong">王海涛</span>
+                </div>
+              </td>
+              <td><span class="text-sm">补充侦查</span></td>
+              <td><span class="mono-time">2026-10-21 10:30</span></td>
+              <td><span class="tag tag--dot tag--primary">立案中</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">详情</button>
+                  <button class="btn btn--text" type="button">推进节点</button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- 分页 -->
+      <div class="pagination">
+        <span class="pagination__total">共 <b>207</b> 条 · 当前第 <b>1</b> / 21 页</span>
+        <button class="page-btn page-btn--disabled" type="button" aria-label="上一页">‹</button>
+        <button class="page-btn page-btn--active" type="button">1</button>
+        <button class="page-btn" type="button">2</button>
+        <button class="page-btn" type="button">3</button>
+        <button class="page-btn page-btn--disabled" type="button" aria-label="更多">…</button>
+        <button class="page-btn" type="button">21</button>
+        <button class="page-btn" type="button" aria-label="下一页">›</button>
+        <select class="pagination__size" aria-label="每页条数">
+          <option>10 条 / 页</option>
+          <option>20 条 / 页</option>
+          <option>50 条 / 页</option>
+        </select>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script src="shell.js"></script>
+</body>
+</html>

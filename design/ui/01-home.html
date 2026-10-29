@@ -14,9 +14,123 @@
    ========================================================================== */
 
 .hero {
+  position: relative;
   background: linear-gradient(180deg, var(--banner-start) 0%, var(--banner-end) 100%);
   height: 252px;
   padding: calc(var(--statusbar-h) + 20px) var(--sp-xl) 0;
+}
+
+/* ---------- 律师工作台快捷图标（仅认证律师可见，第 17 批） ----------
+   ★ 为什么放在英雄区右上角：这是律师回来看「有没有新活」的入口，
+     优先级高于页面上任何一个内容卡。放右上角是 iOS 里「账号 / 模式」
+     类入口的固定位置，律师不需要学。
+   ★ 只在已认证时出现。未认证的人看到一个进不去的图标，
+     点了会被弹回，比没有这个图标更糟。 */
+.wb-entry {
+  position: absolute;
+  inset-block-start: calc(var(--statusbar-h) + 12px);
+  inset-inline-end: var(--sp-xl);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--bg-surface);
+  color: var(--brand-primary-pressed);
+  box-shadow: var(--shadow-card);
+  text-decoration: none;
+}
+
+.wb-entry svg {
+  width: 22px;
+  height: 22px;
+}
+
+/* 有未读待办时右上角点一个红点：这是「有新活」的信号，
+   律师一天会扫这个图标十几次 */
+.wb-entry::after {
+  content: "";
+  position: absolute;
+  inset-block-start: 9px;
+  inset-inline-end: 9px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--state-danger);
+  box-shadow: 0 0 0 2px var(--bg-surface);
+}
+
+/* ---------- 角色入口条（第 17 批） ----------
+   未认证 → 律师入驻认证；已认证 → 进入律师工作台。
+   两态用同一位置、同一形态，只换内容 —— 用户认证前后不会觉得
+   「多了个东西」或「少了个东西」。 */
+.role-entry {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-md);
+  width: 100%;
+  padding: var(--sp-md) var(--sp-lg);
+  border-radius: var(--r-md);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+  text-decoration: none;
+  color: inherit;
+}
+
+.role-entry__icon {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+}
+
+.role-entry__icon svg {
+  width: 21px;
+  height: 21px;
+}
+
+/* 入驻引导：暖色，是「有个事你可以做」的语气 */
+.role-entry--join .role-entry__icon {
+  background: var(--state-warning-soft);
+  color: var(--state-warning-deep);
+}
+
+/* 工作台入口：主色，是「你的地盘」的语气 */
+.role-entry--workbench .role-entry__icon {
+  background: var(--brand-primary-soft);
+  color: var(--brand-primary-pressed);
+}
+
+.role-entry__body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.role-entry__title {
+  display: block;
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.role-entry__desc {
+  display: block;
+  margin-block-start: 2px;
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.role-entry__chevron {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  color: var(--text-muted);
 }
 
 .hero__greeting {
@@ -122,6 +236,44 @@
   white-space: nowrap;
 }
 
+/* ---------- 快捷功能区 ---------- */
+.quick-actions {
+  padding: var(--sp-md) var(--sp-xs);
+}
+
+.quick-actions__grid {
+  display: flex;
+}
+
+.quick-actions__item {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: var(--sp-sm) 2px;
+  text-decoration: none;
+  color: var(--text-body);
+  border-radius: var(--r-sm);
+}
+
+.quick-actions__item:active {
+  background: var(--bg-canvas);
+}
+
+.quick-actions__item svg {
+  width: 26px;
+  height: 26px;
+  color: var(--brand-primary);
+}
+
+.quick-actions__label {
+  font-size: var(--fs-caption);
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
 /* ---------- 每日学法卡 ---------- */
 .law-card {
   padding: var(--sp-lg) var(--sp-lg) var(--sp-xs);
@@ -197,6 +349,14 @@
   border-radius: 50%;
   background: var(--text-muted);
 }
+
+/* ★ 本页没引 components.css（第 1 批页面自带全部样式），所以 [hidden] 的
+   全局规则也不在。HTML 的 hidden 属性只是 UA 样式表里的 display: none，
+   优先级最低 —— 页面里只要写了 .某个类 { display: flex }，hidden 就失效。
+   01-home 的角色入口条正是这么同时冒出两条来的。这条必须补。注意注释里不能写 style 的结束标签——浏览器会提前结束样式表。 */
+[hidden] {
+  display: none !important;
+}
 </style>
 </head>
 <body>
@@ -229,6 +389,18 @@
     <p class="hero__greeting">下午好!</p>
     <h1 class="hero__title">站在你的角度</h1>
     <p class="hero__sub">为你争取和维护最大的权益</p>
+
+    <!-- 律师工作台快捷入口：仅已认证律师可见（#state-lawyer 走查） -->
+    <a class="wb-entry" href="62-workbench.html" data-state="lawyer" hidden
+       aria-label="进入律师工作台">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <rect x="2.8" y="7.4" width="18.4" height="12.2" rx="2.2" stroke="currentColor"
+              stroke-width="1.9"/>
+        <path d="M8.6 7.4V5.6a1.8 1.8 0 0 1 1.8-1.8h3.2a1.8 1.8 0 0 1 1.8 1.8v1.8"
+              stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/>
+        <path d="M2.8 12.6h18.4" stroke="currentColor" stroke-width="1.9"/>
+      </svg>
+    </a>
   </section>
 
   <div class="content">
@@ -264,7 +436,7 @@
           </svg>
           <span class="quick-grid__label">律师咨询</span>
         </a>
-        <a class="quick-grid__item" href="51-case-progress.html">
+        <a class="quick-grid__item" href="54-case-progress.html">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path d="M3.2 12.6a8.8 8.8 0 1 1 2.6 6.2" stroke="var(--icon-progress)" stroke-width="1.9"
                   stroke-linecap="round"/>
@@ -277,6 +449,88 @@
         </a>
       </div>
     </section>
+
+    <section class="card quick-actions">
+      <div class="quick-actions__grid">
+        <a class="quick-actions__item" href="20-filing.html">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M5.6 3.4h8.2l5 5v11.2a1.8 1.8 0 0 1-1.8 1.8H5.6a1.8 1.8 0 0 1-1.8-1.8V5.2a1.8 1.8 0 0 1 1.8-1.8Z"
+                  stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+            <path d="M13.6 3.6v5.2h5" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+            <path d="M8.4 13.6h7.2M8.4 17h4.6" stroke="currentColor" stroke-width="1.8"
+                  stroke-linecap="round"/>
+          </svg>
+          <span class="quick-actions__label">在线立案</span>
+        </a>
+        <a class="quick-actions__item" href="53-my-cases.html">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M3.2 7.6a1.8 1.8 0 0 1 1.8-1.8h4l2 2.2h7.8a1.8 1.8 0 0 1 1.8 1.8v9.6a1.8 1.8 0 0 1-1.8 1.8H5a1.8 1.8 0 0 1-1.8-1.8V7.6Z"
+                  stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+          </svg>
+          <span class="quick-actions__label">我的案件</span>
+        </a>
+        <a class="quick-actions__item" href="22-service.html">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <rect x="2.8" y="5.2" width="18.4" height="13.6" rx="2" stroke="currentColor" stroke-width="1.8"/>
+            <path d="m3.6 6.8 8.4 6 8.4-6" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+          </svg>
+          <span class="quick-actions__label">案件送达</span>
+        </a>
+        <a class="quick-actions__item" href="61-all-features.html">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <rect x="3.2" y="3.2" width="7.4" height="7.4" rx="1.8" stroke="currentColor" stroke-width="1.8"/>
+            <rect x="13.4" y="3.2" width="7.4" height="7.4" rx="1.8" stroke="currentColor" stroke-width="1.8"/>
+            <rect x="3.2" y="13.4" width="7.4" height="7.4" rx="1.8" stroke="currentColor" stroke-width="1.8"/>
+            <rect x="13.4" y="13.4" width="7.4" height="7.4" rx="1.8" stroke="currentColor" stroke-width="1.8"/>
+          </svg>
+          <span class="quick-actions__label">全部功能</span>
+        </a>
+      </div>
+    </section>
+
+    <!-- ================================================================
+         角色入口条：同一个位置、同一形态，只换内容
+           未认证（默认）→ 律师入驻认证，引导去认证
+           已认证（#state-lawyer）→ 进入律师工作台
+         ================================================================ -->
+    <a class="role-entry role-entry--join" href="15-lawyer-join.html" data-state="guest">
+      <span class="role-entry__icon">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 2.9 4.6 5.7v6c0 4.3 3 8 7.4 9 4.4-1 7.4-4.7 7.4-9v-6L12 2.9Z"
+                stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/>
+          <path d="m8.9 11.8 2.2 2.2 4-4.3" stroke="currentColor" stroke-width="1.9"
+                stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </span>
+      <span class="role-entry__body">
+        <span class="role-entry__title">律师 / 学生入驻</span>
+        <span class="role-entry__desc">执业律师与学生均可申请，认证后可以接单</span>
+      </span>
+      <svg class="role-entry__chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="m9.5 5.5 6.5 6.5-6.5 6.5" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </a>
+
+    <a class="role-entry role-entry--workbench" href="62-workbench.html" data-state="lawyer" hidden>
+      <span class="role-entry__icon">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <rect x="2.8" y="7.4" width="18.4" height="12.2" rx="2.2" stroke="currentColor"
+                stroke-width="1.9"/>
+          <path d="M8.6 7.4V5.6a1.8 1.8 0 0 1 1.8-1.8h3.2a1.8 1.8 0 0 1 1.8 1.8v1.8"
+                stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/>
+          <path d="M2.8 12.6h18.4" stroke="currentColor" stroke-width="1.9"/>
+        </svg>
+      </span>
+      <span class="role-entry__body">
+        <span class="role-entry__title">进入律师工作台</span>
+        <span class="role-entry__desc">3 条新咨询 · 2 个待接单 · 本月收入 ¥4,860</span>
+      </span>
+      <svg class="role-entry__chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="m9.5 5.5 6.5 6.5-6.5 6.5" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </a>
 
     <section class="card law-card">
       <div class="law-card__head">

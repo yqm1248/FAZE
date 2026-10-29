@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390, initial-scale=1">
+<meta name="dsh-design" content="app">
+<title>注销账号</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   注销账号页（第 12 批 · 延展，无参考图）★ 高风险操作
+   ==========================================================================
+   职责：让用户在完全知情的前提下申请注销，并在 7 天冷静期内可撤销。
+   入口：42-account-security「注销账号」
+   母版：**高风险确认母版** —— 警示条 + 须知 + 身份验证 + 原因 + 冷静期 + 危险按钮
+   数据来源：账号状态（有无进行中订单/案件、实名信息）+ 注销申请接口
+
+   ★★★ 这一页的每一句话都在防同一件事：用户事后说「我不知道会这样」 ★★★
+     注销是不可逆的数据销毁。它和退款、取消订单不一样 ——
+     那些还能补救，这个补不了。所以：
+     1. 顶部先给警示条，不是藏在页面中间
+     2. 删什么、留什么列成清单，不留「相关数据」这种模糊说法
+     3. 有进行中订单或案件时**不允许注销**，把这条写在须知里而不是让他提交失败
+     4. 7 天冷静期的撤销入口必须写清楚（在「设置」里再进来就能撤销）
+     5. 按钮是红的，而且不在最容易点到的位置
+
+   ★ 为什么注销还要填原因：
+     不是为了拦住用户，是为了让平台知道在哪一步出了问题。
+     但原因一律选填 —— 强制填写等于拿注销当调研工具，
+     用户填一堆假原因，数据反而更没用。
+
+   ★ 为什么身份验证只给短信验证码，不给「输密码」：
+     忘记密码的人恰恰最可能来注销。用密码卡住，等于逼他去走「忘记密码」，
+     而他已经不想要这个账号了。
+   ========================================================================== */
+
+body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-canvas);
+}
+
+.navbar {
+  background: var(--bg-surface);
+}
+
+.screen {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding: 0 var(--sp-xl) var(--sp-xl);
+}
+.screen::-webkit-scrollbar {
+  display: none;
+}
+
+.screen > section + section {
+  margin-block-start: var(--sp-md);
+}
+
+/* ---------- 顶部警示 ---------- */
+.danger-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-sm);
+  margin-block-start: var(--sp-md);
+  padding: var(--sp-md) var(--sp-lg);
+  border-radius: var(--r-sm);
+  background: var(--state-danger);
+  color: var(--text-on-brand);
+}
+
+.danger-head svg {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  margin-block-start: 2px;
+}
+
+.danger-head p {
+  font-size: var(--fs-caption);
+  line-height: 1.7;
+}
+
+.danger-head b {
+  font-weight: var(--fw-bold);
+}
+
+/* ---------- 卡片 ---------- */
+.card-block {
+  padding: var(--sp-md) var(--sp-lg) var(--sp-lg);
+  border-radius: var(--r-md);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.block-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-sm);
+  padding-block: var(--sp-xs) var(--sp-md);
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.block-title__note {
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-regular);
+  color: var(--text-muted);
+}
+
+/* 删 / 留两份清单：用两种标记区分，不靠颜色（色弱用户也要分得出）。
+   必须消掉 ul 自带的圆点，否则会变成「圆点 + 破折号」双标记 */
+.kv-list {
+  list-style: none;
+  font-size: var(--fs-md);
+  line-height: 1.9;
+}
+
+.kv-list li {
+  position: relative;
+  padding-inline-start: 20px;
+  color: var(--text-secondary);
+}
+
+.kv-list li::before {
+  content: "—";
+  position: absolute;
+  inset-inline-start: 2px;
+  color: var(--text-muted);
+}
+
+.kv-list li.keep::before {
+  content: "+";
+  color: var(--state-success);
+  font-weight: var(--fw-bold);
+}
+
+/* ---------- 输入 ---------- */
+.field-line {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  min-height: 52px;
+  border-block-end: 1px solid var(--border-divider);
+}
+
+.field-line__label {
+  flex: 0 0 76px;
+  font-size: var(--fs-md);
+  color: var(--text-secondary);
+}
+
+.field-line input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 52px;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: var(--font-num);
+  font-size: var(--fs-lg);
+  font-variant-numeric: tabular-nums;
+  outline: none;
+}
+
+.field-line input::placeholder {
+  font-family: var(--font-sans);
+  font-size: var(--fs-md);
+  color: #A3A9AE;
+}
+
+/* 获取验证码：热区 44，视觉是小字 */
+.code-btn {
+  flex: 0 0 auto;
+  min-width: 88px;
+  min-height: 44px;
+  padding: 0 var(--sp-sm);
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  font-size: var(--fs-md);
+  color: var(--brand-primary);
+  cursor: pointer;
+}
+
+.code-btn[disabled] {
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+/* ---------- 注销原因 ---------- */
+.reason-list {
+  margin-block-start: var(--sp-xs);
+}
+
+.reason {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-md);
+  width: 100%;
+  min-height: 48px;
+  padding: var(--sp-sm) 0;
+  border: 0;
+  border-block-end: 1px solid var(--border-divider);
+  background: transparent;
+  font-family: inherit;
+  font-size: var(--fs-md);
+  color: var(--text-body);
+  text-align: start;
+  cursor: pointer;
+}
+
+.reason:last-child {
+  border-block-end: 0;
+}
+
+.reason__text {
+  flex: 1 1 auto;
+  min-width: 0;
+  line-height: 1.5;
+}
+
+.reason__mark {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  border: 1.5px solid var(--border-outline);
+  border-radius: 50%;
+  background: var(--bg-surface);
+}
+
+.reason.is-active .reason__mark {
+  border-color: var(--brand-primary);
+  background: radial-gradient(circle at center,
+    var(--brand-primary) 0 5px, var(--bg-surface) 5.5px);
+}
+
+/* ---------- 冷静期 ---------- */
+.cool-down {
+  padding: var(--sp-md) var(--sp-lg);
+  border-radius: var(--r-sm);
+  background: var(--state-warning-soft);
+}
+
+.cool-down__title {
+  font-size: var(--fs-md);
+  font-weight: var(--fw-medium);
+  color: var(--state-warning-deep);
+  line-height: 1.5;
+}
+
+.cool-down__desc {
+  margin-block-start: 4px;
+  font-size: var(--fs-caption);
+  color: var(--text-secondary);
+  line-height: 1.7;
+}
+</style>
+</head>
+<body>
+
+<header class="statusbar">
+  <span>9:41</span>
+  <span class="statusbar__icons">
+    <svg width="17" height="11" viewBox="0 0 17 11" fill="none" aria-hidden="true">
+      <rect x="0" y="7" width="3" height="4" rx="1" fill="currentColor"/>
+      <rect x="4.5" y="5" width="3" height="6" rx="1" fill="currentColor"/>
+      <rect x="9" y="2.5" width="3" height="8.5" rx="1" fill="currentColor"/>
+      <rect x="13.5" y="0" width="3" height="11" rx="1" fill="currentColor"/>
+    </svg>
+    <svg width="16" height="11" viewBox="0 0 16 11" fill="none" aria-hidden="true">
+      <path d="M1 3.2A10.5 10.5 0 0 1 15 3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M3.6 5.9a7 7 0 0 1 8.8 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M6.2 8.6a3.4 3.4 0 0 1 3.6 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden="true">
+      <rect x="0.6" y="0.6" width="21" height="10.8" rx="3" stroke="currentColor" stroke-opacity="0.4" stroke-width="1.2"/>
+      <rect x="2.2" y="2.2" width="15" height="7.6" rx="1.8" fill="currentColor"/>
+      <path d="M23.4 4.2v3.6" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+  </span>
+</header>
+
+<div class="navbar">
+  <a class="navbar__back" href="42-account-security.html" aria-label="返回账号与安全">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M15.2 4.6 7.8 12l7.4 7.4" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </a>
+  <h1 class="navbar__title">注销账号</h1>
+</div>
+
+<main class="screen">
+
+  <div class="danger-head">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M12 3.2 2.6 20.4h18.8L12 3.2Z" stroke="currentColor" stroke-width="1.9"
+            stroke-linejoin="round"/>
+      <path d="M12 9.4v4.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+      <circle cx="12" cy="17.4" r="1" fill="currentColor"/>
+    </svg>
+    <p><b>注销后账号无法恢复</b>，账号里的一切都会被删除或按法律规定封存。请先看完下面的说明再决定。</p>
+  </div>
+
+  <section class="card-block">
+    <h3 class="block-title">注销会怎样</h3>
+    <ul class="kv-list">
+      <li>账号资料、头像、昵称、收藏、关注全部删除</li>
+      <li>账户余额清零，未充值的余额不予退还</li>
+      <li>文书草稿、AI 对话记录删除</li>
+      <li class="keep">订单与支付记录依法保存 3 年，用于对账和监管备查</li>
+      <li class="keep">进行中的案件材料按司法要求保留，直至案件终结</li>
+    </ul>
+  </section>
+
+  <section class="card-block">
+    <h3 class="block-title">
+      身份验证
+      <span class="block-title__note">必填</span>
+    </h3>
+    <div class="field-line">
+      <span class="field-line__label">验证码</span>
+      <input type="text" inputmode="numeric" maxlength="6"
+             placeholder="发到 187****1576" aria-label="短信验证码" data-deactivate-code>
+      <button class="code-btn" type="button" data-send-code>获取验证码</button>
+    </div>
+  </section>
+
+  <section class="card-block">
+    <h3 class="block-title">
+      注销原因
+      <span class="block-title__note">选填</span>
+    </h3>
+    <div class="reason-list" data-choice-group>
+      <button class="reason" type="button" data-choice>
+        <span class="reason__text">不再需要法律服务</span>
+        <span class="reason__mark" aria-hidden="true"></span>
+      </button>
+      <button class="reason" type="button" data-choice>
+        <span class="reason__text">用起来不方便</span>
+        <span class="reason__mark" aria-hidden="true"></span>
+      </button>
+      <button class="reason" type="button" data-choice>
+        <span class="reason__text">担心个人信息安全</span>
+        <span class="reason__mark" aria-hidden="true"></span>
+      </button>
+      <button class="reason" type="button" data-choice>
+        <span class="reason__text">换了手机号，不想再用了</span>
+        <span class="reason__mark" aria-hidden="true"></span>
+      </button>
+      <button class="reason" type="button" data-choice>
+        <span class="reason__text">其他原因</span>
+        <span class="reason__mark" aria-hidden="true"></span>
+      </button>
+    </div>
+  </section>
+
+  <section class="cool-down">
+    <p class="cool-down__title">提交后有 7 天冷静期</p>
+    <p class="cool-down__desc">这 7 天里账号照常可用，你也可以随时撤销申请：从「设置 - 账号与安全」再进来，点「撤销注销申请」。7 天后账号正式注销，那时就撤不回了。</p>
+  </section>
+
+  <p class="set-group__title" style="padding-block-start:var(--sp-md);line-height:1.8">
+    有进行中的订单或案件时不能提交注销。请先等服务结束或案件终结。
+  </p>
+
+</main>
+
+<div class="actionbar">
+  <a class="btn-ghost" href="42-account-security.html">再想想</a>
+  <button class="btn-primary actionbar__cta" type="button" data-deactivate-submit
+          style="background:var(--state-danger)">提交注销申请</button>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

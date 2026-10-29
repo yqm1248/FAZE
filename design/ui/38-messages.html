@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390, initial-scale=1">
+<meta name="dsh-design" content="app">
+<title>消息中心</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   消息中心页（第 10 批 · 延展，无参考图）
+   ==========================================================================
+   职责：把系统通知、律师回复、案件进度、客服消息汇到一处，按类型筛选、标未读。
+   入口：05-profile「常用功能 - 消息中心」；底部 tabbar 的角标也指向这里
+   母版：**列表母版**（同 12-articles / 27-doc-mine / 29-orders）
+   数据来源：消息列表接口（类型 / 标题 / 摘要 / 时间 / 已读状态 / 关联业务 id）
+
+   ★★★ 这里有一处刻意偏离导航树，先写清楚 ★★★
+     导航树模块 8 写的是「点击 ──→ 消息详情页」，等于所有消息都先进 39。
+     但「律师回复」这类消息点进详情页、看完一段摘要再点「进入对话」，
+     是白多一步 —— 聊天是持续会话，用户要的是接着聊，不是读一份通知。
+     所以这一屏按类型分流：
+       - 通知类（系统通知 / 案件进度 / 订单 / 合规提醒）→ 39 消息详情页
+       - 律师回复 → 直接进 17-chat
+       - 客服 → 直接进客服中心
+     39 只服务「通知类」，它本来也就只适合这类（正文 + 一个关联跳转）。
+     导航树那一句建议改成「通知类进详情页，会话类直接进对应页面」。
+
+   ★ 为什么未读只用一个红点、不把整条变蓝底：
+     消息中心是「扫一眼有没有事」的地方，一条一条高亮底色会把列表打成花盘，
+     反而看不出重点。红点 + 标题加粗已经够定位，剩下的交给标题文字。
+
+   ★ 为什么「全部已读」不给二次确认：
+     它可回退（服务端可以把时间戳清掉），而且误点的代价只是「得再翻一遍」，
+     不是丢数据。凡是这种「损失可承受、误点频繁」的动作，加确认只会让人烦。
+
+   四态：normal / loading（骨架）/ empty（没有消息）/ error。
+   ========================================================================== */
+
+body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-canvas);
+}
+
+.navbar {
+  background: var(--bg-surface);
+}
+
+.screen {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding-block-end: calc(var(--safe-bottom) + var(--sp-xl));
+}
+.screen::-webkit-scrollbar {
+  display: none;
+}
+
+/* 顶栏右侧「全部已读」：文字按钮，热区 44 */
+.navbar__text {
+  display: inline-flex;
+  align-items: center;
+  min-width: 44px;
+  min-height: 44px;
+  margin-block: -6px;
+  padding: 0 var(--sp-xs);
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  font-size: var(--fs-md);
+  color: var(--brand-primary);
+  cursor: pointer;
+}
+
+.list-top {
+  background: var(--bg-surface);
+  border-block-end: 1px solid var(--border-outline);
+}
+
+.filter {
+  padding-inline: var(--sp-md);
+}
+
+/* ---------- 消息条 ---------- */
+.list {
+  padding: var(--sp-md) var(--sp-xl) 0;
+}
+
+.msg {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-md);
+  padding: var(--sp-md) var(--sp-lg);
+  border-radius: var(--r-md);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+  text-decoration: none;
+  color: inherit;
+}
+
+.msg + .msg {
+  margin-block-start: var(--sp-sm);
+}
+
+.msg:active {
+  background: var(--bg-canvas);
+}
+
+/* 图标按类型上色，颜色沿用首页三宫格那三个（青 / 蓝 / 橙），不新增色 */
+.msg__icon {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--r-sm);
+  background: var(--bg-canvas);
+  color: var(--text-muted);
+}
+
+.msg__icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.msg--system .msg__icon {
+  background: var(--bg-canvas);
+  color: var(--text-secondary);
+}
+
+.msg--lawyer .msg__icon {
+  background: var(--brand-primary-soft);
+  color: var(--icon-lawyer);
+}
+
+.msg--case .msg__icon {
+  background: var(--state-warning-soft);
+  color: var(--icon-progress);
+}
+
+.msg--service .msg__icon {
+  background: var(--state-success-soft);
+  color: var(--icon-doc);
+}
+
+.msg__main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.msg__head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-sm);
+}
+
+.msg__title {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-regular);
+  color: var(--text-body);
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 未读：标题加重，配红点。不加底色，理由见顶部注释 */
+.msg--unread .msg__title {
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+}
+
+.msg__time {
+  flex: 0 0 auto;
+  font-family: var(--font-num);
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.4;
+}
+
+/* 红点默认不显示，只在未读时才出现。
+   这样「全部已读」只要摘掉 .msg--unread，红点自己就没了，不用再去遍历删元素 */
+.msg__dot {
+  flex: 0 0 auto;
+  display: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--state-danger);
+}
+
+.msg--unread .msg__dot {
+  display: block;
+}
+
+.msg__desc {
+  display: block;
+  margin-block-start: 3px;
+  font-size: var(--fs-md);
+  color: var(--text-muted);
+  line-height: 1.5;
+  /* 摘要最多两行。这里不用 line-clamp：摘要由服务端截断到 40 字，
+     前端只兜底。真要压行数应该在数据层做，CSS 截断会切出半个词 */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 类型小标：让用户不看图标也知道这条是什么 */
+.msg__type {
+  display: inline-block;
+  margin-block-start: 4px;
+  padding: 1px 6px;
+  border-radius: var(--r-xs);
+  background: var(--bg-input);
+  color: var(--text-secondary);
+  font-size: var(--fs-micro);
+  line-height: 1.6;
+}
+
+/* ---------- 空态 / 错误态 ---------- */
+.state-wrap {
+  padding-block: var(--sp-huge) var(--sp-xxxl);
+}
+</style>
+</head>
+<body>
+
+<header class="statusbar">
+  <span>9:41</span>
+  <span class="statusbar__icons">
+    <svg width="17" height="11" viewBox="0 0 17 11" fill="none" aria-hidden="true">
+      <rect x="0" y="7" width="3" height="4" rx="1" fill="currentColor"/>
+      <rect x="4.5" y="5" width="3" height="6" rx="1" fill="currentColor"/>
+      <rect x="9" y="2.5" width="3" height="8.5" rx="1" fill="currentColor"/>
+      <rect x="13.5" y="0" width="3" height="11" rx="1" fill="currentColor"/>
+    </svg>
+    <svg width="16" height="11" viewBox="0 0 16 11" fill="none" aria-hidden="true">
+      <path d="M1 3.2A10.5 10.5 0 0 1 15 3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M3.6 5.9a7 7 0 0 1 8.8 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M6.2 8.6a3.4 3.4 0 0 1 3.6 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden="true">
+      <rect x="0.6" y="0.6" width="21" height="10.8" rx="3" stroke="currentColor" stroke-opacity="0.4" stroke-width="1.2"/>
+      <rect x="2.2" y="2.2" width="15" height="7.6" rx="1.8" fill="currentColor"/>
+      <path d="M23.4 4.2v3.6" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+  </span>
+</header>
+
+<div class="navbar">
+  <a class="navbar__back" href="05-profile.html" aria-label="返回我的">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M15.2 4.6 7.8 12l7.4 7.4" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </a>
+  <h1 class="navbar__title">消息中心</h1>
+  <div class="navbar__actions">
+    <button class="navbar__text" type="button" data-read-all>全部已读</button>
+  </div>
+</div>
+
+<main class="screen">
+
+  <div data-state="normal">
+
+    <div class="list-top">
+      <div class="filter" data-drag-scroll>
+        <button class="filter__chip filter__chip--active" type="button" data-msg-filter="all">全部</button>
+        <button class="filter__chip" type="button" data-msg-filter="system">系统通知</button>
+        <button class="filter__chip" type="button" data-msg-filter="lawyer">律师回复</button>
+        <button class="filter__chip" type="button" data-msg-filter="case">案件进度</button>
+        <button class="filter__chip" type="button" data-msg-filter="service">客服</button>
+      </div>
+    </div>
+
+    <div class="list">
+
+      <!-- 案件进度：通知类，进详情页 -->
+      <a class="msg msg--case msg--unread" href="39-message-detail.html" data-msg-type="case">
+        <span class="msg__icon">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <rect x="3.4" y="5.2" width="17.2" height="15.4" rx="2.4"
+                  stroke="currentColor" stroke-width="1.8"/>
+            <path d="M3.4 9.8h17.2M8 3.2v4M16 3.2v4" stroke="currentColor"
+                  stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+        </span>
+        <span class="msg__main">
+          <span class="msg__head">
+            <span class="msg__title">你的案件已被人民法院受理</span>
+            <span class="msg__dot" aria-label="未读"></span>
+            <span class="msg__time">10:30</span>
+          </span>
+          <span class="msg__desc">民间借贷纠纷一案已由伊宁市人民法院受理，承办庭室为民事审判第一庭。</span>
+          <span class="msg__type">案件进度</span>
+        </span>
+      </a>
+
+      <!-- 律师回复：会话类，直接进聊天页，不进详情 -->
+      <a class="msg msg--lawyer msg--unread" href="17-chat.html" data-msg-type="lawyer">
+        <span class="msg__icon">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M4.2 6.2a2.2 2.2 0 0 1 2.2-2.2h11.2a2.2 2.2 0 0 1 2.2 2.2v7.6a2.2 2.2 0 0 1-2.2 2.2H10l-4.4 3.6a.6.6 0 0 1-1.4-.5Z"
+                  stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+            <path d="M8.4 9.4h7.2M8.4 12.6h4.4" stroke="currentColor" stroke-width="1.8"
+                  stroke-linecap="round"/>
+          </svg>
+        </span>
+        <span class="msg__main">
+          <span class="msg__head">
+            <span class="msg__title">王建国律师回复了你</span>
+            <span class="msg__dot" aria-label="未读"></span>
+            <span class="msg__time">09:12</span>
+          </span>
+          <span class="msg__desc">材料我看过了，借条上没有写明还款日期，这个对你有利，我们……</span>
+          <span class="msg__type">律师回复</span>
+        </span>
+      </a>
+
+      <!-- 订单：通知类，进详情页 -->
+      <a class="msg msg--system msg--unread" href="39-message-detail.html" data-msg-type="system">
+        <span class="msg__icon">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M5.4 10.2a6.6 6.6 0 0 1 13.2 0v4.4l1.6 3.2H3.8l1.6-3.2v-4.4Z"
+                  stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+            <path d="M10 20.2a2.2 2.2 0 0 0 4 0" stroke="currentColor" stroke-width="1.8"
+                  stroke-linecap="round"/>
+          </svg>
+        </span>
+        <span class="msg__main">
+          <span class="msg__head">
+            <span class="msg__title">退款申请已通过审核</span>
+            <span class="msg__dot" aria-label="未读"></span>
+            <span class="msg__time">昨天</span>
+          </span>
+          <span class="msg__desc">合同审查的 600.00 元已退回账户余额，可在余额明细里查看。</span>
+          <span class="msg__type">系统通知</span>
+        </span>
+      </a>
+
+      <!-- 客服：直接进客服中心 -->
+      <a class="msg msg--service" href="55-support.html" data-msg-type="service">
+        <span class="msg__icon">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M4.6 13.4v-1.6a7.4 7.4 0 0 1 14.8 0v1.6" stroke="currentColor"
+                  stroke-width="1.8" stroke-linecap="round"/>
+            <rect x="3.4" y="12.6" width="3.6" height="5.6" rx="1.6"
+                  stroke="currentColor" stroke-width="1.8"/>
+            <rect x="17" y="12.6" width="3.6" height="5.6" rx="1.6"
+                  stroke="currentColor" stroke-width="1.8"/>
+          </svg>
+        </span>
+        <span class="msg__main">
+          <span class="msg__head">
+            <span class="msg__title">客服回复了你的咨询</span>
+            <span class="msg__time">10-27</span>
+          </span>
+          <span class="msg__desc">关于发票开具的问题，平台已记录，将于 3 个工作日内答复你。</span>
+          <span class="msg__type">客服</span>
+        </span>
+      </a>
+
+      <!-- 系统通知（已读）：合规提醒，这类消息不能删也不能拒收，所以置灰不标未读 -->
+      <a class="msg msg--system" href="39-message-detail.html" data-msg-type="system">
+        <span class="msg__icon">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="12" cy="12" r="8.6" stroke="currentColor" stroke-width="1.8"/>
+            <path d="M12 11.2v5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            <circle cx="12" cy="8" r="1" fill="currentColor"/>
+          </svg>
+        </span>
+        <span class="msg__main">
+          <span class="msg__head">
+            <span class="msg__title">用户服务协议有更新</span>
+            <span class="msg__time">10-25</span>
+          </span>
+          <span class="msg__desc">《用户服务协议》第三条与第七条已修订，2026 年 11 月 1 日起生效。</span>
+          <span class="msg__type">系统通知</span>
+        </span>
+      </a>
+
+      <a class="msg msg--case" href="39-message-detail.html" data-msg-type="case">
+        <span class="msg__icon">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <rect x="3.4" y="5.2" width="17.2" height="15.4" rx="2.4"
+                  stroke="currentColor" stroke-width="1.8"/>
+            <path d="M3.4 9.8h17.2M8 3.2v4M16 3.2v4" stroke="currentColor"
+                  stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+        </span>
+        <span class="msg__main">
+          <span class="msg__head">
+            <span class="msg__title">开庭时间已确定</span>
+            <span class="msg__time">10-24</span>
+          </span>
+          <span class="msg__desc">开庭时间定在 2026 年 11 月 18 日 9:30，地点在伊宁市人民法院第三审判庭。</span>
+          <span class="msg__type">案件进度</span>
+        </span>
+      </a>
+
+    </div>
+
+  </div>
+
+  <!-- ======================================================================
+       加载态
+       ====================================================================== -->
+  <div data-state="loading" hidden>
+    <div class="list" style="padding-block-start:20px">
+      <div class="msg" style="box-shadow:none">
+        <div class="skeleton" style="width:38px;height:38px;border-radius:6px"></div>
+        <div class="msg__main">
+          <div class="skeleton" style="height:15px;width:62%"></div>
+          <div class="skeleton" style="height:13px;width:86%;margin-block-start:8px"></div>
+        </div>
+      </div>
+      <div class="msg" style="box-shadow:none">
+        <div class="skeleton" style="width:38px;height:38px;border-radius:6px"></div>
+        <div class="msg__main">
+          <div class="skeleton" style="height:15px;width:50%"></div>
+          <div class="skeleton" style="height:13px;width:78%;margin-block-start:8px"></div>
+        </div>
+      </div>
+      <div class="msg" style="box-shadow:none">
+        <div class="skeleton" style="width:38px;height:38px;border-radius:6px"></div>
+        <div class="msg__main">
+          <div class="skeleton" style="height:15px;width:56%"></div>
+          <div class="skeleton" style="height:13px;width:70%;margin-block-start:8px"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================================
+       空态：一条消息都没有
+       ★ 空态不给「去逛逛」这种不沾边的按钮：消息是等来的，不是逛出来的。
+         真要有值得说的，就是「重要通知不会漏」，说清这一点比塞一个按钮有用。
+       ====================================================================== -->
+  <div data-state="empty" hidden>
+    <div class="state-wrap">
+      <div class="empty">
+        <svg class="empty__art" viewBox="0 0 96 96" fill="none" aria-hidden="true">
+          <path d="M24 34a6 6 0 0 1 6-6h36a6 6 0 0 1 6 6v26a6 6 0 0 1-6 6H36l-12 10V34Z"
+                stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"/>
+          <path d="M36 44h24M36 54h16" stroke="currentColor" stroke-width="2.4"
+                stroke-linecap="round"/>
+        </svg>
+        <p class="empty__title">还没有消息</p>
+        <p class="empty__desc">订单变化、律师回复、案件进展都会推到这里。重要的通知不会漏，也不会被清掉。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================================
+       错误态
+       ====================================================================== -->
+  <div data-state="error" hidden>
+    <div class="state-wrap">
+      <div class="errorbox">
+        <svg class="errorbox__art" viewBox="0 0 96 96" fill="none" aria-hidden="true">
+          <circle cx="48" cy="48" r="30" stroke="currentColor" stroke-width="2.4"/>
+          <path d="M48 32v20" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
+          <circle cx="48" cy="62" r="2.4" fill="currentColor"/>
+        </svg>
+        <p class="errorbox__title">消息没有加载出来</p>
+        <p class="errorbox__desc">网络不稳定或者服务器维护中。未读状态不会因为这个丢失，稍后再试。</p>
+        <button class="errorbox__retry" type="button" data-retry>
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M20.2 12a8.2 8.2 0 1 1-2.4-5.8" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round"/>
+            <path d="M20.4 3.6v4.6h-4.6" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          重新加载
+        </button>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

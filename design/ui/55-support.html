@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390, initial-scale=1">
+<meta name="dsh-design" content="app">
+<title>客服中心</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   客服中心页（第 15 批 · 延展，无参考图）
+   ==========================================================================
+   职责：自助入口（常见问题）优先，其次人工客服，再次电话；附热门问题直达。
+   入口：05-profile「客服中心」/ 16-join-status / 30-order-detail / 32-pay-result / 38-messages
+   数据来源：客服热线配置（静态）+ 热门问题列表（按点击量排序）
+
+   ★ 顺序是这一页最重要的设计决定：常见问题在最上、占最大面积。
+     人工客服是成本最高的通道，把它放在第一位的产品会得到「咨询量很高、
+     满意度很低」的结果 —— 因为一半的问题在 FAQ 里就有答案，
+     而人工客服一次只能服务一个人，排队一长用户就开始骂。
+     把自助放前面不是省成本，是让用户在 30 秒内拿到答案，而不是排 20 分钟队。
+
+   ★ 热线号码做成可点拨号（tel:），不是「仅展示」。
+     导航树原文写「客服热线（仅展示号码）」，但目标用户里有大量中老年人，
+     他们会盯着号码去拨号盘一位一位敲，敲错一位就打到别人家里去了。
+     点了直接进拨号界面，号码已经填好，这一步平台能做到，没有理由不做。
+
+   ★ 必须写清人工客服的服务时间。不写的话，晚上十点进来的用户会等，
+     等不到就认为「客服不理人」—— 同样的事实在页面上写明，观感完全不同。
+   ========================================================================== */
+
+body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-canvas);
+}
+
+.navbar {
+  background: var(--bg-surface);
+}
+
+.screen {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding: var(--sp-md) var(--sp-xl) var(--sp-xxl);
+}
+.screen::-webkit-scrollbar {
+  display: none;
+}
+
+/* ---------- 顶部引导 ---------- */
+.lead {
+  padding-block: var(--sp-xs) var(--sp-md);
+  font-size: var(--fs-md);
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+/* ---------- 三个入口 ---------- */
+.entry-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.entry {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-md);
+  width: 100%;
+  padding: var(--sp-md) var(--sp-lg);
+  border: 0;
+  border-radius: var(--r-md);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+  font-family: inherit;
+  text-align: start;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+.entry__icon {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+}
+
+.entry__icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+/* 三种入口用三个色：主色 / 青 / 橙，与原项目三宫格的配色逻辑一致 */
+.entry__icon--faq {
+  background: var(--brand-primary-soft);
+  color: var(--brand-primary-pressed);
+}
+
+.entry__icon--chat {
+  background: var(--state-success-soft);
+  color: var(--state-success);
+}
+
+.entry__icon--phone {
+  background: var(--state-warning-soft);
+  color: var(--state-warning-deep);
+}
+
+.entry__body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.entry__title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.entry__desc {
+  display: block;
+  margin-block-start: 3px;
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+/* 在线状态点：只在人工客服那一张出现 */
+.entry__live {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-regular);
+  color: var(--state-success);
+}
+
+.entry__live::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.entry__chevron {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  color: var(--text-muted);
+}
+
+/* 热线卡片里的号码：等宽大字，一眼看完 */
+.entry__phone {
+  display: block;
+  margin-block-start: 2px;
+  font-family: var(--font-num);
+  font-size: var(--fs-h2);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  letter-spacing: 0.5px;
+  line-height: 1.3;
+}
+
+/* ---------- 热门问题 ---------- */
+.section-title {
+  padding-block: var(--sp-xl) var(--sp-sm);
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.hot-list {
+  border-radius: var(--r-md);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+
+.hot {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  width: 100%;
+  min-height: 52px;
+  padding: 13px var(--sp-lg);
+  border: 0;
+  border-block-end: 1px solid var(--border-divider);
+  background: transparent;
+  font-family: inherit;
+  text-align: start;
+  text-decoration: none;
+  color: var(--text-body);
+  cursor: pointer;
+}
+
+.hot:last-child {
+  border-block-end: 0;
+}
+
+.hot:active {
+  background: var(--bg-canvas);
+}
+
+.hot__text {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: var(--fs-md);
+  line-height: 1.5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hot__chevron {
+  flex: 0 0 auto;
+  width: 15px;
+  height: 15px;
+  color: var(--text-muted);
+}
+
+/* ---------- 页尾说明 ---------- */
+.page-note {
+  margin-block-start: var(--sp-lg);
+  padding-inline: 2px;
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.8;
+}
+
+.page-note b {
+  font-weight: var(--fw-medium);
+  color: var(--text-secondary);
+}
+</style>
+</head>
+<body>
+
+<header class="statusbar">
+  <span>9:41</span>
+  <span class="statusbar__icons">
+    <svg width="17" height="11" viewBox="0 0 17 11" fill="none" aria-hidden="true">
+      <rect x="0" y="7" width="3" height="4" rx="1" fill="currentColor"/>
+      <rect x="4.5" y="5" width="3" height="6" rx="1" fill="currentColor"/>
+      <rect x="9" y="2.5" width="3" height="8.5" rx="1" fill="currentColor"/>
+      <rect x="13.5" y="0" width="3" height="11" rx="1" fill="currentColor"/>
+    </svg>
+    <svg width="16" height="11" viewBox="0 0 16 11" fill="none" aria-hidden="true">
+      <path d="M1 3.2A10.5 10.5 0 0 1 15 3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M3.6 5.9a7 7 0 0 1 8.8 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M6.2 8.6a3.4 3.4 0 0 1 3.6 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden="true">
+      <rect x="0.6" y="0.6" width="21" height="10.8" rx="3" stroke="currentColor" stroke-opacity="0.4" stroke-width="1.2"/>
+      <rect x="2.2" y="2.2" width="15" height="7.6" rx="1.8" fill="currentColor"/>
+      <path d="M23.4 4.2v3.6" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+  </span>
+</header>
+
+<div class="navbar">
+  <a class="navbar__back" href="05-profile.html" aria-label="返回我的">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M15.2 4.6 7.8 12l7.4 7.4" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </a>
+  <h1 class="navbar__title">客服中心</h1>
+</div>
+
+<main class="screen">
+
+  <p class="lead">遇到问题先看常见问题，大部分账号、支付和立案的疑问在那里都有答案，比排队快。</p>
+
+  <div class="entry-list">
+
+    <a class="entry" href="56-faq.html">
+      <span class="entry__icon entry__icon--faq">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="12" cy="12" r="9.1" stroke="currentColor" stroke-width="1.9"/>
+          <path d="M9.6 9.3a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 1.8-2.4 3.4" stroke="currentColor"
+                stroke-width="1.9" stroke-linecap="round"/>
+          <circle cx="12" cy="17.1" r="1.15" fill="currentColor"/>
+        </svg>
+      </span>
+      <span class="entry__body">
+        <span class="entry__title">常见问题</span>
+        <span class="entry__desc">账号 · 支付 · 律师 · 立案</span>
+      </span>
+      <svg class="entry__chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="m9.5 5.5 6.5 6.5-6.5 6.5" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </a>
+
+    <a class="entry" href="17-chat.html">
+      <span class="entry__icon entry__icon--chat">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M20.4 12.2c0 4-3.8 7.2-8.4 7.2-1 0-2-.15-2.9-.42L4.1 20.4l1.3-3.5a7 7 0 0 1-1.9-4.7c0-4 3.8-7.2 8.5-7.2s8.4 3.2 8.4 7.2Z"
+                stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/>
+        </svg>
+      </span>
+      <span class="entry__body">
+        <span class="entry__title">
+          在线客服
+          <span class="entry__live">在线</span>
+        </span>
+        <span class="entry__desc">人工客服 9:00–20:00，非工作时间可留言，次日回复</span>
+      </span>
+      <svg class="entry__chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="m9.5 5.5 6.5 6.5-6.5 6.5" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </a>
+
+    <a class="entry" href="tel:09998123456">
+      <span class="entry__icon entry__icon--phone">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M5.2 3.8h3.2l1.6 4.2-2 1.4a12 12 0 0 0 6.6 6.6l1.4-2 4.2 1.6v3.2a2 2 0 0 1-2.2 2A16.4 16.4 0 0 1 3.2 6a2 2 0 0 1 2-2.2Z"
+                stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/>
+        </svg>
+      </span>
+      <span class="entry__body">
+        <span class="entry__title">客服热线</span>
+        <span class="entry__phone">0999-812 3456</span>
+        <span class="entry__desc">点击号码直接拨打 · 工作日 9:00–18:00</span>
+      </span>
+      <svg class="entry__chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="m9.5 5.5 6.5 6.5-6.5 6.5" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </a>
+
+  </div>
+
+  <h2 class="section-title">大家常问</h2>
+
+  <div class="hot-list">
+    <a class="hot" href="56-faq.html">
+      <span class="hot__text">申请退款要多久到账？</span>
+      <svg class="hot__chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="m9.5 5.5 6.5 6.5-6.5 6.5" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </a>
+    <a class="hot" href="56-faq.html">
+      <span class="hot__text">律师一直没回复怎么办？</span>
+      <svg class="hot__chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="m9.5 5.5 6.5 6.5-6.5 6.5" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </a>
+    <a class="hot" href="56-faq.html">
+      <span class="hot__text">立案材料提交后多久有结果？</span>
+      <svg class="hot__chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="m9.5 5.5 6.5 6.5-6.5 6.5" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </a>
+    <a class="hot" href="56-faq.html">
+      <span class="hot__text">支付密码忘了怎么重置？</span>
+      <svg class="hot__chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="m9.5 5.5 6.5 6.5-6.5 6.5" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </a>
+    <a class="hot" href="56-faq.html">
+      <span class="hot__text">怎么开发票？能不能开企业抬头？</span>
+      <svg class="hot__chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="m9.5 5.5 6.5 6.5-6.5 6.5" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </a>
+  </div>
+
+  <p class="page-note">
+    <b>涉及退款、投诉、账号安全的问题请走在线客服</b>，需要核对身份，电话里办不了。紧急的财产损失请先报警，再联系客服协助提供交易记录。
+  </p>
+
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

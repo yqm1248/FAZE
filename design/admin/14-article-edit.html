@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="dsh-design" content="web 1440x900">
+<title>编辑文章 · 法泽管理后台</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   A-15 文章编辑
+   --------------------------------------------------------------------------
+   职责：文章正文富文本编辑、法条引用绑定、发布设置、4 语言版本切换。
+   依据：《PC 后台开发计划_v1.0》§2.5 A-15；数据表 law_article /
+        law_article_translation / law_item
+   接口：**缺**。见《未完成需备注》§1
+   说明：
+     1. 富文本编辑器这里只画「占位」：工具条 40px（7 个 SVG 图标）+ 编辑区
+        240px。真实实现接 wangEditor / tiptap，本稿只给尺寸和视觉密度，
+        避免开发照着截图猜控件高度。
+     2. 语言版本只画简体中文这一份内容，另外 3 个 tab 做成未激活态。
+        设计稿不写藏文 / 维吾尔文 / 哈萨克文的真实文字（没人能校验真伪，
+        写错就是假信息），一律「维吾尔文 · 待翻译」这种标注式写法。
+     3. 底部操作条固定在内容区底部（不是页面底部）：发布是终局动作，
+        滚到哪儿都能点到；滚动区预留 76px 下内边距，末条内容不会被压住。
+     4. 高度预算（内容区 776，扣掉底部操作条 56 后为 720）：
+        页头 62 + 左列约 800 = 862，超出约 142px。编辑页允许滚动。
+   ========================================================================== */
+
+/* 滚动区给固定操作条让位（56 + 20） */
+.article-edit.app-container {
+  padding-bottom: calc(var(--content-pad) + 56px);
+}
+
+/* 主布局：左自适应 + 右 320（右栏只放设置项，比 11 的 360 更窄） */
+.article-edit__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: var(--sp-4);
+  align-items: start;
+}
+
+.article-edit__col {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* 标题输入框字号按 16px：它是整页的主内容，和正文标题同一档 */
+.article-edit__title-input {
+  font-size: var(--fs-lg);
+}
+
+/* ---- 富文本编辑器占位 ---- */
+
+.article-edit__editor {
+  border-radius: var(--radius-ctrl);
+}
+
+.article-edit__toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  height: 40px;
+  padding: 0 var(--sp-2);
+  border: 1px solid var(--border-input);
+  border-radius: var(--radius-ctrl) var(--radius-ctrl) 0 0;
+  background: var(--bg-surface-2);
+}
+
+.article-edit__tool {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.article-edit__tool:hover {
+  background: var(--bg-hover);
+  color: var(--brand-primary);
+}
+
+.article-edit__tool svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* 工具分组之间的竖分隔：7 个图标平铺会分不清「文字 / 段落 / 插入」三组 */
+.article-edit__toolbar-sep {
+  width: 1px;
+  height: 16px;
+  margin: 0 var(--sp-1);
+  background: var(--border-subtle);
+}
+
+.article-edit__canvas {
+  height: 240px;
+  padding: var(--sp-4);
+  overflow-y: auto;
+  border: 1px solid var(--border-input);
+  border-top: 0;
+  border-radius: 0 0 var(--radius-ctrl) var(--radius-ctrl);
+  background: var(--bg-surface);
+}
+
+.article-edit__canvas h2 {
+  margin: 0 0 var(--sp-2);
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+}
+
+.article-edit__canvas h2:not(:first-child) {
+  margin-top: var(--sp-4);
+}
+
+.article-edit__canvas p {
+  margin: 0 0 var(--sp-3);
+  font-size: var(--fs-md);
+  line-height: var(--lh-relaxed);
+  color: var(--text-body);
+}
+
+.article-edit__canvas p:last-child {
+  margin-bottom: 0;
+}
+
+/* ---- 法条引用绑定 ---- */
+
+.article-edit__cite {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-5);
+  border-bottom: 1px solid var(--border-divider);
+}
+
+.article-edit__cite-code {
+  flex: 0 0 auto;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+}
+
+.article-edit__cite-desc {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+
+.article-edit__cite-foot {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-5);
+}
+
+/* ---- 发布设置：label 左、开关右 ---- */
+
+.article-edit__switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  min-height: var(--ctrl-h);
+}
+
+/* 封面：比 .upload-box 默认的 96×96 宽，封面是横幅图（16:10） */
+.article-edit__cover {
+  width: 140px;
+  height: 88px;
+  padding: 0;
+}
+
+/* ---- 语言版本：4 个 tab 挤在 280px 里，改成两行式（语言 / 状态） ---- */
+
+.article-edit__lang.subtabs {
+  gap: var(--sp-2);
+}
+
+.article-edit__lang .subtab {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: var(--sp-2) 0;
+  font-size: var(--fs-sm);
+}
+
+.article-edit__lang-state {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+.article-edit__lang-state.is-done {
+  color: var(--state-success);
+}
+
+.article-edit__lang-state.is-todo {
+  color: var(--state-warning-deep);
+}
+
+/* ---- 底部固定操作条 ---- */
+
+.article-edit__foot {
+  position: fixed;
+  left: var(--sidebar-w);
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  height: 56px;
+  padding: 0 var(--content-pad);
+  border-top: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-raised);
+}
+
+.article-edit__autosave {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+
+.article-edit__autosave svg {
+  width: 14px;
+  height: 14px;
+  color: var(--text-muted);
+}
+
+.article-edit__foot-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+</style>
+</head>
+<body class="shell" data-page="14-article-edit">
+
+<!-- 骨架由 shell.js 注入：侧边栏 / 顶栏 / 标签页 -->
+<aside class="sidebar" id="sidebar"></aside>
+
+<div class="main">
+  <header class="navbar" id="navbar"></header>
+  <div class="tags-view" id="tags-view"></div>
+
+  <main class="app-container scroll-y article-edit">
+
+    <!-- ==================== 页头 ==================== -->
+    <div class="page-head">
+      <div>
+        <h1 class="page-head__title">编辑文章</h1>
+        <p class="page-head__desc">
+          文章 ID A-2026-1024 · 最后编辑 admin · <span class="mono">2026-10-29 18:40</span>
+        </p>
+      </div>
+      <div class="page-head__actions">
+        <a class="btn" href="13-article-list.html">返回列表</a>
+      </div>
+    </div>
+
+    <!-- ==================== 主布局 ==================== -->
+    <div class="article-edit__grid">
+
+      <!-- ---------- 左主区 ---------- -->
+      <div class="article-edit__col">
+
+        <!-- 1. 正文 -->
+        <section class="card">
+          <div class="card__head">
+            <h2 class="card__title">正文</h2>
+            <div class="card__extra"><span>正文 1,286 字 · 预计阅读 4 分钟</span></div>
+          </div>
+          <div class="card__body">
+            <div class="form-row">
+              <label class="form-label is-required" for="f-title">标题</label>
+              <input class="input article-edit__title-input" id="f-title" type="text"
+                     placeholder="劳务合同与劳动合同的区别">
+            </div>
+
+            <div class="form-row" style="margin-top:var(--sp-4)">
+              <label class="form-label" for="f-cat">分类</label>
+              <select class="select" id="f-cat" style="width:220px">
+                <option>劳动纠纷</option>
+                <option>婚姻家事</option>
+                <option>合同</option>
+                <option>交通</option>
+                <option>刑事</option>
+                <option>民族政策</option>
+              </select>
+            </div>
+
+            <div class="form-row" style="margin-top:var(--sp-4)">
+              <span class="form-label">正文内容</span>
+
+              <!-- 富文本编辑器占位：工具条 40 + 编辑区 240。
+                   真实实现换 wangEditor / tiptap，本稿只定尺寸与密度。 -->
+              <div class="article-edit__editor">
+                <div class="article-edit__toolbar" role="toolbar" aria-label="正文格式工具">
+                  <button class="article-edit__tool" type="button" title="加粗" aria-label="加粗">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M7.4 4.8h5a3.2 3.2 0 0 1 0 6.4h-5z"/>
+                      <path d="M7.4 11.2h5.8a3.4 3.4 0 0 1 0 6.8H7.4z"/>
+                    </svg>
+                  </button>
+                  <button class="article-edit__tool" type="button" title="斜体" aria-label="斜体">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M10 4.8h6"/><path d="M8 19.2h6"/><path d="M14 4.8 10 19.2"/>
+                    </svg>
+                  </button>
+                  <button class="article-edit__tool" type="button" title="标题" aria-label="标题">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M6.4 4.8v14.4"/><path d="M16.4 4.8v14.4"/><path d="M6.4 12h10"/>
+                    </svg>
+                  </button>
+
+                  <span class="article-edit__toolbar-sep" aria-hidden="true"></span>
+
+                  <button class="article-edit__tool" type="button" title="有序列表" aria-label="有序列表">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M9 6.6h10.4"/><path d="M9 12h10.4"/><path d="M9 17.4h10.4"/>
+                      <path d="M4.4 5.6h1.4v3"/><path d="M4.2 17.2h2.4"/>
+                    </svg>
+                  </button>
+                  <button class="article-edit__tool" type="button" title="引用" aria-label="引用">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M5.4 6.4v11.2"/>
+                      <path d="M9.6 7.6h9.4"/><path d="M9.6 12h9.4"/><path d="M9.6 16.4h6"/>
+                    </svg>
+                  </button>
+
+                  <span class="article-edit__toolbar-sep" aria-hidden="true"></span>
+
+                  <button class="article-edit__tool" type="button" title="插入链接" aria-label="插入链接">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M10.2 13.8a3.6 3.6 0 0 0 5.1 0l2.4-2.4a3.6 3.6 0 0 0-5.1-5.1l-1.2 1.2"/>
+                      <path d="M13.8 10.2a3.6 3.6 0 0 0-5.1 0l-2.4 2.4a3.6 3.6 0 0 0 5.1 5.1l1.2-1.2"/>
+                    </svg>
+                  </button>
+                  <button class="article-edit__tool" type="button" title="插入图片" aria-label="插入图片">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <rect x="3.6" y="5" width="16.8" height="14" rx="2"/>
+                      <circle cx="9" cy="10.2" r="1.6"/>
+                      <path d="m4.6 17.4 4.4-4 3 2.6 3.2-3 4.4 4"/>
+                    </svg>
+                  </button>
+                </div>
+
+                <div class="article-edit__canvas" contenteditable="false" role="textbox"
+                     aria-multiline="true" aria-label="正文">
+                  <h2>一、适用对象不同</h2>
+                  <p>劳动合同的双方是用人单位与劳动者。劳动者要接受单位的管理、遵守规章制度，双方存在身份上的从属关系；劳务合同的双方是平等的民事主体，按约定交付成果即可，不产生管理与被管理的关系。</p>
+                  <h2>二、法律适用与权益保障不同</h2>
+                  <p>劳动合同受《劳动合同法》调整，用人单位必须缴纳社会保险、支付不低于当地最低工资标准的报酬，并遵守工时与解除程序；劳务合同适用《民法典》合同编，报酬、履行方式与风险由双方约定，没有社保与加班费的强制要求。</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 2. 法条引用绑定 -->
+        <section class="card">
+          <div class="card__head">
+            <h2 class="card__title">法条引用绑定</h2>
+            <div class="card__extra"><span>已绑定 3 条</span></div>
+          </div>
+          <div class="card__body" style="padding:0">
+            <div class="article-edit__cite">
+              <span class="article-edit__cite-code mono">民法典 第 490 条</span>
+              <span class="article-edit__cite-desc">书面形式订立合同 · 正文引用 2 次</span>
+              <button class="btn btn--text is-danger" type="button">移除</button>
+            </div>
+            <div class="article-edit__cite">
+              <span class="article-edit__cite-code mono">民法典 第 509 条</span>
+              <span class="article-edit__cite-desc">全面履行与诚信原则 · 正文引用 1 次</span>
+              <button class="btn btn--text is-danger" type="button">移除</button>
+            </div>
+            <div class="article-edit__cite">
+              <span class="article-edit__cite-code mono">劳动合同法 第 10 条</span>
+              <span class="article-edit__cite-desc">订立书面劳动合同的期限 · 正文引用 1 次</span>
+              <button class="btn btn--text is-danger" type="button">移除</button>
+            </div>
+            <div class="article-edit__cite-foot">
+              <button class="btn btn--sm" type="button">+ 绑定法条</button>
+              <span class="form-hint">只能绑定本地法条库中已存在的条文，AI 引用同样受此限制</span>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- ---------- 右栏 ---------- -->
+      <div class="article-edit__col">
+
+        <!-- 发布设置 -->
+        <section class="card">
+          <div class="card__head">
+            <h2 class="card__title">发布设置</h2>
+          </div>
+          <div class="card__body">
+            <div class="form-row">
+              <label class="form-label" for="f-status">发布状态</label>
+              <select class="select" id="f-status">
+                <option>草稿</option>
+                <option>发布</option>
+              </select>
+            </div>
+
+            <div class="article-edit__switch-row" style="margin-top:var(--sp-4)">
+              <span class="form-label">置顶</span>
+              <span class="switch" role="switch" tabindex="0" aria-checked="false" aria-label="置顶"></span>
+            </div>
+
+            <div class="article-edit__switch-row" style="margin-top:var(--sp-4)">
+              <span class="form-label">开放评论</span>
+              <span class="switch switch--on" role="switch" tabindex="0" aria-checked="true"
+                    aria-label="开放评论"></span>
+            </div>
+
+            <div class="form-row" style="margin-top:var(--sp-4)">
+              <span class="form-label">封面</span>
+              <button class="upload-box article-edit__cover" type="button">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                     stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"
+                     style="width:18px;height:18px">
+                  <path d="M12 16.4V5.2"/><path d="m7.6 9.6 4.4-4.4 4.4 4.4"/>
+                  <path d="M4.4 15.4v4.4h15.2v-4.4"/>
+                </svg>
+                上传封面
+              </button>
+              <span class="form-hint">建议 16:10，不小于 560×350</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- 语言版本 -->
+        <section class="card">
+          <div class="card__head">
+            <h2 class="card__title">语言版本</h2>
+            <div class="card__extra"><span>2/4 已完成</span></div>
+          </div>
+          <div class="card__body">
+            <div class="subtabs article-edit__lang" role="tablist" aria-label="语言版本">
+              <button class="subtab subtab--active" type="button" role="tab" aria-selected="true">
+                简体中文<span class="article-edit__lang-state is-done">已完成</span>
+              </button>
+              <button class="subtab" type="button" role="tab" aria-selected="false">
+                藏文<span class="article-edit__lang-state is-done">已完成</span>
+              </button>
+              <button class="subtab" type="button" role="tab" aria-selected="false">
+                维吾尔文<span class="article-edit__lang-state is-todo">待翻译</span>
+              </button>
+              <button class="subtab" type="button" role="tab" aria-selected="false">
+                哈萨克文<span class="article-edit__lang-state is-todo">待翻译</span>
+              </button>
+            </div>
+
+            <div class="tab-panel form-row">
+              <label class="form-label" for="f-lang-title">简体中文标题</label>
+              <input class="input" id="f-lang-title" type="text"
+                     placeholder="劳务合同与劳动合同的区别">
+              <span class="form-hint">
+                维吾尔文、哈萨克文尚未翻译，C 端将回退显示简体中文；译文统一在「多语言翻译」页维护。
+              </span>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <!-- ==================== 底部固定操作条 ==================== -->
+    <div class="article-edit__foot">
+      <span class="article-edit__autosave">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="8.4"/>
+          <path d="M12 7.6V12l3 1.8"/>
+        </svg>
+        草稿自动保存于 18:42
+      </span>
+      <div class="article-edit__foot-actions">
+        <button class="btn" type="button">预览</button>
+        <button class="btn" type="button">保存草稿</button>
+        <button class="btn btn--primary" type="button">发布</button>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script src="shell.js"></script>
+</body>
+</html>

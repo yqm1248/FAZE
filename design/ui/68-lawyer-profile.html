@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390, initial-scale=1">
+<meta name="dsh-design" content="app">
+<title>律师资料</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   律师资料编辑（第 17 批 · 延展，无参考图）
+   ==========================================================================
+   职责：律师维护对外展示的资料；执业信息只读，资质状态可查询。
+   入口：62-workbench 六宫格「律师资料」
+   数据来源：律师资料接口 + 入驻审核状态
+
+   ★ 这一页要分清「能改的」和「不能改的」，而且不能改的那些要说明原因：
+     头像、简介、专长、律所名称 → 可改
+     执业证号 → 只读（认证时已核验，改了等于换人）
+     资质审核状态 → 只读，可查
+     只说明「不可修改」不说为什么，律师会去找客服吵。
+
+   ★ 执业证号用「锁」的视觉，不用灰掉的输入框。
+     灰输入框会让人以为「点一下可能就能编辑」，锁的符号没有这个暗示。
+
+   ★ 专长是用户筛选律师的唯一依据，所以这里要写清后果：
+     选了「婚姻家事」，找婚姻律师的用户才会看到你。选太多等于没选。
+
+   ★ 头像与简介会出现在用户侧的律师列表和详情页，这一页要提示
+     「用户看到的就是这个」，避免律师以为这是内部资料。
+   ========================================================================== */
+
+body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-canvas);
+}
+
+.screen {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding: 0 var(--sp-xl) var(--sp-xl);
+}
+.screen::-webkit-scrollbar {
+  display: none;
+}
+
+/* ---------- 头像区 ---------- */
+.avatar-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-block: var(--sp-lg) var(--sp-md);
+}
+
+.avatar-big {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  background: var(--bg-input);
+  color: var(--text-muted);
+  overflow: hidden;
+}
+
+.avatar-big svg {
+  width: 44px;
+  height: 44px;
+}
+
+.avatar-change {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding-inline: var(--sp-md);
+  border: 0;
+  background: transparent;
+  color: var(--brand-primary);
+  font-family: inherit;
+  font-size: var(--fs-md);
+  cursor: pointer;
+}
+
+/* ---------- 卡片 ---------- */
+.card-block {
+  margin-block-start: var(--sp-md);
+  padding: var(--sp-md) var(--sp-lg);
+  border-radius: var(--r-md);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.block-title {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-sm);
+  padding-block: var(--sp-xs) var(--sp-sm);
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+}
+
+.block-title__note {
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-regular);
+  color: var(--text-muted);
+}
+
+/* ---------- 字段行 ---------- */
+.field-line {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  min-height: 52px;
+  border-block-end: 1px solid var(--border-divider);
+}
+
+.field-line:last-of-type {
+  border-block-end: 0;
+}
+
+.field-line__label {
+  flex: 0 0 76px;
+  font-size: var(--fs-md);
+  color: var(--text-secondary);
+}
+
+.field-line input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 52px;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: var(--fs-md);
+  outline: none;
+}
+
+/* 只读行：锁图标 + 灰字，不用灰输入框 */
+.field-lock {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  min-height: 52px;
+  border-block-end: 1px solid var(--border-divider);
+}
+
+.field-lock:last-of-type {
+  border-block-end: 0;
+}
+
+.field-lock__label {
+  flex: 0 0 76px;
+  font-size: var(--fs-md);
+  color: var(--text-secondary);
+}
+
+.field-lock__val {
+  flex: 1 1 0;
+  min-width: 0;
+  font-family: var(--font-num);
+  font-size: var(--fs-md);
+  color: var(--text-muted);
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 姓名与实名一致，不能改，所以用锁的形态而不是灰字：灰字像“暂不可用”，锁才是“不许改” */
+.field-lock__val--name {
+  font-family: inherit;
+  color: var(--text-primary);
+}
+
+.field-lock__icon {
+  flex: 0 0 auto;
+  width: 15px;
+  height: 15px;
+  color: var(--text-muted);
+}
+
+/* ---------- 简介 ---------- */
+.bio-wrap {
+  position: relative;
+  padding-block: var(--sp-sm) var(--sp-xs);
+}
+
+.bio-input {
+  display: block;
+  width: 100%;
+  min-height: 96px;
+  padding: var(--sp-md);
+  border: 0;
+  border-radius: var(--r-sm);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: var(--fs-md);
+  line-height: 1.75;
+  resize: none;
+  outline: none;
+}
+
+.bio-count {
+  position: absolute;
+  inset-block-end: var(--sp-sm);
+  inset-inline-end: var(--sp-md);
+  font-family: var(--font-num);
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+/* ---------- 字段说明 ---------- */
+.field-tip {
+  padding: var(--sp-sm) 0 var(--sp-xs);
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.7;
+}
+
+.field-tip b {
+  font-weight: var(--fw-medium);
+  color: var(--text-secondary);
+}
+
+/* 专长标签区 */
+.tag-wrap {
+  padding-block: var(--sp-xs) var(--sp-sm);
+}
+
+/* ---------- 资质状态行 ---------- */
+.status-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-md);
+  min-height: 56px;
+  padding-block: 10px;
+  text-decoration: none;
+  color: inherit;
+}
+
+.status-row__body {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.status-row__name {
+  display: block;
+  font-size: var(--fs-lg);
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.status-row__desc {
+  display: block;
+  margin-block-start: 2px;
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.status-row__chevron {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  color: var(--text-muted);
+}
+</style>
+</head>
+<body>
+
+<header class="statusbar statusbar--light">
+  <span>9:41</span>
+  <span class="statusbar__icons">
+    <svg width="17" height="11" viewBox="0 0 17 11" fill="none" aria-hidden="true">
+      <rect x="0" y="7" width="3" height="4" rx="1" fill="currentColor"/>
+      <rect x="4.5" y="5" width="3" height="6" rx="1" fill="currentColor"/>
+      <rect x="9" y="2.5" width="3" height="8.5" rx="1" fill="currentColor"/>
+      <rect x="13.5" y="0" width="3" height="11" rx="1" fill="currentColor"/>
+    </svg>
+    <svg width="16" height="11" viewBox="0 0 16 11" fill="none" aria-hidden="true">
+      <path d="M1 3.2A10.5 10.5 0 0 1 15 3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M3.6 5.9a7 7 0 0 1 8.8 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M6.2 8.6a3.4 3.4 0 0 1 3.6 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden="true">
+      <rect x="0.6" y="0.6" width="21" height="10.8" rx="3" stroke="currentColor" stroke-opacity="0.4" stroke-width="1.2"/>
+      <rect x="2.2" y="2.2" width="15" height="7.6" rx="1.8" fill="currentColor"/>
+      <path d="M23.4 4.2v3.6" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+  </span>
+</header>
+
+<div class="navbar navbar--dark">
+  <a class="navbar__back" href="62-workbench.html" aria-label="返回工作台">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M15.2 4.6 7.8 12l7.4 7.4" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </a>
+  <h1 class="navbar__title">律师资料</h1>
+</div>
+
+<main class="screen">
+
+  <section class="avatar-block">
+    <div class="avatar-big" aria-label="当前头像">
+      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <circle cx="12" cy="9" r="3.7"/>
+        <path d="M4.6 21c0-4.1 3.3-6.9 7.4-6.9s7.4 2.8 7.4 6.9"/>
+      </svg>
+    </div>
+    <button class="avatar-change" type="button" data-edit-avatar>更换头像</button>
+  </section>
+
+  <section class="card-block">
+    <h2 class="block-title">对外展示</h2>
+
+    <div class="field-lock">
+      <span class="field-lock__label">姓名</span>
+      <span class="field-lock__val field-lock__val--name">张领</span>
+      <svg class="field-lock__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <rect x="4.6" y="10.4" width="14.8" height="10.2" rx="2.2" stroke="currentColor"
+              stroke-width="1.8"/>
+        <path d="M8.2 10.4V7.8a3.8 3.8 0 0 1 7.6 0v2.6" stroke="currentColor"
+              stroke-width="1.8" stroke-linecap="round"/>
+      </svg>
+    </div>
+
+    <div class="bio-wrap">
+      <textarea class="bio-input" maxlength="200" aria-label="个人简介"
+                data-field="bio">执业 15 年，专注房屋租赁、买卖合同纠纷，办理过 200 余件民事案件，其中 60 余件以调解结案。</textarea>
+      <span class="bio-count">58 / 200</span>
+    </div>
+
+    <p class="field-tip">
+      <b>头像和简介会直接出现在用户侧的律师列表和详情页</b>，用户看到的就是这里的样子。简介写清执业年限、主要案件类型和代表案件，比「擅长各类案件」有用得多。
+    </p>
+  </section>
+
+  <section class="card-block">
+    <h2 class="block-title">
+      专长领域
+      <span class="block-title__note">决定谁能在列表里找到你</span>
+    </h2>
+
+    <div class="pick-list tag-wrap" data-choice-group>
+      <button class="pick is-active" type="button" data-pick="民事纠纷">民事纠纷</button>
+      <button class="pick is-active" type="button" data-pick="合同纠纷">合同纠纷</button>
+      <button class="pick" type="button" data-pick="婚姻家事">婚姻家事</button>
+      <button class="pick" type="button" data-pick="劳动争议">劳动争议</button>
+      <button class="pick" type="button" data-pick="刑事辩护">刑事辩护</button>
+      <button class="pick" type="button" data-pick="继承">继承</button>
+    </div>
+
+    <p class="field-tip">
+      <b>选得多不等于被更多人看到。</b>用户在律师列表里按专长筛选，选了「婚姻家事」才会出现在婚姻类案件的筛选结果里。建议选 2 到 3 项真正擅长的。
+    </p>
+  </section>
+
+  <section class="card-block">
+    <h2 class="block-title">执业信息</h2>
+
+    <div class="field-line">
+      <span class="field-line__label">律所名称</span>
+      <input type="text" value="法泽律师事务所" aria-label="律所名称" data-field="firm">
+    </div>
+
+    <div class="field-lock">
+      <span class="field-lock__label">执业证号</span>
+      <span class="field-lock__val">16540201510123456</span>
+      <svg class="field-lock__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <rect x="4.6" y="10.4" width="14.8" height="10.2" rx="2.2" stroke="currentColor"
+              stroke-width="1.8"/>
+        <path d="M8.2 10.4V7.8a3.8 3.8 0 0 1 7.6 0v2.6" stroke="currentColor"
+              stroke-width="1.8" stroke-linecap="round"/>
+      </svg>
+    </div>
+
+    <p class="field-tip">
+      <b>执业证号在入驻认证时已核验，不能自行修改</b> —— 它对应的是你这个人。证号变更（转所、换证）请通过客服提交新证件，由人工复核后更新。
+    </p>
+  </section>
+
+  <section class="card-block">
+    <a class="status-row" href="16-join-status.html">
+      <span class="status-row__body">
+        <span class="status-row__name">资质审核状态</span>
+        <span class="status-row__desc">已认证 · 2026-02-10 通过</span>
+      </span>
+      <span class="state-pill state-pill--success">已认证</span>
+      <svg class="status-row__chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="m9.2 4.6 7.4 7.4-7.4 7.4" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </a>
+  </section>
+
+</main>
+
+<div class="actionbar">
+  <button class="btn-primary actionbar__cta" type="button" data-save-lawyer-profile>保存</button>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

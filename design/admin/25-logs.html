@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="dsh-design" content="web 1440x900">
+<title>日志中心 · 法泽管理后台</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   A-26 日志中心
+   --------------------------------------------------------------------------
+   职责：业务侧操作日志与登录日志的查询（谁、何时、从哪、改了什么）。
+   依据：《PC 后台开发计划_v1.0》§2.7 A-26；技术路线 §15.1「系统设置」
+   接口：**缺**。见《未完成需备注》§1
+   说明：
+     1. 操作日志 / 登录日志做成页内 tab 而不是两个菜单：两者是同一件事的
+        两个维度（做了什么 / 什么时候进来的），放一起才便于对时间线。
+     2. ★ 注意与 RuoYi 自带页的重叠：框架自带「操作日志」与「登录日志」，
+        字段与本页不同（技术路线里这两个表各定义两次，字段冲突已登记在
+        《未完成需备注》§2）。本页是业务侧视图，不是框架页的替代。
+        页头用一条 alert 把这件事写清楚，避免开发照着这屏写却接错表。
+     3. 日志是只读的：这一屏没有任何编辑/删除操作，只有「详情」。
+   ========================================================================== */
+
+.logs-table col.c-time { width: 15%; }
+.logs-table col.c-user { width: 10%; }
+.logs-table col.c-module { width: 11%; }
+.logs-table col.c-action { width: 9%; }
+.logs-table col.c-target { width: 22%; }
+.logs-table col.c-ip { width: 13%; }
+.logs-table col.c-result { width: 8%; }
+.logs-table col.c-ops { width: 12%; }
+
+.logs-table .mono-time {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+
+.logs-table .ip {
+  font-family: var(--font-num);
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+
+/* tab 放进卡片里，省一层卡片边框 */
+.logs-card .subtabs {
+  padding: 0 var(--sp-5);
+}
+
+.logs-card .query-bar {
+  border-bottom: 1px solid var(--border-divider);
+}
+</style>
+</head>
+<body class="shell" data-page="25-logs">
+
+<aside class="sidebar" id="sidebar"></aside>
+
+<div class="main">
+  <header class="navbar" id="navbar"></header>
+  <div class="tags-view" id="tags-view"></div>
+
+  <main class="app-container scroll-y">
+
+    <div class="page-head">
+      <div>
+        <h1 class="page-head__title">日志中心</h1>
+        <p class="page-head__desc">
+          记录管理员与系统对数据的每一次改动。操作日志保留 90 天，登录日志保留 180 天，到期自动清理。
+        </p>
+      </div>
+      <div class="page-head__actions">
+        <button class="btn" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"
+               style="width:14px;height:14px">
+            <path d="M12 3.8v11.4"/><path d="m7.6 11 4.4 4.4 4.4-4.4"/>
+            <path d="M4.4 18.6v1.2h15.2v-1.2"/>
+          </svg>
+          导出日志
+        </button>
+      </div>
+    </div>
+
+    <div class="card logs-card">
+
+      <!-- 页内 tab：操作日志 / 登录日志 -->
+      <div class="subtabs">
+        <button class="subtab subtab--active" type="button">操作日志</button>
+        <button class="subtab" type="button">登录日志</button>
+      </div>
+
+      <form class="query-bar" method="get">
+        <div class="field-inline">
+          <label class="field-inline__label" for="q-user">操作人</label>
+          <input class="input" id="q-user" type="text" placeholder="账号">
+        </div>
+        <div class="field-inline">
+          <label class="field-inline__label" for="q-module">模块</label>
+          <select class="select" id="q-module">
+            <option>全部</option>
+            <option>用户管理</option>
+            <option>律师管理</option>
+            <option>财务管理</option>
+            <option>内容管理</option>
+            <option>系统设置</option>
+          </select>
+        </div>
+        <div class="field-inline">
+          <label class="field-inline__label" for="q-action">动作</label>
+          <select class="select" id="q-action">
+            <option>全部</option>
+            <option>新增</option>
+            <option>修改</option>
+            <option>删除</option>
+            <option>审核</option>
+            <option>导出</option>
+          </select>
+        </div>
+        <div class="field-inline">
+          <label class="field-inline__label" for="q-time">时间</label>
+          <select class="select" id="q-time">
+            <option>近 7 天</option>
+            <option>今天</option>
+            <option>近 30 天</option>
+            <option>近 90 天</option>
+          </select>
+        </div>
+        <div class="query-bar__actions">
+          <button class="btn btn--primary" type="submit">查询</button>
+          <button class="btn" type="reset">重置</button>
+        </div>
+      </form>
+
+      <div class="table-wrap">
+        <table class="table logs-table">
+          <colgroup>
+            <col class="c-time">
+            <col class="c-user">
+            <col class="c-module">
+            <col class="c-action">
+            <col class="c-target">
+            <col class="c-ip">
+            <col class="c-result">
+            <col class="c-ops">
+          </colgroup>
+          <thead>
+            <tr>
+              <th>时间</th>
+              <th>操作人</th>
+              <th>模块</th>
+              <th>动作</th>
+              <th>目标对象</th>
+              <th>来源 IP</th>
+              <th>结果</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="mono-time">2026-10-29 22:18</span></td>
+              <td>admin</td>
+              <td>用户管理</td>
+              <td><span class="tag tag--outline">审核</span></td>
+              <td>
+                <span class="cell-stack">
+                  <span>通过实名认证</span>
+                  <span class="cell-stack__sub mono">U-10284 · 阿依努尔·买买提</span>
+                </span>
+              </td>
+              <td><span class="ip">192.168.1.24</span></td>
+              <td><span class="tag tag--dot tag--success">成功</span></td>
+              <td><button class="btn btn--text" type="button">详情</button></td>
+            </tr>
+            <tr>
+              <td><span class="mono-time">2026-10-29 21:52</span></td>
+              <td>admin</td>
+              <td>财务管理</td>
+              <td><span class="tag tag--outline">修改</span></td>
+              <td>
+                <span class="cell-stack">
+                  <span>手工充值 ¥200.00</span>
+                  <span class="cell-stack__sub mono">U-10281 · 李伟</span>
+                </span>
+              </td>
+              <td><span class="ip">192.168.1.24</span></td>
+              <td><span class="tag tag--dot tag--success">成功</span></td>
+              <td><button class="btn btn--text" type="button">详情</button></td>
+            </tr>
+            <tr>
+              <td><span class="mono-time">2026-10-29 20:36</span></td>
+              <td>客服-古丽</td>
+              <td>系统设置</td>
+              <td><span class="tag tag--outline">修改</span></td>
+              <td>
+                <span class="cell-stack">
+                  <span>敏感词「代办证件」分级 送审→阻断</span>
+                  <span class="cell-stack__sub">系统参数 · 敏感词库</span>
+                </span>
+              </td>
+              <td><span class="ip">192.168.1.31</span></td>
+              <td><span class="tag tag--dot tag--success">成功</span></td>
+              <td><button class="btn btn--text" type="button">详情</button></td>
+            </tr>
+            <tr>
+              <td><span class="mono-time">2026-10-29 19:04</span></td>
+              <td>admin</td>
+              <td>律师管理</td>
+              <td><span class="tag tag--outline">审核</span></td>
+              <td>
+                <span class="cell-stack">
+                  <span>驳回入驻申请（材料不全）</span>
+                  <span class="cell-stack__sub mono">LAW-2026-0103 · 王强</span>
+                </span>
+              </td>
+              <td><span class="ip">192.168.1.24</span></td>
+              <td><span class="tag tag--dot tag--success">成功</span></td>
+              <td><button class="btn btn--text" type="button">详情</button></td>
+            </tr>
+            <tr>
+              <td><span class="mono-time">2026-10-29 17:42</span></td>
+              <td>客服-古丽</td>
+              <td>订单管理</td>
+              <td><span class="tag tag--outline">导出</span></td>
+              <td>
+                <span class="cell-stack">
+                  <span>导出订单明细 1,284 条</span>
+                  <span class="cell-stack__sub">筛选：近 30 天 · 全部状态</span>
+                </span>
+              </td>
+              <td><span class="ip">192.168.1.31</span></td>
+              <td><span class="tag tag--dot tag--success">成功</span></td>
+              <td><button class="btn btn--text" type="button">详情</button></td>
+            </tr>
+            <tr>
+              <td><span class="mono-time">2026-10-29 16:20</span></td>
+              <td>admin</td>
+              <td>内容管理</td>
+              <td><span class="tag tag--outline">修改</span></td>
+              <td>
+                <span class="cell-stack">
+                  <span>下架文章《劳务合同与劳动合同的区别》</span>
+                  <span class="cell-stack__sub mono">A-2026-1024</span>
+                </span>
+              </td>
+              <td><span class="ip">192.168.1.24</span></td>
+              <td><span class="tag tag--dot tag--success">成功</span></td>
+              <td><button class="btn btn--text" type="button">详情</button></td>
+            </tr>
+            <tr>
+              <td><span class="mono-time">2026-10-29 15:08</span></td>
+              <td>admin</td>
+              <td>用户管理</td>
+              <td><span class="tag tag--outline">修改</span></td>
+              <td>
+                <span class="cell-stack">
+                  <span>封禁用户（发布违法信息）</span>
+                  <span class="cell-stack__sub mono">U-10260 · 赵某某</span>
+                </span>
+              </td>
+              <td><span class="ip">192.168.1.24</span></td>
+              <td><span class="tag tag--dot tag--success">成功</span></td>
+              <td><button class="btn btn--text" type="button">详情</button></td>
+            </tr>
+            <tr>
+              <td><span class="mono-time">2026-10-29 14:12</span></td>
+              <td>admin</td>
+              <td>财务管理</td>
+              <td><span class="tag tag--outline">审核</span></td>
+              <td>
+                <span class="cell-stack">
+                  <span>提现审核通过 ¥2,600.00</span>
+                  <span class="cell-stack__sub mono">WD-2026-0042 · 张建国</span>
+                </span>
+              </td>
+              <td><span class="ip">192.168.1.24</span></td>
+              <td><span class="tag tag--dot tag--danger">失败</span></td>
+              <td><button class="btn btn--text" type="button">详情</button></td>
+            </tr>
+            <tr>
+              <td><span class="mono-time">2026-10-29 11:36</span></td>
+              <td>客服-古丽</td>
+              <td>用户管理</td>
+              <td><span class="tag tag--outline">修改</span></td>
+              <td>
+                <span class="cell-stack">
+                  <span>解封用户</span>
+                  <span class="cell-stack__sub mono">U-10241 · 王某</span>
+                </span>
+              </td>
+              <td><span class="ip">192.168.1.31</span></td>
+              <td><span class="tag tag--dot tag--success">成功</span></td>
+              <td><button class="btn btn--text" type="button">详情</button></td>
+            </tr>
+            <tr>
+              <td><span class="mono-time">2026-10-29 09:02</span></td>
+              <td>admin</td>
+              <td>系统设置</td>
+              <td><span class="tag tag--outline">修改</span></td>
+              <td>
+                <span class="cell-stack">
+                  <span>平台服务费比例 15% → 12%</span>
+                  <span class="cell-stack__sub">系统参数 · 交易与结算</span>
+                </span>
+              </td>
+              <td><span class="ip">192.168.1.24</span></td>
+              <td><span class="tag tag--dot tag--success">成功</span></td>
+              <td><button class="btn btn--text" type="button">详情</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="pagination">
+        <span class="pagination__total">共 <b>1,284</b> 条 · 当前第 <b>1</b> / 129 页</span>
+        <button class="page-btn page-btn--disabled" type="button" aria-label="上一页">‹</button>
+        <button class="page-btn page-btn--active" type="button">1</button>
+        <button class="page-btn" type="button">2</button>
+        <button class="page-btn" type="button">3</button>
+        <button class="page-btn page-btn--disabled" type="button" aria-label="更多">…</button>
+        <button class="page-btn" type="button">129</button>
+        <button class="page-btn" type="button" aria-label="下一页">›</button>
+        <select class="pagination__size" aria-label="每页条数">
+          <option>10 条 / 页</option>
+          <option>20 条 / 页</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="alert mt-4">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="8.6"/>
+        <path d="M12 11v5.4"/><path d="M12 7.8v.2"/>
+      </svg>
+      <span>
+        本页是<b>业务侧日志视图</b>。RuoYi 自带的「操作日志 / 登录日志」在「系统管理」菜单下，
+        两者字段不同（技术路线里操作日志与登录日志各定义两次）。两套日志的合并方式已登记在
+        《未完成需备注》§2，开发前需先定表。
+      </span>
+    </div>
+
+  </main>
+</div>
+
+<script src="shell.js"></script>
+</body>
+</html>

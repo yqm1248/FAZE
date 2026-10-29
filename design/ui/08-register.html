@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390, initial-scale=1">
+<meta name="dsh-design" content="app">
+<title>注册</title>
+<link rel="stylesheet" href="tokens.css">
+<style>
+/* ==========================================================================
+   注册页 —— 复刻原项目 pages/auth/register.vue
+   版式：关闭按钮 + 大标题 + 三行下划线表单（手机/验证码/密码）+ 渐变主按钮
+   与原图差异（第 2 批已记录）：
+     1. 三个表单图标由 emoji（📱 🛡 🔒）换成线性 SVG
+     2. 密码框补了眼睛按钮（原图没有），否则用户无法确认输入
+     3. 按钮与协议文字保持一致的主色与字号
+   ========================================================================== */
+
+body {
+  background: var(--bg-surface);
+}
+
+.register {
+  padding: calc(var(--statusbar-h) + 16px) var(--sp-xl) 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.close {
+  width: 44px;
+  height: 44px;
+  margin-inline-start: -10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: none;
+  color: var(--text-primary);
+  cursor: pointer;
+  padding: 0;
+  text-decoration: none;
+  border-radius: var(--r-sm);
+}
+
+.close svg {
+  width: 22px;
+  height: 22px;
+}
+
+.register__title {
+  margin-block-start: 34px;
+  font-size: 28px;
+  font-weight: var(--fw-bold);
+  color: var(--login-title);
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.register__sub {
+  margin-block-start: var(--sp-md);
+  font-size: var(--fs-lg);
+  color: var(--text-secondary);
+  line-height: var(--lh-normal);
+}
+
+/* ---------- 表单 ---------- */
+.fields {
+  margin-block-start: 44px;
+}
+
+.field {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-md);
+  height: 58px;
+  border-block-end: 1px solid var(--border-outline);
+}
+
+.field svg {
+  width: 21px;
+  height: 21px;
+  flex-shrink: 0;
+  color: var(--text-secondary);
+}
+
+.field input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  outline: 0;
+  background: none;
+  font-family: inherit;
+  font-size: var(--fs-h3);
+  color: var(--text-primary);
+}
+
+.field input::placeholder {
+  color: var(--text-muted);
+}
+
+.field__toggle {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  margin-inline-end: -12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0;
+}
+
+.field__toggle svg {
+  width: 21px;
+  height: 21px;
+}
+
+/* 获取验证码：左侧竖线分隔 */
+.code-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 0 0 var(--sp-md);
+  border: 0;
+  border-inline-start: 1px solid var(--border-outline);
+  background: none;
+  color: var(--brand-primary);
+  font-family: inherit;
+  font-size: var(--fs-md);
+  cursor: pointer;
+  position: relative;
+}
+
+.code-btn::before {
+  content: "";
+  position: absolute;
+  inset-block: -8px;
+  inset-inline: 0;
+}
+
+/* ---------- 主按钮 ---------- */
+.register-btn {
+  margin-block-start: 24px;
+  height: var(--btn-h);
+  width: 100%;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: linear-gradient(135deg, var(--login-btn-start) 0%, var(--login-btn-end) 100%);
+  color: var(--text-on-brand);
+  font-family: inherit;
+  font-size: var(--fs-h2);
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  box-shadow: var(--shadow-pill);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  min-height: 44px;
+}
+
+.register-btn:active {
+  filter: brightness(0.95);
+}
+
+/* 未勾选协议时按钮不可点 */
+.register-btn.is-disabled {
+  background: #C3CBDD;
+  box-shadow: none;
+  pointer-events: none;
+}
+
+/* ---------- 密码强度 ---------- */
+.pw-strength {
+  margin-block-start: var(--sp-md);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-md);
+}
+
+.pw-strength[hidden] {
+  display: none;
+}
+
+.pw-strength__bars {
+  display: flex;
+  gap: 4px;
+}
+
+.pw-strength__bar {
+  width: 26px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--border-outline);
+}
+
+.pw-strength__text {
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+}
+
+.pw-strength--weak .pw-strength__bar:nth-child(1) {
+  background: var(--state-danger);
+}
+
+.pw-strength--weak .pw-strength__text {
+  color: var(--state-danger);
+}
+
+.pw-strength--medium .pw-strength__bar:nth-child(1),
+.pw-strength--medium .pw-strength__bar:nth-child(2) {
+  background: var(--state-warning);
+}
+
+.pw-strength--medium .pw-strength__text {
+  color: #9A5B00;
+}
+
+.pw-strength--strong .pw-strength__bar {
+  background: var(--state-success);
+}
+
+.pw-strength--strong .pw-strength__text {
+  color: var(--state-success);
+}
+
+/* ---------- 协议勾选 ---------- */
+.agree {
+  margin-block-start: var(--sp-xxl);
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-sm);
+  cursor: pointer;
+}
+
+/* 勾选框：视觉 18px，点击区 44px。
+   用 appearance:none + 背景图绘制方框，负 margin 让布局仍按 18px 算。 */
+.agree__box {
+  flex: 0 0 auto;
+  appearance: none;
+  -webkit-appearance: none;
+  width: 44px;
+  height: 44px;
+  margin: -13px;
+  border: 0;
+  background-color: transparent;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Crect x='1' y='1' width='18' height='18' rx='4' fill='%23FFFFFF' stroke='%23B9C0CE' stroke-width='1.5'/%3E%3C/svg%3E");
+  background-size: 18px 18px;
+  background-position: center;
+  background-repeat: no-repeat;
+  cursor: pointer;
+}
+
+.agree__box:checked {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Crect x='1' y='1' width='18' height='18' rx='4' fill='%234A66EE' stroke='%234A66EE' stroke-width='1.5'/%3E%3Cpath d='m5.2 10.4 3.2 3.2L14.8 6.8' fill='none' stroke='%23FFFFFF' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+.agree__text {
+  font-size: var(--fs-caption);
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.agree__text a {
+  color: var(--brand-primary);
+  text-decoration: none;
+  font-weight: var(--fw-medium);
+}
+
+/* ---------- 去登录 ---------- */
+.signin {
+  margin-block-start: var(--sp-xxxl);
+  text-align: center;
+  font-size: var(--fs-lg);
+  color: var(--text-secondary);
+}
+
+.signin a {
+  color: var(--brand-primary);
+  font-weight: var(--fw-bold);
+  text-decoration: none;
+  margin-inline-start: 4px;
+}
+</style>
+</head>
+<body>
+
+<header class="statusbar">
+  <span>9:41</span>
+  <span class="statusbar__icons">
+    <svg width="17" height="11" viewBox="0 0 17 11" fill="none" aria-hidden="true">
+      <rect x="0" y="7" width="3" height="4" rx="1" fill="currentColor"/>
+      <rect x="4.5" y="5" width="3" height="6" rx="1" fill="currentColor"/>
+      <rect x="9" y="2.5" width="3" height="8.5" rx="1" fill="currentColor"/>
+      <rect x="13.5" y="0" width="3" height="11" rx="1" fill="currentColor"/>
+    </svg>
+    <svg width="16" height="11" viewBox="0 0 16 11" fill="none" aria-hidden="true">
+      <path d="M1 3.2A10.5 10.5 0 0 1 15 3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M3.6 5.9a7 7 0 0 1 8.8 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M6.2 8.6a3.4 3.4 0 0 1 3.6 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden="true">
+      <rect x="0.6" y="0.6" width="21" height="10.8" rx="3" stroke="currentColor" stroke-opacity="0.4" stroke-width="1.2"/>
+      <rect x="2.2" y="2.2" width="15" height="7.6" rx="1.8" fill="currentColor"/>
+      <path d="M23.4 4.2v3.6" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+  </span>
+</header>
+
+<div class="register">
+
+  <a class="close" href="06-login.html" aria-label="关闭">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="m5.6 5.6 12.8 12.8M18.4 5.6 5.6 18.4" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round"/>
+    </svg>
+  </a>
+
+  <h1 class="register__title">新用户注册</h1>
+  <p class="register__sub">加入法泽，享受专业法律服务</p>
+
+  <form class="fields" onsubmit="return false;">
+    <label class="field">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <rect x="6.4" y="2.6" width="11.2" height="18.8" rx="2.6" stroke="currentColor" stroke-width="1.9"/>
+        <path d="M10.6 5.6h2.8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+      </svg>
+      <input type="tel" inputmode="numeric" placeholder="请输入手机号" autocomplete="tel">
+    </label>
+
+    <label class="field">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M12 2.9 4.4 5.8v6.1c0 4.4 3.1 8.2 7.6 9.2 4.5-1 7.6-4.8 7.6-9.2V5.8L12 2.9Z"
+              stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/>
+      </svg>
+      <input type="tel" inputmode="numeric" placeholder="请输入验证码" autocomplete="one-time-code">
+      <button class="code-btn" type="button">获取验证码</button>
+    </label>
+
+    <label class="field">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <rect x="4.8" y="10.4" width="14.4" height="10.2" rx="2.2" stroke="currentColor" stroke-width="1.9"/>
+        <path d="M8.4 10.4V7.8a3.6 3.6 0 0 1 7.2 0v2.6" stroke="currentColor" stroke-width="1.9"
+              stroke-linecap="round"/>
+      </svg>
+      <input type="password" placeholder="设置登录密码(8-16位)" autocomplete="new-password" data-pw-input>
+      <button class="field__toggle" type="button" aria-label="显示密码" data-pw-toggle>
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M1.9 12S5.7 5.6 12 5.6 22.1 12 22.1 12 18.3 18.4 12 18.4 1.9 12 1.9 12Z"
+                stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/>
+          <circle cx="12" cy="12" r="3.1" stroke="currentColor" stroke-width="1.9"/>
+        </svg>
+      </button>
+    </label>
+  </form>
+
+  <!-- 密码强度：输入后才出现，三段条 + 文字 -->
+  <div class="pw-strength" data-pw-strength hidden>
+    <div class="pw-strength__bars">
+      <i class="pw-strength__bar"></i>
+      <i class="pw-strength__bar"></i>
+      <i class="pw-strength__bar"></i>
+    </div>
+    <span class="pw-strength__text" data-pw-text>密码强度：弱</span>
+  </div>
+
+  <!-- 协议勾选：未勾选时注册按钮不可点 -->
+  <label class="agree">
+    <input type="checkbox" class="agree__box" data-agree>
+    <span class="agree__text">我已阅读并同意<a href="10-agreement.html">《用户服务协议》</a>与<a href="11-privacy.html">《隐私政策》</a></span>
+  </label>
+
+  <a class="register-btn is-disabled" href="01-home.html" data-register-btn aria-disabled="true">立即注册</a>
+
+  <p class="signin">已有账号？<a href="06-login.html">去登录</a></p>
+
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

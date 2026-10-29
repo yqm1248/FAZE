@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390, initial-scale=1">
+<meta name="dsh-design" content="app">
+<title>企业认证</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   企业认证页（第 13 批 · 延展，无参考图）
+   ==========================================================================
+   职责：采集企业名称、统一社会信用代码、营业执照、法定代表人信息，提交审核。
+   入口：05-profile「企业认证」
+   数据来源：企业认证接口 + 国家企业信用信息公示系统核验
+   四态：form / pending / done / rejected（同 48，用 URL hash 切换）
+
+   ★ 这一页第一件要解决的事，是让用户明白「企业认证和个人实名是两件事」。
+     两者的关系和银行开户一样：个人实名是「你是谁」，企业认证是
+     「你能代表哪家公司」。公司办事，两个都得有。
+     不讲清这一点，用户会以为实名过了就不用企业认证（或者反过来）。
+
+   ★ 企业认证的实际用途只有两个，页面上就直接写出来：
+     以企业名义委托律师 / 开企业抬头发票。
+     写成「解锁更多权益」这类空话，企业用户（多数是代办人，不是老板）
+     不会花时间去找营业执照拍照 —— 他们得先去问老板要。
+
+   ★ 统一社会信用代码 18 位，肉眼手抄必然出错（0/O、1/I、2/Z 看着一样）。
+     所以主输入框旁边给「扫码识别」，并且提示可以直接对着营业执照拍。
+   ========================================================================== */
+
+body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-canvas);
+}
+
+.navbar {
+  background: var(--bg-surface);
+}
+
+.screen {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding: 0 var(--sp-xl) var(--sp-xxl);
+}
+.screen::-webkit-scrollbar {
+  display: none;
+}
+
+/* ---------- 顶部说明块（与 48 同一形态） ---------- */
+.tip-block {
+  display: flex;
+  gap: var(--sp-md);
+  margin-block-start: var(--sp-md);
+  padding: var(--sp-md) var(--sp-lg);
+  border-radius: var(--r-md);
+  background: var(--brand-primary-soft);
+}
+
+.tip-block svg {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  margin-block-start: 1px;
+  color: var(--brand-primary-pressed);
+}
+
+.tip-block__title {
+  font-size: var(--fs-md);
+  font-weight: var(--fw-bold);
+  color: var(--brand-primary-pressed);
+  line-height: 1.5;
+}
+
+.tip-block__desc {
+  margin-block-start: 4px;
+  font-size: var(--fs-caption);
+  color: var(--text-secondary);
+  line-height: 1.7;
+}
+
+/* ---------- 卡片 ---------- */
+.card-block {
+  margin-block-start: var(--sp-md);
+  padding: var(--sp-md) var(--sp-lg);
+  border-radius: var(--r-md);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.block-title {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-sm);
+  padding-block: var(--sp-xs) var(--sp-sm);
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+}
+
+.block-title__note {
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-regular);
+  color: var(--text-muted);
+}
+
+/* ---------- 字段行 ---------- */
+.field-line {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  min-height: 54px;
+  border-block-end: 1px solid var(--border-divider);
+}
+
+.field-line:last-of-type {
+  border-block-end: 0;
+}
+
+.field-line__label {
+  flex: 0 0 96px;
+  font-size: var(--fs-md);
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.field-line input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 54px;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: var(--fs-lg);
+  outline: none;
+}
+
+.field-line input::placeholder {
+  color: #A3A9AE;
+}
+
+/* 统一社会信用代码用等宽数字，位数要让人一眼数得出来 */
+.field-line input.field-line__num {
+  font-family: var(--font-num);
+  letter-spacing: 0.3px;
+}
+
+/* 扫码识别：视觉 17 的图标，热区 44 */
+.scan-btn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin-inline-end: -10px;
+  border: 0;
+  background: transparent;
+  color: var(--brand-primary);
+  cursor: pointer;
+}
+
+.scan-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* ---------- 字段下方说明 ---------- */
+.field-tip {
+  padding: var(--sp-sm) 0 var(--sp-xs);
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.7;
+}
+
+.field-tip b {
+  font-weight: var(--fw-medium);
+  color: var(--text-secondary);
+}
+
+/* ---------- 键值信息（审核中 / 已认证） ---------- */
+.kv {
+  padding-block: var(--sp-xs);
+}
+
+.kv__row {
+  display: flex;
+  gap: var(--sp-md);
+  padding-block: 11px;
+  border-block-end: 1px solid var(--border-divider);
+  font-size: var(--fs-md);
+  line-height: 1.5;
+}
+
+.kv__row:last-child {
+  border-block-end: 0;
+}
+
+.kv__key {
+  flex: 0 0 96px;
+  color: var(--text-secondary);
+}
+
+.kv__val {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--text-primary);
+  word-break: break-all;
+}
+
+.kv__val--num {
+  font-family: var(--font-num);
+  letter-spacing: 0.2px;
+}
+
+/* ---------- 驳回原因（与 48 同一形态） ---------- */
+.reject-box {
+  margin-block-start: var(--sp-md);
+  padding: var(--sp-md) var(--sp-lg);
+  border-inline-start: 3px solid var(--state-danger);
+  border-radius: var(--r-md);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.reject-box__title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-md);
+  font-weight: var(--fw-bold);
+  color: var(--state-danger);
+}
+
+.reject-box__title svg {
+  width: 18px;
+  height: 18px;
+}
+
+.reject-box__desc {
+  margin-block-start: var(--sp-sm);
+  font-size: var(--fs-caption);
+  color: var(--text-secondary);
+  line-height: 1.8;
+}
+
+/* ---------- 底部小字 ---------- */
+.meta-note {
+  margin-block-start: var(--sp-lg);
+  padding-inline: 2px;
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.8;
+}
+
+.meta-note b {
+  font-weight: var(--fw-medium);
+  color: var(--text-secondary);
+}
+</style>
+</head>
+<body>
+
+<header class="statusbar">
+  <span>9:41</span>
+  <span class="statusbar__icons">
+    <svg width="17" height="11" viewBox="0 0 17 11" fill="none" aria-hidden="true">
+      <rect x="0" y="7" width="3" height="4" rx="1" fill="currentColor"/>
+      <rect x="4.5" y="5" width="3" height="6" rx="1" fill="currentColor"/>
+      <rect x="9" y="2.5" width="3" height="8.5" rx="1" fill="currentColor"/>
+      <rect x="13.5" y="0" width="3" height="11" rx="1" fill="currentColor"/>
+    </svg>
+    <svg width="16" height="11" viewBox="0 0 16 11" fill="none" aria-hidden="true">
+      <path d="M1 3.2A10.5 10.5 0 0 1 15 3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M3.6 5.9a7 7 0 0 1 8.8 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M6.2 8.6a3.4 3.4 0 0 1 3.6 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden="true">
+      <rect x="0.6" y="0.6" width="21" height="10.8" rx="3" stroke="currentColor" stroke-opacity="0.4" stroke-width="1.2"/>
+      <rect x="2.2" y="2.2" width="15" height="7.6" rx="1.8" fill="currentColor"/>
+      <path d="M23.4 4.2v3.6" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+  </span>
+</header>
+
+<div class="navbar">
+  <a class="navbar__back" href="05-profile.html" aria-label="返回我的">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M15.2 4.6 7.8 12l7.4 7.4" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </a>
+  <h1 class="navbar__title">企业认证</h1>
+</div>
+
+<main class="screen">
+
+  <!-- ====================================================================
+       状态 form：未认证，可填写（默认）
+       ==================================================================== -->
+  <section data-state="form">
+
+    <section class="tip-block">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M4.4 20.6V6.2l7.6-3.2 7.6 3.2v14.4" stroke="currentColor" stroke-width="1.8"
+              stroke-linejoin="round"/>
+        <path d="M2.6 20.6h18.8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        <path d="M9.2 20.6v-5.4h5.6v5.4" stroke="currentColor" stroke-width="1.8"
+              stroke-linejoin="round"/>
+      </svg>
+      <div>
+        <p class="tip-block__title">企业认证与个人实名是两件事</p>
+        <p class="tip-block__desc">个人实名证明「你是谁」，企业认证证明「你能代表这家公司」。公司办事两个都要有：先完成实名认证，再来这里提交企业信息。认证后可以以企业名义委托律师、开企业抬头发票。</p>
+      </div>
+    </section>
+
+    <section class="card-block">
+      <h2 class="block-title">企业信息</h2>
+
+      <div class="field-line">
+        <span class="field-line__label">企业名称</span>
+        <input type="text" value="伊宁市解放路商贸有限公司" aria-label="企业名称" data-field="company">
+      </div>
+
+      <div class="field-line">
+        <span class="field-line__label">信用代码</span>
+        <input type="text" class="field-line__num" maxlength="18" value="91654002MA77K3L82X"
+               aria-label="统一社会信用代码" data-field="uscc">
+        <button class="scan-btn" type="button" data-scan-license aria-label="扫描营业执照识别">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M3.4 8.2V5.6a2.2 2.2 0 0 1 2.2-2.2h2.6M15.8 3.4h2.6a2.2 2.2 0 0 1 2.2 2.2v2.6M20.6 15.8v2.6a2.2 2.2 0 0 1-2.2 2.2h-2.6M8.2 20.6H5.6a2.2 2.2 0 0 1-2.2-2.2v-2.6"
+                  stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+            <path d="M3.4 12h17.2" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+
+      <p class="field-tip">
+        <b>统一社会信用代码必须与营业执照一字不差</b>，企业名称里的括号用全角（如「（有限合伙）」）。代码共 18 位，含数字和大写字母；看不清的话点右侧扫码，对着营业执照拍一下自动填。
+      </p>
+
+      <div class="upload-list">
+        <button class="upload is-missing" type="button" data-upload>
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M12 3.2v17.6M3.2 12h17.6" stroke="currentColor" stroke-width="1.9"
+                  stroke-linecap="round"/>
+          </svg>
+          <span class="upload__text">
+            营业执照照片
+            <span class="upload__hint" data-upload-hint
+                  data-idle="必填，还未上传 · 点击拍照"
+                  data-done="已上传，点击可重拍">必填，还未上传 · 点击拍照</span>
+          </span>
+        </button>
+      </div>
+
+      <p class="field-tip">
+        拍整张执照，四角完整入框，公章和注册号都要清晰。<b>不接受复印件的翻拍</b>，模糊的照片会被驳回。
+      </p>
+    </section>
+
+    <section class="card-block">
+      <h2 class="block-title">
+        法定代表人
+        <span class="block-title__note">需已完成个人实名</span>
+      </h2>
+
+      <div class="field-line">
+        <span class="field-line__label">姓名</span>
+        <input type="text" value="马合木提·艾山" aria-label="法定代表人姓名" data-field="legal-name">
+      </div>
+
+      <div class="field-line">
+        <span class="field-line__label">身份证号</span>
+        <input type="text" inputmode="text" maxlength="18" value="654002198504121230"
+               aria-label="法定代表人身份证号" data-field="legal-idcard">
+      </div>
+
+      <p class="field-tip">
+        法定代表人默认是当前登录账号的实名信息。如果执照上的法人不是你本人，说明这个账号是代办人身份 —— 请按执照填写，平台会通过公示系统核验。
+      </p>
+    </section>
+
+    <p class="meta-note">
+      提交后信息会提交人工审核，一般 1 个工作日内出结果。审核通过前企业认证不生效，不影响已有的个人实名状态。
+    </p>
+
+  </section>
+
+  <!-- ====================================================================
+       状态 pending：审核中
+       ==================================================================== -->
+  <section data-state="pending" hidden>
+
+    <section class="status-hero status-hero--pending">
+      <div class="status-hero__icon">
+        <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
+          <circle cx="32" cy="32" r="25" stroke="currentColor" stroke-width="3"/>
+          <path d="M32 17v16l11 6" stroke="currentColor" stroke-width="3"
+                stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <h2 class="status-hero__title">企业认证审核中</h2>
+      <p class="status-hero__desc">已收到企业信息，正在核对企业信用信息公示系统的登记内容，一般 1 个工作日出结果。</p>
+    </section>
+
+    <section class="card-block">
+      <h2 class="block-title">提交内容</h2>
+      <div class="kv">
+        <div class="kv__row">
+          <span class="kv__key">企业名称</span>
+          <span class="kv__val">伊宁市解放路商贸有限公司</span>
+        </div>
+        <div class="kv__row">
+          <span class="kv__key">统一信用代码</span>
+          <span class="kv__val kv__val--num">91654002MA77K3L82X</span>
+        </div>
+        <div class="kv__row">
+          <span class="kv__key">法定代表人</span>
+          <span class="kv__val">马合木提·艾山</span>
+        </div>
+        <div class="kv__row">
+          <span class="kv__key">提交时间</span>
+          <span class="kv__val kv__val--num">2026-10-29 15:07</span>
+        </div>
+      </div>
+    </section>
+
+    <p class="meta-note">
+      审核期间可以继续用个人身份咨询和下单，企业抬头只在开发票和以企业名义委托时用到。
+    </p>
+
+  </section>
+
+  <!-- ====================================================================
+       状态 done：已认证
+       ==================================================================== -->
+  <section data-state="done" hidden>
+
+    <section class="status-hero">
+      <div class="status-hero__icon">
+        <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
+          <circle cx="32" cy="32" r="25" stroke="currentColor" stroke-width="3"/>
+          <path d="m21 33 8 8 15-16" stroke="currentColor" stroke-width="3.4"
+                stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <h2 class="status-hero__title">企业认证已通过</h2>
+      <p class="status-hero__desc">现在可以以该企业名义委托律师、开具企业抬头发票。</p>
+    </section>
+
+    <section class="card-block">
+      <h2 class="block-title">认证信息</h2>
+      <div class="kv">
+        <div class="kv__row">
+          <span class="kv__key">企业名称</span>
+          <span class="kv__val">伊宁市解放路商贸有限公司</span>
+        </div>
+        <div class="kv__row">
+          <span class="kv__key">统一信用代码</span>
+          <span class="kv__val kv__val--num">91654002MA77K3L82X</span>
+        </div>
+        <div class="kv__row">
+          <span class="kv__key">法定代表人</span>
+          <span class="kv__val">马合木提·艾山</span>
+        </div>
+        <div class="kv__row">
+          <span class="kv__key">认证时间</span>
+          <span class="kv__val kv__val--num">2026-10-30 09:42</span>
+        </div>
+      </div>
+    </section>
+
+    <p class="meta-note">
+      企业信息变更（改名、变更法人、注销）后需要重新认证。平台会定期与公示系统比对，登记状态异常的会暂停企业认证。
+    </p>
+
+  </section>
+
+  <!-- ====================================================================
+       状态 rejected：驳回
+       ==================================================================== -->
+  <section data-state="rejected" hidden>
+
+    <section class="status-hero status-hero--danger">
+      <div class="status-hero__icon">
+        <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
+          <circle cx="32" cy="32" r="25" stroke="currentColor" stroke-width="3"/>
+          <path d="M22 22 42 42M42 22 22 42" stroke="currentColor" stroke-width="3.4"
+                stroke-linecap="round"/>
+        </svg>
+      </div>
+      <h2 class="status-hero__title">企业认证未通过</h2>
+      <p class="status-hero__desc">原因见下方。改好之后可以再提交一次，不限制次数。</p>
+    </section>
+
+    <section class="reject-box">
+      <p class="reject-box__title">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="12" cy="12" r="9.2" stroke="currentColor" stroke-width="1.8"/>
+          <path d="M12 7.2v6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+          <circle cx="12" cy="16.4" r="1.2" fill="currentColor"/>
+        </svg>
+        驳回原因
+      </p>
+      <p class="reject-box__desc">营业执照照片上的公章看不清。<b>请把执照平铺，光线均匀，正对拍摄</b>，不要斜着拍 —— 斜拍会让公章变形。企业名称和信用代码已核对无误，这两项不用改。</p>
+    </section>
+
+    <section class="card-block">
+      <h2 class="block-title">已提交内容</h2>
+      <div class="kv">
+        <div class="kv__row">
+          <span class="kv__key">企业名称</span>
+          <span class="kv__val">伊宁市解放路商贸有限公司</span>
+        </div>
+        <div class="kv__row">
+          <span class="kv__key">统一信用代码</span>
+          <span class="kv__val kv__val--num">91654002MA77K3L82X</span>
+        </div>
+        <div class="kv__row">
+          <span class="kv__key">审核时间</span>
+          <span class="kv__val kv__val--num">2026-10-30 10:28</span>
+        </div>
+      </div>
+    </section>
+
+    <p class="meta-note">
+      重新提交时只需重拍营业执照，企业名称、信用代码、法人信息均保留，无需重新填写。
+    </p>
+
+  </section>
+
+</main>
+
+<!-- 底部按钮跟着状态走，规则同 48：
+     待填写 → 提交审核；被驳回 → 重新提交；审核中 / 已通过 → 没有可做的事。 -->
+<div class="actionbar" data-state="form">
+  <button class="btn-primary actionbar__cta" type="button" data-submit-company>提交审核</button>
+</div>
+
+<div class="actionbar" data-state="rejected" hidden>
+  <button class="btn-primary actionbar__cta" type="button" data-resubmit-company>重新提交</button>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

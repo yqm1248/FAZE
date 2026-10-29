@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390, initial-scale=1">
+<meta name="dsh-design" content="app">
+<title>账户余额</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   账户余额与明细页（第 9 批补充 · 延展，无参考图）
+   ==========================================================================
+   职责：一个地方看清「我现在有多少钱、这些钱是怎么来的、花到哪去了」。
+   入口：05-profile「我的钱包 - 账户余额」；31-pay 余额不足时的说明也指向这里
+   母版：**列表母版**（同 12-articles / 27-doc-mine：顶部数据卡 + 分类 chips + 列表 + 四态）
+   数据来源：余额接口（可用余额分）+ 余额流水接口（类型 / 金额分 / 变动后余额 / 时间 / 关联订单）
+
+   ★ 为什么这一页必须有（导航树 v1.4 里没有，v1.5 补）：
+     余额制的可疑点全在余额上。用户发现「余额少了 99」而没有任何地方能查，
+     唯一出路就是打客服电话 —— 一个人问一次，客服成本就超过这单的利润。
+     有了明细，多数疑问自己就解决了。
+
+   ★ 为什么不靠颜色区分收入与支出：
+     用 + / − 号表达方向，不用红绿。理由和 §20 金额组件一致：
+     本套的 --state-danger 已经绑定了「删除 / 退出 / 风险操作」，
+     拿它画「消费 99 元」会让正常花钱看起来像出了事故。
+     符号已经说清了方向，颜色只用来标「充值 / 消费 / 退款」这三类图标的底。
+
+   ★ 为什么要把「变动后余额」写在每一条上：
+     光有金额，用户还是要自己加减一遍才能对上余额。直接给出变动后的余额，
+     一眼就能找到「从哪一条开始不对」，这条信息比金额本身更省事。
+
+   ★ 合规红线：**用户侧余额不可提现**，只能用于平台内消费。
+     可提现的是律师侧的收入（模块 11 收入与提现页）。两回事，不能混。
+     这句话必须写在页面上，不能让用户充完才发现提不出来。
+
+   四态：normal / loading（骨架）/ empty（还没充过值）/ error。
+   ========================================================================== */
+
+body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-canvas);
+}
+
+.navbar {
+  background: transparent;
+}
+
+.screen {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding-block-end: calc(var(--safe-bottom) + var(--sp-xl));
+  background: linear-gradient(to bottom, var(--banner-start) 0, var(--bg-canvas) 260px);
+}
+.screen::-webkit-scrollbar {
+  display: none;
+}
+
+/* ---------- 余额卡 ---------- */
+.balance-card {
+  margin: 0 var(--sp-xl) var(--sp-md);
+  padding: var(--sp-xl) var(--sp-lg);
+  border-radius: var(--r-md);
+  background: linear-gradient(to bottom, var(--profile-start), var(--profile-end));
+  color: var(--text-on-brand);
+  box-shadow: var(--shadow-raised);
+}
+
+.balance-card__label {
+  font-size: var(--fs-caption);
+  color: var(--text-on-brand);
+  opacity: 0.82;
+  line-height: 1.4;
+}
+
+.balance-card__amount {
+  display: block;
+  margin-block-start: 2px;
+  color: var(--text-on-brand);
+}
+
+/* 余额卡是深底，货币符号要跟着反白，不能沿用 .money 的正文色 */
+.balance-card .money__sym,
+.balance-card .money__unit {
+  color: var(--text-on-brand);
+}
+
+.balance-card__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-md);
+  margin-block-start: var(--sp-lg);
+}
+
+.balance-card__note {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: var(--fs-caption);
+  line-height: 1.5;
+  opacity: 0.86;
+}
+
+/* 深底上的按钮：视觉 36 高，热区靠 ::after 补到 44（做法同 .btn-pill-sm）。
+   余额卡本身是深色渐变，不能用 .btn-ghost，所以这一屏单独写一个 */
+.balance-btn {
+  position: relative;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 84px;
+  height: 36px;
+  padding-inline: var(--sp-md);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-pill);
+  background: var(--bg-surface);
+  color: var(--brand-primary-pressed);
+  font-family: inherit;
+  font-size: var(--fs-md);
+  font-weight: var(--fw-medium);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.balance-btn::after {
+  content: "";
+  position: absolute;
+  inset-block: -4px;
+  inset-inline: 0;
+}
+
+/* ---------- 明细条 ---------- */
+.list-top {
+  background: var(--bg-surface);
+  border-block-end: 1px solid var(--border-outline);
+}
+
+.filter {
+  padding-inline: var(--sp-md);
+}
+
+.list {
+  padding: var(--sp-md) var(--sp-xl) 0;
+}
+
+.bill {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-md);
+  padding: var(--sp-md) var(--sp-lg);
+  border-radius: var(--r-md);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+  text-decoration: none;
+  color: inherit;
+}
+
+.bill + .bill {
+  margin-block-start: var(--sp-sm);
+}
+
+.bill:active {
+  background: var(--bg-canvas);
+}
+
+.bill__icon {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--bg-canvas);
+  color: var(--text-secondary);
+}
+
+.bill__icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* 三类图标各自的底色：充值=主色、消费=中性、退款=青。
+   只标类型，不标金额方向 —— 方向交给 + / − 号 */
+.bill--recharge .bill__icon {
+  background: var(--brand-primary-soft);
+  color: var(--brand-primary-pressed);
+}
+
+.bill--refund .bill__icon {
+  background: var(--state-success-soft);
+  color: var(--state-success);
+}
+
+.bill__main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.bill__name {
+  display: block;
+  font-size: var(--fs-md);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bill__meta {
+  display: block;
+  margin-block-start: 3px;
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 变动后余额单独一行，比渠道和时间更重要，所以颜色深一档 */
+.bill__after {
+  display: block;
+  margin-block-start: 2px;
+  font-size: var(--fs-caption);
+  color: var(--text-secondary);
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+}
+
+.bill__amount {
+  flex: 0 0 auto;
+  font-family: var(--font-num);
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-bold);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+/* ---------- 页脚说明 ---------- */
+.foot-note {
+  margin: var(--sp-lg) var(--sp-xl) 0;
+  padding: var(--sp-md) var(--sp-lg);
+  border-radius: var(--r-sm);
+  background: var(--bg-surface);
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.8;
+}
+
+.foot-note b {
+  font-weight: var(--fw-medium);
+  color: var(--text-secondary);
+}
+
+/* ---------- 空态 / 错误态 ---------- */
+.state-wrap {
+  padding-block: var(--sp-huge) var(--sp-xxxl);
+}
+</style>
+</head>
+<body>
+
+<header class="statusbar">
+  <span>9:41</span>
+  <span class="statusbar__icons">
+    <svg width="17" height="11" viewBox="0 0 17 11" fill="none" aria-hidden="true">
+      <rect x="0" y="7" width="3" height="4" rx="1" fill="currentColor"/>
+      <rect x="4.5" y="5" width="3" height="6" rx="1" fill="currentColor"/>
+      <rect x="9" y="2.5" width="3" height="8.5" rx="1" fill="currentColor"/>
+      <rect x="13.5" y="0" width="3" height="11" rx="1" fill="currentColor"/>
+    </svg>
+    <svg width="16" height="11" viewBox="0 0 16 11" fill="none" aria-hidden="true">
+      <path d="M1 3.2A10.5 10.5 0 0 1 15 3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M3.6 5.9a7 7 0 0 1 8.8 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M6.2 8.6a3.4 3.4 0 0 1 3.6 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden="true">
+      <rect x="0.6" y="0.6" width="21" height="10.8" rx="3" stroke="currentColor" stroke-opacity="0.4" stroke-width="1.2"/>
+      <rect x="2.2" y="2.2" width="15" height="7.6" rx="1.8" fill="currentColor"/>
+      <path d="M23.4 4.2v3.6" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+  </span>
+</header>
+
+<div class="navbar">
+  <a class="navbar__back" href="05-profile.html" aria-label="返回我的">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M15.2 4.6 7.8 12l7.4 7.4" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </a>
+  <h1 class="navbar__title">账户余额</h1>
+</div>
+
+<main class="screen">
+
+  <div data-state="normal">
+
+    <section class="balance-card">
+      <p class="balance-card__label">可用余额</p>
+      <span class="money money--display balance-card__amount"><span class="money__sym">¥</span>1,280.00</span>
+      <div class="balance-card__foot">
+        <p class="balance-card__note">余额仅用于平台内消费，不能提现</p>
+        <a class="balance-btn" href="36-recharge.html">去充值</a>
+      </div>
+    </section>
+
+    <div class="list-top">
+      <div class="filter" data-drag-scroll>
+        <button class="filter__chip filter__chip--active" type="button" data-bill-filter="all">全部</button>
+        <button class="filter__chip" type="button" data-bill-filter="recharge">充值</button>
+        <button class="filter__chip" type="button" data-bill-filter="consume">消费</button>
+        <button class="filter__chip" type="button" data-bill-filter="refund">退款</button>
+      </div>
+    </div>
+
+    <div class="list">
+
+      <a class="bill bill--recharge" href="36-recharge.html" data-bill-type="recharge">
+        <span class="bill__icon">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M12 5.2v13.6M5.2 12h13.6" stroke="currentColor" stroke-width="2.2"
+                  stroke-linecap="round"/>
+          </svg>
+        </span>
+        <span class="bill__main">
+          <span class="bill__name">充值</span>
+          <span class="bill__meta">微信支付<i class="dot"></i>2026-10-28 09:12</span>
+          <span class="bill__after">余额 ¥1,280.00</span>
+        </span>
+        <span class="bill__amount">+¥200.00</span>
+      </a>
+
+      <a class="bill bill--consume" href="30-order-detail.html" data-bill-type="consume">
+        <span class="bill__icon">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M5.2 12h13.6" stroke="currentColor" stroke-width="2.2"
+                  stroke-linecap="round"/>
+          </svg>
+        </span>
+        <span class="bill__main">
+          <span class="bill__name">法律咨询 · 30 分钟</span>
+          <span class="bill__meta">消费<i class="dot"></i>2026-10-29 14:24</span>
+          <span class="bill__after">余额 ¥1,181.00</span>
+        </span>
+        <span class="bill__amount">−¥99.00</span>
+      </a>
+
+      <a class="bill bill--refund" href="30-order-detail.html" data-bill-type="refund">
+        <span class="bill__icon">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M4.6 10.4a7.8 7.8 0 1 1 .6 4.4" stroke="currentColor" stroke-width="1.9"
+                  stroke-linecap="round"/>
+            <path d="M4.2 5.4v5h5" stroke="currentColor" stroke-width="1.9"
+                  stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </span>
+        <span class="bill__main">
+          <span class="bill__name">订单退款 · 合同审查</span>
+          <span class="bill__meta">退款<i class="dot"></i>2026-10-25 17:40</span>
+          <span class="bill__after">余额 ¥1,080.00</span>
+        </span>
+        <span class="bill__amount">+¥600.00</span>
+      </a>
+
+      <a class="bill bill--consume" href="32-pay-result.html" data-bill-type="consume">
+        <span class="bill__icon">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M5.2 12h13.6" stroke="currentColor" stroke-width="2.2"
+                  stroke-linecap="round"/>
+          </svg>
+        </span>
+        <span class="bill__main">
+          <span class="bill__name">文书生成 · 民事起诉状</span>
+          <span class="bill__meta">消费<i class="dot"></i>2026-10-21 10:08</span>
+          <span class="bill__after">余额 ¥480.00</span>
+        </span>
+        <span class="bill__amount">−¥30.00</span>
+      </a>
+
+      <a class="bill bill--recharge" href="36-recharge.html" data-bill-type="recharge">
+        <span class="bill__icon">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M12 5.2v13.6M5.2 12h13.6" stroke="currentColor" stroke-width="2.2"
+                  stroke-linecap="round"/>
+          </svg>
+        </span>
+        <span class="bill__main">
+          <span class="bill__name">充值</span>
+          <span class="bill__meta">支付宝<i class="dot"></i>2026-10-18 20:02</span>
+          <span class="bill__after">余额 ¥510.00</span>
+        </span>
+        <span class="bill__amount">+¥500.00</span>
+      </a>
+
+    </div>
+
+    <p class="foot-note">
+      <b>账户余额只能用于平台内消费，不能提现。</b>充值的钱、退款的钱、用剩的钱都会显示在上面。如果某一条金额和你记的不一样，点进对应订单能看到完整的费用明细。
+    </p>
+
+  </div>
+
+  <!-- ======================================================================
+       加载态
+       ====================================================================== -->
+  <div data-state="loading" hidden>
+    <div class="list" style="padding-block-start:28px">
+      <div class="skeleton" style="height:132px;border-radius:12px"></div>
+      <div style="height:16px"></div>
+      <div class="bill" style="box-shadow:none">
+        <div class="skeleton" style="width:38px;height:38px;border-radius:50%"></div>
+        <div class="bill__main">
+          <div class="skeleton" style="height:14px;width:48%"></div>
+          <div class="skeleton" style="height:12px;width:64%;margin-block-start:8px"></div>
+        </div>
+      </div>
+      <div class="bill" style="box-shadow:none">
+        <div class="skeleton" style="width:38px;height:38px;border-radius:50%"></div>
+        <div class="bill__main">
+          <div class="skeleton" style="height:14px;width:56%"></div>
+          <div class="skeleton" style="height:12px;width:70%;margin-block-start:8px"></div>
+        </div>
+      </div>
+      <div class="bill" style="box-shadow:none">
+        <div class="skeleton" style="width:38px;height:38px;border-radius:50%"></div>
+        <div class="bill__main">
+          <div class="skeleton" style="height:14px;width:44%"></div>
+          <div class="skeleton" style="height:12px;width:58%;margin-block-start:8px"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================================
+       空态：还没充过值
+       引导去充值，而不是引导去「看看律师」—— 这一页空的时候，
+       用户真正缺的是余额，不是服务
+       ====================================================================== -->
+  <div data-state="empty" hidden>
+    <div class="state-wrap">
+      <div class="empty">
+        <svg class="empty__art" viewBox="0 0 96 96" fill="none" aria-hidden="true">
+          <rect x="18" y="28" width="60" height="42" rx="6"
+                stroke="currentColor" stroke-width="2.4"/>
+          <path d="M18 42h60" stroke="currentColor" stroke-width="2.4"/>
+          <path d="M30 56h12" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+        </svg>
+        <p class="empty__title">还没有充过值</p>
+        <p class="empty__desc">账户余额还没有记录。充值后就能直接下单咨询、委托律师或者生成文书了。</p>
+        <a class="btn-primary empty__action" href="36-recharge.html">去充值</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================================
+       错误态
+       ====================================================================== -->
+  <div data-state="error" hidden>
+    <div class="state-wrap">
+      <div class="errorbox">
+        <svg class="errorbox__art" viewBox="0 0 96 96" fill="none" aria-hidden="true">
+          <circle cx="48" cy="48" r="30" stroke="currentColor" stroke-width="2.4"/>
+          <path d="M48 32v20" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
+          <circle cx="48" cy="62" r="2.4" fill="currentColor"/>
+        </svg>
+        <p class="errorbox__title">余额没有加载出来</p>
+        <p class="errorbox__desc">网络不稳定或者服务器维护中。这一页涉及金额，没加载出来时不会显示任何数字，避免你看到一个过期的余额。</p>
+        <button class="errorbox__retry" type="button" data-retry>
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M20.2 12a8.2 8.2 0 1 1-2.4-5.8" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round"/>
+            <path d="M20.4 3.6v4.6h-4.6" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          重新加载
+        </button>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

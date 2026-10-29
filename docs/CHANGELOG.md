@@ -4,6 +4,30 @@
 
 ---
 
+## 2026-10-30 · docs 分支补上设计稿全量快照（基线 v1.10）
+
+**这一版改了什么**
+
+`docs` 分支的 `design/` 目录一直只有 **10 个文件**（早期 8 屏原型 + `app.js` + `tokens.css`），
+而 `UI设计` 分支已经有 **127 个**（APP 71 HTML + PC 28 HTML + 16 走查 + 令牌/组件/骨架/字体）。
+也就是说「文档总库」里的设计稿早就过期了，只看 `docs` 分支的人打开的是早期原型。
+
+这次把 `design/` 全量同步到 `docs` 分支（以 `UI设计` 为准），并把 `docs/README.md` 维护规则第 8 条
+改成「设计稿也各留一份」，同步校验命令扩展为：
+
+```powershell
+git diff UI设计 docs -- docs/ AGENTS.md README.md design/   # 必须为空
+```
+
+**为什么不能只补新加的 2 屏**：设计稿不是独立文件——`26-law-library.html` / `27-ai-retrieval.html`
+依赖同目录的 `tokens.css`、`components.css`、`shell.js`，缺了它们打开就是白屏方块。所以要么整个
+`design/` 一起补，要么不补。
+
+**定位不变**：`docs` 侧的设计稿是**快照**，准据仍在 `UI设计` 分支；改设计稿后两份都要同步。
+
+**核对**：`git diff UI设计 docs -- docs/ AGENTS.md README.md design/` = 空；`docs` 分支 `design/` 文件数 = 127；
+基线 24 份资产重算后 24/24 一致（`docs/README.md` 指纹随规则更新）。
+
 ## 2026-10-30 · PC 后台补 A-27 法条库 / A-28 AI 对话检索（基线 v1.9）
 
 **这一版改了什么**

@@ -6,6 +6,7 @@
 <meta name="dsh-design" content="app">
 <title>律师列表</title>
 <link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
 <style>
 /* ==========================================================================
    律师列表页（Tab 2）—— 复刻原项目 pages/lawyer/lawyer.vue
@@ -54,37 +55,7 @@ body {
   font-size: var(--fs-lg);
 }
 
-.filter {
-  display: flex;
-  gap: 10px;
-  padding: var(--sp-lg) var(--sp-xl) var(--sp-md);
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-.filter::-webkit-scrollbar {
-  display: none;
-}
-
-.filter__chip {
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  height: 44px;
-  padding: 0 var(--sp-xxl);
-  border-radius: var(--r-pill);
-  background: var(--bg-input);
-  color: var(--text-body);
-  font-size: var(--fs-lg);
-  text-decoration: none;
-  white-space: nowrap;
-}
-
-.filter__chip--active {
-  background: var(--brand-primary);
-  color: var(--text-on-brand);
-  font-weight: var(--fw-medium);
-}
+/* .filter / .filter__chip 第 3 批已提到 components.css（律师、文章、案例、订单共用同一套 chips） */
 
 /* ---------- 列表区 ---------- */
 .list {

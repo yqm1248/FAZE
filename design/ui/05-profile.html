@@ -6,6 +6,7 @@
 <meta name="dsh-design" content="app">
 <title>我的</title>
 <link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
 <style>
 /* ==========================================================================
    我的页（Tab 5）—— 复刻原项目 pages/my/my.vue
@@ -57,6 +58,83 @@
   gap: var(--sp-md);
 }
 
+/* ---------- 我的钱包（v1.6 新增，余额制的入口） ----------
+   为什么放用户卡正下方第一块，而不是塞进「我的服务」宫格：
+   余额是用户在这个产品里最实在的资产，宫格里的四项都是「去做一件事」，
+   余额是「我有什么」，性质不同，混在一起就不显眼了。
+   底色沿用顶部 hero 的品牌渐变，不引入第四种底色。 */
+.wallet {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-md);
+  padding: var(--sp-md) var(--sp-lg);
+  border-radius: var(--r-md);
+  background: linear-gradient(to bottom right, var(--profile-start), var(--profile-end));
+  color: var(--text-on-brand);
+  box-shadow: var(--shadow-raised);
+}
+
+.wallet__main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: block;
+  text-decoration: none;
+  color: inherit;
+}
+
+.wallet__label {
+  display: block;
+  font-size: var(--fs-caption);
+  opacity: 0.84;
+  line-height: 1.4;
+}
+
+.wallet__amount {
+  display: block;
+  margin-block-start: 2px;
+  font-size: var(--fs-h1);
+  font-weight: var(--fw-bold);
+  line-height: 1.2;
+  color: var(--text-on-brand);
+}
+
+.wallet__amount .money__sym {
+  color: var(--text-on-brand);
+}
+
+.wallet__hint {
+  display: block;
+  margin-block-start: 2px;
+  font-size: var(--fs-micro);
+  opacity: 0.78;
+  line-height: 1.4;
+}
+
+/* 深底上的按钮：白底蓝字。视觉 36 高，热区靠 ::after 补到 44 */
+.wallet__btn {
+  position: relative;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 76px;
+  height: 36px;
+  padding-inline: var(--sp-md);
+  border-radius: var(--r-pill);
+  background: var(--bg-surface);
+  color: var(--brand-primary-pressed);
+  font-size: var(--fs-md);
+  font-weight: var(--fw-medium);
+  text-decoration: none;
+}
+
+.wallet__btn::after {
+  content: "";
+  position: absolute;
+  inset-block: -4px;
+  inset-inline: 0;
+}
+
 /* ---------- 用户卡 ---------- */
 .user-card {
   display: flex;
@@ -100,6 +178,101 @@
   letter-spacing: 0.02em;
 }
 
+/* 身份标签 */
+.user-card__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.user-card__badge {
+  display: inline-flex;
+  align-items: center;
+  height: 19px;
+  padding: 0 6px;
+  border-radius: var(--r-xs);
+  background: var(--brand-primary-soft);
+  color: var(--brand-primary-pressed);
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-medium);
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+/* ---------- 未认证提示条 ---------- */
+.notice {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  padding: 14px var(--sp-lg);
+  border-radius: var(--r-md);
+  background: var(--state-warning-soft);
+  text-decoration: none;
+  box-shadow: var(--shadow-card);
+  min-height: 44px;
+}
+
+.notice__text {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: var(--fs-caption);
+  color: var(--state-warning-deep);
+  line-height: 1.4;
+}
+
+.notice__arrow {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  color: var(--state-warning-deep);
+}
+
+/* ---------- 我的服务 ---------- */
+.services {
+  padding: var(--sp-lg) var(--sp-lg) 13px;
+}
+
+.services__title {
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+.services__grid {
+  margin-top: var(--sp-md);
+  display: flex;
+}
+
+.services__item {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 2px;
+  text-decoration: none;
+  color: var(--text-body);
+  border-radius: var(--r-sm);
+}
+
+.services__item:active {
+  background: var(--bg-canvas);
+}
+
+.services__item svg {
+  width: 24px;
+  height: 24px;
+  color: var(--brand-primary);
+}
+
+.services__label {
+  font-size: var(--fs-caption);
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
 /* ---------- 三栏快捷 ---------- */
 .quick-links {
   display: flex;
@@ -132,7 +305,7 @@
 }
 
 .quick-links__label {
-  font-size: var(--fs-md);
+  font-size: var(--fs-caption);
   color: var(--text-body);
 }
 
@@ -183,14 +356,18 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 100%;
   height: var(--btn-h);
+  border: 0;
   background: var(--bg-surface);
   border-radius: var(--r-sm);
   color: var(--state-danger);
-  font-size: var(--fs-h3);
+  font-family: inherit;
+  font-size: var(--fs-lg);
   font-weight: var(--fw-bold);
   text-decoration: none;
   box-shadow: var(--shadow-card);
+  cursor: pointer;
 }
 
 .logout:active {
@@ -243,14 +420,34 @@
           <path d="M4.6 21c0-4.1 3.3-6.9 7.4-6.9s7.4 2.8 7.4 6.9" fill="currentColor"/>
         </svg>
       </div>
-      <div>
-        <p class="user-card__name">用户名</p>
+      <div class="user-card__info">
+        <div class="user-card__row">
+          <p class="user-card__name">用户名</p>
+          <span class="user-card__badge">普通用户</span>
+        </div>
         <p class="user-card__phone">187****1576</p>
       </div>
     </section>
 
+    <section class="wallet">
+      <a class="wallet__main" href="35-balance.html">
+        <span class="wallet__label">账户余额</span>
+        <span class="money wallet__amount"><span class="money__sym">¥</span>1,280.00</span>
+        <span class="wallet__hint">查看余额明细</span>
+      </a>
+      <a class="wallet__btn" href="36-recharge.html">去充值</a>
+    </section>
+
+    <a class="notice" href="48-verify-real.html">
+      <span class="notice__text">完成实名认证后可提交立案材料</span>
+      <svg class="notice__arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="m9.5 5.5 6.5 6.5-6.5 6.5" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </a>
+
     <section class="card quick-links">
-      <a class="quick-links__item" href="46-verify-company.html">
+      <a class="quick-links__item" href="49-verify-company.html">
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path d="M12 2.9 4.4 5.8v6.1c0 4.4 3.1 8.2 7.6 9.2 4.5-1 7.6-4.8 7.6-9.2V5.8L12 2.9Z"
                 fill="#4E8DF2" fill-opacity="0.16" stroke="#4E8DF2" stroke-width="1.9" stroke-linejoin="round"/>
@@ -259,14 +456,14 @@
         </svg>
         <span class="quick-links__label">企业认证</span>
       </a>
-      <a class="quick-links__item" href="48-favorites.html">
+      <a class="quick-links__item" href="51-favorites.html">
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path d="M12 20.6C7.2 17.4 3.4 14.2 3.4 10.2a4.6 4.6 0 0 1 8.6-2.3 4.6 4.6 0 0 1 8.6 2.3c0 4-3.8 7.2-8.6 10.4Z"
                 fill="#4E8DF2" fill-opacity="0.16" stroke="#4E8DF2" stroke-width="1.9" stroke-linejoin="round"/>
         </svg>
         <span class="quick-links__label">我的收藏</span>
       </a>
-      <a class="quick-links__item" href="49-following.html">
+      <a class="quick-links__item" href="52-following.html">
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <circle cx="12" cy="8.2" r="3.6" fill="#8A2BE2" fill-opacity="0.16" stroke="#8A2BE2" stroke-width="1.9"/>
           <path d="M4.9 20.3c0-3.7 3.2-6.3 7.1-6.3s7.1 2.6 7.1 6.3" stroke="#8A2BE2"
@@ -276,29 +473,93 @@
       </a>
     </section>
 
+    <section class="card services">
+      <h2 class="services__title">我的服务</h2>
+      <div class="services__grid">
+        <a class="services__item" href="29-orders.html">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M6.2 3.2h11.6v17.6l-2.9-1.9-2.9 1.9-2.9-1.9-2.9 1.9V3.2Z"
+                  stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+            <path d="M9.2 8.2h5.6M9.2 12h5.6" stroke="currentColor" stroke-width="1.8"
+                  stroke-linecap="round"/>
+          </svg>
+          <span class="services__label">我的订单</span>
+        </a>
+        <a class="services__item" href="53-my-cases.html">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M3.2 7.6a1.8 1.8 0 0 1 1.8-1.8h4l2 2.2h7.8a1.8 1.8 0 0 1 1.8 1.8v9.6a1.8 1.8 0 0 1-1.8 1.8H5a1.8 1.8 0 0 1-1.8-1.8V7.6Z"
+                  stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+          </svg>
+          <span class="services__label">我的案件</span>
+        </a>
+        <a class="services__item" href="54-case-progress.html">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="12" cy="12" r="8.8" stroke="currentColor" stroke-width="1.8"/>
+            <path d="M12 7.4V12l3.1 1.9" stroke="currentColor" stroke-width="1.8"
+                  stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span class="services__label">案件进度</span>
+        </a>
+        <a class="services__item" href="27-doc-mine.html">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M5.6 3.4h8.2l5 5v11.2a1.8 1.8 0 0 1-1.8 1.8H5.6a1.8 1.8 0 0 1-1.8-1.8V5.2a1.8 1.8 0 0 1 1.8-1.8Z"
+                  stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+            <path d="M13.6 3.6v5.2h5" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+          </svg>
+          <span class="services__label">我的文书</span>
+        </a>
+      </div>
+    </section>
+
     <section class="card menu">
-      <a class="menu__row" href="52-support.html">
+      <a class="menu__row" href="38-messages.html">
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M20.4 12.2c0 4-3.8 7.2-8.4 7.2-1 0-2-.15-2.9-.42L4.1 20.4l1.3-3.5a7 7 0 0 1-1.9-4.7c0-4 3.8-7.2 8.5-7.2s8.4 3.2 8.4 7.2Z"
+          <path d="M3.4 6.6a2 2 0 0 1 2-2h13.2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-7.3l-4.3 3.4v-3.4H5.4a2 2 0 0 1-2-2v-9Z"
                 fill="#8A2BE2" fill-opacity="0.14" stroke="#8A2BE2" stroke-width="1.9" stroke-linejoin="round"/>
         </svg>
-        <span class="menu__label">客服帮助</span>
+        <span class="menu__label">消息中心</span>
         <svg class="menu__chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path d="m9.5 5.5 6.5 6.5-6.5 6.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </a>
-      <a class="menu__row" href="15-lawyer-join.html">
+      <a class="menu__row" href="55-support.html">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M20.4 12.2c0 4-3.8 7.2-8.4 7.2-1 0-2-.15-2.9-.42L4.1 20.4l1.3-3.5a7 7 0 0 1-1.9-4.7c0-4 3.8-7.2 8.5-7.2s8.4 3.2 8.4 7.2Z"
+                fill="#8A2BE2" fill-opacity="0.14" stroke="#8A2BE2" stroke-width="1.9" stroke-linejoin="round"/>
+        </svg>
+        <span class="menu__label">客服中心</span>
+        <svg class="menu__chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="m9.5 5.5 6.5 6.5-6.5 6.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </a>
+      <!-- 角色入口：未认证 → 入驻申请；已认证 → 律师工作台（#state-lawyer 走查）
+           ★ 同一行同一个位置，只换文案和图标。认证完成后这一行如果「消失」，
+             律师会以为功能没了；如果是「多出来一行」，他会去找原来那行去哪了。 -->
+      <a class="menu__row" href="15-lawyer-join.html" data-state="guest">
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <circle cx="12" cy="8.2" r="3.6" fill="#8A2BE2" fill-opacity="0.14" stroke="#8A2BE2" stroke-width="1.9"/>
           <path d="M4.9 20.3c0-3.7 3.2-6.3 7.1-6.3s7.1 2.6 7.1 6.3" stroke="#8A2BE2"
                 stroke-width="1.9" stroke-linecap="round"/>
         </svg>
-        <span class="menu__label">律师/学生入驻</span>
+        <span class="menu__label">律师 / 学生入驻</span>
         <svg class="menu__chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path d="m9.5 5.5 6.5 6.5-6.5 6.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </a>
-      <a class="menu__row" href="53-faq.html">
+      <a class="menu__row" href="62-workbench.html" data-state="lawyer" hidden>
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <rect x="2.8" y="7.4" width="18.4" height="12.2" rx="2.2"
+                fill="#4A66EE" fill-opacity="0.14" stroke="#4A66EE" stroke-width="1.9"/>
+          <path d="M8.6 7.4V5.6a1.8 1.8 0 0 1 1.8-1.8h3.2a1.8 1.8 0 0 1 1.8 1.8v1.8"
+                stroke="#4A66EE" stroke-width="1.9" stroke-linejoin="round"/>
+          <path d="M2.8 12.6h18.4" stroke="#4A66EE" stroke-width="1.9"/>
+        </svg>
+        <span class="menu__label">律师工作台</span>
+        <svg class="menu__chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="m9.5 5.5 6.5 6.5-6.5 6.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </a>
+      <a class="menu__row" href="56-faq.html">
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <circle cx="12" cy="12" r="9.1" stroke="#EE0A24" stroke-width="1.9"/>
           <path d="M9.6 9.3a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 1.8-2.4 3.4" stroke="#EE0A24"
@@ -310,17 +571,17 @@
           <path d="m9.5 5.5 6.5 6.5-6.5 6.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </a>
-      <a class="menu__row" href="54-complaint.html">
+      <a class="menu__row" href="57-complaint.html">
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path d="M12 3.6v10.2" stroke="#8A2BE2" stroke-width="2.2" stroke-linecap="round"/>
           <circle cx="12" cy="18.6" r="1.35" fill="#8A2BE2"/>
         </svg>
-        <span class="menu__label">关于投诉</span>
+        <span class="menu__label">投诉</span>
         <svg class="menu__chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path d="m9.5 5.5 6.5 6.5-6.5 6.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </a>
-      <a class="menu__row" href="38-settings.html">
+      <a class="menu__row" href="41-settings.html">
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <circle cx="12" cy="12" r="3.1" stroke="#8A2BE2" stroke-width="1.9"/>
           <path d="M19.5 14.9a1.7 1.7 0 0 0 .35 1.9l.06.06a2.1 2.1 0 1 1-2.95 2.95l-.06-.06a1.7 1.7 0 0 0-1.9-.35 1.7 1.7 0 0 0-1 1.55v.16a2.1 2.1 0 1 1-4.2 0v-.09a1.7 1.7 0 0 0-1.09-1.55 1.7 1.7 0 0 0-1.9.35l-.06.06a2.1 2.1 0 1 1-2.95-2.95l.06-.06a1.7 1.7 0 0 0 .35-1.9 1.7 1.7 0 0 0-1.55-1H2.5a2.1 2.1 0 1 1 0-4.2h.09a1.7 1.7 0 0 0 1.55-1.09 1.7 1.7 0 0 0-.35-1.9l-.06-.06a2.1 2.1 0 1 1 2.95-2.95l.06.06a1.7 1.7 0 0 0 1.9.35h.08a1.7 1.7 0 0 0 1-1.55V2.5a2.1 2.1 0 1 1 4.2 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.9-.35l.06-.06a2.1 2.1 0 1 1 2.95 2.95l-.06.06a1.7 1.7 0 0 0-.35 1.9v.08a1.7 1.7 0 0 0 1.55 1h.16a2.1 2.1 0 1 1 0 4.2h-.09a1.7 1.7 0 0 0-1.55 1Z"
@@ -333,8 +594,27 @@
       </a>
     </section>
 
-    <a class="logout" href="06-login.html">退出当前账号</a>
+    <!-- 退出登录：第 3 批把二次确认浮层补上了（计划 §3.2「第 1 批菜单已做，浮层待补」） -->
+    <button class="logout" type="button" data-logout-open>退出当前账号</button>
 
+  </div>
+</div>
+
+<!-- ========================================================================
+     浮层：退出登录二次确认（第 3 批交付的全局浮层之一）
+     样式在 components.css 的 .mask / .dialog
+     ======================================================================== -->
+<div class="mask" data-logout-mask hidden></div>
+
+<div class="dialog" data-logout-dialog hidden role="alertdialog" aria-modal="true"
+     aria-labelledby="logout-title" aria-describedby="logout-desc">
+  <h2 class="dialog__title" id="logout-title">确定要退出当前账号？</h2>
+  <p class="dialog__body" id="logout-desc">
+    退出后需要重新登录才能继续咨询、查看案件和使用已保存的文书。
+  </p>
+  <div class="dialog__actions">
+    <button class="dialog__btn" type="button" data-logout-close>取消</button>
+    <button class="dialog__btn dialog__btn--danger" type="button" data-logout-confirm>退出登录</button>
   </div>
 </div>
 

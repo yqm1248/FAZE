@@ -4,11 +4,16 @@
    职责：所有屏共用的颜色、字体、字号、间距、圆角、阴影、尺寸
    数据来源：design/tokens/tokens.json（唯一来源，本文件是它的 CSS 投影）
    注意：
-     1. 所有值必须与 tokens.json 一致；这里新增的只有「图标三色」，
-        它们是从原项目首页三宫格截图取色，尚未并入 tokens.json（待第 1 批定稿后并）
+     1. 所有值必须与 tokens.json 一致。两边是否真的对齐，跑
+        `python scripts/check-tokens-sync.py` 校验，不要靠人眼看 ——
+        第 1 批就出过「CSS 改了 4 个颜色、JSON 没跟上」的偏差。
      2. 不写 rgba() 字面量给业务色，半透明只用于遮罩与阴影（与令牌规则一致）
      3. 位置属性一律用逻辑属性（inline-start / inline-end），为 RTL 语言留路
    ========================================================================== */
+
+/* 阿拉伯系字体（维吾尔文 / 哈萨克文）。@import 必须在所有规则之前，所以放这里。
+   字体文件自托管在 fonts/，来源、版本、覆盖率与许可见 fonts/arabic.css 顶部注释。 */
+@import url("fonts/arabic.css");
 
 :root {
   /* ---------- 品牌色 ---------- */
@@ -21,6 +26,9 @@
   /* ---------- 背景 ---------- */
   --bg-canvas: #F7F8FA;
   --bg-surface: #FFFFFF;
+  /* 律师工作台顶栏底色（第 17 批）。深色用来区分角色，
+     不用第二套主色：主色一旦分裂成两个，「主色 = 可以点」这条就废了。 */
+  --bg-workbench: #1F2333;
   --bg-input: #F5F5F5;
 
   /* ---------- 文字 ----------
@@ -42,7 +50,10 @@
   --state-success: #1F7A7A;
   --state-success-soft: #EBF5F5;
   --state-warning: #FF9500;
+  --state-warning-soft: #FFF7E6;
+  --state-warning-deep: #8A5A00;
   --state-danger: #EE0A24;
+  --state-danger-soft: #FDECEE;
 
   /* ---------- 渐变 ---------- */
   --banner-start: #D2E3FB;
@@ -65,7 +76,21 @@
     system-ui, -apple-system, sans-serif;
   --font-num: "Inter", -apple-system, "PingFang SC", system-ui, sans-serif;
 
+  /* 阿拉伯系（维吾尔文 ug-Arab-CN / 哈萨克文 kk-Arab-CN）。
+     ★ 这条不是可选项：--font-sans 里没有任何一个字体带阿拉伯字形，
+       不指定就只能靠系统 fallback，结果是不同机型观感不一致，
+       低端机上还会出现连写断裂 —— 这两种语言都是连写文字，断字直接影响阅读。
+     字体：fonts/noto-naskh-arabic.woff2（94,032 字节，可变字体 wght 400~700，
+     SIL OFL 1.1，维吾尔文 32 字母 + 哈萨克文专用 6 字符 38/38 全覆盖）。 */
+  --font-arabic: "Noto Naskh Arabic FAZE", "Noto Naskh Arabic", "Segoe UI",
+    Tahoma, sans-serif;
+
   /* ---------- 字号（对应 tokens.json fontSize） ---------- */
+  /* 展示级：支付金额、收入合计这类「整屏唯一的焦点数字」。
+     第 9 批新增 —— 原有最大档 h1(24px) 用在 390 宽的支付页上压不住版面，
+     而金额是本产品里唯一需要「一眼确认对错」的数字，必须比标题更重。
+     只给数字用，不给任何文字标题用。 */
+  --fs-display: 34px;
   --fs-h1: 24px;      /* 首页 slogan、登录页主标题 */
   --fs-h2: 17px;      /* 页面标题 */
   --fs-h3: 16px;      /* 区块标题 */

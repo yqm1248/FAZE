@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="dsh-design" content="web 1440x900">
+<title>AI 对话检索 · 法泽管理后台</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   A-28 AI 对话检索
+   --------------------------------------------------------------------------
+   职责：按用户与时间检索 AI 会话，查看回答原文与生成时冻结的法条引用快照（refs），
+        用于合规追溯、投诉核查与内容抽检。**只读，不改写任何原文。**
+   依据：《PC 后台开发计划_v1.0》§2.5（本页为 v1.1 补登）；技术路线 §12「AI 合规与
+        内容安全」（显式标识、隐式标识、输出侧条文号存在性校验）；《分期交付计划》
+        第 3 段验收「后台能按用户 + 时间检索到回答原文与 refs 快照」。
+   接口：**缺**。技术路线 §4.8.2 的 ai 域只有 App 侧接口，没有管理端检索接口。
+        见《未完成需备注》§1
+   为什么这么排：
+     1. 用「左队列 + 右详情」的审核分栏，而不是列表页：这一页要同时看见
+        「会话上下文」和「它引用了哪几条法条」，抽屉里塞不下这两块。
+     2. refs 快照必须和回答并排展示。AI 回答里说「根据民法典第 577 条」，
+        而快照记的是生成那一刻的条文内容——两者不一致就说明法条被改过，
+        这是复核要抓的核心问题。
+     3. 校验状态用独立标签：`已校验` 是输出侧做过存在性校验，
+        `条号不存在` 是校验拦下来并替换成提示的记录，两种都必须能在后台看到。
+     4. 底部只有「导出记录」和「标记已复核」两个动作，不提供「删除」——
+        AI 对话是合规留痕，删除等于销毁证据。
+   ========================================================================== */
+
+/* 整页纵向 flex：页头/查询栏/提示条定高，分栏吃掉剩余高度（776 - 210 = 566） */
+.ai-page { display: flex; flex-direction: column; }
+.ai-page .page-head { flex: 0 0 auto; }
+.ai-page .ai-query { flex: 0 0 auto; margin-bottom: var(--sp-4); }
+.ai-page .alert { flex: 0 0 auto; margin-bottom: var(--sp-4); }
+.ai-page .split { flex: 1 1 0; min-height: 0; height: auto; }
+
+.ai-query .query-bar { flex-wrap: nowrap; }
+
+/* 左栏筛选胶囊：与面板头挤在一起时收一点内边距 */
+.ai-list .chips {
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--border-divider);
+  flex-wrap: wrap;
+}
+
+/* 记录条里的「命中条数」标签，压在标题行右侧 */
+.ai-list .rec__hit {
+  font-family: var(--font-num);
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+
+/* 左栏 5 条记录要装进 566px 的分栏：一条记录压成两行（标题 + 摘要单行），
+   否则第 5 条会被底部的分页条压住（内容溢出滚动区 11px）*/
+.ai-list .rec__text {
+  -webkit-line-clamp: 1;
+}
+
+/* 右栏正文内边距与滚动：panel__body 自己滚，底部操作条固定 */
+.ai-detail .panel__body { padding: var(--sp-5); }
+
+/* 会话头：用户 + 会话号 + 生成元信息 */
+.ai-meta {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  padding-bottom: var(--sp-4);
+  border-bottom: 1px solid var(--border-divider);
+}
+.ai-meta__main { flex: 1 1 auto; min-width: 0; }
+.ai-meta__title {
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+}
+.ai-meta__sub {
+  margin-top: var(--sp-1);
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+  font-family: var(--font-num);
+}
+.ai-meta__tags {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex: 0 0 auto;
+}
+
+/* 问答气泡 */
+.ai-chat { margin-top: var(--sp-4); }
+.ai-msg { display: flex; margin-bottom: var(--sp-3); }
+.ai-msg--user { justify-content: flex-end; }
+.ai-msg__body {
+  max-width: 72%;
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-md);
+  background: var(--bg-surface-2);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-relaxed);
+  color: var(--text-body);
+}
+.ai-msg--user .ai-msg__body {
+  background: var(--brand-primary-soft);
+  border-color: transparent;
+}
+.ai-msg__head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-2);
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+.ai-msg__time { font-family: var(--font-num); }
+.ai-msg__disclaimer {
+  margin-top: var(--sp-2);
+  padding-top: var(--sp-2);
+  border-top: 1px dashed var(--border-strong);
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+
+/* refs 快照区：整块浅底，和回答分开，强调「这是生成时冻结的证据」 */
+.ai-refs {
+  margin-top: var(--sp-4);
+  padding: var(--sp-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-md);
+  background: var(--bg-surface-2);
+}
+.ai-refs__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--sp-3);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--text-body);
+}
+.ai-refs__note { font-size: var(--fs-xs); color: var(--text-secondary); font-weight: var(--fw-regular); }
+.ai-ref {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  padding: var(--sp-3) 0;
+  border-top: 1px solid var(--border-divider);
+}
+.ai-ref:first-of-type { border-top: 0; padding-top: 0; }
+.ai-ref__main { flex: 1 1 auto; min-width: 0; }
+.ai-ref__title {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+}
+.ai-ref__no {
+  font-family: var(--font-num);
+  color: var(--brand-text);
+  margin-inline-start: var(--sp-2);
+}
+.ai-ref__text {
+  margin-top: var(--sp-1);
+  font-size: var(--fs-xs);
+  line-height: var(--lh-relaxed);
+  color: var(--text-secondary);
+}
+.ai-ref__tag { flex: 0 0 auto; }
+</style>
+</head>
+<body class="shell" data-page="27-ai-retrieval">
+
+<aside class="sidebar" id="sidebar"></aside>
+
+<div class="main">
+  <header class="navbar" id="navbar"></header>
+  <div class="tags-view" id="tags-view"></div>
+
+  <main class="app-container scroll-y ai-page">
+
+    <!-- ==================== 页头 ==================== -->
+    <div class="page-head">
+      <div>
+        <h1 class="page-head__title">AI 对话检索</h1>
+        <p class="page-head__desc">
+          按用户与时间检索 AI 回答原文及其引用的法条快照。原文与快照只读，用于合规追溯与投诉核查。
+        </p>
+      </div>
+      <div class="page-head__actions">
+        <button class="btn" type="button">导出检索结果</button>
+      </div>
+    </div>
+
+    <!-- ==================== 查询栏 ==================== -->
+    <div class="card ai-query">
+      <form class="query-bar" method="get">
+        <div class="field-inline">
+          <label class="field-inline__label" for="q-user">用户</label>
+          <input class="input" id="q-user" type="text" placeholder="昵称 / 手机号 / 用户 ID">
+        </div>
+
+        <div class="field-inline">
+          <label class="field-inline__label" for="q-range">时间范围</label>
+          <select class="select" id="q-range">
+            <option>近 7 天</option>
+            <option>近 30 天</option>
+            <option>近 90 天</option>
+            <option>自定义</option>
+          </select>
+        </div>
+
+        <div class="field-inline">
+          <label class="field-inline__label" for="q-ref">法条引用</label>
+          <select class="select" id="q-ref">
+            <option>全部</option>
+            <option>已校验通过</option>
+            <option>条号不存在（已拦截）</option>
+            <option>未引用法条</option>
+          </select>
+        </div>
+
+        <div class="field-inline">
+          <label class="field-inline__label" for="q-review">复核状态</label>
+          <select class="select" id="q-review">
+            <option>全部</option>
+            <option>待复核</option>
+            <option>已复核</option>
+          </select>
+        </div>
+
+        <div class="query-bar__actions">
+          <button class="btn btn--primary" type="submit">查询</button>
+          <button class="btn" type="reset">重置</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="alert alert--warning">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M12 4.2 3.4 19.4h17.2z"/><path d="M12 9.6v4"/><path d="M12 16.2v.2"/>
+      </svg>
+      <span>
+        <b>refs 快照在回答生成时冻结，法条后续修订不会改写历史记录。</b>
+        所以「回答里引的条文」与「快照里的条文内容」不一致时，说明法条在回答之后被改过，需要人工核对。
+      </span>
+    </div>
+
+    <div class="split ai-split">
+
+      <!-- ==================== 左：对话记录 ==================== -->
+      <section class="panel ai-list">
+        <div class="panel__head">
+          <h2 class="panel__title">对话记录</h2>
+          <span class="tag tag--warning tag--dot">3 条待复核</span>
+        </div>
+
+        <div class="chips">
+          <a class="chip chip--active" href="#">全部 <span class="chip__count">128</span></a>
+          <a class="chip" href="#">命中 <span class="chip__count">96</span></a>
+          <a class="chip" href="#">未命中 <span class="chip__count">32</span></a>
+        </div>
+
+        <div class="panel__body">
+          <a class="rec rec--active" href="#">
+            <div class="rec__top">
+              <span class="rec__title">阿依努尔·买买提</span>
+              <span class="tag tag--outline">2 条引用</span>
+            </div>
+            <div class="rec__text">
+              被公司辞退，没有提前通知，能要经济补偿吗？
+            </div>
+            <div class="rec__meta">U-10284 · 2026-10-29 21:40 · 待复核</div>
+          </a>
+
+          <a class="rec" href="#">
+            <div class="rec__top">
+              <span class="rec__title">李伟</span>
+              <span class="tag tag--outline">3 条引用</span>
+            </div>
+            <div class="rec__text">
+              离婚的时候孩子抚养权一般怎么判？
+            </div>
+            <div class="rec__meta">U-10281 · 2026-10-29 20:15 · 已复核</div>
+          </a>
+
+          <a class="rec" href="#">
+            <div class="rec__top">
+              <span class="rec__title">张建国</span>
+              <span class="tag tag--outline">1 条引用</span>
+            </div>
+            <div class="rec__text">
+              借条上没写利息，还能不能主张利息？
+            </div>
+            <div class="rec__meta">U-10283 · 2026-10-29 18:52 · 待复核</div>
+          </a>
+
+          <a class="rec" href="#">
+            <div class="rec__top">
+              <span class="rec__title">古丽娜尔·哈力克</span>
+              <span class="tag tag--danger">0 条引用</span>
+            </div>
+            <div class="rec__text">
+              工伤认定一般要多久出结果？
+            </div>
+            <div class="rec__meta">U-10280 · 2026-10-29 16:30 · 未命中法条</div>
+          </a>
+        </div>
+
+        <div class="panel__foot">
+          <span class="pagination__total" style="margin:0">共 128 条 · 第 1 / 13 页</span>
+        </div>
+      </section>
+
+      <!-- ==================== 右：回答原文 + refs 快照 ==================== -->
+      <section class="panel ai-detail">
+        <div class="panel__head">
+          <h2 class="panel__title">回答原文与法条快照</h2>
+          <span class="tag tag--outline">AI-2026-1029-4471</span>
+        </div>
+
+        <div class="panel__body">
+
+          <div class="ai-meta">
+            <span class="avatar">阿</span>
+            <div class="ai-meta__main">
+              <div class="ai-meta__title">阿依努尔·买买提（U-10284）</div>
+              <div class="ai-meta__sub">
+                会话 AI-2026-1029-4471 · 模型 doubao-seed-1.6-flash · 首字节 412 ms · 2026-10-29 21:40
+              </div>
+            </div>
+            <div class="ai-meta__tags">
+              <span class="tag tag--outline">AI 生成</span>
+              <span class="tag tag--dot tag--warning">待复核</span>
+            </div>
+          </div>
+
+          <div class="ai-chat">
+
+            <div class="ai-msg ai-msg--user">
+              <div class="ai-msg__body">
+                被公司辞退，没有提前通知，能要经济补偿吗？
+                <div class="ai-msg__time" style="margin-top:6px;text-align:right">21:40</div>
+              </div>
+            </div>
+
+            <div class="ai-msg">
+              <div class="ai-msg__body">
+                <div class="ai-msg__head">
+                  <span class="tag tag--outline">AI 生成</span>
+                  <span class="ai-msg__time">21:40 · 用时 3.2 s</span>
+                </div>
+                <p>
+                  先区分两种情形：<b>用人单位单方解除</b>与<b>协商一致解除</b>，补偿标准不同。
+                </p>
+                <p style="margin-top:var(--sp-2)">
+                  如果公司以你「不能胜任工作」或「客观情况发生重大变化」为由解除，且未提前三十日书面通知，依据《劳动合同法》第四十条、第四十七条，需要支付经济补偿。
+                </p>
+                <p style="margin-top:var(--sp-2)">
+                  经济补偿按在本单位工作年限计算：每满一年支付一个月工资，六个月以上不满一年的按一年计，不满六个月的支付半个月工资。
+                </p>
+                <p style="margin-top:var(--sp-2)">
+                  如果公司没有合法理由直接辞退，可能构成违法解除，依据《劳动合同法》第八十七条，需要按经济补偿标准的二倍支付赔偿金。
+                </p>
+                <div class="ai-msg__disclaimer">
+                  以上为法律信息整理，不构成法律意见。你的具体情形还取决于解除通知书上的理由与证据，建议携带材料咨询执业律师。
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- refs 快照：生成时冻结 -->
+          <div class="ai-refs">
+            <div class="ai-refs__head">
+              <span>refs 快照</span>
+              <span class="ai-refs__note">生成时冻结 · 2 条 · 版本 v1</span>
+            </div>
+
+            <div class="ai-ref">
+              <div class="ai-ref__main">
+                <div class="ai-ref__title">
+                  中华人民共和国劳动合同法<span class="ai-ref__no">第 47 条</span>
+                </div>
+                <div class="ai-ref__text">
+                  经济补偿按劳动者在本单位工作的年限，每满一年支付一个月工资的标准向劳动者支付。
+                </div>
+              </div>
+              <span class="tag tag--dot tag--success ai-ref__tag">已校验</span>
+            </div>
+
+            <div class="ai-ref">
+              <div class="ai-ref__main">
+                <div class="ai-ref__title">
+                  中华人民共和国劳动合同法<span class="ai-ref__no">第 87 条</span>
+                </div>
+                <div class="ai-ref__text">
+                  用人单位违反本法规定解除或者终止劳动合同的，应当依照本法第四十七条规定的经济补偿标准的二倍向劳动者支付赔偿金。
+                </div>
+              </div>
+              <span class="tag tag--dot tag--success ai-ref__tag">已校验</span>
+            </div>
+
+            <div class="ai-ref">
+              <div class="ai-ref__main">
+                <div class="ai-ref__title">
+                  中华人民共和国民法典<span class="ai-ref__no">第 9999 条</span>
+                </div>
+                <div class="ai-ref__text">
+                  模型生成时引用了该条号，输出侧存在性校验未在法条库中找到，已替换为「未找到该条文」提示，原文保留在此供复核。
+                </div>
+              </div>
+              <span class="tag tag--dot tag--danger ai-ref__tag">条号不存在</span>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="panel__foot" style="display:flex;justify-content:flex-end;gap:8px">
+          <button class="btn" type="button">导出本条记录</button>
+          <button class="btn btn--primary" type="button">标记已复核</button>
+        </div>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<script src="shell.js"></script>
+</body>
+</html>

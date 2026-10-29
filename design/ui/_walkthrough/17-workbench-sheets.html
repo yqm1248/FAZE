@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>法泽 · 律师工作台面板走查</title>
+<style>
+/* ==========================================================================
+   走查页：第 17 批（66 / 67）的两个面板
+   ==========================================================================
+   用途：画布一屏只显示主态，两个底部面板集中在这里看。
+   注意：
+     1. 不是交付屏，放在 _walkthrough/，不上画布、不计入交付页数
+     2. 面板靠浮层 hash 打开（#open-withdraw / #open-price）
+     3. 必须用 HTTP 打开（端口 8123），file:// 下 iframe 的 hash 不生效
+   核对要点：
+     withdraw ——三个金额分开写：可提现 / 待结算 / 本月收入。
+                 「全部提现」只填可提现那一部分，不能把待结算的算进去；
+                 账户姓名与实名一致这条写进面板，不是等绑卡被拒才说
+     price    ——改价是报价单，必须有确认步骤；面板里写清「只影响新订单」
+   ========================================================================== */
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 28px;
+  background: #EDEFF3;
+  font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  color: #1A1A1A;
+}
+
+.walk {
+  display: grid;
+  grid-template-columns: repeat(2, 390px);
+  gap: 24px 28px;
+  justify-content: center;
+}
+
+.walk__item {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.walk__head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.walk__name {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.walk__tag {
+  font-size: 11px;
+  font-weight: 500;
+  color: #4A66EE;
+  background: #EEF2FF;
+  padding: 2px 7px;
+  border-radius: 4px;
+  line-height: 1.5;
+}
+
+.walk__note {
+  margin: 0;
+  font-size: 12px;
+  color: #63696E;
+  line-height: 1.6;
+  max-width: 390px;
+}
+
+iframe {
+  width: 390px;
+  height: 844px;
+  border: 0;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.1);
+}
+</style>
+</head>
+<body>
+
+<div class="walk">
+
+  <section class="walk__item">
+    <div class="walk__head">
+      <h2 class="walk__name">提现面板</h2>
+      <span class="walk__tag">withdraw</span>
+    </div>
+    <p class="walk__note">
+      提现是全项目唯一「钱能出去」的动作，所以面板里把三件事写全：提多少、到哪个账户、多久到账。账户姓名标了「与实名一致」—— 这条不写进面板，用户会绑别人的卡再被拒。底部小字单独说明待结算那 ¥1,200 为什么提不了。
+    </p>
+    <iframe src="../66-income.html#open-withdraw" title="提现面板"></iframe>
+  </section>
+
+  <section class="walk__item">
+    <div class="walk__head">
+      <h2 class="walk__name">改价面板</h2>
+      <span class="walk__tag">price</span>
+    </div>
+    <p class="walk__note">
+      价格是报价单，不做行内编辑 —— 手滑少打个零就变成 9.9 元咨询。面板里写清「只影响新订单」和价格区间，避免律师改完价来问「之前的单怎么算」。
+    </p>
+    <iframe src="../67-service-settings.html#open-price" title="改价面板"></iframe>
+  </section>
+
+</div>
+
+</body>
+</html>

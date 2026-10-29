@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390, initial-scale=1">
+<meta name="dsh-design" content="app">
+<title>实名认证</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   实名认证页（第 13 批 · 延展，无参考图）
+   ==========================================================================
+   职责：采集姓名、身份证号、证件正反面照片，提交人工审核；展示四种状态。
+   入口：05-profile 顶部提示条 / 42-account-security「实名认证」
+   数据来源：实名认证接口（姓名 / 身份证号 / 证件影像 OSS 地址）
+   四态：form（默认，未认证可填）/ pending（审核中）/ done（已认证）/ rejected（驳回）
+         用 URL hash 切换：#state-pending / #state-done / #state-rejected
+
+   ★ 这是全应用唯一采集身份证的页面，也是《个人信息保护法》第 29 条
+      「敏感个人信息需单独同意」的落点。所以页面上必须有：
+        1. 一句说清「用来干什么」的说明（不是笼统的「为了提供更好服务」）
+        2. 一个独立的勾选框，不能混在注册时的总协议里
+     这不是可省的形式，是上架审核会查的项。
+
+   ★ 提交按钮不做禁用态。做成禁用后用户点不动、也不知道差什么，
+     只能到处乱点 —— 这是最常见的「按钮坏了」投诉来源。
+     改成可点 + 缺项就地标红并滚动到第一处缺失，反馈具体得多。
+
+   ★ 姓名带间隔号（·）是本地用户的真实情况，不是笔误。
+     马合木提·艾山 中间的「·」必须与身份证完全一致，
+     少一个点、用英文句点代替，核验都过不了 —— 所以字段下方把这条单独写出来。
+   ========================================================================== */
+
+body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-canvas);
+}
+
+.navbar {
+  background: var(--bg-surface);
+}
+
+.screen {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding: 0 var(--sp-xl) var(--sp-xxl);
+}
+.screen::-webkit-scrollbar {
+  display: none;
+}
+
+/* ---------- 顶部说明块 ---------- */
+.tip-block {
+  display: flex;
+  gap: var(--sp-md);
+  margin-block-start: var(--sp-md);
+  padding: var(--sp-md) var(--sp-lg);
+  border-radius: var(--r-md);
+  background: var(--brand-primary-soft);
+}
+
+.tip-block svg {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  margin-block-start: 1px;
+  color: var(--brand-primary-pressed);
+}
+
+.tip-block__title {
+  font-size: var(--fs-md);
+  font-weight: var(--fw-bold);
+  color: var(--brand-primary-pressed);
+  line-height: 1.5;
+}
+
+.tip-block__desc {
+  margin-block-start: 4px;
+  font-size: var(--fs-caption);
+  color: var(--text-secondary);
+  line-height: 1.7;
+}
+
+/* ---------- 卡片 ---------- */
+.card-block {
+  margin-block-start: var(--sp-md);
+  padding: var(--sp-md) var(--sp-lg) var(--sp-md);
+  border-radius: var(--r-md);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.block-title {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-sm);
+  padding-block: var(--sp-xs) var(--sp-sm);
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+}
+
+.block-title__note {
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-regular);
+  color: var(--text-muted);
+}
+
+/* ---------- 字段行 ---------- */
+.field-line {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  min-height: 54px;
+  border-block-end: 1px solid var(--border-divider);
+}
+
+.field-line:last-of-type {
+  border-block-end: 0;
+}
+
+.field-line__label {
+  flex: 0 0 84px;
+  font-size: var(--fs-md);
+  color: var(--text-secondary);
+}
+
+.field-line input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 54px;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: var(--fs-lg);
+  outline: none;
+}
+
+.field-line input::placeholder {
+  color: #A3A9AE;
+}
+
+/* 已填但待核对的字段：右侧一个「核对」提示，不是错误态 */
+.field-line__live {
+  flex: 0 0 auto;
+  font-family: var(--font-num);
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+}
+
+/* ---------- 字段下方的注意事项 ---------- */
+.field-tip {
+  padding: var(--sp-sm) 0 var(--sp-xs);
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.7;
+}
+
+.field-tip b {
+  font-weight: var(--fw-medium);
+  color: var(--text-secondary);
+}
+
+/* ---------- 同意勾选 ---------- */
+.agree {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-sm);
+  margin-block-start: var(--sp-md);
+  padding: 0 2px;
+}
+
+.agree__box {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  margin: 2px 0 0;
+  accent-color: var(--brand-primary);
+}
+
+.agree__text {
+  flex: 1 1 auto;
+  font-size: var(--fs-caption);
+  color: var(--text-secondary);
+  line-height: 1.7;
+}
+
+.agree__text a {
+  color: var(--brand-primary-pressed);
+  text-decoration: none;
+}
+
+/* ---------- 键值信息（审核中 / 已认证态） ---------- */
+.kv {
+  padding-block: var(--sp-xs);
+}
+
+.kv__row {
+  display: flex;
+  gap: var(--sp-md);
+  padding-block: 11px;
+  border-block-end: 1px solid var(--border-divider);
+  font-size: var(--fs-md);
+  line-height: 1.5;
+}
+
+.kv__row:last-child {
+  border-block-end: 0;
+}
+
+.kv__key {
+  flex: 0 0 84px;
+  color: var(--text-secondary);
+}
+
+.kv__val {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--text-primary);
+  word-break: break-all;
+}
+
+/* 身份证号这类等宽数字，用 font-num 防止数字宽度不一导致星号位置跳动 */
+.kv__val--num {
+  font-family: var(--font-num);
+  letter-spacing: 0.2px;
+}
+
+/* ---------- 驳回原因 ---------- */
+.reject-box {
+  margin-block-start: var(--sp-md);
+  padding: var(--sp-md) var(--sp-lg);
+  border-inline-start: 3px solid var(--state-danger);
+  border-radius: var(--r-md);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.reject-box__title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-md);
+  font-weight: var(--fw-bold);
+  color: var(--state-danger);
+}
+
+.reject-box__title svg {
+  width: 18px;
+  height: 18px;
+}
+
+.reject-box__desc {
+  margin-block-start: var(--sp-sm);
+  font-size: var(--fs-caption);
+  color: var(--text-secondary);
+  line-height: 1.8;
+}
+
+/* ---------- 底部小字 ---------- */
+.meta-note {
+  margin-block-start: var(--sp-lg);
+  padding-inline: 2px;
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.8;
+}
+
+.meta-note b {
+  font-weight: var(--fw-medium);
+  color: var(--text-secondary);
+}
+</style>
+</head>
+<body>
+
+<header class="statusbar">
+  <span>9:41</span>
+  <span class="statusbar__icons">
+    <svg width="17" height="11" viewBox="0 0 17 11" fill="none" aria-hidden="true">
+      <rect x="0" y="7" width="3" height="4" rx="1" fill="currentColor"/>
+      <rect x="4.5" y="5" width="3" height="6" rx="1" fill="currentColor"/>
+      <rect x="9" y="2.5" width="3" height="8.5" rx="1" fill="currentColor"/>
+      <rect x="13.5" y="0" width="3" height="11" rx="1" fill="currentColor"/>
+    </svg>
+    <svg width="16" height="11" viewBox="0 0 16 11" fill="none" aria-hidden="true">
+      <path d="M1 3.2A10.5 10.5 0 0 1 15 3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M3.6 5.9a7 7 0 0 1 8.8 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M6.2 8.6a3.4 3.4 0 0 1 3.6 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden="true">
+      <rect x="0.6" y="0.6" width="21" height="10.8" rx="3" stroke="currentColor" stroke-opacity="0.4" stroke-width="1.2"/>
+      <rect x="2.2" y="2.2" width="15" height="7.6" rx="1.8" fill="currentColor"/>
+      <path d="M23.4 4.2v3.6" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+  </span>
+</header>
+
+<div class="navbar">
+  <a class="navbar__back" href="05-profile.html" aria-label="返回我的">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M15.2 4.6 7.8 12l7.4 7.4" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </a>
+  <h1 class="navbar__title">实名认证</h1>
+</div>
+
+<main class="screen">
+
+  <!-- ====================================================================
+       状态 form：未认证，可填写（默认）
+       ==================================================================== -->
+  <section data-state="form">
+
+    <section class="tip-block">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M12 2.9 4.6 5.7v6c0 4.3 3 8 7.4 9 4.4-1 7.4-4.7 7.4-9v-6L12 2.9Z"
+              stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+        <path d="m8.9 11.8 2.2 2.2 4-4.3" stroke="currentColor" stroke-width="1.9"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <div>
+        <p class="tip-block__title">为什么需要实名</p>
+        <p class="tip-block__desc">向法院提交的材料必须由本人签署，所以平台要先确认你是你。实名信息只用于身份核验与文书签署，加密存储，除办案律师和受理法院外不对任何第三方展示，也不会用于营销。</p>
+      </div>
+    </section>
+
+    <section class="card-block">
+      <h2 class="block-title">身份信息</h2>
+
+      <div class="field-line">
+        <span class="field-line__label">真实姓名</span>
+        <input type="text" value="马合木提·艾山" aria-label="真实姓名" data-field="name">
+      </div>
+
+      <div class="field-line">
+        <span class="field-line__label">身份证号</span>
+        <input type="text" inputmode="text" maxlength="18" value="654002198504121230"
+               aria-label="身份证号" data-field="idcard">
+        <span class="field-line__live">18 / 18</span>
+      </div>
+
+      <p class="field-tip">
+        <b>姓名必须与身份证完全一致</b>，包括中间的间隔号「·」。名字较长的请写全，不要省略父名。身份证号末位如果是 X，请用大写。
+      </p>
+    </section>
+
+    <section class="card-block">
+      <h2 class="block-title">
+        证件照片
+        <span class="block-title__note">两张都要传</span>
+      </h2>
+
+      <div class="upload-list">
+        <button class="upload is-done" type="button" data-upload>
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <rect x="3.4" y="5" width="17.2" height="14" rx="2.2" stroke="currentColor" stroke-width="1.8"/>
+            <circle cx="9" cy="10.6" r="2.2" stroke="currentColor" stroke-width="1.7"/>
+            <path d="M5.4 16.6c.4-1.9 1.8-3 3.6-3s3.2 1.1 3.6 3" stroke="currentColor"
+                  stroke-width="1.7" stroke-linecap="round"/>
+            <path d="M15 10.2h3.2M15 13.4h3.2" stroke="currentColor" stroke-width="1.7"
+                  stroke-linecap="round"/>
+          </svg>
+          <span class="upload__text">
+            身份证人像面
+            <span class="upload__hint" data-upload-hint
+                  data-idle="点击拍照" data-done="已上传，点击可重拍">已上传，点击可重拍</span>
+          </span>
+        </button>
+
+        <button class="upload is-missing" type="button" data-upload>
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M12 3.2v17.6M3.2 12h17.6" stroke="currentColor" stroke-width="1.9"
+                  stroke-linecap="round"/>
+          </svg>
+          <span class="upload__text">
+            身份证国徽面
+            <span class="upload__hint" data-upload-hint
+                  data-idle="必填，还未上传 · 点击拍照"
+                  data-done="已上传，点击可重拍">必填，还未上传 · 点击拍照</span>
+          </span>
+        </button>
+      </div>
+
+      <p class="field-tip">
+        拍摄时把证件放在纯色背景上，<b>四角完整入框、不要反光、不要拍复印件</b>。照片只用来看清证件，不做其他用途。
+      </p>
+    </section>
+
+    <label class="agree">
+      <input type="checkbox" class="agree__box" checked data-agree>
+      <span class="agree__text">我已阅读并同意<a href="11-privacy.html">《实名认证信息处理说明》</a>，知悉身份证信息属于敏感个人信息，仅用于本页所述用途。</span>
+    </label>
+
+    <p class="meta-note">
+      <b>提交后不能自行修改。</b>证件到期换证、姓名变更的，请联系客服并提供新证件，由人工核实后更新。
+    </p>
+
+  </section>
+
+  <!-- ====================================================================
+       状态 pending：审核中
+       ==================================================================== -->
+  <section data-state="pending" hidden>
+
+    <section class="status-hero status-hero--pending">
+      <div class="status-hero__icon">
+        <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
+          <circle cx="32" cy="32" r="25" stroke="currentColor" stroke-width="3"/>
+          <path d="M32 17v16l11 6" stroke="currentColor" stroke-width="3"
+                stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <h2 class="status-hero__title">审核中</h2>
+      <p class="status-hero__desc">已收到你的实名信息，一般 1 个工作日内出结果。审核期间不影响浏览、咨询和使用其他功能，结果会通过消息通知你。</p>
+    </section>
+
+    <section class="card-block">
+      <h2 class="block-title">提交内容</h2>
+      <div class="kv">
+        <div class="kv__row">
+          <span class="kv__key">真实姓名</span>
+          <span class="kv__val">马合木提·艾山</span>
+        </div>
+        <div class="kv__row">
+          <span class="kv__key">身份证号</span>
+          <span class="kv__val kv__val--num">654002********1230</span>
+        </div>
+        <div class="kv__row">
+          <span class="kv__key">提交时间</span>
+          <span class="kv__val kv__val--num">2026-10-29 14:32</span>
+        </div>
+        <div class="kv__row">
+          <span class="kv__key">当前状态</span>
+          <span class="kv__val">待人工审核</span>
+        </div>
+      </div>
+    </section>
+
+    <p class="meta-note">
+      审核由人工完成。被驳回的三种最常见原因是：<b>照片模糊或反光</b>、<b>身份证已过期</b>、<b>姓名与证件不一致</b>。提交前先看一眼这三项，能省一天。
+    </p>
+
+  </section>
+
+  <!-- ====================================================================
+       状态 done：已认证
+       ==================================================================== -->
+  <section data-state="done" hidden>
+
+    <section class="status-hero">
+      <div class="status-hero__icon">
+        <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
+          <circle cx="32" cy="32" r="25" stroke="currentColor" stroke-width="3"/>
+          <path d="m21 33 8 8 15-16" stroke="currentColor" stroke-width="3.4"
+                stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <h2 class="status-hero__title">已完成实名认证</h2>
+      <p class="status-hero__desc">现在可以使用在线提交材料、文书签署和案件委托等需要真实身份的功能。</p>
+    </section>
+
+    <section class="card-block">
+      <h2 class="block-title">认证信息</h2>
+      <div class="kv">
+        <div class="kv__row">
+          <span class="kv__key">真实姓名</span>
+          <span class="kv__val">马合木提·艾山</span>
+        </div>
+        <div class="kv__row">
+          <span class="kv__key">身份证号</span>
+          <span class="kv__val kv__val--num">654002********1230</span>
+        </div>
+        <div class="kv__row">
+          <span class="kv__key">认证时间</span>
+          <span class="kv__val kv__val--num">2026-10-30 09:18</span>
+        </div>
+        <div class="kv__row">
+          <span class="kv__key">认证方式</span>
+          <span class="kv__val">身份证信息 + 证件照片</span>
+        </div>
+      </div>
+    </section>
+
+    <p class="meta-note">
+      实名信息与账号绑定，不能自行解绑或修改。若证件到期换证或姓名变更，请联系客服并提供新证件。
+    </p>
+
+  </section>
+
+  <!-- ====================================================================
+       状态 rejected：驳回
+       ==================================================================== -->
+  <section data-state="rejected" hidden>
+
+    <section class="status-hero status-hero--danger">
+      <div class="status-hero__icon">
+        <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
+          <circle cx="32" cy="32" r="25" stroke="currentColor" stroke-width="3"/>
+          <path d="M22 22 42 42M42 22 22 42" stroke="currentColor" stroke-width="3.4"
+                stroke-linecap="round"/>
+        </svg>
+      </div>
+      <h2 class="status-hero__title">认证未通过</h2>
+      <p class="status-hero__desc">这次没有通过，原因见下方。按提示重新拍一次照片就能再提交，不限制次数。</p>
+    </section>
+
+    <section class="reject-box">
+      <p class="reject-box__title">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="12" cy="12" r="9.2" stroke="currentColor" stroke-width="1.8"/>
+          <path d="M12 7.2v6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+          <circle cx="12" cy="16.4" r="1.2" fill="currentColor"/>
+        </svg>
+        驳回原因
+      </p>
+      <p class="reject-box__desc">国徽面照片边缘被裁掉了一角，看不出真伪。<b>请把整张证件放进取景框内</b>，四周留出余量。人像面无需重拍。</p>
+    </section>
+
+    <section class="card-block">
+      <h2 class="block-title">已提交内容</h2>
+      <div class="kv">
+        <div class="kv__row">
+          <span class="kv__key">真实姓名</span>
+          <span class="kv__val">马合木提·艾山</span>
+        </div>
+        <div class="kv__row">
+          <span class="kv__key">身份证号</span>
+          <span class="kv__val kv__val--num">654002********1230</span>
+        </div>
+        <div class="kv__row">
+          <span class="kv__key">审核时间</span>
+          <span class="kv__val kv__val--num">2026-10-30 10:06</span>
+        </div>
+      </div>
+    </section>
+
+      <p class="meta-note">
+      重新提交时只需重拍被驳回的那一面，其他信息无需重复填写。不限提交次数，也不额外收费。
+    </p>
+
+  </section>
+
+</main>
+
+<!-- 底部按钮跟着状态走：只有「待填写」和「被驳回」两个状态需要操作。
+     审核中 / 已认证没有可做的事，给个按钮反而让人以为要再点一下。
+     这两条 actionbar 也是 body（flex column）的 flex 子项，与 .screen 同级，
+     所以它们不会盖住内容 —— 见 components.css 第 19 段。 -->
+<div class="actionbar" data-state="form">
+  <button class="btn-primary actionbar__cta" type="button" data-submit-verify>提交审核</button>
+</div>
+
+<div class="actionbar" data-state="rejected" hidden>
+  <button class="btn-primary actionbar__cta" type="button" data-reverify>重新提交</button>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

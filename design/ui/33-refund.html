@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390, initial-scale=1">
+<meta name="dsh-design" content="app">
+<title>申请退款</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   退款申请页（第 9 批 · 延展，无参考图）
+   ==========================================================================
+   职责：让用户说明退款原因并提交申请。金额不可自己填，由平台按规则核定。
+   入口：30-order-detail.html 已完成/进行中态的「申请退款」
+   母版：**表单页母版**（同 15-lawyer-join / 20-filing：
+         分组卡 + 单选/多选 + 多行输入 + 底部固定提交栏）
+   数据来源：订单详情（可退金额分 / 服务开始时间 / 是否已代缴费用）
+
+   ★★★ 为什么退款金额是只读的、不给用户填 ★★★
+     让用户自己填金额，等于邀请他填错或者填一个不可能的数，
+     然后再被驳回一次 —— 多一轮来回，用户更生气。
+     能退多少由「服务是否开始、已服务多少」算出来，写在页面上让人看，
+     有异议走客服，比让他填一个数字再驳回更省事，也更少纠纷。
+
+   ★ 退款原因用单选不用多选：
+     一次退款只有一个主要原因。多选会让审核不知道该按哪条判定标准处理。
+
+   ★ 选「其他原因」必须填说明，否则提交按钮不可用：
+     只写「其他」两个字的退款申请，审核没法判断，只能打回让用户补充。
+     一开始就要求写，能少一轮。
+
+   ★ 合规红线：平台退的是**平台收取的服务费**。
+     诉讼费是人民法院收的，不在平台退款范围 —— 这句必须写在规则里。
+     不写清楚，用户会以为退款能连诉讼费一起退，然后去投诉平台吞钱。
+   ========================================================================== */
+
+body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-canvas);
+}
+
+.navbar {
+  background: transparent;
+}
+
+.screen {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding: 0 var(--sp-xl) var(--sp-xl);
+  background: linear-gradient(to bottom, var(--banner-start) 0, var(--bg-canvas) 240px);
+}
+.screen::-webkit-scrollbar {
+  display: none;
+}
+
+.screen > section + section {
+  margin-block-start: var(--sp-md);
+}
+
+/* ---------- 可退金额 ---------- */
+.refund-hero {
+  padding-block: var(--sp-lg) var(--sp-xl);
+  text-align: center;
+}
+
+.refund-hero__label {
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.refund-hero__amount {
+  display: block;
+  margin-block-start: 2px;
+}
+
+.refund-hero__desc {
+  margin-block-start: 4px;
+  font-size: var(--fs-md);
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* ---------- 信息卡 ---------- */
+.card-block {
+  padding: var(--sp-md) var(--sp-lg) var(--sp-lg);
+  border-radius: var(--r-md);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.block-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-sm);
+  padding-block: var(--sp-xs) var(--sp-sm);
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.block-title__req {
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-regular);
+  color: var(--state-danger);
+}
+
+.info-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-md);
+  padding-block: 7px;
+  font-size: var(--fs-md);
+  line-height: 1.5;
+}
+
+.info-row__label {
+  flex: 0 0 auto;
+  color: var(--text-muted);
+}
+
+.info-row__value {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--text-body);
+  text-align: end;
+  word-break: break-all;
+}
+
+.info-row__value--code {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+/* ---------- 退款原因（单选行） ---------- */
+.reason-list {
+  margin-block-start: var(--sp-xs);
+}
+
+.reason {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-md);
+  width: 100%;
+  min-height: 52px;
+  padding: var(--sp-sm) 0;
+  border: 0;
+  border-block-end: 1px solid var(--border-divider);
+  background: transparent;
+  font-family: inherit;
+  font-size: var(--fs-lg);
+  color: var(--text-body);
+  text-align: start;
+  cursor: pointer;
+}
+
+.reason:last-child {
+  border-block-end: 0;
+}
+
+.reason__text {
+  flex: 1 1 auto;
+  min-width: 0;
+  line-height: 1.5;
+}
+
+.reason__mark {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  border: 1.5px solid var(--border-outline);
+  border-radius: 50%;
+  background: var(--bg-surface);
+}
+
+/* 选中用径向渐变画实心点，避免 border-width 变化把圆挤变形 */
+.reason.is-active .reason__mark {
+  border-color: var(--brand-primary);
+  background: radial-gradient(circle at center,
+    var(--brand-primary) 0 5px, var(--bg-surface) 5.5px);
+}
+
+/* ---------- 补充说明 ---------- */
+.remark-box {
+  display: block;
+  width: 100%;
+  min-height: 88px;
+  margin-block-start: var(--sp-xs);
+  padding: var(--sp-md);
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: var(--fs-md);
+  line-height: 1.7;
+  resize: none;
+  outline: none;
+}
+
+.remark-box::placeholder {
+  color: #A3A9AE;
+}
+
+.remark-box:focus {
+  border-color: var(--brand-primary);
+  background: var(--bg-surface);
+}
+
+.remark-count {
+  display: block;
+  margin-block-start: var(--sp-xs);
+  text-align: end;
+  font-family: var(--font-num);
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- 退款去向 ---------- */
+.back-to {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-md);
+  padding-block: var(--sp-xs) var(--sp-sm);
+}
+
+.back-to__icon {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--brand-primary-soft);
+  color: var(--brand-primary-pressed);
+}
+
+.back-to__icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.back-to__main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.back-to__name {
+  display: block;
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.back-to__desc {
+  display: block;
+  margin-block-start: 2px;
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+/* ---------- 规则 ---------- */
+.rules {
+  margin-block-start: var(--sp-md);
+  padding: var(--sp-md) var(--sp-lg);
+  border-radius: var(--r-sm);
+  background: var(--bg-surface);
+}
+
+.rules__title {
+  font-size: var(--fs-md);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+
+.rules__list {
+  margin-block-start: var(--sp-xs);
+  padding-inline-start: 15px;
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.8;
+}
+
+.rules__list li {
+  margin-block-start: 2px;
+}
+
+/* 诉讼费那句单独加粗 —— 它不是小字免责，是用户投诉最多的一条 */
+.rules__list b {
+  font-weight: var(--fw-medium);
+  color: var(--state-warning-deep);
+}
+
+/* ---------- 提交确认框 ---------- */
+.confirm-rows {
+  margin-block: var(--sp-md) var(--sp-lg);
+}
+
+.confirm-rows .info-row {
+  padding-block: 6px;
+}
+
+.confirm-rows .info-row__value {
+  color: var(--text-primary);
+  font-weight: var(--fw-medium);
+}
+</style>
+</head>
+<body>
+
+<header class="statusbar">
+  <span>9:41</span>
+  <span class="statusbar__icons">
+    <svg width="17" height="11" viewBox="0 0 17 11" fill="none" aria-hidden="true">
+      <rect x="0" y="7" width="3" height="4" rx="1" fill="currentColor"/>
+      <rect x="4.5" y="5" width="3" height="6" rx="1" fill="currentColor"/>
+      <rect x="9" y="2.5" width="3" height="8.5" rx="1" fill="currentColor"/>
+      <rect x="13.5" y="0" width="3" height="11" rx="1" fill="currentColor"/>
+    </svg>
+    <svg width="16" height="11" viewBox="0 0 16 11" fill="none" aria-hidden="true">
+      <path d="M1 3.2A10.5 10.5 0 0 1 15 3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M3.6 5.9a7 7 0 0 1 8.8 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M6.2 8.6a3.4 3.4 0 0 1 3.6 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden="true">
+      <rect x="0.6" y="0.6" width="21" height="10.8" rx="3" stroke="currentColor" stroke-opacity="0.4" stroke-width="1.2"/>
+      <rect x="2.2" y="2.2" width="15" height="7.6" rx="1.8" fill="currentColor"/>
+      <path d="M23.4 4.2v3.6" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+  </span>
+</header>
+
+<div class="navbar">
+  <a class="navbar__back" href="30-order-detail.html" aria-label="返回订单详情">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M15.2 4.6 7.8 12l7.4 7.4" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </a>
+  <h1 class="navbar__title">申请退款</h1>
+</div>
+
+<main class="screen">
+
+  <section class="refund-hero">
+    <p class="refund-hero__label">可退金额</p>
+    <p class="money money--display refund-hero__amount"><span class="money__sym">¥</span>600.00</p>
+    <p class="refund-hero__desc">合同审查 · 采购合同 · 服务尚未开始</p>
+  </section>
+
+  <section class="card-block">
+    <h3 class="block-title">订单信息</h3>
+    <div class="info-row">
+      <span class="info-row__label">订单编号</span>
+      <span class="info-row__value info-row__value--code">FAZE-2026-0092</span>
+    </div>
+    <div class="info-row">
+      <span class="info-row__label">实付金额</span>
+      <span class="info-row__value money"><span class="money__sym">¥</span>600.00</span>
+    </div>
+    <div class="info-row">
+      <span class="info-row__label">服务律师</span>
+      <span class="info-row__value">张伟律师</span>
+    </div>
+    <div class="info-row">
+      <span class="info-row__label">下单时间</span>
+      <span class="info-row__value info-row__value--code">2026-10-27 09:15</span>
+    </div>
+  </section>
+
+  <section class="card-block">
+    <h3 class="block-title">
+      退款原因
+      <span class="block-title__req">必选</span>
+    </h3>
+    <div class="reason-list" data-choice-group>
+      <button class="reason is-active" type="button" data-choice>
+        <span class="reason__text">服务还没开始，不需要了</span>
+        <span class="reason__mark" aria-hidden="true"></span>
+      </button>
+      <button class="reason" type="button" data-choice>
+        <span class="reason__text">律师未在约定时间联系我</span>
+        <span class="reason__mark" aria-hidden="true"></span>
+      </button>
+      <button class="reason" type="button" data-choice>
+        <span class="reason__text">服务内容与页面描述不符</span>
+        <span class="reason__mark" aria-hidden="true"></span>
+      </button>
+      <button class="reason" type="button" data-choice>
+        <span class="reason__text">重复下单，多付了一次</span>
+        <span class="reason__mark" aria-hidden="true"></span>
+      </button>
+      <button class="reason" type="button" data-choice data-reason-other>
+        <span class="reason__text">其他原因</span>
+        <span class="reason__mark" aria-hidden="true"></span>
+      </button>
+    </div>
+    <textarea class="remark-box" rows="3" maxlength="200"
+              placeholder="补充说明（选「其他原因」时必填，写清具体情况，方便审核）"
+              aria-label="补充说明"></textarea>
+    <span class="remark-count">0/200</span>
+  </section>
+
+  <section class="card-block">
+    <h3 class="block-title">退款去向</h3>
+    <div class="back-to">
+      <span class="back-to__icon">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <rect x="2.6" y="5.4" width="18.8" height="13.2" rx="2.6"
+                stroke="currentColor" stroke-width="1.8"/>
+          <path d="M2.6 10.2h18.8" stroke="currentColor" stroke-width="1.8"/>
+        </svg>
+      </span>
+      <span class="back-to__main">
+        <span class="back-to__name">退回账户余额</span>
+        <span class="back-to__desc">审核通过后 1 到 3 个工作日到账，可在余额明细里查</span>
+      </span>
+    </div>
+  </section>
+
+  <section class="rules">
+    <p class="rules__title">退款规则</p>
+    <ul class="rules__list">
+      <li>服务尚未开始的，可全额退回；已经开始的，按未服务部分退回。</li>
+      <li>退款统一退回账户余额，用于平台内再次消费或提现申请。</li>
+      <li>同一个订单重复提交退款的，平台只处理第一次。</li>
+      <li><b>诉讼费由人民法院依法收取，不在平台退款范围。</b>已代缴的部分请直接向收案法院申请退费。</li>
+    </ul>
+  </section>
+
+</main>
+
+<div class="actionbar">
+  <button class="btn-primary actionbar__cta" type="button" data-open-refund>提交申请</button>
+</div>
+
+<!-- ======================================================================
+     提交前确认：把「退多少、退到哪、之后会怎样」再说一遍
+     ====================================================================== -->
+<div class="mask" data-refund-mask hidden></div>
+<div class="dialog" data-refund-dialog hidden role="dialog" aria-modal="true" aria-labelledby="refund-confirm-title">
+  <h2 class="dialog__title" id="refund-confirm-title">确认提交退款申请？</h2>
+  <div class="confirm-rows">
+    <div class="info-row">
+      <span class="info-row__label">退款金额</span>
+      <span class="info-row__value money"><span class="money__sym">¥</span>600.00</span>
+    </div>
+    <div class="info-row">
+      <span class="info-row__label">退回去向</span>
+      <span class="info-row__value">账户余额</span>
+    </div>
+  </div>
+  <p class="dialog__body">提交后订单进入退款审核，审核期间不能再提交一次。审核结果会在消息中心通知你。</p>
+  <div class="dialog__actions">
+    <button class="dialog__btn" type="button" data-refund-dismiss>再想想</button>
+    <a class="dialog__btn dialog__btn--primary" href="29-orders.html">提交申请</a>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

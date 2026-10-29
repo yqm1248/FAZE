@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390, initial-scale=1">
+<meta name="dsh-design" content="app">
+<title>律师工作台</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   律师工作台首页（第 17 批 · 延展，无参考图）
+   ==========================================================================
+   职责：律师这一天该干什么 —— 在线状态、四项数据、待办、六宫格、最近咨询。
+   入口：01-home 右上角工作台图标 / 01-home 角色入口条 / 05-profile「律师工作台」
+   数据来源：工作台聚合接口（在线状态 / 今日咨询数 / 未读 / 在途订单 / 本月收入）
+   权限：仅 lawyer 角色（@LawyerOnly），未认证用户看不到入口
+
+   ★ 角色区分靠深色顶栏（components.css 第 32 段），不靠换主色。
+     理由见第 32 段注释：主色在用户侧是「可点」的信号，分裂成两套就废了。
+
+   ★ 这一页的第一屏只回答一个问题：今天有没有我的活。
+     所以顺序是「状态 → 数字 → 待办 → 入口 → 列表」，
+     而不是「入口 → 列表 → 数字」。律师早上打开它，看的是数字和待办。
+
+   ★ 在线状态放在最上面而不是右上角：它决定了「会不会有新单进来」，
+     是这一天工作的前提。而且换状态是低频动作，占一块不亏。
+
+   ★ 「离线」必须写清后果（不显示在线标识、不分配新单）。
+     只给三个词让人猜，律师会以为离线只是「不显示绿点」，
+     结果一天没接到单，回头问客服为什么没单。
+
+   ★ 收入数字旁边不写「预估」「约」。律师对自己的收入极其敏感，
+     写「约 ¥4,860」会让他怀疑平台在动手脚；月度结算就是月度结算，
+     口径写在 66-income 里。
+   ========================================================================== */
+
+body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-canvas);
+}
+
+.screen {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding: 0 var(--sp-xl) var(--sp-xl);
+}
+.screen::-webkit-scrollbar {
+  display: none;
+}
+
+/* ---------- 工作状态卡：深色，与顶栏连成一条「工作模式」的视觉带 ---------- */
+.status-card {
+  margin-block-start: var(--sp-md);
+  padding: var(--sp-lg);
+  border-radius: var(--r-md);
+  background: var(--bg-workbench);
+  color: var(--text-on-brand);
+}
+
+.status-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-md);
+}
+
+.status-card__label {
+  font-size: var(--fs-caption);
+  color: rgba(255, 255, 255, 0.72);
+  line-height: 1.5;
+}
+
+.status-card__value {
+  margin-block-start: 4px;
+  font-size: var(--fs-h1);
+  font-weight: var(--fw-bold);
+  line-height: 1.25;
+}
+
+/* 深色卡上的分段切换：轨道白 12%，选中项白底深字 */
+.seg--dark {
+  margin-block-start: var(--sp-md);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.seg--dark .seg__item {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.seg--dark .seg__item.is-active {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  box-shadow: none;
+}
+
+.status-card__hint {
+  margin-block-start: var(--sp-sm);
+  font-size: var(--fs-caption);
+  color: rgba(255, 255, 255, 0.6);
+  line-height: 1.6;
+}
+
+/* ---------- 四张数据卡：2×2 ---------- */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-block-start: var(--sp-md);
+}
+
+.stat {
+  padding: var(--sp-md) var(--sp-lg);
+  border-radius: var(--r-md);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.stat__num {
+  display: block;
+  font-family: var(--font-num);
+  font-size: var(--fs-h1);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+/* 有未处理项的用主色，让律师一眼看到哪张要动 */
+.stat--todo .stat__num {
+  color: var(--brand-primary);
+}
+
+.stat__label {
+  display: block;
+  margin-block-start: 3px;
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+/* 金额的 ¥ 比数字小一档，避免整串看起来一样重 */
+.stat__sym {
+  font-size: 0.62em;
+  font-weight: var(--fw-medium);
+  margin-inline-end: 1px;
+}
+
+/* ---------- 通用卡片 ---------- */
+.card-block {
+  margin-block-start: var(--sp-md);
+  padding: var(--sp-md) var(--sp-lg);
+  border-radius: var(--r-md);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.block-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-sm);
+  padding-block: var(--sp-xs) var(--sp-sm);
+}
+
+.block-title__name {
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+}
+
+.block-title__more {
+  position: relative;
+  font-size: var(--fs-caption);
+  color: var(--brand-primary-pressed);
+  text-decoration: none;
+}
+
+/* 文字链接视觉 18 高，热区补到 44：这一行在卡片标题右侧，
+   点不中就会点进整张卡，等于误触 */
+.block-title__more::after {
+  content: "";
+  position: absolute;
+  inset-block: -13px;
+  inset-inline: -12px;
+}
+
+/* ---------- 待办 ---------- */
+.todo {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  min-height: 44px;
+  padding-block: 12px;
+  border-block-end: 1px solid var(--border-divider);
+  text-decoration: none;
+  color: inherit;
+}
+
+.todo:last-child {
+  border-block-end: 0;
+  padding-block-end: 2px;
+}
+
+.todo__dot {
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--state-danger);
+}
+
+/* 不紧急的待办用主色点：红点只留给「现在就要处理」的 */
+.todo__dot--normal {
+  background: var(--brand-primary);
+}
+
+.todo__text {
+  /* flex-basis 用 0 不用 auto：auto 会以内容宽度为基准，
+     长文案压过来时时间那列被挤出去，视觉上就是两段字叠在一起 */
+  flex: 1 1 0;
+  min-width: 0;
+  font-size: var(--fs-md);
+  color: var(--text-body);
+  line-height: 1.5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.todo__time {
+  flex: 0 0 auto;
+  font-family: var(--font-num);
+  font-size: var(--fs-micro);
+  color: var(--text-muted);
+}
+
+/* ---------- 六宫格 ---------- */
+.wb-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  padding-block: var(--sp-sm);
+}
+
+.wb-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 2px;
+  text-decoration: none;
+  color: inherit;
+}
+
+.wb-item__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: var(--brand-primary-soft);
+  color: var(--brand-primary-pressed);
+}
+
+.wb-item__icon svg {
+  width: 21px;
+  height: 21px;
+}
+
+/* 收入这一格用青，与用户侧「钱」的图标语言保持一致 */
+.wb-item--income .wb-item__icon {
+  background: var(--state-success-soft);
+  color: var(--state-success);
+}
+
+.wb-item__label {
+  font-size: var(--fs-micro);
+  color: var(--text-body);
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+/* ---------- 最近咨询 ---------- */
+.recent {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-md);
+  padding-block: 11px;
+  border-block-end: 1px solid var(--border-divider);
+  text-decoration: none;
+  color: inherit;
+}
+
+.recent:last-child {
+  border-block-end: 0;
+}
+
+.recent__avatar {
+  flex: 0 0 auto;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--bg-input);
+  color: var(--text-muted);
+}
+
+.recent__avatar svg {
+  width: 22px;
+  height: 22px;
+}
+
+/* 未读角标贴在头像右上 */
+.recent__badge {
+  position: absolute;
+  inset-block-start: -2px;
+  inset-inline-end: -2px;
+  min-width: 16px;
+  height: 16px;
+  padding-inline: 4px;
+  border-radius: var(--r-pill);
+  background: var(--state-danger);
+  color: var(--text-on-brand);
+  font-family: var(--font-num);
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-bold);
+  line-height: 16px;
+  text-align: center;
+}
+
+.recent__body {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.recent__name {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: var(--fs-md);
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.recent__type {
+  font-size: var(--fs-micro);
+  color: var(--text-muted);
+}
+
+.recent__msg {
+  display: block;
+  margin-block-start: 2px;
+  font-size: var(--fs-caption);
+  color: var(--text-secondary);
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recent__time {
+  flex: 0 0 auto;
+  font-family: var(--font-num);
+  font-size: var(--fs-micro);
+  color: var(--text-muted);
+}
+</style>
+</head>
+<body>
+
+<header class="statusbar statusbar--light">
+  <span>9:41</span>
+  <span class="statusbar__icons">
+    <svg width="17" height="11" viewBox="0 0 17 11" fill="none" aria-hidden="true">
+      <rect x="0" y="7" width="3" height="4" rx="1" fill="currentColor"/>
+      <rect x="4.5" y="5" width="3" height="6" rx="1" fill="currentColor"/>
+      <rect x="9" y="2.5" width="3" height="8.5" rx="1" fill="currentColor"/>
+      <rect x="13.5" y="0" width="3" height="11" rx="1" fill="currentColor"/>
+    </svg>
+    <svg width="16" height="11" viewBox="0 0 16 11" fill="none" aria-hidden="true">
+      <path d="M1 3.2A10.5 10.5 0 0 1 15 3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M3.6 5.9a7 7 0 0 1 8.8 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M6.2 8.6a3.4 3.4 0 0 1 3.6 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden="true">
+      <rect x="0.6" y="0.6" width="21" height="10.8" rx="3" stroke="currentColor" stroke-opacity="0.4" stroke-width="1.2"/>
+      <rect x="2.2" y="2.2" width="15" height="7.6" rx="1.8" fill="currentColor"/>
+      <path d="M23.4 4.2v3.6" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+  </span>
+</header>
+
+<div class="navbar navbar--dark">
+  <a class="navbar__back" href="01-home.html" aria-label="返回用户首页">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M15.2 4.6 7.8 12l7.4 7.4" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </a>
+  <h1 class="navbar__title">律师工作台</h1>
+  <div class="navbar__actions">
+    <a class="navbar__icon" href="38-messages.html" aria-label="消息">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M3.4 6.6a2 2 0 0 1 2-2h13.2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-7.3l-4.3 3.4v-3.4H5.4a2 2 0 0 1-2-2v-9Z"
+              stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/>
+      </svg>
+    </a>
+  </div>
+</div>
+
+<main class="screen">
+
+  <section class="status-card">
+    <div class="status-card__head">
+      <div>
+        <p class="status-card__label">当前工作状态</p>
+        <p class="status-card__value">在线 · 可接单</p>
+      </div>
+    </div>
+
+    <div class="seg seg--dark" data-choice-group>
+      <button class="seg__item is-active" type="button" data-pick-one="duty">在线</button>
+      <button class="seg__item" type="button" data-pick-one="duty">忙碌</button>
+      <button class="seg__item" type="button" data-pick-one="duty">离线</button>
+    </div>
+
+    <p class="status-card__hint">离线时不显示在线标识，也不会给你分配新单。切换随时生效，不影响已接的订单。</p>
+  </section>
+
+  <div class="stat-grid">
+    <div class="stat stat--todo">
+      <span class="stat__num">3</span>
+      <span class="stat__label">今日新咨询</span>
+    </div>
+    <div class="stat stat--todo">
+      <span class="stat__num">5</span>
+      <span class="stat__label">待回复消息</span>
+    </div>
+    <div class="stat">
+      <span class="stat__num">2</span>
+      <span class="stat__label">进行中订单</span>
+    </div>
+    <div class="stat">
+      <span class="stat__num"><span class="stat__sym">¥</span>4,860</span>
+      <span class="stat__label">本月收入（已结算）</span>
+    </div>
+  </div>
+
+  <section class="card-block">
+    <div class="block-title">
+      <h2 class="block-title__name">待办</h2>
+      <a class="block-title__more" href="63-consultations.html">全部会话</a>
+    </div>
+
+    <a class="todo" href="63-consultations.html">
+      <span class="todo__dot"></span>
+      <span class="todo__text">马合木提·艾山 发来 2 条新消息</span>
+      <span class="todo__time">2 分钟前</span>
+    </a>
+    <a class="todo" href="64-lawyer-orders.html">
+      <span class="todo__dot"></span>
+      <span class="todo__text">1 个新订单待接单，30 分钟内未接将转给其他律师</span>
+      <span class="todo__time">12 分钟前</span>
+    </a>
+    <a class="todo" href="65-lawyer-docs.html">
+      <span class="todo__dot todo__dot--normal"></span>
+      <span class="todo__text">起诉状《房屋租赁合同纠纷》草稿待完善</span>
+      <span class="todo__time">昨天</span>
+    </a>
+  </section>
+
+  <section class="card-block">
+    <div class="wb-grid">
+      <a class="wb-item" href="63-consultations.html">
+        <span class="wb-item__icon">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M20.4 12.2c0 4-3.8 7.2-8.4 7.2-1 0-2-.15-2.9-.42L4.1 20.4l1.3-3.5a7 7 0 0 1-1.9-4.7c0-4 3.8-7.2 8.5-7.2s8.4 3.2 8.4 7.2Z"
+                  stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+          </svg>
+        </span>
+        <span class="wb-item__label">我的客户</span>
+      </a>
+      <a class="wb-item" href="64-lawyer-orders.html">
+        <span class="wb-item__icon">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M6.2 3.2h11.6v17.6l-2.9-1.9-2.9 1.9-2.9-1.9-2.9 1.9V3.2Z"
+                  stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+            <path d="M9.2 8.2h5.6M9.2 12h5.6" stroke="currentColor" stroke-width="1.8"
+                  stroke-linecap="round"/>
+          </svg>
+        </span>
+        <span class="wb-item__label">我的订单</span>
+      </a>
+      <a class="wb-item" href="65-lawyer-docs.html">
+        <span class="wb-item__icon">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M5.6 3.4h8.2l5 5v11.2a1.8 1.8 0 0 1-1.8 1.8H5.6a1.8 1.8 0 0 1-1.8-1.8V5.2a1.8 1.8 0 0 1 1.8-1.8Z"
+                  stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+            <path d="M13.6 3.6v5.2h5" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+          </svg>
+        </span>
+        <span class="wb-item__label">代写文书</span>
+      </a>
+      <a class="wb-item wb-item--income" href="66-income.html">
+        <span class="wb-item__icon">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <rect x="2.8" y="6" width="18.4" height="12.4" rx="2.4" stroke="currentColor"
+                  stroke-width="1.8"/>
+            <path d="M2.8 10.4h18.4" stroke="currentColor" stroke-width="1.8"/>
+            <circle cx="17.2" cy="14.6" r="1.2" fill="currentColor"/>
+          </svg>
+        </span>
+        <span class="wb-item__label">收入提现</span>
+      </a>
+      <a class="wb-item" href="67-service-settings.html">
+        <span class="wb-item__icon">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M4.4 8.4h15.2M4.4 15.6h15.2" stroke="currentColor" stroke-width="1.8"
+                  stroke-linecap="round"/>
+            <circle cx="9" cy="8.4" r="2.4" fill="var(--bg-surface)" stroke="currentColor"
+                    stroke-width="1.8"/>
+            <circle cx="15" cy="15.6" r="2.4" fill="var(--bg-surface)" stroke="currentColor"
+                    stroke-width="1.8"/>
+          </svg>
+        </span>
+        <span class="wb-item__label">服务设置</span>
+      </a>
+      <a class="wb-item" href="68-lawyer-profile.html">
+        <span class="wb-item__icon">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="12" cy="8.4" r="3.6" stroke="currentColor" stroke-width="1.8"/>
+            <path d="M4.8 20.4c0-3.8 3.2-6.4 7.2-6.4s7.2 2.6 7.2 6.4" stroke="currentColor"
+                  stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+        </span>
+        <span class="wb-item__label">律师资料</span>
+      </a>
+    </div>
+  </section>
+
+  <section class="card-block">
+    <div class="block-title">
+      <h2 class="block-title__name">最近咨询</h2>
+      <a class="block-title__more" href="63-consultations.html">查看全部</a>
+    </div>
+
+    <a class="recent" href="17-chat.html">
+      <span class="recent__avatar">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <circle cx="12" cy="9" r="3.7"/>
+          <path d="M4.6 21c0-4.1 3.3-6.9 7.4-6.9s7.4 2.8 7.4 6.9"/>
+        </svg>
+        <span class="recent__badge">2</span>
+      </span>
+      <span class="recent__body">
+        <span class="recent__name">马合木提·艾山 <span class="recent__type">房屋租赁</span></span>
+        <span class="recent__msg">律师您好，房东说押金抵了维修费，但我没有看到任何单据</span>
+      </span>
+      <span class="recent__time">2 分钟前</span>
+    </a>
+
+    <a class="recent" href="17-chat.html">
+      <span class="recent__avatar">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <circle cx="12" cy="9" r="3.7"/>
+          <path d="M4.6 21c0-4.1 3.3-6.9 7.4-6.9s7.4 2.8 7.4 6.9"/>
+        </svg>
+        <span class="recent__badge">3</span>
+      </span>
+      <span class="recent__body">
+        <span class="recent__name">王建国 <span class="recent__type">民间借贷</span></span>
+        <span class="recent__msg">利息能不能超过银行同期利率的四倍？</span>
+      </span>
+      <span class="recent__time">1 小时前</span>
+    </a>
+
+    <a class="recent" href="17-chat.html">
+      <span class="recent__avatar">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <circle cx="12" cy="9" r="3.7"/>
+          <path d="M4.6 21c0-4.1 3.3-6.9 7.4-6.9s7.4 2.8 7.4 6.9"/>
+        </svg>
+      </span>
+      <span class="recent__body">
+        <span class="recent__name">阿依古丽 <span class="recent__type">婚姻家事</span></span>
+        <span class="recent__msg">好的，我明天把材料整理好发您</span>
+      </span>
+      <span class="recent__time">3 小时前</span>
+    </a>
+  </section>
+
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

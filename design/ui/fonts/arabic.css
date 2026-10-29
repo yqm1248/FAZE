@@ -1,0 +1,27 @@
+/* ==========================================================================
+   Noto Naskh Arabic（自托管，arabic 切片）
+   ==========================================================================
+   来源：Google Fonts · Noto Naskh Arabic v44 · SIL Open Font License 1.1
+   用途：RTL 语言（ug-Arab-CN 维吾尔文 / kk-Arab-CN 哈萨克文）的正文字体
+   生成：python scripts/fetch-arabic-font.py（不要手改本文件）
+
+   实测（2026-10-29）：
+     可变字体 fvar 轴 wght 400~700，默认 400，所以 400 和 700 共用同一份文件
+     大小 94,032 字节；cmap 1225 个码位
+     维吾尔文 32 字母 + 哈萨克文专用字符共 38 个，覆盖率 38/38
+     GSUB 含 ccmp / init / medi / fina / rlig / locl，连写支持完整
+
+   注意：
+     1. 不含拉丁字形，数字与英文走 --font-num / --font-sans
+     2. 正式项目打包进 App 时引同一份 woff2（expo-font），不要换字体
+     3. 换版本要重跑脚本，并同步更新本注释里的版本号与实测数据
+   ========================================================================== */
+
+@font-face {
+  font-family: "Noto Naskh Arabic FAZE";
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url("noto-naskh-arabic.woff2") format("woff2");
+  unicode-range: U+0600-06FF, U+0750-077F, U+0870-0891, U+0897-08E1, U+08E3-08FF, U+200C-200E, U+2010-2011, U+204F, U+2E41, U+FB50-FDFF, U+FE70-FE74, U+FE76-FEFC, U+102E0-102FB, U+10E60-10E7E, U+10EC2-10EC7, U+10EC9-10EEE, U+10EF0-10EFF, U+1EE00-1EE03, U+1EE05-1EE1F, U+1EE21-1EE22, U+1EE24, U+1EE27, U+1EE29-1EE32, U+1EE34-1EE37, U+1EE39, U+1EE3B, U+1EE42, U+1EE47, U+1EE49, U+1EE4B, U+1EE4D-1EE4F, U+1EE51-1EE52, U+1EE54, U+1EE57, U+1EE59, U+1EE5B, U+1EE5D, U+1EE5F, U+1EE61-1EE62, U+1EE64, U+1EE67-1EE6A, U+1EE6C-1EE72, U+1EE74-1EE77, U+1EE79-1EE7C, U+1EE7E, U+1EE80-1EE89, U+1EE8B-1EE9B, U+1EEA1-1EEA3, U+1EEA5-1EEA9, U+1EEAB-1EEBB, U+1EEF0-1EEF1;
+}

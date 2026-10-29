@@ -1,0 +1,240 @@
+/* ==========================================================================
+   法泽 FAZE · PC 管理后台设计变量
+   ==========================================================================
+   职责：后台所有屏共用的颜色、字体、字号、间距、圆角、阴影、骨架尺寸
+   数据来源：颜色继承 design/ui/tokens.css（APP 令牌），尺寸另立一套 PC 刻度
+   注意：
+     1. 颜色只允许从这里取。与 APP 的对应关系写在每条注释里，改色时两边一起看。
+     2. 尺寸是「贴着 RuoYi-Vue3 3.8.7 的骨架」定的，不是自由发挥：
+        侧边栏 200px、顶栏 50px、标签页 34px 全部是 RuoYi 框架层写死的值，
+        改了设计稿就落不了地（框架层禁止修改，见 AGENTS.md §3.3）。
+     3. 后台只做 light 主题。RuoYi 自带深色菜单（theme-dark）与浅色菜单两套，
+        本设计稿采用深色菜单，与 APP「律师工作台深色顶栏」同源。
+   ========================================================================== */
+
+:root {
+  /* ---------- 品牌色（与 APP tokens.css 同名同值，是同一套品牌） ---------- */
+  --brand-primary: #4a66ee;
+  --brand-primary-hover: #3d57d8;
+  --brand-primary-active: #3348bf;
+  --brand-primary-soft: #eef2ff;
+  /* 品牌色「作为文字」时的专用值。
+     #4a66ee 当文字压在 #eef2ff / 白底上只有 4.24:1，不到 4.5；
+     深一档的 #3d57d8 对 #eef2ff 是 5.28:1，对白底 6.1:1。
+     规则：背景、边框、图表线用 --brand-primary；文字一律用 --brand-text。 */
+  --brand-text: #3d57d8;
+  /* 深色底（侧边栏、登录品牌板）上需要「亮一档的品牌色」，
+     #eef2ff 在深底上几乎等同白色，看不出是品牌色，所以单独给一个值 */
+  --brand-on-dark: #b9c2fa;
+  --brand-accent: #8a2be2;      /* AI 相关场景专用，后台很少用 */
+  --brand-accent-soft: #f1e9fd;
+
+  /* ---------- 背景 ---------- */
+  --bg-canvas: #f7f8fa;         /* 内容区底色，与 APP 一致 */
+  --bg-surface: #ffffff;        /* 卡片 / 表格 / 弹窗 */
+  --bg-surface-2: #fafbfc;      /* 次一级表面（表头、分组底） */
+  --bg-hover: #f5f7ff;          /* 表格行悬停：带主色倾向，不是纯灰 */
+  --bg-selected: #eef2ff;       /* 选中行 */
+  --bg-input: #ffffff;
+  --bg-disabled: #f5f7fa;
+
+  /* 侧边栏：深色。RuoYi 默认 #304156 是灰蓝，本设计改偏品牌紫蓝，
+     和 APP 的 --bg-workbench #1F2333 同源，用来表达「这是法泽的后台」。 */
+  --bg-sidebar: #22283a;
+  --bg-sidebar-sub: #1b2030;    /* 展开后的子菜单底 */
+  --bg-sidebar-hover: #2c3350;
+  --bg-sidebar-active: #4a66ee;
+  --bg-logo: #1b2030;           /* 侧边栏顶部 Logo 区 */
+
+  /* ---------- 文字 ---------- */
+  --text-primary: #1a1a1a;
+  --text-body: #333333;
+  --text-secondary: #666666;
+  --text-muted: #6b7280;        /* 比 APP 的 #63696E 略浅一档：后台字号更大，可读性足够 */
+  --text-placeholder: #a8abb2;
+  --text-on-brand: #ffffff;
+  --text-sidebar: #b8bfd0;
+  --text-sidebar-active: #ffffff;
+
+  /* ---------- 边框 ---------- */
+  --border-subtle: #ebeef5;     /* Element Plus 默认边框色，跟随框架 */
+  --border-divider: #f0f0f0;
+  --border-input: #dcdfe6;
+  --border-input-hover: #c0c4cc;
+  --border-strong: #d0d5dd;
+
+  /* ---------- 状态色（与 APP 同名同值） ---------- */
+  --state-success: #1f7a7a;
+  --state-success-soft: #ebf5f5;
+  --state-warning: #ff9500;
+  --state-warning-soft: #fff7e6;
+  --state-warning-deep: #8a5a00;
+  --state-danger: #ee0a24;
+  --state-danger-soft: #fdecee;
+  /* 危险色作为文字压在 --state-danger-soft 底上时不够 4.5:1（实测 3.91），
+     深一档专供文字用。实测 #cc0a20 对 #fdecee = 5.07:1（check_design 口径）。 */
+  --state-danger-deep: #cc0a20;
+  --state-info: #4a66ee;
+  --state-info-soft: #eef2ff;
+
+  /* ---------- 字体 ---------- */
+  --font-sans: "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Microsoft YaHei",
+    system-ui, -apple-system, sans-serif;
+  /* 数字列（金额、订单号、时间）：等宽，保证表格竖排对齐 */
+  --font-num: "Inter", "SF Mono", ui-monospace, "PingFang SC", system-ui, sans-serif;
+
+  /* ---------- 字号阶梯（PC 与 APP 不同：后台信息密度高，正文 14 而不是 15） ---------- */
+  --fs-xs: 12px;      /* 表格辅助信息、标签 */
+  --fs-sm: 13px;      /* 表格正文、表单 label */
+  --fs-md: 14px;      /* 正文、按钮、输入框 */
+  --fs-lg: 16px;      /* 卡片标题、页面小标题 */
+  --fs-xl: 20px;      /* 页面标题 */
+  --fs-2xl: 24px;     /* 看板大数字 */
+  --fs-3xl: 30px;     /* 看板核心数字 */
+
+  /* ---------- 字重 ---------- */
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+
+  /* ---------- 行高 ---------- */
+  --lh-tight: 1.25;
+  --lh-normal: 1.5;
+  --lh-relaxed: 1.65;
+
+  /* ---------- 间距（4 / 8 的倍数，无 5、10、15 这类） ---------- */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --sp-10: 40px;
+  --sp-12: 48px;
+
+  /* ---------- 圆角（后台比 APP 更方正：主卡片 8，控件 4） ---------- */
+  --r-xs: 2px;
+  --r-sm: 4px;
+  --r-md: 6px;
+  --r-lg: 8px;
+  --r-xl: 12px;
+  --r-pill: 999px;
+
+  /* ---------- 阴影（后台克制：只在浮层用） ---------- */
+  --shadow-card: 0 1px 2px rgba(16, 24, 40, 0.04);
+  --shadow-raised: 0 4px 12px rgba(16, 24, 40, 0.08);
+  --shadow-pop: 0 8px 24px rgba(16, 24, 40, 0.12);
+
+  /* ---------- 骨架尺寸（RuoYi 框架层写死的值，不可改） ---------- */
+  --canvas-w: 1440px;
+  --canvas-h: 900px;
+  --sidebar-w: 200px;      /* RuoYi $base-sidebar-width: 200px */
+  --header-h: 50px;        /* RuoYi .navbar height: 50px */
+  --tags-h: 34px;          /* RuoYi TagsView 高度 */
+  --logo-h: 50px;          /* 侧边栏 Logo 区，与顶栏同高 */
+  --content-pad: 20px;     /* RuoYi .app-container padding: 20px */
+
+  /* ---------- 控件尺寸（对齐 Element Plus 2.4 默认尺寸） ---------- */
+  --ctrl-h: 32px;          /* default 尺寸按钮 / 输入框高度 */
+  --ctrl-h-sm: 28px;       /* small */
+  --ctrl-h-lg: 40px;       /* large */
+  --row-h: 48px;           /* 表格行高（EP 默认 40，后台信息多，放到 48） */
+  --thead-h: 40px;
+  --radius-ctrl: 4px;      /* EP 默认圆角 */
+}
+
+/* ==========================================================================
+   后台补充令牌：APP 令牌里没有、PC 独有
+   ========================================================================== */
+
+:root {
+  /* 侧边栏菜单行高。
+     RuoYi 默认 el-menu-item 56px、子菜单项 50px；本后台一级菜单 11 组、
+     展开一组后按默认高度 900 画布放不下（会出滚动条）。
+     收到 50 / 46 后：11×50 + 子项最多的一组（内容管理 5 项）×46 + logo 50 + 底部 56
+     = 550 + 230 + 106 = 886 < 900，刚好。系统设置 4 项时是 840。
+     这是通过 CSS 变量覆盖（--el-menu-item-height），不改 RuoYi 源码，
+     属 AGENTS.md §3.3 允许的「配置覆盖」。 */
+  --sidebar-item-h: 50px;
+  --sidebar-subitem-h: 46px;
+
+  /* 遮罩：抽屉、弹窗共用 */
+  --mask: rgba(16, 24, 40, 0.45);
+
+  /* 图表配色：只从品牌色 + 状态色派生，不引入新色相 */
+  --chart-line: #4a66ee;
+  --chart-line-soft: rgba(74, 102, 238, 0.14);
+  --chart-bar: #7d8ff5;
+  --chart-bar-2: #b9c2fa;
+  --chart-axis: #c7cbd6;
+  --chart-grid: #eef0f5;
+
+  /* 表格斑马纹（列多时靠斑马纹分行，比画满边框清爽） */
+  --bg-stripe: #fafbfd;
+}
+
+/* ==========================================================================
+   基础重置
+   ========================================================================== */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  width: var(--canvas-w);
+  height: var(--canvas-h);
+  overflow: hidden;
+  font-family: var(--font-sans);
+  font-size: var(--fs-md);
+  line-height: var(--lh-normal);
+  color: var(--text-body);
+  background: var(--bg-canvas);
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: var(--brand-text);
+  text-decoration: none;
+}
+
+button {
+  font-family: inherit;
+}
+
+/* 数字统一等宽（金额、单号、时间、统计） */
+.num {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 滚动条：后台内容长，给一条窄的可见滚动条 */
+.scroll-y {
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.scroll-y::-webkit-scrollbar {
+  width: 8px;
+}
+.scroll-y::-webkit-scrollbar-thumb {
+  border-radius: var(--r-pill);
+  background: #d4d8e0;
+}
+.scroll-y::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}

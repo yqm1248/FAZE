@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="dsh-design" content="web 1440x900">
+<title>工单列表 · 法泽管理后台</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   A-21 投诉工单列表
+   --------------------------------------------------------------------------
+   职责：用户投诉、律师投诉、资金问题、功能建议的工单查询与分派。
+   依据：《PC 后台开发计划_v1.0》§2.7 A-21；技术路线 §15.1「投诉工单」
+   接口：**缺**。见《未完成需备注》§1
+   说明：
+     1. 结构套 A-03 母版。工单列表的关键是「谁超时了」与「谁还没人管」，
+        所以优先级列与处理人列都做了显式状态，不靠颜色堆。
+     2. 超 24 小时未受理的工单，在时间列后面追加红字超时提示 ——
+        这是这一页唯一需要立刻看见的信息。
+   ========================================================================== */
+
+.ticket-table col.c-no { width: 13%; }
+.ticket-table col.c-type { width: 10%; }
+.ticket-table col.c-title { width: 24%; }
+.ticket-table col.c-prio { width: 8%; }
+.ticket-table col.c-state { width: 9%; }
+.ticket-table col.c-time { width: 12%; }
+.ticket-table col.c-owner { width: 9%; }
+.ticket-table col.c-ops { width: 15%; }
+
+.ticket-table .mono-time {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+
+/* 超时：时间下面挂一行红字，不要单独占一列（列太多了） */
+.ticket-late {
+  display: block;
+  margin-top: 1px;
+  font-size: var(--fs-xs);
+  color: var(--state-danger-deep);
+}
+
+/* 未分配：用虚线框标出来，扫表时一眼看到「没人管」 */
+.owner-none {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 var(--sp-2);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--r-sm);
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+</style>
+</head>
+<body class="shell" data-page="20-ticket-list">
+
+<aside class="sidebar" id="sidebar"></aside>
+
+<div class="main">
+  <header class="navbar" id="navbar"></header>
+  <div class="tags-view" id="tags-view"></div>
+
+  <main class="app-container scroll-y">
+
+    <div class="page-head">
+      <div>
+        <h1 class="page-head__title">投诉工单</h1>
+        <p class="page-head__desc">
+          用户提交的投诉与建议。受理时限 24 小时，超时工单会在列表里标红；关闭前需用户确认。
+        </p>
+      </div>
+      <div class="page-head__actions">
+        <button class="btn" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"
+               style="width:14px;height:14px">
+            <path d="M12 3.8v11.4"/><path d="m7.6 11 4.4 4.4 4.4-4.4"/>
+            <path d="M4.4 18.6v1.2h15.2v-1.2"/>
+          </svg>
+          导出工单
+        </button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="chips" style="padding:12px 20px;border-bottom:1px solid var(--border-divider)">
+        <a class="chip chip--active" href="#">全部 <span class="chip__count">84</span></a>
+        <a class="chip" href="#">待受理 <span class="chip__count">5</span></a>
+        <a class="chip" href="#">处理中 <span class="chip__count">12</span></a>
+        <a class="chip" href="#">待用户确认 <span class="chip__count">6</span></a>
+        <a class="chip" href="#">已关闭 <span class="chip__count">61</span></a>
+      </div>
+
+      <form class="query-bar" method="get">
+        <div class="field-inline">
+          <label class="field-inline__label" for="q-kw">工单</label>
+          <input class="input" id="q-kw" type="text" placeholder="工单号 / 标题 / 提交人">
+        </div>
+        <div class="field-inline">
+          <label class="field-inline__label" for="q-type">类型</label>
+          <select class="select" id="q-type">
+            <option>全部</option>
+            <option>服务投诉</option>
+            <option>律师投诉</option>
+            <option>资金问题</option>
+            <option>功能建议</option>
+          </select>
+        </div>
+        <div class="field-inline">
+          <label class="field-inline__label" for="q-owner">处理人</label>
+          <select class="select" id="q-owner">
+            <option>全部</option>
+            <option>未分配</option>
+            <option>admin</option>
+            <option>客服-古丽</option>
+          </select>
+        </div>
+        <div class="query-bar__actions">
+          <button class="btn btn--primary" type="submit">查询</button>
+          <button class="btn" type="reset">重置</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="card card--flush" style="margin-top:var(--sp-4)">
+      <div class="toolbar">
+        <div class="toolbar__left">
+          <button class="btn btn--sm" type="button">批量分配</button>
+          <span class="toolbar__count">超时未受理 <b>2</b> 条</span>
+        </div>
+        <div class="toolbar__right">
+          <span class="toolbar__count">共 <b>84</b> 条</span>
+          <button class="icon-btn" type="button" title="刷新" aria-label="刷新">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M20 12a8 8 0 1 1-2.4-5.7"/><path d="M20.2 4.6v4.2H16"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="table ticket-table">
+          <colgroup>
+            <col class="c-no">
+            <col class="c-type">
+            <col class="c-title">
+            <col class="c-prio">
+            <col class="c-state">
+            <col class="c-time">
+            <col class="c-owner">
+            <col class="c-ops">
+          </colgroup>
+          <thead>
+            <tr>
+              <th>工单号</th>
+              <th>类型</th>
+              <th>标题</th>
+              <th>优先级</th>
+              <th>状态</th>
+              <th>提交时间</th>
+              <th>处理人</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="cell-id">T-2026-0084</span></td>
+              <td><span class="tag tag--outline">服务投诉</span></td>
+              <td>
+                <span class="cell-stack">
+                  <span class="cell-strong">律师接单后一直未回复</span>
+                  <span class="cell-stack__sub">提交人：阿依努尔·买买提</span>
+                </span>
+              </td>
+              <td><span class="tag tag--dot tag--danger">高</span></td>
+              <td><span class="tag tag--dot tag--warning">待受理</span></td>
+              <td>
+                <span class="mono-time">2026-10-28 09:12</span>
+                <span class="ticket-late">已超时 26 小时</span>
+              </td>
+              <td><span class="owner-none">未分配</span></td>
+              <td>
+                <div class="table__ops">
+                  <a class="btn btn--text" href="21-ticket-detail.html">处理</a>
+                  <button class="btn btn--text" type="button">分配</button>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="cell-id">T-2026-0083</span></td>
+              <td><span class="tag tag--outline">资金问题</span></td>
+              <td>
+                <span class="cell-stack">
+                  <span class="cell-strong">退款 3 天未到账</span>
+                  <span class="cell-stack__sub">提交人：李伟</span>
+                </span>
+              </td>
+              <td><span class="tag tag--dot tag--danger">高</span></td>
+              <td><span class="tag tag--dot tag--warning">待受理</span></td>
+              <td>
+                <span class="mono-time">2026-10-29 08:40</span>
+                <span class="ticket-late">已超时 13 小时</span>
+              </td>
+              <td><span class="owner-none">未分配</span></td>
+              <td>
+                <div class="table__ops">
+                  <a class="btn btn--text" href="21-ticket-detail.html">处理</a>
+                  <button class="btn btn--text" type="button">分配</button>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="cell-id">T-2026-0082</span></td>
+              <td><span class="tag tag--outline">律师投诉</span></td>
+              <td>
+                <span class="cell-stack">
+                  <span class="cell-strong">律师未按约定时间提供服务</span>
+                  <span class="cell-stack__sub">提交人：迪丽热巴·艾山</span>
+                </span>
+              </td>
+              <td><span class="tag tag--dot tag--warning">中</span></td>
+              <td><span class="tag tag--dot tag--primary">处理中</span></td>
+              <td><span class="mono-time">2026-10-29 10:26</span></td>
+              <td>客服-古丽</td>
+              <td>
+                <div class="table__ops">
+                  <a class="btn btn--text" href="21-ticket-detail.html">处理</a>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="cell-id">T-2026-0081</span></td>
+              <td><span class="tag tag--outline">功能建议</span></td>
+              <td>
+                <span class="cell-stack">
+                  <span class="cell-strong">希望支持维吾尔文界面</span>
+                  <span class="cell-stack__sub">提交人：古丽娜尔·哈力克</span>
+                </span>
+              </td>
+              <td><span class="tag tag--dot tag--gray">低</span></td>
+              <td><span class="tag tag--dot tag--primary">处理中</span></td>
+              <td><span class="mono-time">2026-10-29 11:52</span></td>
+              <td>admin</td>
+              <td>
+                <div class="table__ops">
+                  <a class="btn btn--text" href="21-ticket-detail.html">处理</a>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="cell-id">T-2026-0080</span></td>
+              <td><span class="tag tag--outline">服务投诉</span></td>
+              <td>
+                <span class="cell-stack">
+                  <span class="cell-strong">AI 回答引用的法条不是最新的</span>
+                  <span class="cell-stack__sub">提交人：张建国</span>
+                </span>
+              </td>
+              <td><span class="tag tag--dot tag--warning">中</span></td>
+              <td><span class="tag tag--dot tag--warning">待用户确认</span></td>
+              <td><span class="mono-time">2026-10-28 15:08</span></td>
+              <td>客服-古丽</td>
+              <td>
+                <div class="table__ops">
+                  <a class="btn btn--text" href="21-ticket-detail.html">查看</a>
+                  <button class="btn btn--text" type="button">关闭</button>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="cell-id">T-2026-0079</span></td>
+              <td><span class="tag tag--outline">资金问题</span></td>
+              <td>
+                <span class="cell-stack">
+                  <span class="cell-strong">充值成功但余额未到账</span>
+                  <span class="cell-stack__sub">提交人：王海涛</span>
+                </span>
+              </td>
+              <td><span class="tag tag--dot tag--danger">高</span></td>
+              <td><span class="tag tag--dot tag--success">已关闭</span></td>
+              <td><span class="mono-time">2026-10-27 19:34</span></td>
+              <td>admin</td>
+              <td>
+                <div class="table__ops">
+                  <a class="btn btn--text" href="21-ticket-detail.html">查看</a>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="cell-id">T-2026-0078</span></td>
+              <td><span class="tag tag--outline">律师投诉</span></td>
+              <td>
+                <span class="cell-stack">
+                  <span class="cell-strong">用户评价含侮辱性用语</span>
+                  <span class="cell-stack__sub">提交人：张建国（律师）</span>
+                </span>
+              </td>
+              <td><span class="tag tag--dot tag--warning">中</span></td>
+              <td><span class="tag tag--dot tag--success">已关闭</span></td>
+              <td><span class="mono-time">2026-10-26 14:20</span></td>
+              <td>客服-古丽</td>
+              <td>
+                <div class="table__ops">
+                  <a class="btn btn--text" href="21-ticket-detail.html">查看</a>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="cell-id">T-2026-0077</span></td>
+              <td><span class="tag tag--outline">功能建议</span></td>
+              <td>
+                <span class="cell-stack">
+                  <span class="cell-strong">文书下载后格式错乱</span>
+                  <span class="cell-stack__sub">提交人：刘敏</span>
+                </span>
+              </td>
+              <td><span class="tag tag--dot tag--gray">低</span></td>
+              <td><span class="tag tag--dot tag--success">已关闭</span></td>
+              <td><span class="mono-time">2026-10-26 10:02</span></td>
+              <td>admin</td>
+              <td>
+                <div class="table__ops">
+                  <a class="btn btn--text" href="21-ticket-detail.html">查看</a>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="cell-id">T-2026-0076</span></td>
+              <td><span class="tag tag--outline">服务投诉</span></td>
+              <td>
+                <span class="cell-stack">
+                  <span class="cell-strong">电话咨询中途挂断</span>
+                  <span class="cell-stack__sub">提交人：玛尔哈巴·吐尔逊</span>
+                </span>
+              </td>
+              <td><span class="tag tag--dot tag--warning">中</span></td>
+              <td><span class="tag tag--dot tag--success">已关闭</span></td>
+              <td><span class="mono-time">2026-10-25 16:44</span></td>
+              <td>客服-古丽</td>
+              <td>
+                <div class="table__ops">
+                  <a class="btn btn--text" href="21-ticket-detail.html">查看</a>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="cell-id">T-2026-0075</span></td>
+              <td><span class="tag tag--outline">其他</span></td>
+              <td>
+                <span class="cell-stack">
+                  <span class="cell-strong">建议增加哈萨克文客服</span>
+                  <span class="cell-stack__sub">提交人：艾力·热合曼</span>
+                </span>
+              </td>
+              <td><span class="tag tag--dot tag--gray">低</span></td>
+              <td><span class="tag tag--dot tag--success">已关闭</span></td>
+              <td><span class="mono-time">2026-10-24 09:18</span></td>
+              <td>admin</td>
+              <td>
+                <div class="table__ops">
+                  <a class="btn btn--text" href="21-ticket-detail.html">查看</a>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="pagination">
+        <span class="pagination__total">共 <b>84</b> 条 · 当前第 <b>1</b> / 9 页</span>
+        <button class="page-btn page-btn--disabled" type="button" aria-label="上一页">‹</button>
+        <button class="page-btn page-btn--active" type="button">1</button>
+        <button class="page-btn" type="button">2</button>
+        <button class="page-btn" type="button">3</button>
+        <button class="page-btn" type="button" aria-label="更多">…</button>
+        <button class="page-btn" type="button">9</button>
+        <button class="page-btn" type="button" aria-label="下一页">›</button>
+        <select class="pagination__size" aria-label="每页条数">
+          <option>10 条 / 页</option>
+          <option>20 条 / 页</option>
+        </select>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script src="shell.js"></script>
+</body>
+</html>

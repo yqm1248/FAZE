@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390, initial-scale=1">
+<meta name="dsh-design" content="app">
+<title>版本更新弹窗</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   版本更新弹窗（第 16 批 · 独立浮层屏，04 = 41-settings「检查更新」）
+   ==========================================================================
+   职责：有新版本时提示更新，分「可稍后」与「必须更新」两种形态。
+   入口：41-settings「检查更新」自动检测；启动时静默检测
+   数据来源：版本检测接口（最新版本号 / 更新包大小 / 更新说明 / 是否强制）
+
+   两态用 URL hash 切换：#state-force
+     optional（默认）—— 有新版本，可以稍后
+     force          —— 必须更新才能继续用（只给一个按钮）
+
+   ★ 强制更新不是产品想不想的问题，是「旧版本还能不能安全运行」的问题。
+     只有两种情况够格强制：安全漏洞修复、涉及资金与身份的服务端协议变更。
+     为了推新功能而强制更新，用户会直接卸载 —— 尤其本产品的用户里
+     有不少人的手机存储本来就不宽裕，一个 12 MB 的包不是随手能装的。
+
+   ★ 强制态必须解释「为什么不能稍后」，而且要给一个用户能接受的落点：
+     「旧版本已停止服务」比「请更新到最新版本」具体得多。
+     只写后者，用户会反复点关闭、去找破解，最后打电话来骂客服。
+
+   ★ 两种形态都要写「更新不会影响你的数据」。这是更新场景里最大的顾虑：
+     用户担心的是订单、案件材料、聊天记录会不会丢，不是新版本有什么功能。
+
+   ★ 更新说明只写用户能感知的变化，按「新增 / 修复 / 优化」各一条。
+     把 commit 级别的改动铺上去，用户只会觉得更新很麻烦。
+   ========================================================================== */
+
+body {
+  position: relative;
+  width: var(--screen-w);
+  height: var(--screen-h);
+  margin: 0 auto;
+  overflow: hidden;
+  background: var(--bg-canvas);
+  font-family: var(--font-sans);
+}
+
+/* ---------- 被遮盖的背景页：41 设置页的简化轮廓 ---------- */
+/* ★ .statusbar 是绝对定位的沉浸式状态栏（tokens.css 里 position: absolute），
+   不占文档流。背景页的第一块必须自己把 54px 让出来，否则标题会和状态栏的
+   时间、电量叠在一起。07b 的背景是 flex 居中的 splash，所以没这个问题。 */
+.fake-nav {
+  display: flex;
+  align-items: center;
+  min-height: calc(var(--statusbar-h) + var(--navbar-h));
+  padding-block-start: calc(var(--statusbar-h) + 2px);
+  padding-inline: var(--sp-xl);
+  background: var(--bg-surface);
+  font-size: var(--fs-h2);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+}
+
+.fake-row {
+  height: 52px;
+  margin: 10px var(--sp-xl) 0;
+  border-radius: var(--r-md);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.fake-row:first-of-type {
+  margin-block-start: var(--sp-lg);
+}
+
+/* ---------- 更新说明列表 ---------- */
+.update-list {
+  margin: var(--sp-lg) var(--sp-xl) 0;
+  padding: var(--sp-md);
+  border-radius: var(--r-sm);
+  background: var(--bg-canvas);
+  text-align: start;
+}
+
+.update-list__title {
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.update-list ul {
+  margin-block-start: var(--sp-xs);
+  padding-inline-start: 0;
+  list-style: none;
+}
+
+.update-list li {
+  position: relative;
+  padding-inline-start: 15px;
+  margin-block-start: 6px;
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+  line-height: 1.65;
+}
+
+.update-list li::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: 2px;
+  inset-block-start: 8px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--brand-primary);
+}
+
+/* ---------- 版本号 ---------- */
+.version-line {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-block-start: var(--sp-sm);
+  font-family: var(--font-num);
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.version-line__tag {
+  padding: 1px 6px;
+  border-radius: var(--r-xs);
+  background: var(--brand-primary-soft);
+  color: var(--brand-primary-pressed);
+  font-family: var(--font-sans);
+  font-size: var(--fs-micro);
+}
+
+/* 强制更新时版本号标签用暖色：不是错误，是「这一版必须装」 */
+.version-line__tag--force {
+  background: var(--state-warning-soft);
+  color: var(--state-warning-deep);
+}
+
+/* ---------- 数据安全小字 ---------- */
+.safe-hint {
+  margin: var(--sp-md) var(--sp-xl) 0;
+  font-size: var(--fs-micro);
+  color: var(--text-muted);
+  line-height: 1.7;
+  text-align: center;
+}
+</style>
+</head>
+<body>
+
+<header class="statusbar">
+  <span>9:41</span>
+  <span class="statusbar__icons">
+    <svg width="17" height="11" viewBox="0 0 17 11" fill="none" aria-hidden="true">
+      <rect x="0" y="7" width="3" height="4" rx="1" fill="currentColor"/>
+      <rect x="4.5" y="5" width="3" height="6" rx="1" fill="currentColor"/>
+      <rect x="9" y="2.5" width="3" height="8.5" rx="1" fill="currentColor"/>
+      <rect x="13.5" y="0" width="3" height="11" rx="1" fill="currentColor"/>
+    </svg>
+    <svg width="16" height="11" viewBox="0 0 16 11" fill="none" aria-hidden="true">
+      <path d="M1 3.2A10.5 10.5 0 0 1 15 3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M3.6 5.9a7 7 0 0 1 8.8 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M6.2 8.6a3.4 3.4 0 0 1 3.6 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden="true">
+      <rect x="0.6" y="0.6" width="21" height="10.8" rx="3" stroke="currentColor" stroke-opacity="0.4" stroke-width="1.2"/>
+      <rect x="2.2" y="2.2" width="15" height="7.6" rx="1.8" fill="currentColor"/>
+      <path d="M23.4 4.2v3.6" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+  </span>
+</header>
+
+<!-- 背景页：设置页的简化轮廓，让弹窗有落点 -->
+<div class="fake-nav">设置</div>
+<div class="fake-row"></div>
+<div class="fake-row"></div>
+<div class="fake-row"></div>
+
+<i class="mask"></i>
+
+<!-- ====================================================================
+     状态 optional：有新版本，可以稍后（默认）
+     ==================================================================== -->
+<section data-state="optional">
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="dlg-title">
+    <div class="dialog__icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none">
+        <path d="M12 3.6v11.2" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+        <path d="m7.6 10.6 4.4 4.4 4.4-4.4" stroke="currentColor" stroke-width="1.9"
+              stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M4.6 18.4h14.8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+      </svg>
+    </div>
+
+    <h2 class="dialog__title" id="dlg-title">发现新版本</h2>
+
+    <p class="version-line">
+      v1.0.0 → <b>v1.1.0</b>
+      <span class="version-line__tag">12.4 MB</span>
+    </p>
+
+    <div class="update-list">
+      <p class="update-list__title">本次更新</p>
+      <ul>
+        <li>案件进度页可以看人民法院通知原文了，无需再切换到消息中心查找</li>
+        <li>修复部分安卓机型从支付页返回后白屏的问题</li>
+        <li>律师列表与文章列表加载更快</li>
+      </ul>
+    </div>
+
+    <p class="safe-hint">
+      更新不会影响你的订单、案件材料、文书和聊天记录。
+    </p>
+
+    <div class="dialog__actions">
+      <button class="dialog__btn" type="button" data-later>稍后再说</button>
+      <button class="dialog__btn dialog__btn--primary" type="button" data-update>立即更新</button>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================
+     状态 force：必须更新才能继续（#state-force）
+     ==================================================================== -->
+<section data-state="force" hidden>
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="dlg-force-title">
+    <div class="dialog__icon dialog__icon--warn" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none">
+        <path d="M12 3.2 21 20.4H3L12 3.2Z" stroke="currentColor" stroke-width="1.9"
+              stroke-linejoin="round"/>
+        <path d="M12 9.6v4.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+        <circle cx="12" cy="17.2" r="1.1" fill="currentColor"/>
+      </svg>
+    </div>
+
+    <h2 class="dialog__title" id="dlg-force-title">需要更新后才能继续使用</h2>
+
+    <p class="version-line">
+      v1.0.0 → <b>v1.1.0</b>
+      <span class="version-line__tag version-line__tag--force">必须更新</span>
+    </p>
+
+    <p class="dialog__body" style="text-align: start">
+      这一版修复了一个支付流程中的安全漏洞。<b>旧版本对应的服务端接口已经停止响应</b>，继续使用会出现付款成功但订单不更新的情况，所以不能跳过。
+    </p>
+
+    <div class="update-list">
+      <p class="update-list__title">本次更新</p>
+      <ul>
+        <li>修复支付流程中的安全漏洞（必须更新）</li>
+        <li>其他稳定性改进</li>
+      </ul>
+    </div>
+
+    <p class="safe-hint">
+      更新不会影响你的订单、案件材料、文书和聊天记录。<br>
+      如果更新失败，重启 App 后会再次提示，不会丢数据。
+    </p>
+
+    <div class="dialog__actions">
+      <button class="dialog__btn dialog__btn--primary" type="button" data-update>立即更新</button>
+    </div>
+  </div>
+</section>
+
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="dsh-design" content="web 1440x900">
+<title>余额与充值 · 法泽管理后台</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   A-07 余额与充值
+   --------------------------------------------------------------------------
+   职责：账户余额总览、按用户查余额与流水、手工充值、调账。
+   依据：《PC 后台开发计划_v1.0》§2.3 A-07；技术路线 §15.1「财务管理」
+   接口：**缺**（手工充值接口必须先定义，它是第 1 段账务验收的唯一手段）
+   说明：
+     1. 这一页是「钱」的入口，所以最上面先给总量（4 个统计卡），
+        再给按用户的明细。管理员 90% 的用法是「按手机号查一个人」。
+     2. 余额、冻结、累计三列必须右对齐且等宽 —— 竖着扫能立刻比出大小。
+     3. 冻结金额非 0 用红色标出：它意味着有提现或退款正在处理，是风险信号。
+   ========================================================================== */
+
+.balance-table col.c-user { width: 24%; }
+.balance-table col.c-avail { width: 13%; }
+.balance-table col.c-frozen { width: 11%; }
+.balance-table col.c-in { width: 13%; }
+.balance-table col.c-out { width: 13%; }
+.balance-table col.c-time { width: 16%; }
+.balance-table col.c-ops { width: 10%; }
+
+.balance-table .mono-time {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+
+/* 余额是这一页的主角：比普通数字重一档 */
+.balance-amt {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+}
+
+.balance-frozen {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  color: var(--state-danger-deep);
+}
+</style>
+</head>
+<body class="shell" data-page="06-balance-recharge">
+
+<aside class="sidebar" id="sidebar"></aside>
+
+<div class="main">
+  <header class="navbar" id="navbar"></header>
+  <div class="tags-view" id="tags-view"></div>
+
+  <main class="app-container scroll-y">
+
+    <div class="page-head">
+      <div>
+        <h1 class="page-head__title">余额与充值</h1>
+        <p class="page-head__desc">
+          平台采用账户余额制：用户充值进余额，消费时抵扣。手工充值用于线下付款与补偿，会记入流水。
+        </p>
+      </div>
+      <div class="page-head__actions">
+        <button class="btn btn--primary" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"
+               style="width:14px;height:14px">
+            <path d="M12 5.4v13.2"/><path d="M5.4 12h13.2"/>
+          </svg>
+          手工充值
+        </button>
+      </div>
+    </div>
+
+    <!-- 总量 -->
+    <section class="stat-grid" aria-label="账户总量">
+      <div class="stat">
+        <div class="stat__label">账户总数</div>
+        <div class="stat__value">1,284<small>个</small></div>
+        <div class="stat__foot">已实名 943 · 未实名 341</div>
+      </div>
+      <div class="stat">
+        <div class="stat__label">平台余额合计</div>
+        <div class="stat__value"><small>¥</small>86,420<small>.35</small></div>
+        <div class="stat__foot">其中冻结 ¥4,600.00</div>
+      </div>
+      <div class="stat">
+        <div class="stat__label">今日充值</div>
+        <div class="stat__value"><small>¥</small>12,860<small>.00</small></div>
+        <div class="stat__foot">
+          <span class="stat__delta stat__delta--up">42 笔</span> 含手工 1 笔
+        </div>
+      </div>
+      <div class="stat">
+        <div class="stat__label">今日消费</div>
+        <div class="stat__value"><small>¥</small>4,120<small>.00</small></div>
+        <div class="stat__foot">38 笔订单抵扣</div>
+      </div>
+    </section>
+
+    <!-- 查询 -->
+    <div class="card" style="margin-top:var(--sp-4)">
+      <form class="query-bar" method="get">
+        <div class="field-inline">
+          <label class="field-inline__label" for="q-user">用户</label>
+          <input class="input input--wide" id="q-user" type="text" placeholder="手机号 / 用户 ID / 昵称">
+        </div>
+        <div class="field-inline">
+          <label class="field-inline__label" for="q-bal">余额区间</label>
+          <select class="select" id="q-bal">
+            <option>全部</option>
+            <option>余额 &gt; 0</option>
+            <option>余额 = 0</option>
+            <option>有冻结金额</option>
+          </select>
+        </div>
+        <div class="field-inline">
+          <label class="field-inline__label" for="q-time">最近变动</label>
+          <select class="select" id="q-time">
+            <option>近 30 天</option>
+            <option>近 7 天</option>
+            <option>近 90 天</option>
+            <option>全部</option>
+          </select>
+        </div>
+        <div class="query-bar__actions">
+          <button class="btn btn--primary" type="submit">查询</button>
+          <button class="btn" type="reset">重置</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- 明细 -->
+    <div class="card card--flush" style="margin-top:var(--sp-4)">
+      <div class="toolbar">
+        <div class="toolbar__left">
+          <span class="toolbar__count">余额单位：元（人民币）· 金额为整数分存储，此处已换算为元</span>
+        </div>
+        <div class="toolbar__right">
+          <button class="icon-btn" type="button" title="刷新" aria-label="刷新">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M20 12a8 8 0 1 1-2.4-5.7"/><path d="M20.2 4.6v4.2H16"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="table balance-table">
+          <colgroup>
+            <col class="c-user">
+            <col class="c-avail">
+            <col class="c-frozen">
+            <col class="c-in">
+            <col class="c-out">
+            <col class="c-time">
+            <col class="c-ops">
+          </colgroup>
+          <thead>
+            <tr>
+              <th>用户</th>
+              <th style="text-align:right">可用余额</th>
+              <th style="text-align:right">冻结</th>
+              <th style="text-align:right">累计充值</th>
+              <th style="text-align:right">累计消费</th>
+              <th>最近变动</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <div class="cell-person">
+                  <span class="cell-person__avatar">阿</span>
+                  <span class="cell-stack">
+                    <span class="cell-strong">阿依努尔·买买提</span>
+                    <span class="cell-stack__sub mono">U-10284 · 138****6621</span>
+                  </span>
+                </div>
+              </td>
+              <td style="text-align:right"><span class="balance-amt">¥ 1,280.00</span></td>
+              <td style="text-align:right">¥ 0.00</td>
+              <td class="cell-num">¥ 1,500.00</td>
+              <td class="cell-num">¥ 220.00</td>
+              <td><span class="mono-time">2026-10-29 21:14</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">充值</button>
+                  <button class="btn btn--text" type="button">流水</button>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td>
+                <div class="cell-person">
+                  <span class="cell-person__avatar">张</span>
+                  <span class="cell-stack">
+                    <span class="cell-strong">张建国</span>
+                    <span class="cell-stack__sub mono">U-10283 · 159****3308</span>
+                  </span>
+                </div>
+              </td>
+              <td style="text-align:right"><span class="balance-amt">¥ 3,600.00</span></td>
+              <td style="text-align:right">¥ 0.00</td>
+              <td class="cell-num">¥ 3,800.00</td>
+              <td class="cell-num">¥ 200.00</td>
+              <td><span class="mono-time">2026-10-29 20:52</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">充值</button>
+                  <button class="btn btn--text" type="button">流水</button>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td>
+                <div class="cell-person">
+                  <span class="cell-person__avatar">李</span>
+                  <span class="cell-stack">
+                    <span class="cell-strong">李伟</span>
+                    <span class="cell-stack__sub mono">U-10281 · 135****2046</span>
+                  </span>
+                </div>
+              </td>
+              <td style="text-align:right"><span class="balance-amt">¥ 880.00</span></td>
+              <td style="text-align:right"><span class="balance-frozen">¥ 300.00</span></td>
+              <td class="cell-num">¥ 1,200.00</td>
+              <td class="cell-num">¥ 320.00</td>
+              <td><span class="mono-time">2026-10-29 18:07</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">充值</button>
+                  <button class="btn btn--text" type="button">流水</button>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td>
+                <div class="cell-person">
+                  <span class="cell-person__avatar">刘</span>
+                  <span class="cell-stack">
+                    <span class="cell-strong">刘敏</span>
+                    <span class="cell-stack__sub mono">U-10277 · 189****4417</span>
+                  </span>
+                </div>
+              </td>
+              <td style="text-align:right"><span class="balance-amt">¥ 5,400.00</span></td>
+              <td style="text-align:right">¥ 0.00</td>
+              <td class="cell-num">¥ 6,000.00</td>
+              <td class="cell-num">¥ 600.00</td>
+              <td><span class="mono-time">2026-10-27 16:31</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">充值</button>
+                  <button class="btn btn--text" type="button">流水</button>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td>
+                <div class="cell-person">
+                  <span class="cell-person__avatar">玛</span>
+                  <span class="cell-stack">
+                    <span class="cell-strong">玛尔哈巴·吐尔逊</span>
+                    <span class="cell-stack__sub mono">U-10278 · 150****8843</span>
+                  </span>
+                </div>
+              </td>
+              <td style="text-align:right"><span class="balance-amt">¥ 620.00</span></td>
+              <td style="text-align:right"><span class="balance-frozen">¥ 120.00</span></td>
+              <td class="cell-num">¥ 800.00</td>
+              <td class="cell-num">¥ 180.00</td>
+              <td><span class="mono-time">2026-10-27 22:03</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">充值</button>
+                  <button class="btn btn--text" type="button">流水</button>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td>
+                <div class="cell-person">
+                  <span class="cell-person__avatar">赵</span>
+                  <span class="cell-stack">
+                    <span class="cell-strong">赵雪梅</span>
+                    <span class="cell-stack__sub mono">U-10275 · 133****6654</span>
+                  </span>
+                </div>
+              </td>
+              <td style="text-align:right"><span class="balance-amt">¥ 0.00</span></td>
+              <td style="text-align:right">¥ 0.00</td>
+              <td class="cell-num">¥ 0.00</td>
+              <td class="cell-num">¥ 0.00</td>
+              <td><span class="mono-time">—</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">充值</button>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td>
+                <div class="cell-person">
+                  <span class="cell-person__avatar">王</span>
+                  <span class="cell-stack">
+                    <span class="cell-strong">王海涛</span>
+                    <span class="cell-stack__sub mono">U-10279 · 137****5520</span>
+                  </span>
+                </div>
+              </td>
+              <td style="text-align:right"><span class="balance-amt">¥ 2,150.00</span></td>
+              <td style="text-align:right">¥ 0.00</td>
+              <td class="cell-num">¥ 2,400.00</td>
+              <td class="cell-num">¥ 250.00</td>
+              <td><span class="mono-time">2026-10-28 11:46</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">充值</button>
+                  <button class="btn btn--text" type="button">流水</button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="pagination">
+        <span class="pagination__total">共 <b>1,284</b> 条 · 当前第 <b>1</b> / 129 页</span>
+        <button class="page-btn page-btn--disabled" type="button" aria-label="上一页">‹</button>
+        <button class="page-btn page-btn--active" type="button">1</button>
+        <button class="page-btn" type="button">2</button>
+        <button class="page-btn" type="button">3</button>
+        <button class="page-btn page-btn--disabled" type="button" aria-label="更多">…</button>
+        <button class="page-btn" type="button">129</button>
+        <button class="page-btn" type="button" aria-label="下一页">›</button>
+        <select class="pagination__size" aria-label="每页条数">
+          <option>10 条 / 页</option>
+          <option>20 条 / 页</option>
+        </select>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script src="shell.js"></script>
+</body>
+</html>

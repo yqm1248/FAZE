@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="dsh-design" content="web 1440x900">
+<title>法条库 · 法泽管理后台</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   A-27 法条库
+   --------------------------------------------------------------------------
+   职责：本地法条库的查询、逐条查看、修正、批量导入与上下架。
+   依据：《PC 后台开发计划_v1.0》§2.5（本页为 v1.1 补登）；技术路线 §11「法条库」
+        与§12「AI 输出侧条文号存在性校验」——AI 只能引用这里存在的条文。
+   接口：**缺**。技术路线 §4.8.2 的 content 域只有 `GET /pub/law-items?kw=`，
+        没有管理端的增删改查。见《未完成需备注》§1
+   为什么这么排：
+     1. 这是 A 类列表页（派生自 02-user-list 母版），结构不另起：
+        页头 → 查询栏 → 工具栏 → 表格 → 分页，10 行数据正好一屏 766。
+     2. 列表里必须出现「待校对」状态：法条条号与生效版本要经法务复核，
+        设计稿把「待校对」做成独立状态列而不是隐藏，是为了让复核工作有入口。
+        民诉法条号本身需法务复核（《未完成需备注》§九第 7 条）。
+     3. 「引用次数」列是这一页的特殊信息：它把「AI 引用过多少条」直接摆在
+        列表里，运营一眼能看出哪些条文正在被大量引用、修正影响面大。
+     4. 不提供「删除法条」动作。法条是 AI 回答的依据，删除会让历史引用悬空，
+        只能「标记失效」（保留行、状态置灰），追溯靠 ai_message.refs 快照。
+   ========================================================================== */
+
+/* 表格列宽用 colgroup 百分比固定（与母版一致）。
+   时间列给到 12%：「2026-10-28 16:20」在 12px 等宽下约 124px，10% 会被截成「16…」 */
+.law-table col.c-name { width: 16%; }
+.law-table col.c-no { width: 8%; }
+.law-table col.c-ver { width: 11%; }
+.law-table col.c-sum { width: 27%; }
+.law-table col.c-ref { width: 8%; }
+.law-table col.c-state { width: 9%; }
+.law-table col.c-time { width: 12%; }
+.law-table col.c-ops { width: 9%; }
+
+/* 条文摘要压成一行：法条正文长，列表里只给首句，完整内容进详情。
+   文字直接放 td 里，不要套行内 span —— 表格是 table-layout:fixed，
+   td 自带的 overflow:hidden + text-overflow:ellipsis 只对 td 自身文本生效；
+   套了 span 之后盒子不受列宽约束，摘要会压到右侧「AI 引用次数」列上。 */
+.law-table td.law-sum {
+  color: var(--text-body);
+  font-size: var(--fs-sm);
+}
+
+/* 法律名称与条号贴在一起看，条号单独成列后要弱一档 */
+.law-table .law-no {
+  font-family: var(--font-num);
+  font-size: var(--fs-sm);
+  color: var(--text-primary);
+  font-weight: var(--fw-medium);
+}
+
+/* 时间列等宽，竖排能对齐 */
+.law-table .mono-time {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+</style>
+</head>
+<body class="shell" data-page="26-law-library">
+
+<aside class="sidebar" id="sidebar"></aside>
+
+<div class="main">
+  <header class="navbar" id="navbar"></header>
+  <div class="tags-view" id="tags-view"></div>
+
+  <main class="app-container scroll-y">
+
+    <!-- ==================== 页头 ==================== -->
+    <div class="page-head">
+      <div>
+        <h1 class="page-head__title">法条库</h1>
+        <p class="page-head__desc">
+          本地法条库，AI 只引用这里存在的条文。修正条文后，新的回答按新版引用；历史记录的引用快照不回溯改写。
+        </p>
+      </div>
+      <div class="page-head__actions">
+        <button class="btn" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"
+               style="width:14px;height:14px">
+            <path d="M12 3.8v11.4"/><path d="m7.6 11 4.4 4.4 4.4-4.4"/>
+            <path d="M4.4 18.6v1.2h15.2v-1.2"/>
+          </svg>
+          导出条文
+        </button>
+      </div>
+    </div>
+
+    <!-- ==================== 查询栏 ==================== -->
+    <div class="card">
+      <form class="query-bar" method="get">
+        <div class="field-inline">
+          <label class="field-inline__label" for="q-law">法律</label>
+          <select class="select" id="q-law">
+            <option>全部</option>
+            <option>中华人民共和国民法典</option>
+            <option>中华人民共和国劳动合同法</option>
+            <option>中华人民共和国劳动争议调解仲裁法</option>
+            <option>中华人民共和国民事诉讼法</option>
+          </select>
+        </div>
+
+        <div class="field-inline">
+          <label class="field-inline__label" for="q-no">条号</label>
+          <input class="input" id="q-no" type="text" placeholder="如 577 或 第577条">
+        </div>
+
+        <div class="field-inline">
+          <label class="field-inline__label" for="q-kw">条文关键词</label>
+          <input class="input" id="q-kw" type="text" placeholder="如 违约金 / 经济补偿">
+        </div>
+
+        <div class="field-inline">
+          <label class="field-inline__label" for="q-state">复核状态</label>
+          <select class="select" id="q-state">
+            <option>全部</option>
+            <option>已生效</option>
+            <option>待校对</option>
+            <option>已失效</option>
+          </select>
+        </div>
+
+        <div class="query-bar__actions">
+          <button class="btn btn--primary" type="submit">查询</button>
+          <button class="btn" type="reset">重置</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- ==================== 表格 ==================== -->
+    <div class="card card--flush" style="margin-top:var(--sp-4)">
+      <div class="toolbar">
+        <div class="toolbar__left">
+          <button class="btn btn--sm" type="button">新增法条</button>
+          <button class="btn btn--sm" type="button">批量导入</button>
+          <button class="btn btn--sm" type="button">导出筛选结果</button>
+        </div>
+        <div class="toolbar__right">
+          <span class="toolbar__count">共 <b>2,148</b> 条 · 待校对 <b>36</b> 条</span>
+          <button class="icon-btn" type="button" title="刷新" aria-label="刷新">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M20 12a8 8 0 1 1-2.4-5.7"/>
+              <path d="M20.2 4.6v4.2H16"/>
+            </svg>
+          </button>
+          <button class="icon-btn" type="button" title="列设置" aria-label="列设置">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="3.6" y="4.4" width="16.8" height="15.2" rx="2"/>
+              <path d="M9.4 4.4v15.2"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="table law-table">
+          <colgroup>
+            <col class="c-name">
+            <col class="c-no">
+            <col class="c-ver">
+            <col class="c-sum">
+            <col class="c-ref">
+            <col class="c-state">
+            <col class="c-time">
+            <col class="c-ops">
+          </colgroup>
+          <thead>
+            <tr>
+              <th>法律名称</th>
+              <th>条号</th>
+              <th>生效版本</th>
+              <th>条文摘要</th>
+              <th style="text-align:right">AI 引用次数</th>
+              <th>复核状态</th>
+              <th>更新时间</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="is-selected">
+              <td><span class="cell-strong">中华人民共和国民法典</span></td>
+              <td><span class="law-no">第 577 条</span></td>
+              <td><span class="mono-time">2021-01-01 施行</span></td>
+              <td class="law-sum">当事人一方不履行合同义务的，应当承担继续履行、采取补救措施或者赔偿损失等违约责任。</td>
+              <td class="cell-num">126</td>
+              <td><span class="tag tag--dot tag--success">已生效</span></td>
+              <td><span class="mono-time">2026-10-28 16:20</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">查看</button>
+                  <button class="btn btn--text" type="button">修正</button>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="cell-strong">中华人民共和国民法典</span></td>
+              <td><span class="law-no">第 1042 条</span></td>
+              <td><span class="mono-time">2021-01-01 施行</span></td>
+              <td class="law-sum">禁止包办、买卖婚姻和其他干涉婚姻自由的行为，禁止借婚姻索取财物。</td>
+              <td class="cell-num">89</td>
+              <td><span class="tag tag--dot tag--success">已生效</span></td>
+              <td><span class="mono-time">2026-10-27 10:04</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">查看</button>
+                  <button class="btn btn--text" type="button">修正</button>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="cell-strong">中华人民共和国民法典</span></td>
+              <td><span class="law-no">第 1079 条</span></td>
+              <td><span class="mono-time">2021-01-01 施行</span></td>
+              <td class="law-sum">夫妻一方要求离婚的，可以由有关组织进行调解或者直接向人民法院提起离婚诉讼。</td>
+              <td class="cell-num">74</td>
+              <td><span class="tag tag--dot tag--success">已生效</span></td>
+              <td><span class="mono-time">2026-10-26 15:42</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">查看</button>
+                  <button class="btn btn--text" type="button">修正</button>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="cell-strong">中华人民共和国劳动合同法</span></td>
+              <td><span class="law-no">第 47 条</span></td>
+              <td><span class="mono-time">2013-07-01 施行</span></td>
+              <td class="law-sum">经济补偿按劳动者在本单位工作的年限，每满一年支付一个月工资的标准向劳动者支付。</td>
+              <td class="cell-num">63</td>
+              <td><span class="tag tag--dot tag--success">已生效</span></td>
+              <td><span class="mono-time">2026-10-25 09:18</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">查看</button>
+                  <button class="btn btn--text" type="button">修正</button>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="cell-strong">中华人民共和国民法典</span></td>
+              <td><span class="law-no">第 1165 条</span></td>
+              <td><span class="mono-time">2021-01-01 施行</span></td>
+              <td class="law-sum">行为人因过错侵害他人民事权益造成损害的，应当承担侵权责任。</td>
+              <td class="cell-num">58</td>
+              <td><span class="tag tag--dot tag--success">已生效</span></td>
+              <td><span class="mono-time">2026-10-24 17:36</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">查看</button>
+                  <button class="btn btn--text" type="button">修正</button>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="cell-strong">中华人民共和国民法典</span></td>
+              <td><span class="law-no">第 188 条</span></td>
+              <td><span class="mono-time">2021-01-01 施行</span></td>
+              <td class="law-sum">向人民法院请求保护民事权利的诉讼时效期间为三年，法律另有规定的依其规定。</td>
+              <td class="cell-num">44</td>
+              <td><span class="tag tag--dot tag--warning">待校对</span></td>
+              <td><span class="mono-time">2026-10-23 11:52</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">查看</button>
+                  <button class="btn btn--text" type="button">校对</button>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="cell-strong">中华人民共和国民法典</span></td>
+              <td><span class="law-no">第 1122 条</span></td>
+              <td><span class="mono-time">2021-01-01 施行</span></td>
+              <td class="law-sum">遗产是自然人死亡时遗留的个人合法财产，依照法律规定或者根据其性质不得继承的除外。</td>
+              <td class="cell-num">41</td>
+              <td><span class="tag tag--dot tag--success">已生效</span></td>
+              <td><span class="mono-time">2026-10-22 14:07</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">查看</button>
+                  <button class="btn btn--text" type="button">修正</button>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="cell-strong">中华人民共和国劳动争议调解仲裁法</span></td>
+              <td><span class="law-no">第 27 条</span></td>
+              <td><span class="mono-time">2008-05-01 施行</span></td>
+              <td class="law-sum">劳动争议申请仲裁的时效期间为一年，从当事人知道或者应当知道其权利被侵害之日起计算。</td>
+              <td class="cell-num">37</td>
+              <td><span class="tag tag--dot tag--warning">待校对</span></td>
+              <td><span class="mono-time">2026-10-21 16:30</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">查看</button>
+                  <button class="btn btn--text" type="button">校对</button>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="cell-strong">中华人民共和国劳动合同法</span></td>
+              <td><span class="law-no">第 82 条</span></td>
+              <td><span class="mono-time">2013-07-01 施行</span></td>
+              <td class="law-sum">用人单位自用工之日起超过一个月不满一年未与劳动者订立书面劳动合同的，应支付二倍工资。</td>
+              <td class="cell-num">29</td>
+              <td><span class="tag tag--dot tag--success">已生效</span></td>
+              <td><span class="mono-time">2026-10-20 10:15</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">查看</button>
+                  <button class="btn btn--text" type="button">修正</button>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="cell-strong">中华人民共和国民事诉讼法</span></td>
+              <td><span class="law-no">第 122 条</span></td>
+              <td><span class="mono-time">2024-01-01 施行</span></td>
+              <td class="law-sum">起诉应当向人民法院递交起诉状，并按照被告人数提出副本。</td>
+              <td class="cell-num">18</td>
+              <td><span class="tag tag--dot tag--warning">待校对</span></td>
+              <td><span class="mono-time">2026-10-19 09:46</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">查看</button>
+                  <button class="btn btn--text" type="button">校对</button>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="cell-strong">中华人民共和国民法典</span></td>
+              <td><span class="law-no">第 1198 条</span></td>
+              <td><span class="mono-time">2016-01-01 施行</span></td>
+              <td class="law-sum">宾馆、商场、银行等经营场所的经营者，未尽到安全保障义务造成他人损害的，应承担侵权责任。</td>
+              <td class="cell-num">12</td>
+              <td><span class="tag tag--dot tag--gray">已失效</span></td>
+              <td><span class="mono-time">2026-10-18 13:22</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">查看</button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- 分页 -->
+      <div class="pagination">
+        <span class="pagination__total">共 <b>2,148</b> 条 · 当前第 <b>1</b> / 215 页</span>
+        <button class="page-btn page-btn--disabled" type="button" aria-label="上一页">‹</button>
+        <button class="page-btn page-btn--active" type="button">1</button>
+        <button class="page-btn" type="button">2</button>
+        <button class="page-btn" type="button">3</button>
+        <button class="page-btn" type="button">4</button>
+        <button class="page-btn page-btn--disabled" type="button" aria-label="更多">…</button>
+        <button class="page-btn" type="button">215</button>
+        <button class="page-btn" type="button" aria-label="下一页">›</button>
+        <select class="pagination__size" aria-label="每页条数">
+          <option>10 条 / 页</option>
+          <option>20 条 / 页</option>
+          <option>50 条 / 页</option>
+        </select>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script src="shell.js"></script>
+</body>
+</html>

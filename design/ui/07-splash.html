@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390, initial-scale=1">
+<meta name="dsh-design" content="app">
+<title>启动页</title>
+<link rel="stylesheet" href="tokens.css">
+<style>
+/* ==========================================================================
+   启动页 —— 复刻原项目 pages/auth/splash.vue
+   版式：全屏品牌渐变 + 居中 logo 方块 + 应用名 + 底部加载态与版权
+   与原图差异（第 2 批已记录）：
+     1. logo 里的天秤由位图改为实心金色 SVG，形态与配色保持一致
+     2. 底部「正在安全连接…」与版权文字由半透明白改为纯白：
+        半透明白在渐变上只有 2.2~3.5:1，达不到 4.5:1
+     3. 渐变整体压深一档（#5266EC → #4053D0），保证白字达标
+   ========================================================================== */
+
+body {
+  background: linear-gradient(180deg, #5266EC 0%, #4053D0 100%);
+  color: var(--text-on-brand);
+  display: flex;
+  flex-direction: column;
+  padding-block-end: calc(var(--safe-bottom) + 8px);
+}
+
+.splash__main {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding-block-end: 60px;
+}
+
+.logo {
+  width: 100px;
+  height: 100px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.logo svg {
+  width: 58px;
+  height: 58px;
+}
+
+.splash__name {
+  margin-block-start: 34px;
+  font-size: 32px;
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.14em;
+  text-indent: 0.14em;
+  line-height: 1.2;
+}
+
+.splash__slogan {
+  margin-block-start: 14px;
+  font-size: var(--fs-lg);
+  letter-spacing: 0.04em;
+  line-height: var(--lh-normal);
+}
+
+.splash__foot {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-block-end: 6px;
+}
+
+.spinner {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 2.5px solid rgba(255, 255, 255, 0.3);
+  border-block-start-color: var(--text-on-brand);
+  animation: spin 900ms linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.splash__status {
+  margin-block-start: 18px;
+  font-size: var(--fs-md);
+  line-height: var(--lh-normal);
+}
+
+.splash__copyright {
+  margin-block-start: 12px;
+  font-size: var(--fs-micro);
+  line-height: var(--lh-normal);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+    border-block-start-color: rgba(255, 255, 255, 0.3);
+  }
+}
+</style>
+</head>
+<body class="splash">
+
+<header class="statusbar statusbar--light">
+  <span>9:41</span>
+  <span class="statusbar__icons">
+    <svg width="17" height="11" viewBox="0 0 17 11" fill="none" aria-hidden="true">
+      <rect x="0" y="7" width="3" height="4" rx="1" fill="currentColor"/>
+      <rect x="4.5" y="5" width="3" height="6" rx="1" fill="currentColor"/>
+      <rect x="9" y="2.5" width="3" height="8.5" rx="1" fill="currentColor"/>
+      <rect x="13.5" y="0" width="3" height="11" rx="1" fill="currentColor"/>
+    </svg>
+    <svg width="16" height="11" viewBox="0 0 16 11" fill="none" aria-hidden="true">
+      <path d="M1 3.2A10.5 10.5 0 0 1 15 3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M3.6 5.9a7 7 0 0 1 8.8 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M6.2 8.6a3.4 3.4 0 0 1 3.6 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden="true">
+      <rect x="0.6" y="0.6" width="21" height="10.8" rx="3" stroke="currentColor" stroke-opacity="0.4" stroke-width="1.2"/>
+      <rect x="2.2" y="2.2" width="15" height="7.6" rx="1.8" fill="currentColor"/>
+      <path d="M23.4 4.2v3.6" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+  </span>
+</header>
+
+<div class="splash__main">
+  <div class="logo" aria-label="法泽标志">
+    <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
+      <path d="M32 11v33" stroke="#F5B942" stroke-width="3.6" stroke-linecap="round"/>
+      <path d="M22 48h20" stroke="#F5B942" stroke-width="3.6" stroke-linecap="round"/>
+      <path d="M15 19h34" stroke="#F5B942" stroke-width="3.6" stroke-linecap="round"/>
+      <path d="M15 19 7.6 30.4a7.6 7.6 0 0 0 14.8 0L15 19Z" fill="#F5B942"/>
+      <path d="M49 19l-7.4 11.4a7.6 7.6 0 0 0 14.8 0L49 19Z" fill="#F5B942"/>
+      <circle cx="32" cy="11" r="3.2" fill="#F5B942"/>
+    </svg>
+  </div>
+
+  <h1 class="splash__name">法泽</h1>
+  <p class="splash__slogan">法护民生 · 智慧法律服务</p>
+</div>
+
+<div class="splash__foot">
+  <i class="spinner" aria-hidden="true"></i>
+  <p class="splash__status">正在安全连接法律服务网络…</p>
+  <p class="splash__copyright">© 2026 法泽 版权所有</p>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

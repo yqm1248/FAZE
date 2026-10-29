@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390, initial-scale=1">
+<meta name="dsh-design" content="app">
+<title>在线立案</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   在线立案页（第 6 批 · 延展，无参考图）
+   ==========================================================================
+   职责：把起诉材料整理成规范格式，由平台代为向法院提交。
+   入口：首页「快捷功能 - 在线立案」。父级可回首页。
+   母版：**复杂表单母版**（同 15-lawyer-join：步骤条 + 单步表单 + 按钮）
+         本屏在母版上新增四样东西，后续文书表单（第 8 批）要照用：
+           .notice     顶部合规说明条
+           .case-type  三选一横排大卡
+           .amount     带单位的金额输入
+           .evidence   证据缩略图网格（4 列 + 虚线加号）
+   数据来源：无（纯提交）。提交成功跳 21-filing-done.html
+
+   ★★★ 这一屏最大的设计问题不是版式，是**措辞**。
+     平台不是人民法院，没有立案受理权。《民事诉讼法》上的「立案」是法院
+     对起诉材料审查后决定受理的司法行为，一个法律服务 App 不能自己宣称
+     「已立案」。UI 若写成「提交立案申请」「本院已受理」，属于冒用司法
+     用语，轻则是虚假宣传，重则涉及招摇撞骗。
+     所以本屏的处理是：
+       1. 页面标题仍是「在线立案」（用户就是这么理解的，改名字反而看不懂）
+       2. 首屏第一句就说清楚边界：**平台整理材料并代为提交，是否受理由法院决定**
+       3. 按钮叫「提交材料」，不叫「提交立案」
+       4. 提交成功后（21-filing-done）说的是「材料已提交」，不说「立案成功」
+     这三处措辞不是文案润色，是产品的合规底线，后续改文案时不能退回去。
+
+   四步结构：
+     Step 1 案件类型：民事 / 行政 / 刑事 + 纠纷类型 + 事发地（决定管辖法院）
+     Step 2 当事人：申请人（你）+ 对方当事人
+     Step 3 案情与诉求：案情描述 + 诉讼请求 + 争议金额
+     Step 4 证据与提交：材料上传 + 汇总确认 + 费用说明
+   ========================================================================== */
+
+body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  /* 顶部浅蓝渐变，430px 后转白（同 15-lawyer-join） */
+  background: linear-gradient(to bottom, var(--banner-start) 0, var(--bg-surface) 430px);
+}
+
+.navbar {
+  background: transparent;
+}
+
+.screen {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding: 0 var(--sp-xl) calc(var(--safe-bottom) + var(--sp-xxl));
+}
+.screen::-webkit-scrollbar {
+  display: none;
+}
+
+/* ---------- 页面标题 ---------- */
+.page-title {
+  padding-block: var(--sp-md) var(--sp-md);
+  font-size: var(--fs-h1);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+/* ---------- 合规说明条 ---------- */
+.notice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-sm);
+  margin-block-end: var(--sp-lg);
+  padding: var(--sp-md);
+  border-radius: var(--r-sm);
+  background: var(--state-warning-soft);
+  color: var(--state-warning-deep);
+  font-size: var(--fs-caption);
+  line-height: var(--lh-relaxed);
+}
+
+.notice svg {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  margin-block-start: 2px;
+}
+
+/* 步骤条（.steps / .step / .step__dot / .step__label）已提到 components.css，
+   第 6 批从本屏提出去 —— 15-lawyer-join 也用它，两处复制必然分叉。
+   见 components.css 第 16 段，那里记了两个走查时发现的连线 bug。 */
+
+/* ---------- 表单卡 ---------- */
+.form-card {
+  padding: var(--sp-lg);
+}
+
+.form-card__title {
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+.form-card__sub {
+  margin-block-start: var(--sp-xs);
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: var(--lh-relaxed);
+}
+
+/* ---------- 案件类型：三选一横排大卡 ----------
+   横排而不是纵排：三个选项是并列关系、没有优劣，横排一眼能看全，
+   纵排要滑动才能看完第三项。 */
+.case-types {
+  margin-block-start: var(--sp-md);
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--sp-sm);
+}
+
+.case-type {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-xs);
+  min-height: 92px;
+  padding: var(--sp-md) var(--sp-xs);
+  border: 1.5px solid var(--border-outline);
+  border-radius: var(--r-sm);
+  background: var(--bg-surface);
+  color: var(--text-body);
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.case-type svg {
+  width: 26px;
+  height: 26px;
+  color: var(--text-muted);
+}
+
+.case-type__name {
+  font-size: var(--fs-md);
+  font-weight: var(--fw-medium);
+  line-height: 1.2;
+}
+
+.case-type__hint {
+  font-size: var(--fs-micro);
+  color: var(--text-muted);
+  line-height: 1.2;
+  text-align: center;
+}
+
+.case-type.is-active {
+  border-color: var(--brand-primary);
+  background: var(--brand-primary-soft);
+}
+
+.case-type.is-active svg,
+.case-type.is-active .case-type__name {
+  color: var(--brand-primary-pressed);
+}
+
+/* ---------- 输入行 ---------- */
+.fields {
+  margin-block-start: var(--sp-lg);
+}
+
+.field-row {
+  padding-block: 4px;
+  border-block-end: 1px solid var(--border-divider);
+}
+
+.field-row:last-child {
+  border-block-end: 0;
+}
+
+.field-row__label {
+  display: block;
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.3;
+}
+
+.field-row__label em {
+  font-style: normal;
+  color: var(--state-danger);
+}
+
+/* 输入框本身必须 ≥44 高：这是真实可点区域，靠外边距补不够 */
+.field-row input {
+  width: 100%;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: var(--fs-lg);
+  line-height: 1.5;
+  outline: none;
+}
+
+.field-row input::placeholder {
+  color: #A3A9AE;
+}
+
+/* 校验失败：整行转红 + 下面给一句原因 */
+.field-row.is-invalid input {
+  color: var(--state-danger);
+}
+
+.field-row__error {
+  display: none;
+  margin-block-start: 4px;
+  font-size: var(--fs-caption);
+  color: var(--state-danger);
+  line-height: 1.4;
+}
+
+.field-row.is-invalid .field-row__error {
+  display: block;
+}
+
+/* 已有内容时给一句小提示（如「与你身份证上的名字一致」） */
+.field-row__hint {
+  display: block;
+  margin-block-start: 2px;
+  padding-block-end: 6px;
+  font-size: var(--fs-micro);
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+/* ---------- 多行输入 ---------- */
+.textarea-row {
+  position: relative;
+  margin-block-start: var(--sp-md);
+  padding: var(--sp-md);
+  border-radius: var(--r-sm);
+  background: var(--bg-input);
+}
+
+.textarea-row textarea {
+  display: block;
+  width: 100%;
+  min-height: 104px;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: var(--fs-md);
+  line-height: 1.7;
+  resize: none;
+  outline: none;
+}
+
+.textarea-row textarea::placeholder {
+  color: #A3A9AE;
+}
+
+/* 字数统计贴在右下，不占版面 */
+.textarea-row__count {
+  display: block;
+  text-align: end;
+  font-family: var(--font-num);
+  font-size: var(--fs-micro);
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+/* ---------- 金额输入 ---------- */
+.amount {
+  margin-block-start: var(--sp-sm);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-xs);
+  height: 52px;
+  padding-inline: var(--sp-md);
+  border: 1px solid var(--border-outline);
+  border-radius: var(--r-sm);
+  background: var(--bg-surface);
+}
+
+.amount > span {
+  font-family: var(--font-num);
+  font-size: var(--fs-h3);
+  color: var(--text-muted);
+}
+
+.amount input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 50px;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: var(--font-num);
+  font-size: 20px;
+  font-weight: var(--fw-bold);
+  outline: none;
+}
+
+.amount input::placeholder {
+  font-weight: var(--fw-regular);
+  color: #A3A9AE;
+}
+
+.amount__unit {
+  flex-shrink: 0;
+  font-size: var(--fs-md);
+  color: var(--text-muted);
+}
+
+/* ---------- 单选 / 多选标签 ---------- */
+/* .pick-list / .pick 已提到 components.css 第 18 段（15 / 20 / 25 三处都用） */
+
+
+/* ---------- 证据材料网格 ---------- */
+.evidence {
+  margin-block-start: var(--sp-md);
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--sp-sm);
+}
+
+.evidence__item {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  border-radius: var(--r-sm);
+  overflow: hidden;
+  background: var(--bg-input);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+}
+
+.evidence__item svg {
+  width: 24px;
+  height: 24px;
+}
+
+/* 已上传的缩略图占位：真实项目是 img cover，这里用浅底 + 文件图标 */
+.evidence__item--img {
+  background: linear-gradient(135deg, #E6ECFB 0%, #DCE6F8 100%);
+  color: #7E90BF;
+}
+
+/* 删除角标：视觉 20px，热区靠 ::after 撑到 44 */
+.evidence__del {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-end: 0;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 0 0 0 var(--r-sm);
+  background: rgba(26, 26, 26, 0.55);
+  color: var(--text-on-brand);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.evidence__del::after {
+  content: "";
+  position: absolute;
+  inset: -9px;
+}
+
+.evidence__del svg {
+  width: 12px;
+  height: 12px;
+}
+
+/* 虚线加号：一个格子的高度，热区就是整个格子，天然 ≥44 */
+.evidence__add {
+  aspect-ratio: 1 / 1;
+  border: 1px dashed var(--border-outline);
+  border-radius: var(--r-sm);
+  background: var(--bg-canvas);
+  color: var(--text-muted);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  font-family: inherit;
+  font-size: var(--fs-micro);
+  cursor: pointer;
+}
+
+.evidence__add svg {
+  width: 22px;
+  height: 22px;
+}
+
+.evidence-note {
+  margin-block-start: var(--sp-sm);
+  font-size: var(--fs-micro);
+  color: var(--text-muted);
+  line-height: var(--lh-relaxed);
+}
+
+/* ---------- 汇总确认 ---------- */
+.summary {
+  margin-block-start: var(--sp-md);
+  border-block-start: 1px solid var(--border-divider);
+}
+
+.summary__row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-md);
+  padding-block: 11px;
+  border-block-end: 1px solid var(--border-divider);
+}
+
+.summary__label {
+  flex-shrink: 0;
+  font-size: var(--fs-md);
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.summary__value {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: var(--fs-md);
+  color: var(--text-primary);
+  font-weight: var(--fw-medium);
+  line-height: 1.5;
+  text-align: end;
+  overflow-wrap: anywhere;
+}
+
+/* ---------- 费用说明 ---------- */
+.fee {
+  margin-block-start: var(--sp-md);
+  padding: var(--sp-md);
+  border-radius: var(--r-sm);
+  background: var(--bg-canvas);
+  font-size: var(--fs-caption);
+  color: var(--text-secondary);
+  line-height: var(--lh-relaxed);
+}
+
+.fee b {
+  color: var(--text-primary);
+}
+
+/* ---------- 底部按钮 ---------- */
+.form-actions {
+  margin-block-start: var(--sp-xl);
+  display: flex;
+  gap: var(--sp-md);
+}
+
+.form-actions .btn-primary {
+  flex: 1 1 auto;
+}
+
+.btn-ghost {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 96px;
+  height: var(--btn-h);
+  padding-inline: var(--sp-xl);
+  border: 1px solid var(--border-outline);
+  border-radius: var(--r-pill);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: var(--fs-h3);
+  cursor: pointer;
+}
+
+.btn-ghost:active {
+  background: var(--bg-input);
+}
+
+/* 隐私说明 */
+.form-note {
+  margin-block-start: var(--sp-md);
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: var(--lh-relaxed);
+  text-align: center;
+}
+</style>
+</head>
+<body>
+
+<header class="statusbar">
+  <span>9:41</span>
+  <span class="statusbar__icons">
+    <svg width="17" height="11" viewBox="0 0 17 11" fill="none" aria-hidden="true">
+      <rect x="0" y="7" width="3" height="4" rx="1" fill="currentColor"/>
+      <rect x="4.5" y="5" width="3" height="6" rx="1" fill="currentColor"/>
+      <rect x="9" y="2.5" width="3" height="8.5" rx="1" fill="currentColor"/>
+      <rect x="13.5" y="0" width="3" height="11" rx="1" fill="currentColor"/>
+    </svg>
+    <svg width="16" height="11" viewBox="0 0 16 11" fill="none" aria-hidden="true">
+      <path d="M1 3.2A10.5 10.5 0 0 1 15 3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M3.6 5.9a7 7 0 0 1 8.8 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M6.2 8.6a3.4 3.4 0 0 1 3.6 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden="true">
+      <rect x="0.6" y="0.6" width="21" height="10.8" rx="3" stroke="currentColor" stroke-opacity="0.4" stroke-width="1.2"/>
+      <rect x="2.2" y="2.2" width="15" height="7.6" rx="1.8" fill="currentColor"/>
+      <path d="M23.4 4.2v3.6" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+  </span>
+</header>
+
+<div class="navbar">
+  <a class="navbar__back" href="01-home.html" aria-label="返回首页">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M15.2 4.6 7.8 12l7.4 7.4" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </a>
+  <h1 class="navbar__title">在线立案</h1>
+</div>
+
+<main class="screen">
+
+  <h2 class="page-title">整理立案材料</h2>
+
+  <!-- ★ 合规说明：这一块不能删，措辞不能软化成「一键立案」之类 -->
+  <div class="notice">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="12" cy="12" r="9.2" stroke="currentColor" stroke-width="1.9"/>
+      <path d="M12 7.6v5.2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      <circle cx="12" cy="16.4" r="1.2" fill="currentColor"/>
+    </svg>
+    <span>
+      本页用于<b>整理立案材料</b>。平台法务完成形式审查后，代为提交至有管辖权的人民法院。平台不作出受理决定，<b>是否受理由人民法院裁定</b>；平台仅保证材料格式规范、材料齐备。
+    </span>
+  </div>
+
+  <div class="steps" data-steps>
+    <div class="step is-active" data-step-dot="1">
+      <i class="step__dot">1</i>
+      <span class="step__label">案件类型</span>
+    </div>
+    <div class="step" data-step-dot="2">
+      <i class="step__dot">2</i>
+      <span class="step__label">当事人</span>
+    </div>
+    <div class="step" data-step-dot="3">
+      <i class="step__dot">3</i>
+      <span class="step__label">案情诉求</span>
+    </div>
+    <div class="step" data-step-dot="4">
+      <i class="step__dot">4</i>
+      <span class="step__label">证据提交</span>
+    </div>
+  </div>
+
+  <!-- ======================================================================
+       Step 1：案件类型（默认显示）
+       ====================================================================== -->
+  <section class="card form-card" data-step="1">
+    <p class="form-card__title">案件类型</p>
+    <p class="form-card__sub">选择不影响提交，法务审查时予以更正；选择准确可减少一次补正沟通。</p>
+
+    <div class="case-types" data-case-types>
+      <button class="case-type is-active" type="button" data-case-type="civil">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 3.4v17.2M5.2 7.6h13.6" stroke="currentColor" stroke-width="1.8"
+                stroke-linecap="round"/>
+          <path d="M5.2 7.6 2.6 14h5.2L5.2 7.6ZM18.8 7.6 16.2 14h5.2l-2.6-6.4Z"
+                stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+        </svg>
+        <span class="case-type__name">民事</span>
+        <span class="case-type__hint">借贷、合同、<br>侵权</span>
+      </button>
+
+      <button class="case-type" type="button" data-case-type="admin">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M3.8 9.4 12 4.2l8.2 5.2" stroke="currentColor" stroke-width="1.8"
+                stroke-linejoin="round"/>
+          <path d="M5.8 9.6v8.2M10 9.6v8.2M14 9.6v8.2M18.2 9.6v8.2M3.4 19.8h17.2"
+                stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+        <span class="case-type__name">行政</span>
+        <span class="case-type__hint">行政处罚、<br>行政复议</span>
+      </button>
+
+      <button class="case-type" type="button" data-case-type="criminal">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 3.2 5 6.2v5.6c0 4.2 3 7.4 7 8.8 4-1.4 7-4.6 7-8.8V6.2l-7-3Z"
+                stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+          <path d="m9.2 11.8 2.2 2.2 3.6-3.8" stroke="currentColor" stroke-width="1.9"
+                stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span class="case-type__name">刑事</span>
+        <span class="case-type__hint">报案、<br>附带民事诉讼</span>
+      </button>
+    </div>
+
+    <p class="form-card__title" style="margin-block-start:20px">具体纠纷类型</p>
+    <!-- 单选：用 data-pick-one，不要用 data-pick —— 后者是多选 toggle，一个案子不可能既算民间借贷又算买卖合同 -->
+    <div class="pick-list" data-pick-one-list>
+      <button class="pick is-active" type="button" data-pick-one>民间借贷</button>
+      <button class="pick" type="button" data-pick-one>买卖合同</button>
+      <button class="pick" type="button" data-pick-one>交通事故</button>
+      <button class="pick" type="button" data-pick-one>劳动争议</button>
+      <button class="pick" type="button" data-pick-one>婚姻家事</button>
+      <button class="pick" type="button" data-pick-one>房屋租赁</button>
+      <button class="pick" type="button" data-pick-one>其他</button>
+    </div>
+
+    <div class="fields">
+      <div class="field-row">
+        <label class="field-row__label" for="filing-place">事发地 / 合同履行地</label>
+        <input id="filing-place" name="place" type="text"
+               placeholder="如：伊宁市解放路街道" autocomplete="off">
+        <span class="field-row__hint">
+          用于确定管辖法院。地址不准确的，法务将按实际情况核实。
+        </span>
+      </div>
+    </div>
+
+    <div class="form-actions">
+      <button class="btn-primary" type="button" data-step-next="2">下一步</button>
+    </div>
+  </section>
+
+  <!-- ======================================================================
+       Step 2：当事人
+       ====================================================================== -->
+  <section class="card form-card" data-step="2" hidden>
+    <p class="form-card__title">当事人信息</p>
+    <p class="form-card__sub">
+      当事人信息须与身份证件一致。信息有误的，人民法院将要求补正。
+    </p>
+
+    <div class="fields">
+      <div class="field-row">
+        <label class="field-row__label" for="filing-name">原告姓名 <em>*</em></label>
+        <input id="filing-name" name="plaintiffName" type="text" placeholder="与身份证件一致"
+               autocomplete="name">
+      </div>
+
+      <div class="field-row" data-field="idcard">
+        <label class="field-row__label" for="filing-idcard">身份证号 <em>*</em></label>
+        <input id="filing-idcard" name="idCard" type="text" inputmode="numeric"
+               placeholder="18 位身份证号" maxlength="18">
+        <p class="field-row__error">身份证号应为 18 位</p>
+        <span class="field-row__hint">
+          只用于核验立案主体，加密存储，不对外展示。
+        </span>
+      </div>
+
+      <div class="field-row" data-field="phone">
+        <label class="field-row__label" for="filing-phone">联系电话 <em>*</em></label>
+        <input id="filing-phone" name="phone" type="tel" inputmode="numeric"
+               placeholder="11 位手机号" autocomplete="tel" maxlength="11">
+        <p class="field-row__error">请填写 11 位手机号</p>
+        <span class="field-row__hint">
+          人民法院的通知将发送至该号码，号码变更请及时更新。
+        </span>
+      </div>
+    </div>
+
+    <p class="form-card__title" style="margin-block-start:24px">被告信息</p>
+    <p class="form-card__sub">
+      指与本案有直接利害关系的相对方。对方身份证号未知的可暂不填写；姓名与住址信息越完整，送达越顺利。
+    </p>
+
+    <div class="fields">
+      <div class="field-row">
+        <label class="field-row__label" for="filing-defendant">姓名 / 单位名称</label>
+        <input id="filing-defendant" name="defendantName" type="text"
+               placeholder="自然人填写姓名，法人填写全称">
+      </div>
+
+      <div class="field-row">
+        <label class="field-row__label" for="filing-defendant-addr">住址 / 注册地址</label>
+        <input id="filing-defendant-addr" name="defendantAddr" type="text"
+               placeholder="填写至县市街道即可">
+      </div>
+    </div>
+
+    <div class="form-actions">
+      <button class="btn-ghost" type="button" data-step-prev="1">上一步</button>
+      <button class="btn-primary" type="button" data-step-next="3">下一步</button>
+    </div>
+  </section>
+
+  <!-- ======================================================================
+       Step 3：案情与诉求
+       ====================================================================== -->
+  <section class="card form-card" data-step="3" hidden>
+    <p class="form-card__title">案情陈述</p>
+    <p class="form-card__sub">
+      请按时间顺序陈述纠纷发生时间、各方行为及造成的后果。法律依据无需填写，由法务与承办律师处理。
+    </p>
+
+    <div class="textarea-row">
+      <textarea placeholder="例：2025 年 8 月，我通过微信向王某出借 3 万元，用于其进货周转，约定 3 个月归还。到期后经多次催告，对方至今未归还。"></textarea>
+      <span class="textarea-row__count">0 / 2000</span>
+    </div>
+
+    <p class="form-card__title" style="margin-block-start:20px">诉讼请求</p>
+    <p class="form-card__sub">
+      指请求人民法院判令对方承担的义务，可列多项，如「归还本金」「支付逾期利息」。
+    </p>
+
+    <div class="textarea-row">
+      <textarea style="min-height:76px"
+        placeholder="例：一、判令被告归还借款本金 30,000 元；二、判令被告支付逾期利息；三、诉讼费由被告承担。"></textarea>
+    </div>
+
+    <p class="form-card__title" style="margin-block-start:20px">争议金额</p>
+    <p class="form-card__sub">诉讼费按此金额计算。填写实际主张的数额，可不含利息。</p>
+
+    <label class="amount">
+      <span>¥</span>
+      <input type="text" inputmode="numeric" placeholder="32000" aria-label="争议金额">
+      <span class="amount__unit">元</span>
+    </label>
+
+    <div class="form-actions">
+      <button class="btn-ghost" type="button" data-step-prev="2">上一步</button>
+      <button class="btn-primary" type="button" data-step-next="4">下一步</button>
+    </div>
+  </section>
+
+  <!-- ======================================================================
+       Step 4：证据与提交
+       ====================================================================== -->
+  <section class="card form-card" data-step="4" hidden>
+    <p class="form-card__title">证据材料</p>
+    <p class="form-card__sub">
+      请上传全部证据材料，优先上传能直接证明关键事实的部分。拍照须清晰、四角完整入框。
+    </p>
+
+    <div class="evidence">
+      <div class="evidence__item evidence__item--img">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <rect x="3.4" y="5" width="17.2" height="14" rx="2.2" stroke="currentColor" stroke-width="1.8"/>
+          <path d="m4 16.4 4.4-4 3.1 2.8 3-2.6 4.5 4" stroke="currentColor" stroke-width="1.8"
+                stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <button class="evidence__del" type="button" aria-label="删除这份材料">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2.4"
+                  stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="evidence__item evidence__item--img">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M5.6 3.4h8.2l5 5v11.2a1.8 1.8 0 0 1-1.8 1.8H5.6a1.8 1.8 0 0 1-1.8-1.8V5.2a1.8 1.8 0 0 1 1.8-1.8Z"
+                stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+          <path d="M13.6 3.6v5.2h5" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+        </svg>
+        <button class="evidence__del" type="button" aria-label="删除这份材料">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2.4"
+                  stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+
+      <button class="evidence__add" type="button" data-upload>
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 5.2v13.6M5.2 12h13.6" stroke="currentColor" stroke-width="1.9"
+                stroke-linecap="round"/>
+        </svg>
+        <span>添加</span>
+      </button>
+    </div>
+
+    <p class="evidence-note">
+      支持照片与 PDF 格式，单份不超过 20MB，最多 50 份。微信聊天记录请截图上传，须能辨认双方头像及完整对话内容。
+    </p>
+
+    <p class="form-card__title" style="margin-block-start:24px">提交前核对</p>
+
+    <div class="summary">
+      <div class="summary__row">
+        <span class="summary__label">案件类型</span>
+        <span class="summary__value">民事 · 民间借贷</span>
+      </div>
+      <div class="summary__row">
+        <span class="summary__label">事发地</span>
+        <span class="summary__value">伊宁市解放路街道</span>
+      </div>
+      <div class="summary__row">
+        <span class="summary__label">原告</span>
+        <span class="summary__value">马合木提·艾山</span>
+      </div>
+      <div class="summary__row">
+        <span class="summary__label">被告</span>
+        <span class="summary__value">王建国</span>
+      </div>
+      <div class="summary__row">
+        <span class="summary__label">争议金额</span>
+        <span class="summary__value">¥ 32,000</span>
+      </div>
+      <div class="summary__row">
+        <span class="summary__label">证据材料</span>
+        <span class="summary__value">2 份</span>
+      </div>
+    </div>
+
+    <div class="fee">
+      <b>费用说明：</b>诉讼费由人民法院按《诉讼费用交纳办法》收取，本平台<b>不代收</b>，亦不从中分成。以 32,000 元标的估算约 600 元，适用简易程序减半，最终以人民法院核定为准。平台材料整理与代提交服务本期免费。
+    </div>
+
+    <div class="form-actions">
+      <button class="btn-ghost" type="button" data-step-prev="3">上一步</button>
+      <a class="btn-primary" href="21-filing-done.html">提交材料</a>
+    </div>
+
+    <p class="form-note">
+      提交即视为你确认上述信息真实。伪造证据应承担相应法律责任，并可能导致本可成立的诉讼请求不获支持。
+    </p>
+  </section>
+
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

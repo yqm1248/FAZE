@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="dsh-design" content="web 1440x900">
+<title>对账报表 · 法泽管理后台</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   A-09 对账报表
+   --------------------------------------------------------------------------
+   职责：余额恒等式巡检（账户余额 = SUM(流水金额)）的结果展示、差异明细、
+         人工核查与标记已处理。
+   依据：《PC 后台开发计划_v1.0》§2.3 A-09；数据表 balance_flow、reconciliation_diff
+   接口：**缺**。巡检是服务端定时任务 + 手动触发，见《未完成需备注》§1
+   说明：
+     1. 顶部结果卡只在「有差异」时才有存在感，所以这一屏按「发现 2 个差异」
+         的真实状态画，而不是画 0：全部为 0 的页面看不出这个页面在干什么，
+         也没法验证差异表、chips、处理按钮的布局。
+     2. 全页数字口径（必须自洽，否则管理员会怀疑数据）：
+        巡检账户 1,284 → 有差异 2 个（未处理）+ 已处理 1 个；
+        未处理差额 -30.00 + -1,210.00 = -1,240.00，故「差额合计 ¥ 1,240.00」。
+        表格 6 行是巡检明细的第 1 页，其中 3 行一致（证明巡检确实逐户比对过）。
+     3. 「重新巡检」是全屏唯一 primary：巡检是有副作用的动作（会写
+         reconciliation_diff），且本页没有别的提交类按钮。
+   ========================================================================== */
+
+/* 顶部结果卡：横向一条，左侧大数字，右侧时间 + 巡检按钮。
+   padding 比常规卡片薄（16 上下），把高度让给下面的统计行与表格。 */
+.reconcile__result .reconcile__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-5);
+  padding: var(--sp-4) var(--sp-5);
+}
+
+.reconcile__label {
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+}
+
+/* 大数字区：字号、字重、字距都跟 .stat__value 一致，
+   但语义上是「结论」而不是「指标」，所以不复用 .stat 的卡片壳 */
+.reconcile__value {
+  margin-top: var(--sp-1);
+  font-size: var(--fs-3xl);
+  font-weight: var(--fw-semibold);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+.reconcile__value .num {
+  margin-right: var(--sp-1);
+}
+
+/* 有差异时数字是「结论」而不是「指标」：本页按真实差异状态画，
+   若巡检全绿，这个数字会改用 --state-success（对应 .is-clean 的语义，
+   具体值由接口返回决定，设计稿不预置两套样式） */
+
+.reconcile__aside {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+}
+
+.reconcile__time {
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+
+/* 统计行与下方提示、提示与表格之间的间距：本页块多，统一 12 */
+.reconcile .stat-grid {
+  margin-bottom: var(--sp-3);
+}
+
+.reconcile__alert {
+  margin-bottom: var(--sp-3);
+}
+
+/* 列宽：7 列合计 100%。操作列要放两个四字文字按钮（116px），给到 22% */
+.reconcile-table col.c-uid { width: 12%; }
+.reconcile-table col.c-balance { width: 13%; }
+.reconcile-table col.c-flow { width: 13%; }
+.reconcile-table col.c-diff { width: 11%; }
+.reconcile-table col.c-time { width: 17%; }
+.reconcile-table col.c-state { width: 12%; }
+.reconcile-table col.c-ops { width: 22%; }
+
+.reconcile-table .mono-time {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+
+/* 差额列：0 不显示符号，非 0 带负号并用危险色（资金短少，必须一眼看见） */
+.reconcile-table .diff-zero {
+  color: var(--text-secondary);
+}
+</style>
+</head>
+<body class="shell" data-page="08-reconcile">
+
+<aside class="sidebar" id="sidebar"></aside>
+
+<div class="main">
+  <header class="navbar" id="navbar"></header>
+  <div class="tags-view" id="tags-view"></div>
+
+  <main class="app-container scroll-y reconcile">
+
+    <!-- ==================== 页头 ==================== -->
+    <div class="page-head">
+      <div>
+        <h1 class="page-head__title">对账报表</h1>
+        <p class="page-head__desc">
+          逐户比对账户余额与流水汇总。有差异的账户说明账实不符，需人工核查后标记处理。
+        </p>
+      </div>
+    </div>
+
+    <!-- ==================== 巡检结果 ==================== -->
+    <div class="card reconcile__result">
+      <div class="reconcile__inner">
+        <div>
+          <div class="reconcile__label">本轮巡检结果</div>
+          <div class="reconcile__value">差异 <span class="num">2</span> 个账户</div>
+        </div>
+        <div class="reconcile__aside">
+          <span class="reconcile__time">上次巡检 <span class="mono">2026-10-29 22:00</span></span>
+          <button class="btn btn--primary" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"
+                 style="width:14px;height:14px">
+              <path d="M20 12a8 8 0 1 1-2.4-5.7"/>
+              <path d="M20.2 4.6v4.2H16"/>
+            </svg>
+            重新巡检
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== 巡检统计 ==================== -->
+    <section class="stat-grid" style="margin-top:var(--sp-4)" aria-label="巡检统计">
+      <div class="stat">
+        <div class="stat__label">
+          账户总数
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="9" cy="8.4" r="3.2"/>
+            <path d="M3.4 19.4c0-3.2 2.6-5 5.6-5s5.6 1.8 5.6 5"/>
+            <path d="M16 5.6a3.2 3.2 0 0 1 0 6"/>
+            <path d="M17.4 14.8c2 .6 3.2 2.2 3.2 4.6"/>
+          </svg>
+        </div>
+        <div class="stat__value">1,284</div>
+      </div>
+
+      <div class="stat">
+        <div class="stat__label">
+          有差异账户
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 3.6 2.8 20.4h18.4z"/><path d="M12 9.6v4.4"/>
+            <path d="M12 17.2h.01"/>
+          </svg>
+        </div>
+        <div class="stat__value text-danger">2</div>
+      </div>
+
+      <div class="stat">
+        <div class="stat__label">
+          差额合计
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 4.2v15.6"/><path d="M16.4 8.2H9.8a2.4 2.4 0 0 0 0 4.8h4.4a2.4 2.4 0 0 1 0 4.8H7.6"/>
+          </svg>
+        </div>
+        <div class="stat__value"><small>¥</small>1,240<small>.00</small></div>
+      </div>
+
+      <div class="stat">
+        <div class="stat__label">
+          巡检耗时
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="8.4"/><path d="M12 7.4V12l3.4 2"/>
+          </svg>
+        </div>
+        <div class="stat__value">3.2<small>秒</small></div>
+      </div>
+    </section>
+
+    <!-- ==================== 口径说明 ==================== -->
+    <div class="alert reconcile__alert">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="8.4"/><path d="M12 11.2v5"/>
+        <path d="M12 7.8h.01"/>
+      </svg>
+      <span>校验口径：账户可用余额 = SUM(流水金额)，逐个账户比对；差额非 0 的需人工核查。</span>
+    </div>
+
+    <!-- ==================== 差异明细 ==================== -->
+    <div class="card card--flush">
+      <div class="toolbar">
+        <div class="toolbar__left">
+          <div class="chips">
+            <a class="chip chip--active" href="#">全部 <span class="chip__count">1,284</span></a>
+            <a class="chip" href="#">有差异 <span class="chip__count">2</span></a>
+            <a class="chip" href="#">已处理 <span class="chip__count">1</span></a>
+          </div>
+        </div>
+        <div class="toolbar__right">
+          <span class="toolbar__count">共 <b>1,284</b> 条</span>
+          <button class="icon-btn" type="button" title="刷新" aria-label="刷新">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M20 12a8 8 0 1 1-2.4-5.7"/>
+              <path d="M20.2 4.6v4.2H16"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="table reconcile-table">
+          <colgroup>
+            <col class="c-uid">
+            <col class="c-balance">
+            <col class="c-flow">
+            <col class="c-diff">
+            <col class="c-time">
+            <col class="c-state">
+            <col class="c-ops">
+          </colgroup>
+          <thead>
+            <tr>
+              <th>用户 ID</th>
+              <th style="text-align:right">可用余额</th>
+              <th style="text-align:right">流水汇总</th>
+              <th style="text-align:right">差额</th>
+              <th>最近流水时间</th>
+              <th>处理状态</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="cell-id">U-10284</span></td>
+              <td class="cell-num">¥ 1,280.00</td>
+              <td class="cell-num">¥ 1,280.00</td>
+              <td class="cell-num diff-zero">¥ 0.00</td>
+              <td><span class="mono-time">2026-10-29 21:14</span></td>
+              <td><span class="tag tag--dot tag--success">一致</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">查看流水</button>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="cell-id">U-10261</span></td>
+              <td class="cell-num">¥ 860.00</td>
+              <td class="cell-num">¥ 890.00</td>
+              <td class="cell-num text-danger">-¥ 30.00</td>
+              <td><span class="mono-time">2026-10-29 18:32</span></td>
+              <td><span class="tag tag--dot tag--danger">有差异</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">查看流水</button>
+                  <button class="btn btn--text" type="button">标记已处理</button>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="cell-id">U-10245</span></td>
+              <td class="cell-num">¥ 2,140.00</td>
+              <td class="cell-num">¥ 2,140.00</td>
+              <td class="cell-num diff-zero">¥ 0.00</td>
+              <td><span class="mono-time">2026-10-29 15:07</span></td>
+              <td><span class="tag tag--dot tag--success">一致</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">查看流水</button>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="cell-id">U-10232</span></td>
+              <td class="cell-num">¥ 450.00</td>
+              <td class="cell-num">¥ 1,240.00</td>
+              <td class="cell-num text-danger">-¥ 790.00</td>
+              <td><span class="mono-time">2026-10-29 11:20</span></td>
+              <td><span class="tag tag--dot tag--primary">已处理</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">查看流水</button>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="cell-id">U-10198</span></td>
+              <td class="cell-num">¥ 3,300.00</td>
+              <td class="cell-num">¥ 3,300.00</td>
+              <td class="cell-num diff-zero">¥ 0.00</td>
+              <td><span class="mono-time">2026-10-28 22:41</span></td>
+              <td><span class="tag tag--dot tag--success">一致</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">查看流水</button>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="cell-id">U-10176</span></td>
+              <td class="cell-num">¥ 1,200.00</td>
+              <td class="cell-num">¥ 2,410.00</td>
+              <td class="cell-num text-danger">-¥ 1,210.00</td>
+              <td><span class="mono-time">2026-10-28 19:05</span></td>
+              <td><span class="tag tag--dot tag--danger">有差异</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">查看流水</button>
+                  <button class="btn btn--text" type="button">标记已处理</button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- 分页 -->
+      <div class="pagination">
+        <span class="pagination__total">共 <b>1,284</b> 条 · 当前第 <b>1</b> / 129 页</span>
+        <button class="page-btn page-btn--disabled" type="button" aria-label="上一页">‹</button>
+        <button class="page-btn page-btn--active" type="button">1</button>
+        <button class="page-btn" type="button">2</button>
+        <button class="page-btn" type="button">3</button>
+        <button class="page-btn page-btn--disabled" type="button" aria-label="更多">…</button>
+        <button class="page-btn" type="button">129</button>
+        <button class="page-btn" type="button" aria-label="下一页">›</button>
+        <select class="pagination__size" aria-label="每页条数">
+          <option>10 条 / 页</option>
+          <option>20 条 / 页</option>
+          <option>50 条 / 页</option>
+        </select>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script src="shell.js"></script>
+</body>
+</html>

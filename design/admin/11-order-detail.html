@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="dsh-design" content="web 1440x900">
+<title>订单详情 · 法泽管理后台</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   A-12 订单详情（含退款审批）
+   --------------------------------------------------------------------------
+   职责：单笔订单的全量信息、状态流转记录、支付记录、退款审批入口。
+   依据：《PC 后台开发计划_v1.0》§2.4 A-12；数据表 legal_order /
+        order_status_log / payment_record
+   接口：退款审批 POST /admin/refunds/{id}/audit（**有**）；
+        订单详情查询接口 **缺**，本屏字段按 DDL 先画，见《未完成需备注》§1
+   说明：
+     1. 退款审批是本屏唯一的破坏性操作，用 .btn--danger 而不是 primary：
+        这一屏不该有「鼓励点击」的动作。真正落库前要弹确认框。
+     2. 左主区放「事实」（订单信息 / 状态流转 / 支付记录），右栏放「人与钱」
+        （金额明细、用户、律师）。扫视路径是先左后右，不是上下对称。
+     3. 时间线的标题与时间做成同一行（母版是上下两行），6 个节点能省 100+
+        px；详情页一屏能看到的节点越多越好。
+     4. 高度预算（内容区 776）：页头 62 + 提示条 62 + 主区 778 ≈ 902，
+        超出约 126px。订单详情属于「信息必须全」的页面，按规范接受少量滚动。
+   ========================================================================== */
+
+/* 标题行：订单号 + 状态标签同行 */
+.order-detail__title {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+/* 主布局：左自适应 + 右 360。不用 .split —— 它是「左 380 列表 + 右详情」，
+   语义和这里相反（这里右侧是窄栏摘要） */
+.order-detail__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: var(--sp-4);
+  align-items: start;
+}
+
+/* 列内卡片间距交给 .card + .card（16px），所以只做竖排，不再加 gap */
+.order-detail__col {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* 时间线：标题与时间同一行，基线对齐 */
+.order-detail__tlrow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-4);
+}
+
+.order-detail__tlrow .tl-item__meta {
+  flex: 0 0 auto;
+  margin-top: 0;
+}
+
+/* 支付记录表：通用 .table 行高 48，这里压到 40 —— 支付记录是佐证，不是主体 */
+.order-detail__pay {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.order-detail__pay th {
+  height: 36px;
+  padding: 0 var(--sp-3);
+  background: var(--bg-surface-2);
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  color: var(--text-secondary);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.order-detail__pay td {
+  height: 40px;
+  padding: 0 var(--sp-3);
+  border-bottom: 1px solid var(--border-divider);
+  font-size: var(--fs-sm);
+  color: var(--text-body);
+  white-space: nowrap;
+}
+
+.order-detail__pay th:first-child,
+.order-detail__pay td:first-child {
+  padding-left: var(--sp-5);
+}
+
+.order-detail__pay th:last-child,
+.order-detail__pay td:last-child {
+  padding-right: var(--sp-5);
+}
+
+.order-detail__pay tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.order-detail__pay .is-amount {
+  text-align: right;
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 金额明细合计行：上边框比 .divider 省 30px，且和 kv 行同一套基线 */
+.order-detail__sum {
+  margin-top: var(--sp-2);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--border-divider);
+}
+
+.order-detail__sum .kv__k {
+  color: var(--text-primary);
+  font-weight: var(--fw-medium);
+}
+
+.order-detail__sum .kv__v {
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+}
+
+/* 右栏人物卡：头像 + 姓名/手机 + 状态标签 */
+.order-detail__person {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.order-detail__person-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.order-detail__person-name {
+  font-size: var(--fs-md);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+}
+
+.order-detail__person-sub {
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+
+.order-detail__person .tag {
+  margin-left: auto;
+}
+
+/* 人物卡下半：两列小统计，与上半用一条细分隔线断开 */
+.order-detail__stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-3);
+  margin-top: var(--sp-4);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--border-divider);
+}
+
+.order-detail__stat-k {
+  display: block;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+.order-detail__stat-v {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--fs-sm);
+  color: var(--text-body);
+}
+
+/* 评分：星标用深一档的警告色，--state-warning 压白底只有 2.2:1，当图标也偏低 */
+.order-detail__rating {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+}
+
+.order-detail__rating svg {
+  width: 13px;
+  height: 13px;
+  color: var(--state-warning-deep);
+}
+</style>
+</head>
+<body class="shell" data-page="11-order-detail">
+
+<!-- 骨架由 shell.js 注入：侧边栏 / 顶栏 / 标签页 -->
+<aside class="sidebar" id="sidebar"></aside>
+
+<div class="main">
+  <header class="navbar" id="navbar"></header>
+  <div class="tags-view" id="tags-view"></div>
+
+  <main class="app-container scroll-y">
+
+    <!-- ==================== 页头 ==================== -->
+    <div class="page-head">
+      <div>
+        <h1 class="page-head__title order-detail__title">
+          <span class="mono">FAZE-2026-0087</span>
+          <span class="tag tag--dot tag--primary">进行中</span>
+        </h1>
+        <p class="page-head__desc">
+          下单 <span class="mono">2026-10-29 20:14</span> · 用户 阿依努尔·买买提 · 律师 张建国
+        </p>
+      </div>
+      <div class="page-head__actions">
+        <a class="btn" href="10-order-list.html">返回列表</a>
+        <button class="btn btn--danger" type="button">退款审批</button>
+      </div>
+    </div>
+
+    <!-- ==================== 退款提示条 ==================== -->
+    <div class="alert alert--warning" role="alert">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M12 4.6 21.2 19.8H2.8z"/>
+        <path d="M12 9.4v4.4"/>
+        <path d="M12 16.6h.01"/>
+      </svg>
+      <span>用户已发起退款申请，原因：律师未按约定时间响应。审批将直接改变订单状态并触发退款</span>
+    </div>
+
+    <!-- ==================== 主布局 ==================== -->
+    <div class="order-detail__grid" style="margin-top:var(--sp-4)">
+
+      <!-- ---------- 左主区 ---------- -->
+      <div class="order-detail__col">
+
+        <!-- 1. 订单信息 -->
+        <section class="card">
+          <div class="card__head">
+            <h2 class="card__title">订单信息</h2>
+          </div>
+          <div class="card__body">
+            <div class="desc-grid">
+              <div class="desc-item">
+                <span class="desc-label">订单类型</span>
+                <span class="desc-value desc-value--strong">图文咨询</span>
+              </div>
+              <div class="desc-item">
+                <span class="desc-label">服务方式</span>
+                <span class="desc-value">在线图文 · 不限次追问</span>
+              </div>
+              <div class="desc-item">
+                <span class="desc-label">约定时长</span>
+                <span class="desc-value">30 分钟内首次回复</span>
+              </div>
+              <div class="desc-item">
+                <span class="desc-label">下单时间</span>
+                <span class="desc-value mono">2026-10-29 20:14</span>
+              </div>
+              <div class="desc-item">
+                <span class="desc-label">接单时间</span>
+                <span class="desc-value mono">2026-10-29 20:19</span>
+              </div>
+              <div class="desc-item">
+                <span class="desc-label">完成时间</span>
+                <span class="desc-value">未完成</span>
+              </div>
+              <div class="desc-item">
+                <span class="desc-label">关联会话</span>
+                <span class="desc-value mono">CV-2026-10387</span>
+              </div>
+              <div class="desc-item">
+                <span class="desc-label">支付方式</span>
+                <span class="desc-value">账户余额</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 2. 状态流转 -->
+        <section class="card">
+          <div class="card__head">
+            <h2 class="card__title">状态流转</h2>
+            <div class="card__extra"><span>共 6 个节点</span></div>
+          </div>
+          <div class="card__body">
+            <div class="timeline">
+              <div class="tl-item">
+                <div class="order-detail__tlrow">
+                  <span class="tl-item__title">创建订单</span>
+                  <span class="tl-item__meta mono">2026-10-29 20:14 · 阿依努尔·买买提</span>
+                </div>
+              </div>
+
+              <div class="tl-item">
+                <div class="order-detail__tlrow">
+                  <span class="tl-item__title">支付成功</span>
+                  <span class="tl-item__meta mono">2026-10-29 20:14 · 阿依努尔·买买提 · 余额 ¥ 300.00</span>
+                </div>
+              </div>
+
+              <div class="tl-item">
+                <div class="order-detail__tlrow">
+                  <span class="tl-item__title">律师接单</span>
+                  <span class="tl-item__meta mono">2026-10-29 20:19 · 张建国</span>
+                </div>
+              </div>
+
+              <div class="tl-item">
+                <div class="order-detail__tlrow">
+                  <span class="tl-item__title">服务进行中</span>
+                  <span class="tl-item__meta mono">2026-10-29 20:20 · 系统</span>
+                </div>
+              </div>
+
+              <div class="tl-item tl-item--active">
+                <div class="order-detail__tlrow">
+                  <span class="tl-item__title">用户申请退款</span>
+                  <span class="tl-item__meta mono">2026-10-29 21:02 · 阿依努尔·买买提</span>
+                </div>
+              </div>
+
+              <div class="tl-item">
+                <div class="order-detail__tlrow">
+                  <span class="tl-item__title">退款完成待处理</span>
+                  <span class="tl-item__meta">等待管理员审批 · 系统</span>
+                </div>
+                <div class="tl-item__note">
+                  退款原因：约定 30 分钟内首次回复，律师实际 42 分钟未响应，用户要求全额退款
+                  <span class="mono">¥ 300.00</span>。审批通过后原路退回账户余额，平台服务费一并退回。
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 3. 支付记录 -->
+        <section class="card card--flush">
+          <div class="card__head">
+            <h2 class="card__title">支付记录</h2>
+            <div class="card__extra"><span>共 3 条</span></div>
+          </div>
+          <div class="card__body" style="padding:0">
+            <table class="order-detail__pay">
+              <colgroup>
+                <col style="width:26%">
+                <col style="width:14%">
+                <col style="width:14%">
+                <col style="width:18%">
+                <col style="width:18%">
+                <col style="width:10%">
+              </colgroup>
+              <thead>
+                <tr>
+                  <th>支付流水号</th>
+                  <th>类型</th>
+                  <th style="text-align:right">金额</th>
+                  <th>渠道</th>
+                  <th>时间</th>
+                  <th>状态</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="mono">PAY-20261029-0087</td>
+                  <td>支付</td>
+                  <td class="is-amount">¥ 300.00</td>
+                  <td>账户余额</td>
+                  <td class="mono">2026-10-29 20:14</td>
+                  <td><span class="tag tag--dot tag--success">成功</span></td>
+                </tr>
+                <tr>
+                  <td class="mono">FEE-20261029-0087</td>
+                  <td>平台服务费</td>
+                  <td class="is-amount">− ¥ 45.00</td>
+                  <td>余额内部结算</td>
+                  <td class="mono">2026-10-29 20:14</td>
+                  <td><span class="tag tag--dot tag--success">已记账</span></td>
+                </tr>
+                <tr>
+                  <td class="mono">REF-20261029-0087</td>
+                  <td>退款</td>
+                  <td class="is-amount">− ¥ 300.00</td>
+                  <td>账户余额</td>
+                  <td class="mono">2026-10-29 21:02</td>
+                  <td><span class="tag tag--dot tag--warning">待审批</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+
+      <!-- ---------- 右栏 ---------- -->
+      <div class="order-detail__col">
+
+        <!-- 金额明细 -->
+        <section class="card">
+          <div class="card__head">
+            <h2 class="card__title">金额明细</h2>
+            <div class="card__extra"><span>单位：元</span></div>
+          </div>
+          <div class="card__body">
+            <div class="kv">
+              <span class="kv__k">订单金额</span>
+              <span class="kv__v">¥ 300.00</span>
+            </div>
+            <div class="kv">
+              <span class="kv__k">平台服务费</span>
+              <span class="kv__v">− ¥ 45.00</span>
+            </div>
+            <div class="kv">
+              <span class="kv__k">律师收入</span>
+              <span class="kv__v">¥ 255.00</span>
+            </div>
+            <div class="kv">
+              <span class="kv__k">已退款</span>
+              <span class="kv__v">¥ 0.00</span>
+            </div>
+            <div class="kv order-detail__sum">
+              <span class="kv__k">合计应退用户</span>
+              <span class="kv__v">¥ 300.00</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- 用户 -->
+        <section class="card">
+          <div class="card__head">
+            <h2 class="card__title">用户</h2>
+            <div class="card__extra"><a href="02-user-list.html">查看资料</a></div>
+          </div>
+          <div class="card__body">
+            <div class="order-detail__person">
+              <span class="avatar avatar--lg">阿</span>
+              <span class="order-detail__person-main">
+                <span class="order-detail__person-name">阿依努尔·买买提</span>
+                <span class="order-detail__person-sub mono">138****6621</span>
+              </span>
+              <span class="tag tag--dot tag--success">已实名</span>
+            </div>
+            <div class="order-detail__stats">
+              <div>
+                <span class="order-detail__stat-k">累计订单</span>
+                <span class="order-detail__stat-v mono">6 单</span>
+              </div>
+              <div>
+                <span class="order-detail__stat-k">累计消费</span>
+                <span class="order-detail__stat-v mono">¥ 1,280.00</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 律师 -->
+        <section class="card">
+          <div class="card__head">
+            <h2 class="card__title">律师</h2>
+            <div class="card__extra"><a href="05-lawyer-list.html">查看资料</a></div>
+          </div>
+          <div class="card__body">
+            <div class="order-detail__person">
+              <span class="avatar avatar--lg">张</span>
+              <span class="order-detail__person-main">
+                <span class="order-detail__person-name">张建国</span>
+                <span class="order-detail__person-sub">新疆天正律师事务所</span>
+              </span>
+              <span class="tag tag--dot tag--success">执业中</span>
+            </div>
+            <div class="order-detail__stats">
+              <div>
+                <span class="order-detail__stat-k">综合评分</span>
+                <span class="order-detail__stat-v">
+                  <span class="order-detail__rating">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="m12 4.6 2.3 4.7 5.2.7-3.8 3.7.9 5.2-4.6-2.5-4.6 2.5.9-5.2L4.5 10l5.2-.7z"/>
+                    </svg>
+                    <span class="mono">4.9</span>
+                  </span>
+                  <span class="text-xs text-muted">（326 单）</span>
+                </span>
+              </div>
+              <div>
+                <span class="order-detail__stat-k">执业年限</span>
+                <span class="order-detail__stat-v mono">12 年</span>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script src="shell.js"></script>
+</body>
+</html>

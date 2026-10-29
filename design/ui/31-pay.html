@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390, initial-scale=1">
+<meta name="dsh-design" content="app">
+<title>确认支付</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   支付页（第 9 批 · 延展，无参考图）
+   ==========================================================================
+   职责：确认金额、确认扣款方式、确认扣完还剩多少，然后才允许付款。
+   入口：30-order-detail.html「立即支付」；29-orders.html 待支付卡「去支付」
+   母版：**支付确认母版** —— 大字金额 + 订单摘要 + 扣款方式 + 规则说明 + 底部确认栏
+
+   ★★★ 本页与导航树的唯一分歧：支付方式 ★★★
+     导航树 v1.4 写的是「支付方式：微信支付 / 支付宝」，那是把钱直接付给平台。
+     但仓库规则（AGENTS.md v2.0，2026-10-27 定位改真实上线时定下）是**余额制**：
+     充值走微信/支付宝，消费用余额抵扣。两者不能同时成立 ——
+     余额制下用户付款时余额已经在自己账户里，收银台只有「余额」一个选项。
+     本页按**余额制**画，理由：AGENTS.md 优先级高于设计文档，且 v2.0 晚于导航树。
+     导航树需要改这一行，已记进文档 §十 待确认。
+
+   ★ 为什么余额充足时也要画「充值」入口：
+     用户可能是想先充一笔再去买更贵的服务，不一定是为了这一单。
+     只在这页给「充值」，是因为它处在「正要花钱」的心理场景里，转化最自然。
+
+   ★ 为什么点「确认支付」还要再弹一次确认框：
+     余额支付没有外部收银台的输密码环节，点下去就直接扣。
+     框里把「扣多少、从哪扣、扣完剩多少」三件事一次说全，
+     用户是看着这三个数点的确认，事后有争议也能对得上账。
+
+   ★ 为什么按钮上带金额：「确认支付」四个字看不出这单多贵。
+     按钮写成「确认支付 ¥99.00」，误点的成本一眼可见。
+   ========================================================================== */
+
+body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-canvas);
+}
+
+.navbar {
+  background: transparent;
+}
+
+.screen {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding: 0 var(--sp-xl) var(--sp-xl);
+  background: linear-gradient(to bottom, var(--banner-start) 0, var(--bg-canvas) 260px);
+}
+.screen::-webkit-scrollbar {
+  display: none;
+}
+
+/* 两态（余额够 / 不够）各自包在 [data-state] 里，
+   所以用后代选择器，section 不是 .screen 的直接子元素了 */
+.screen section + section {
+  margin-block-start: var(--sp-md);
+}
+
+/* ---------- 金额区 ---------- */
+.pay-hero {
+  padding-block: var(--sp-lg) var(--sp-xl);
+  text-align: center;
+}
+
+.pay-hero__label {
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.pay-hero__amount {
+  display: block;
+  margin-block-start: 2px;
+}
+
+.pay-hero__desc {
+  margin-block-start: 4px;
+  font-size: var(--fs-md);
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* ---------- 信息卡 ---------- */
+.card-block {
+  padding: var(--sp-md) var(--sp-lg) var(--sp-lg);
+  border-radius: var(--r-md);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.block-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-sm);
+  padding-block: var(--sp-xs) var(--sp-sm);
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+/* 文字按钮：热区补到 44，视觉上仍是一行小字。
+   min-width 也要给 —— 「充值」两个字只有 28px 宽，光撑高度会量出 40×44 */
+.link-btn {
+  min-width: 44px;
+  min-height: 44px;
+  margin-block: -12px;
+  padding: 0 var(--sp-xs);
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  font-size: var(--fs-md);
+  font-weight: var(--fw-regular);
+  color: var(--brand-primary);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.info-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-md);
+  padding-block: 7px;
+  font-size: var(--fs-md);
+  line-height: 1.5;
+}
+
+.info-row__label {
+  flex: 0 0 auto;
+  color: var(--text-muted);
+}
+
+.info-row__value {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--text-body);
+  text-align: end;
+  word-break: break-all;
+}
+
+.info-row__value--code {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+/* ---------- 扣款方式 ----------
+   只有一个选项时仍然是「单选」形态：余额制以后可能接其他抵扣方式
+   （比如优惠券、平台补贴），结构先按单选画，加第二种不用重排。 */
+.pay-method {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-md);
+  min-height: 56px;
+  padding: var(--sp-md);
+  border: 1px solid var(--border-outline);
+  border-radius: var(--r-sm);
+  background: var(--bg-surface);
+}
+
+.pay-method.is-active {
+  border-color: var(--brand-primary);
+  background: var(--brand-primary-soft);
+}
+
+.pay-method__radio {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  border: 1.5px solid var(--border-outline);
+  border-radius: 50%;
+  background: var(--bg-surface);
+}
+
+/* 选中：边框加粗，内部白点靠背景色画出来。
+   不用 border-width 5 是因为 border-box 下内径会缩，圆看起来会变形 */
+.pay-method.is-active .pay-method__radio {
+  border-color: var(--brand-primary);
+  background: radial-gradient(circle at center,
+    var(--brand-primary) 0 4px, var(--bg-surface) 4.5px);
+}
+
+.pay-method__main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.pay-method__name {
+  display: block;
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.pay-method__desc {
+  display: block;
+  margin-block-start: 2px;
+  font-size: var(--fs-caption);
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* 余额数字在说明里也要等宽，避免「¥1,280.00」和「¥1,181.00」上下错位 */
+.pay-method__desc .money {
+  font-size: var(--fs-md);
+  color: var(--text-body);
+}
+
+/* 余额不足：边框换警示色，但整块不标红 —— 差一点不是失败，
+   变红会让人以为支付出错了，实际只是还没充够 */
+.pay-method--short {
+  border-color: var(--state-warning);
+  background: var(--state-warning-soft);
+}
+
+/* 「余额不足」小标贴在「账户余额」后面，不用单独一行占高度 */
+.pay-method__badge {
+  margin-inline-start: var(--sp-xs);
+  padding: 1px 6px;
+  border-radius: var(--r-xs);
+  background: var(--state-warning-soft);
+  color: var(--state-warning-deep);
+  font-size: var(--fs-caption);
+  font-style: normal;
+  font-weight: var(--fw-regular);
+  line-height: 1.5;
+}
+
+/* ---------- 规则说明 ---------- */
+.notice-block {
+  margin-block-start: var(--sp-md);
+  padding: var(--sp-md) var(--sp-lg);
+  border-radius: var(--r-sm);
+  background: var(--bg-surface);
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.7;
+}
+
+/* 司法收费不归平台管，这条用警示底色单独拎出来 —— 它和上面那条余额说明
+   不是同一层级的事，混在一段灰字里会被读成免责小字 */
+.notice-block--warn {
+  background: var(--state-warning-soft);
+  color: var(--state-warning-deep);
+}
+
+/* ---------- 支付密码面板 ---------- */
+.pay-sheet__body {
+  padding: var(--sp-xs) var(--sp-xl) var(--sp-xl);
+  text-align: center;
+}
+
+.pay-sheet__amount {
+  line-height: 1.1;
+}
+
+.pay-sheet__desc {
+  margin-block-start: var(--sp-xs);
+  font-size: var(--fs-md);
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* 密码格与金额之间要空开，否则手指按下去容易看错行 */
+.pay-sheet .pwd-field {
+  margin-block-start: var(--sp-xl);
+}
+
+/* 「忘记支付密码？」是次要出口，但要够得着：44 高 */
+.pay-sheet__forget {
+  display: inline-block;
+  margin-block-start: var(--sp-lg);
+  min-height: 44px;
+  padding-inline: var(--sp-sm);
+  font-size: var(--fs-md);
+  line-height: 44px;
+  color: var(--brand-primary);
+  text-decoration: none;
+}
+</style>
+</head>
+<body>
+
+<header class="statusbar">
+  <span>9:41</span>
+  <span class="statusbar__icons">
+    <svg width="17" height="11" viewBox="0 0 17 11" fill="none" aria-hidden="true">
+      <rect x="0" y="7" width="3" height="4" rx="1" fill="currentColor"/>
+      <rect x="4.5" y="5" width="3" height="6" rx="1" fill="currentColor"/>
+      <rect x="9" y="2.5" width="3" height="8.5" rx="1" fill="currentColor"/>
+      <rect x="13.5" y="0" width="3" height="11" rx="1" fill="currentColor"/>
+    </svg>
+    <svg width="16" height="11" viewBox="0 0 16 11" fill="none" aria-hidden="true">
+      <path d="M1 3.2A10.5 10.5 0 0 1 15 3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M3.6 5.9a7 7 0 0 1 8.8 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M6.2 8.6a3.4 3.4 0 0 1 3.6 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden="true">
+      <rect x="0.6" y="0.6" width="21" height="10.8" rx="3" stroke="currentColor" stroke-opacity="0.4" stroke-width="1.2"/>
+      <rect x="2.2" y="2.2" width="15" height="7.6" rx="1.8" fill="currentColor"/>
+      <path d="M23.4 4.2v3.6" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+  </span>
+</header>
+
+<div class="navbar">
+  <a class="navbar__back" href="30-order-detail.html" aria-label="返回订单详情">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M15.2 4.6 7.8 12l7.4 7.4" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </a>
+  <h1 class="navbar__title">确认支付</h1>
+</div>
+
+<main class="screen">
+
+  <!-- ======================================================================
+       余额够（主态）
+       ====================================================================== -->
+  <div data-state="enough">
+
+  <section class="pay-hero">
+    <p class="pay-hero__label">应付金额</p>
+    <p class="money money--display pay-hero__amount"><span class="money__sym">¥</span>99.00</p>
+    <p class="pay-hero__desc">法律咨询 · 30 分钟 · 王建国律师</p>
+  </section>
+
+  <section class="card-block">
+    <h3 class="block-title">订单信息</h3>
+    <div class="info-row">
+      <span class="info-row__label">订单编号</span>
+      <span class="info-row__value info-row__value--code">FAZE-2026-0087</span>
+    </div>
+    <div class="info-row">
+      <span class="info-row__label">下单时间</span>
+      <span class="info-row__value info-row__value--code">2026-10-29 14:22</span>
+    </div>
+  </section>
+
+  <section class="card-block">
+    <h3 class="block-title">
+      支付方式
+      <a class="link-btn" href="36-recharge.html">充值</a>
+    </h3>
+    <div class="pay-method is-active">
+      <span class="pay-method__radio" aria-hidden="true"></span>
+      <span class="pay-method__main">
+        <span class="pay-method__name">账户余额</span>
+        <span class="pay-method__desc">可用 <span class="money"><span class="money__sym">¥</span>1,280.00</span>，支付后还剩 <span class="money"><span class="money__sym">¥</span>1,181.00</span></span>
+      </span>
+    </div>
+  </section>
+
+  <section class="notice-block">
+    本平台消费只能从账户余额抵扣。余额由微信支付或支付宝充值到账，充值金额仅用于平台内消费，不能提现。退款时按原支付渠道退回余额。
+  </section>
+
+  <section class="notice-block notice-block--warn">
+    诉讼费由人民法院依法收取，本平台不代收也不代缴。本单支付的是咨询服务费，与案件受理费、公告费等司法收费无关。
+  </section>
+
+  </div>
+
+  <!-- ======================================================================
+       余额不足：这是余额制平台最常遇到的一态，主动作从「确认支付」变成「去充值」
+       ====================================================================== -->
+  <div data-state="low" hidden>
+
+    <section class="pay-hero">
+      <p class="pay-hero__label">应付金额</p>
+      <p class="money money--display pay-hero__amount"><span class="money__sym">¥</span>99.00</p>
+      <p class="pay-hero__desc">法律咨询 · 30 分钟 · 王建国律师</p>
+    </section>
+
+    <section class="card-block">
+      <h3 class="block-title">订单信息</h3>
+      <div class="info-row">
+        <span class="info-row__label">订单编号</span>
+        <span class="info-row__value info-row__value--code">FAZE-2026-0087</span>
+      </div>
+      <div class="info-row">
+        <span class="info-row__label">下单时间</span>
+        <span class="info-row__value info-row__value--code">2026-10-29 14:22</span>
+      </div>
+    </section>
+
+    <section class="card-block">
+      <h3 class="block-title">
+        支付方式
+        <a class="link-btn" href="36-recharge.html">充值</a>
+      </h3>
+      <div class="pay-method is-active pay-method--short">
+        <span class="pay-method__radio" aria-hidden="true"></span>
+        <span class="pay-method__main">
+          <span class="pay-method__name">账户余额 <em class="pay-method__badge">余额不足</em></span>
+          <span class="pay-method__desc">可用 <span class="money"><span class="money__sym">¥</span>50.00</span>，还差 <span class="money"><span class="money__sym">¥</span>49.00</span></span>
+        </span>
+      </div>
+    </section>
+
+    <section class="notice-block notice-block--warn">
+      账户余额不够支付这一单。可以先充值，充值成功后回到这一页就能付款了。充值的钱只用于平台内消费，不能提现。
+    </section>
+
+    <section class="notice-block">
+      诉讼费由人民法院依法收取，本平台不代收也不代缴。本单支付的是咨询服务费，与案件受理费、公告费等司法收费无关。
+    </section>
+
+  </div>
+
+</main>
+
+<div class="actionbar" data-state="enough">
+  <button class="btn-primary actionbar__cta" type="button" data-open-confirm>确认支付 ¥99.00</button>
+</div>
+
+<div class="actionbar" data-state="low" hidden>
+  <a class="btn-primary actionbar__cta" href="36-recharge.html">去充值</a>
+</div>
+
+<!-- ======================================================================
+     输入支付密码
+     ★ 为什么不再叠一个「二次确认框」：
+       输密码本身就是在确认。再套一层「确定要付吗」，用户点三次才能付出去，
+       点多了就会闭眼点，确认反而失去意义。
+     框里保留三个数（金额 / 从哪扣 / 扣完剩多少），因为这页的价值就是让人看清再付。
+     ====================================================================== -->
+<div class="mask" data-confirm-mask hidden></div>
+<div class="sheet pay-sheet" data-confirm-sheet hidden role="dialog" aria-modal="true" aria-labelledby="pay-confirm-title">
+  <div class="sheet__handle"></div>
+  <div class="sheet__head">
+    <h2 class="sheet__title" id="pay-confirm-title">输入支付密码</h2>
+    <button class="sheet__close" type="button" data-confirm-dismiss aria-label="关闭">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="m5.8 5.8 12.4 12.4M18.2 5.8 5.8 18.2" stroke="currentColor"
+              stroke-width="2" stroke-linecap="round"/>
+      </svg>
+    </button>
+  </div>
+  <div class="pay-sheet__body">
+    <p class="pay-sheet__amount">
+      <span class="money money--display"><span class="money__sym">¥</span>99.00</span>
+    </p>
+    <p class="pay-sheet__desc">从账户余额支付，扣完还剩 ¥1,181.00</p>
+
+    <div class="pwd-field" data-pwd-field>
+      <input class="pwd-input" type="tel" inputmode="numeric" maxlength="6"
+             autocomplete="off" aria-label="输入 6 位支付密码"
+             data-pwd-input="pay">
+      <div class="pwd-cells" aria-hidden="true">
+        <span class="pwd-cell"></span>
+        <span class="pwd-cell"></span>
+        <span class="pwd-cell"></span>
+        <span class="pwd-cell"></span>
+        <span class="pwd-cell"></span>
+        <span class="pwd-cell"></span>
+      </div>
+    </div>
+
+    <a class="pay-sheet__forget" href="37-pay-password.html">忘记支付密码？</a>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

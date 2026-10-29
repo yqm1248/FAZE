@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="dsh-design" content="web 1440x900">
+<title>用户列表 · 法泽管理后台</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   A-03 用户列表
+   --------------------------------------------------------------------------
+   职责：C 端用户的查询、分页、详情抽屉入口、封禁/解封。
+   依据：《PC 后台开发计划_v1.0》§2.1 A-03；技术路线 §15.1「用户管理」
+   接口：**缺**。见《未完成需备注》§1
+   说明：
+     ★★ 这一屏是全部 28 页里 15 个列表页的母版 ★★
+        结构固定为：页头 → 查询栏 → 工具栏 → 表格 → 分页。
+        后面所有列表页（律师、订单、提现、文章、工单、日志…）照这个结构套，
+        只换查询条件、列和操作。改这一屏的间距＝改 19 屏。
+     高度预算（内容区 776）：页头 62 + 查询栏 64 + 间距 16 + 表格卡 576 = 718，
+     留 58 放第 10 行，正好一屏。
+   ========================================================================== */
+
+/* 表格列宽用 colgroup 百分比固定，换数据不会跳列 */
+.user-table col.c-check { width: 3.5%; }
+.user-table col.c-id { width: 9%; }
+.user-table col.c-user { width: 22%; }
+.user-table col.c-verify { width: 9%; }
+.user-table col.c-spend { width: 11%; }
+.user-table col.c-orders { width: 7.5%; }
+.user-table col.c-login { width: 14%; }
+.user-table col.c-state { width: 9%; }
+.user-table col.c-ops { width: 14%; }
+
+/* 手机号与时间用等宽，竖排能对齐 */
+.user-table .mono-time {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+</style>
+</head>
+<body class="shell" data-page="02-user-list">
+
+<aside class="sidebar" id="sidebar"></aside>
+
+<div class="main">
+  <header class="navbar" id="navbar"></header>
+  <div class="tags-view" id="tags-view"></div>
+
+  <main class="app-container scroll-y">
+
+    <!-- ==================== 页头 ==================== -->
+    <div class="page-head">
+      <div>
+        <h1 class="page-head__title">用户列表</h1>
+        <p class="page-head__desc">
+          平台注册用户，含实名状态、消费与订单汇总。封禁后该用户无法下单与发起咨询。
+        </p>
+      </div>
+      <div class="page-head__actions">
+        <button class="btn" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"
+               style="width:14px;height:14px">
+            <path d="M12 3.8v11.4"/><path d="m7.6 11 4.4 4.4 4.4-4.4"/>
+            <path d="M4.4 18.6v1.2h15.2v-1.2"/>
+          </svg>
+          导出用户
+        </button>
+      </div>
+    </div>
+
+    <!-- ==================== 查询栏 ==================== -->
+    <div class="card">
+      <form class="query-bar" method="get">
+        <div class="field-inline">
+          <label class="field-inline__label" for="q-kw">账号</label>
+          <input class="input" id="q-kw" type="text" placeholder="昵称 / 手机号 / 用户 ID">
+        </div>
+
+        <div class="field-inline">
+          <label class="field-inline__label" for="q-verify">实名认证</label>
+          <select class="select" id="q-verify">
+            <option>全部</option>
+            <option>已认证</option>
+            <option>审核中</option>
+            <option>未认证</option>
+          </select>
+        </div>
+
+        <div class="field-inline">
+          <label class="field-inline__label" for="q-state">账号状态</label>
+          <select class="select" id="q-state">
+            <option>全部</option>
+            <option>正常</option>
+            <option>已封禁</option>
+            <option>注销中</option>
+          </select>
+        </div>
+
+        <div class="field-inline">
+          <label class="field-inline__label" for="q-reg">注册时间</label>
+          <select class="select" id="q-reg">
+            <option>近 30 天</option>
+            <option>近 7 天</option>
+            <option>近 90 天</option>
+            <option>自定义</option>
+          </select>
+        </div>
+
+        <div class="query-bar__actions">
+          <button class="btn btn--primary" type="submit">查询</button>
+          <button class="btn" type="reset">重置</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- ==================== 表格 ==================== -->
+    <div class="card card--flush" style="margin-top:var(--sp-4)">
+      <div class="toolbar">
+        <div class="toolbar__left">
+          <button class="btn btn--sm btn--danger" type="button">批量封禁</button>
+          <button class="btn btn--sm" type="button">批量导出</button>
+          <span class="toolbar__count">已选 <b>1</b> 项</span>
+        </div>
+        <div class="toolbar__right">
+          <span class="toolbar__count">共 <b>1,284</b> 条</span>
+          <button class="icon-btn" type="button" title="刷新" aria-label="刷新">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M20 12a8 8 0 1 1-2.4-5.7"/>
+              <path d="M20.2 4.6v4.2H16"/>
+            </svg>
+          </button>
+          <button class="icon-btn" type="button" title="列设置" aria-label="列设置">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="3.6" y="4.4" width="16.8" height="15.2" rx="2"/>
+              <path d="M9.4 4.4v15.2"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="table user-table">
+          <colgroup>
+            <col class="c-check">
+            <col class="c-id">
+            <col class="c-user">
+            <col class="c-verify">
+            <col class="c-spend">
+            <col class="c-orders">
+            <col class="c-login">
+            <col class="c-state">
+            <col class="c-ops">
+          </colgroup>
+          <thead>
+            <tr>
+              <th><input class="check" type="checkbox" aria-label="全选"></th>
+              <th>用户 ID</th>
+              <th>用户</th>
+              <th>实名认证</th>
+              <th style="text-align:right">累计消费</th>
+              <th style="text-align:right">订单数</th>
+              <th>最近登录</th>
+              <th>状态</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="is-selected">
+              <td><input class="check" type="checkbox" checked aria-label="选择 阿依努尔·买买提"></td>
+              <td><span class="cell-id">U-10284</span></td>
+              <td>
+                <div class="cell-person">
+                  <span class="cell-person__avatar">阿</span>
+                  <span class="cell-stack">
+                    <span class="cell-strong">阿依努尔·买买提</span>
+                    <span class="cell-stack__sub mono">138****6621</span>
+                  </span>
+                </div>
+              </td>
+              <td><span class="tag tag--dot tag--success">已认证</span></td>
+              <td class="cell-num">¥ 1,280.00</td>
+              <td class="cell-num">6</td>
+              <td><span class="mono-time">2026-10-29 21:14</span></td>
+              <td><span class="tag tag--dot tag--success">正常</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">详情</button>
+                  <button class="btn btn--text is-danger" type="button">封禁</button>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><input class="check" type="checkbox" aria-label="选择 张建国"></td>
+              <td><span class="cell-id">U-10283</span></td>
+              <td>
+                <div class="cell-person">
+                  <span class="cell-person__avatar">张</span>
+                  <span class="cell-stack">
+                    <span class="cell-strong">张建国</span>
+                    <span class="cell-stack__sub mono">159****3308</span>
+                  </span>
+                </div>
+              </td>
+              <td><span class="tag tag--dot tag--success">已认证</span></td>
+              <td class="cell-num">¥ 3,600.00</td>
+              <td class="cell-num">11</td>
+              <td><span class="mono-time">2026-10-29 20:52</span></td>
+              <td><span class="tag tag--dot tag--success">正常</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">详情</button>
+                  <button class="btn btn--text is-danger" type="button">封禁</button>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><input class="check" type="checkbox" aria-label="选择 迪丽热巴·艾山"></td>
+              <td><span class="cell-id">U-10282</span></td>
+              <td>
+                <div class="cell-person">
+                  <span class="cell-person__avatar">迪</span>
+                  <span class="cell-stack">
+                    <span class="cell-strong">迪丽热巴·艾山</span>
+                    <span class="cell-stack__sub mono">186****9917</span>
+                  </span>
+                </div>
+              </td>
+              <td><span class="tag tag--dot tag--warning">审核中</span></td>
+              <td class="cell-num">¥ 450.00</td>
+              <td class="cell-num">2</td>
+              <td><span class="mono-time">2026-10-29 19:38</span></td>
+              <td><span class="tag tag--dot tag--success">正常</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">详情</button>
+                  <button class="btn btn--text is-danger" type="button">封禁</button>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><input class="check" type="checkbox" aria-label="选择 李伟"></td>
+              <td><span class="cell-id">U-10281</span></td>
+              <td>
+                <div class="cell-person">
+                  <span class="cell-person__avatar">李</span>
+                  <span class="cell-stack">
+                    <span class="cell-strong">李伟</span>
+                    <span class="cell-stack__sub mono">135****2046</span>
+                  </span>
+                </div>
+              </td>
+              <td><span class="tag tag--dot tag--success">已认证</span></td>
+              <td class="cell-num">¥ 880.00</td>
+              <td class="cell-num">4</td>
+              <td><span class="mono-time">2026-10-29 18:07</span></td>
+              <td><span class="tag tag--dot tag--danger">已封禁</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">详情</button>
+                  <button class="btn btn--text" type="button">解封</button>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><input class="check" type="checkbox" aria-label="选择 古丽娜尔·哈力克"></td>
+              <td><span class="cell-id">U-10280</span></td>
+              <td>
+                <div class="cell-person">
+                  <span class="cell-person__avatar">古</span>
+                  <span class="cell-stack">
+                    <span class="cell-strong">古丽娜尔·哈力克</span>
+                    <span class="cell-stack__sub mono">131****7782</span>
+                  </span>
+                </div>
+              </td>
+              <td><span class="tag tag--dot tag--gray">未认证</span></td>
+              <td class="cell-num">¥ 0.00</td>
+              <td class="cell-num">0</td>
+              <td><span class="mono-time">2026-10-28 15:20</span></td>
+              <td><span class="tag tag--dot tag--success">正常</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">详情</button>
+                  <button class="btn btn--text is-danger" type="button">封禁</button>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><input class="check" type="checkbox" aria-label="选择 王海涛"></td>
+              <td><span class="cell-id">U-10279</span></td>
+              <td>
+                <div class="cell-person">
+                  <span class="cell-person__avatar">王</span>
+                  <span class="cell-stack">
+                    <span class="cell-strong">王海涛</span>
+                    <span class="cell-stack__sub mono">137****5520</span>
+                  </span>
+                </div>
+              </td>
+              <td><span class="tag tag--dot tag--success">已认证</span></td>
+              <td class="cell-num">¥ 2,150.00</td>
+              <td class="cell-num">7</td>
+              <td><span class="mono-time">2026-10-28 11:46</span></td>
+              <td><span class="tag tag--dot tag--success">正常</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">详情</button>
+                  <button class="btn btn--text is-danger" type="button">封禁</button>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><input class="check" type="checkbox" aria-label="选择 玛尔哈巴·吐尔逊"></td>
+              <td><span class="cell-id">U-10278</span></td>
+              <td>
+                <div class="cell-person">
+                  <span class="cell-person__avatar">玛</span>
+                  <span class="cell-stack">
+                    <span class="cell-strong">玛尔哈巴·吐尔逊</span>
+                    <span class="cell-stack__sub mono">150****8843</span>
+                  </span>
+                </div>
+              </td>
+              <td><span class="tag tag--dot tag--success">已认证</span></td>
+              <td class="cell-num">¥ 620.00</td>
+              <td class="cell-num">3</td>
+              <td><span class="mono-time">2026-10-27 22:03</span></td>
+              <td><span class="tag tag--dot tag--warning">注销中</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">详情</button>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><input class="check" type="checkbox" aria-label="选择 刘敏"></td>
+              <td><span class="cell-id">U-10277</span></td>
+              <td>
+                <div class="cell-person">
+                  <span class="cell-person__avatar">刘</span>
+                  <span class="cell-stack">
+                    <span class="cell-strong">刘敏</span>
+                    <span class="cell-stack__sub mono">189****4417</span>
+                  </span>
+                </div>
+              </td>
+              <td><span class="tag tag--dot tag--success">已认证</span></td>
+              <td class="cell-num">¥ 5,400.00</td>
+              <td class="cell-num">18</td>
+              <td><span class="mono-time">2026-10-27 16:31</span></td>
+              <td><span class="tag tag--dot tag--success">正常</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">详情</button>
+                  <button class="btn btn--text is-danger" type="button">封禁</button>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><input class="check" type="checkbox" aria-label="选择 艾力·热合曼"></td>
+              <td><span class="cell-id">U-10276</span></td>
+              <td>
+                <div class="cell-person">
+                  <span class="cell-person__avatar">艾</span>
+                  <span class="cell-stack">
+                    <span class="cell-strong">艾力·热合曼</span>
+                    <span class="cell-stack__sub mono">176****2095</span>
+                  </span>
+                </div>
+              </td>
+              <td><span class="tag tag--dot tag--warning">审核中</span></td>
+              <td class="cell-num">¥ 120.00</td>
+              <td class="cell-num">1</td>
+              <td><span class="mono-time">2026-10-26 09:12</span></td>
+              <td><span class="tag tag--dot tag--success">正常</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">详情</button>
+                  <button class="btn btn--text is-danger" type="button">封禁</button>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><input class="check" type="checkbox" aria-label="选择 赵雪梅"></td>
+              <td><span class="cell-id">U-10275</span></td>
+              <td>
+                <div class="cell-person">
+                  <span class="cell-person__avatar">赵</span>
+                  <span class="cell-stack">
+                    <span class="cell-strong">赵雪梅</span>
+                    <span class="cell-stack__sub mono">133****6654</span>
+                  </span>
+                </div>
+              </td>
+              <td><span class="tag tag--dot tag--gray">未认证</span></td>
+              <td class="cell-num">¥ 0.00</td>
+              <td class="cell-num">0</td>
+              <td><span class="mono-time">2026-10-25 14:28</span></td>
+              <td><span class="tag tag--dot tag--success">正常</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">详情</button>
+                  <button class="btn btn--text is-danger" type="button">封禁</button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- 分页 -->
+      <div class="pagination">
+        <span class="pagination__total">共 <b>1,284</b> 条 · 当前第 <b>1</b> / 129 页</span>
+        <button class="page-btn page-btn--disabled" type="button" aria-label="上一页">‹</button>
+        <button class="page-btn page-btn--active" type="button">1</button>
+        <button class="page-btn" type="button">2</button>
+        <button class="page-btn" type="button">3</button>
+        <button class="page-btn" type="button">4</button>
+        <button class="page-btn page-btn--disabled" type="button" aria-label="更多">…</button>
+        <button class="page-btn" type="button">129</button>
+        <button class="page-btn" type="button" aria-label="下一页">›</button>
+        <select class="pagination__size" aria-label="每页条数">
+          <option>10 条 / 页</option>
+          <option>20 条 / 页</option>
+          <option>50 条 / 页</option>
+        </select>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script src="shell.js"></script>
+</body>
+</html>

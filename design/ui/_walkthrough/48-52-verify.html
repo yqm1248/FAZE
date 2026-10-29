@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>法泽 · 实名 / 企业认证 / 收藏 / 关注 —— 非主态走查</title>
+<style>
+/* ==========================================================================
+   走查页：第 13 批（48~52）的非主态
+   ==========================================================================
+   用途：画布一屏只显示主态，其余状态集中在这里看。
+   注意：
+     1. 不是交付屏，放在 _walkthrough/，不上画布、不计入交付页数
+     2. 状态靠 data-state 切换（#state-pending / #state-done / #state-rejected /
+        #state-empty）与 #swipe（左滑态）
+     3. 必须用 HTTP 打开（端口 8123），file:// 下 iframe 的 hash 不生效
+   核对要点：
+     pending  ——没有「撤回」按钮。实名信息一旦进了审核队列就在人工手里，
+                 给撤回等于承诺做不到的事；页面只交代「多久出结果」
+     done     ——身份证号只显示前 6 后 4。认证方式写明「信息 + 照片」，
+                 不写「人脸识别」—— 本期没有做人脸核验，不能写没实现的能力
+     rejected ——驳回原因必须是「具体到哪一张哪一处」，不能只写「资料不通过」，
+                 否则用户会原样重交一遍
+     empty    ——收藏空态引导去首页逛，关注空态引导去找律师：
+                 两个空态缺的东西不一样，去的地方也不能一样
+     swipe    ——左滑是把内容整体左移，标题左边会移出屏幕。这是真实效果，
+                 所以主屏不静态展开它，只在这里展示
+   ========================================================================== */
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 28px;
+  background: #EDEFF3;
+  font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  color: #1A1A1A;
+}
+
+.walk {
+  display: grid;
+  grid-template-columns: repeat(2, 390px);
+  gap: 24px 28px;
+  justify-content: center;
+}
+
+.walk__item {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.walk__head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.walk__name {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.walk__tag {
+  font-size: 11px;
+  font-weight: 500;
+  color: #4A66EE;
+  background: #EEF2FF;
+  padding: 2px 7px;
+  border-radius: 4px;
+  line-height: 1.5;
+}
+
+.walk__note {
+  margin: 0;
+  font-size: 12px;
+  color: #63696E;
+  line-height: 1.6;
+  max-width: 390px;
+}
+
+iframe {
+  width: 390px;
+  height: 844px;
+  border: 0;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.1);
+}
+</style>
+</head>
+<body>
+
+<div class="walk">
+
+  <section class="walk__item">
+    <div class="walk__head">
+      <h2 class="walk__name">实名认证 · 审核中</h2>
+      <span class="walk__tag">pending</span>
+    </div>
+    <p class="walk__note">
+      没有「撤回」按钮。信息进了人工队列就在审核员手里，给撤回等于承诺做不到的事。页面只交代三件事：提交了什么、多久出结果、期间能干什么。
+    </p>
+    <iframe src="../48-verify-real.html#state-pending" title="实名认证 · 审核中"></iframe>
+  </section>
+
+  <section class="walk__item">
+    <div class="walk__head">
+      <h2 class="walk__name">实名认证 · 已认证</h2>
+      <span class="walk__tag">done</span>
+    </div>
+    <p class="walk__note">
+      身份证号只显示前 6 后 4。认证方式写「信息 + 照片」，不写「人脸识别」—— 本期没有做人脸核验，界面上不能出现没实现的能力。
+    </p>
+    <iframe src="../48-verify-real.html#state-done" title="实名认证 · 已认证"></iframe>
+  </section>
+
+  <section class="walk__item">
+    <div class="walk__head">
+      <h2 class="walk__name">实名认证 · 被驳回</h2>
+      <span class="walk__tag">rejected</span>
+    </div>
+    <p class="walk__note">
+      驳回原因具体到「国徽面照片边缘被裁」并且明说人像面不用重拍。只写「资料不通过」的话，用户会把两张照片原样再交一遍。
+    </p>
+    <iframe src="../48-verify-real.html#state-rejected" title="实名认证 · 被驳回"></iframe>
+  </section>
+
+  <section class="walk__item">
+    <div class="walk__head">
+      <h2 class="walk__name">企业认证 · 审核中</h2>
+      <span class="walk__tag">pending</span>
+    </div>
+    <p class="walk__note">
+      说明里补了一句「期间可以继续用个人身份咨询和下单」。企业认证卡住不该阻塞个人业务，这句话是给代办人看的。
+    </p>
+    <iframe src="../49-verify-company.html#state-pending" title="企业认证 · 审核中"></iframe>
+  </section>
+
+  <section class="walk__item">
+    <div class="walk__head">
+      <h2 class="walk__name">企业认证 · 已通过</h2>
+      <span class="walk__tag">done</span>
+    </div>
+    <p class="walk__note">
+      写明两件事：现在能干什么（企业名义委托、开企业票）、什么情况要重做（改名 / 变更法人 / 注销）。后面这条多数产品漏写，结果企业改名后找不到入口。
+    </p>
+    <iframe src="../49-verify-company.html#state-done" title="企业认证 · 已通过"></iframe>
+  </section>
+
+  <section class="walk__item">
+    <div class="walk__head">
+      <h2 class="walk__name">企业认证 · 被驳回</h2>
+      <span class="walk__tag">rejected</span>
+    </div>
+    <p class="walk__note">
+      驳回原因里同时交代「哪些没问题、不用改」，只让用户重做要改的那一项。否则用户会连企业名称、信用代码一起重填，出错概率反而更高。
+    </p>
+    <iframe src="../49-verify-company.html#state-rejected" title="企业认证 · 被驳回"></iframe>
+  </section>
+
+  <section class="walk__item">
+    <div class="walk__head">
+      <h2 class="walk__name">我的收藏 · 左滑</h2>
+      <span class="walk__tag">swipe</span>
+    </div>
+    <p class="walk__note">
+      左滑把内容整体左移 84px，右侧露出红色「取消收藏」，标题左边相应移出屏幕 —— 这是真实效果，所以主屏不静态展开它，只在这里看。卡片右上角的心形是不依赖手势的第二个入口。
+    </p>
+    <iframe src="../51-favorites.html#swipe" title="我的收藏 · 左滑态"></iframe>
+  </section>
+
+  <section class="walk__item">
+    <div class="walk__head">
+      <h2 class="walk__name">我的收藏 · 空态</h2>
+      <span class="walk__tag">empty</span>
+    </div>
+    <p class="walk__note">
+      空态说清「怎么才会有收藏」（心形按钮在哪），并且引导去首页。收藏空了缺的是内容，不是设置项。
+    </p>
+    <iframe src="../51-favorites.html#state-empty" title="我的收藏 · 空态"></iframe>
+  </section>
+
+  <section class="walk__item">
+    <div class="walk__head">
+      <h2 class="walk__name">关注律师 · 空态</h2>
+      <span class="walk__tag">empty</span>
+    </div>
+    <p class="walk__note">
+      关注空了去「找律师」，收藏空了去「首页」：两个空态缺的东西不一样，落点就不该一样。空态按钮写具体去处，不写「返回」。
+    </p>
+    <iframe src="../52-following.html#state-empty" title="关注律师 · 空态"></iframe>
+  </section>
+
+</div>
+
+</body>
+</html>

@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390, initial-scale=1">
+<meta name="dsh-design" content="app">
+<title>投诉</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   投诉页（第 15 批 · 延展，无参考图）
+   ==========================================================================
+   职责：提交对律师 / 服务 / 订单的正式投诉，附凭证，等待平台核实。
+   入口：05-profile「投诉」
+   数据来源：我的订单列表（选择关联订单）+ 投诉接口
+
+   ★ 投诉和意见反馈是两个完全不同的东西，界面上必须让用户分清：
+     投诉有对象、有凭证要求、有处理时限、会同步给被投诉方；
+     反馈没有对象，是给产品提意见，不一定会回复。
+     所以这一页第一段就写清「投诉会同步给被投诉的律师」——
+     用户以为投诉是匿名举报、结果律师收到原文，这种落差会直接变成二次投诉。
+
+   ★ 关联订单做成必填。没有订单的投诉平台无法核实（谁、什么时候、买了什么服务），
+     只能退回让用户补充，一来一回三天就过去了。不如在提交前就要求选。
+     不涉订单的情况（如对某篇文章内容有异议）应该走意见反馈，不是这里。
+
+   ★ 描述框给的是「怎么描述」的引导，不是「请描述」的指令。
+     「请描述你的问题」写出来，用户只会写「律师态度差」五个字，
+     客服再来回问三轮。placeholder 里直接给出时间、经过、诉求三段式。
+
+   ★ 写明「我们会在 3 个工作日内核实并回复」。给时限是要担责任的，
+     所以这个数字必须和后台 SLA 对齐；不写时限的结果是用户第三天就来问，
+     而实际上多数工单在第五天才处理完。
+   ========================================================================== */
+
+body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-canvas);
+}
+
+.navbar {
+  background: var(--bg-surface);
+}
+
+.screen {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding: 0 var(--sp-xl) var(--sp-xl);
+}
+.screen::-webkit-scrollbar {
+  display: none;
+}
+
+/* ---------- 顶部说明 ---------- */
+.tip-block {
+  display: flex;
+  gap: var(--sp-md);
+  margin-block-start: var(--sp-md);
+  padding: var(--sp-md) var(--sp-lg);
+  border-radius: var(--r-md);
+  background: var(--brand-primary-soft);
+}
+
+.tip-block svg {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  margin-block-start: 1px;
+  color: var(--brand-primary-pressed);
+}
+
+.tip-block__title {
+  font-size: var(--fs-md);
+  font-weight: var(--fw-bold);
+  color: var(--brand-primary-pressed);
+  line-height: 1.5;
+}
+
+.tip-block__desc {
+  margin-block-start: 4px;
+  font-size: var(--fs-caption);
+  color: var(--text-secondary);
+  line-height: 1.7;
+}
+
+/* ---------- 卡片 ---------- */
+.card-block {
+  margin-block-start: var(--sp-md);
+  padding: var(--sp-md) var(--sp-lg);
+  border-radius: var(--r-md);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.block-title {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-sm);
+  padding-block: var(--sp-xs) var(--sp-sm);
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+}
+
+.block-title__note {
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-regular);
+  color: var(--text-muted);
+}
+
+/* ---------- 已选订单 ---------- */
+.order-pick {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-md);
+  width: 100%;
+  padding: var(--sp-md);
+  border: 1px solid var(--border-outline);
+  border-radius: var(--r-sm);
+  background: var(--bg-canvas);
+  font-family: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.order-pick__body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.order-pick__name {
+  display: block;
+  font-size: var(--fs-md);
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+
+.order-pick__meta {
+  display: block;
+  margin-block-start: 2px;
+  font-family: var(--font-num);
+  font-size: var(--fs-micro);
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.order-pick__change {
+  flex: 0 0 auto;
+  font-size: var(--fs-caption);
+  color: var(--brand-primary-pressed);
+}
+
+/* ---------- 描述框 ---------- */
+.bio-wrap {
+  position: relative;
+  padding-block: var(--sp-xs) 0;
+}
+
+.bio-input {
+  display: block;
+  width: 100%;
+  min-height: 148px;
+  padding: var(--sp-md);
+  border: 0;
+  border-radius: var(--r-sm);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: var(--fs-md);
+  line-height: 1.75;
+  resize: none;
+  outline: none;
+}
+
+.bio-input::placeholder {
+  color: #A3A9AE;
+}
+
+.bio-count {
+  position: absolute;
+  inset-block-end: var(--sp-sm);
+  inset-inline-end: var(--sp-md);
+  font-family: var(--font-num);
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+/* ---------- 字段说明 ---------- */
+.field-tip {
+  padding: var(--sp-sm) 0 var(--sp-xs);
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.7;
+}
+
+.field-tip b {
+  font-weight: var(--fw-medium);
+  color: var(--text-secondary);
+}
+
+/* ---------- 联系方式 ---------- */
+.contact-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-md);
+  padding-block: 10px;
+  border-block-start: 1px solid var(--border-divider);
+  font-size: var(--fs-md);
+}
+
+.contact-row__key {
+  color: var(--text-secondary);
+}
+
+.contact-row__val {
+  font-family: var(--font-num);
+  color: var(--text-primary);
+}
+</style>
+</head>
+<body>
+
+<header class="statusbar">
+  <span>9:41</span>
+  <span class="statusbar__icons">
+    <svg width="17" height="11" viewBox="0 0 17 11" fill="none" aria-hidden="true">
+      <rect x="0" y="7" width="3" height="4" rx="1" fill="currentColor"/>
+      <rect x="4.5" y="5" width="3" height="6" rx="1" fill="currentColor"/>
+      <rect x="9" y="2.5" width="3" height="8.5" rx="1" fill="currentColor"/>
+      <rect x="13.5" y="0" width="3" height="11" rx="1" fill="currentColor"/>
+    </svg>
+    <svg width="16" height="11" viewBox="0 0 16 11" fill="none" aria-hidden="true">
+      <path d="M1 3.2A10.5 10.5 0 0 1 15 3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M3.6 5.9a7 7 0 0 1 8.8 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M6.2 8.6a3.4 3.4 0 0 1 3.6 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden="true">
+      <rect x="0.6" y="0.6" width="21" height="10.8" rx="3" stroke="currentColor" stroke-opacity="0.4" stroke-width="1.2"/>
+      <rect x="2.2" y="2.2" width="15" height="7.6" rx="1.8" fill="currentColor"/>
+      <path d="M23.4 4.2v3.6" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+  </span>
+</header>
+
+<div class="navbar">
+  <a class="navbar__back" href="05-profile.html" aria-label="返回我的">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M15.2 4.6 7.8 12l7.4 7.4" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </a>
+  <h1 class="navbar__title">投诉</h1>
+</div>
+
+<main class="screen">
+
+  <section class="tip-block">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M12 3.2 21 20.4H3L12 3.2Z" stroke="currentColor" stroke-width="1.9"
+            stroke-linejoin="round"/>
+      <path d="M12 9.6v4.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+      <circle cx="12" cy="17.2" r="1.1" fill="currentColor"/>
+    </svg>
+    <div>
+      <p class="tip-block__title">投诉会在 3 个工作日内核实并回复</p>
+      <p class="tip-block__desc">你填写的内容<b>会同步给被投诉的律师</b>，用于核实事实 —— 投诉不是匿名举报。请如实描述，平台会根据订单记录、聊天记录和凭证三方核对。恶意投诉或捏造事实的，可能被限制投诉权限。</p>
+    </div>
+  </section>
+
+  <section class="card-block">
+    <h2 class="block-title">投诉对象</h2>
+
+    <div class="pick-list" data-choice-group>
+      <button class="pick is-active" type="button" data-pick-one="target">律师问题</button>
+      <button class="pick" type="button" data-pick-one="target">服务问题</button>
+      <button class="pick" type="button" data-pick-one="target">订单问题</button>
+    </div>
+
+    <p class="field-tip" style="padding-block-start: var(--sp-sm)">
+      <b>律师问题</b>指态度、专业能力、违规收费；<b>服务问题</b>指响应超时、服务与描述不符；<b>订单问题</b>指金额、退款、发票。
+    </p>
+
+    <button class="order-pick" type="button" data-pick-order>
+      <span class="order-pick__body">
+        <span class="order-pick__name">案件委托 · 民间借贷纠纷</span>
+        <span class="order-pick__meta">FAZE-2026-0087 · ¥3,000.00 · 2026-10-26</span>
+      </span>
+      <span class="order-pick__change">更换</span>
+    </button>
+
+    <p class="field-tip">
+      必须关联一笔已完成的订单，平台才能核对是谁、什么时候、买了什么服务。<b>不涉具体订单的意见请走「意见反馈」</b>，那边不需要选订单。
+    </p>
+  </section>
+
+  <section class="card-block">
+    <h2 class="block-title">
+      经过和诉求
+      <span class="block-title__note">越具体处理越快</span>
+    </h2>
+
+    <div class="bio-wrap">
+      <textarea class="bio-input" maxlength="500" aria-label="投诉描述"
+                placeholder="按三件事写：① 什么时候发生了什么 ② 你手上有哪些证据 ③ 你希望怎么解决。例如：10 月 26 日下单委托后，律师承诺 3 天内出具意见，至今未回复任何消息；我有聊天截图和订单记录；希望退款并解除委托。"
+                data-field="complaint">10 月 26 日下单委托后，律师承诺 3 天内出具起诉状，到 10 月 30 日仍未收到，发消息也不回复。聊天记录和订单截图都在下面。希望全额退款并解除委托关系。</textarea>
+      <span class="bio-count">82 / 500</span>
+    </div>
+
+    <div class="upload-list">
+      <button class="upload is-done" type="button" data-upload>
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <rect x="3.2" y="5.4" width="17.6" height="13.2" rx="2.2" stroke="currentColor" stroke-width="1.8"/>
+          <circle cx="8.8" cy="10.2" r="1.6" stroke="currentColor" stroke-width="1.6"/>
+          <path d="m4 16.6 4.4-4 3.1 2.8 3-2.6 4.5 4" stroke="currentColor" stroke-width="1.8"
+                stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span class="upload__text">
+          聊天记录截图
+          <span class="upload__hint" data-upload-hint
+                data-idle="点击上传"
+                data-done="已上传 2 张，点击可重新选择">已上传 2 张，点击可重新选择</span>
+        </span>
+      </button>
+
+      <button class="upload" type="button" data-upload>
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 3.2v17.6M3.2 12h17.6" stroke="currentColor" stroke-width="1.9"
+                stroke-linecap="round"/>
+        </svg>
+        <span class="upload__text">
+          继续添加凭证
+          <span class="upload__hint" data-upload-hint
+                data-idle="最多 3 张，支持图片"
+                data-done="已上传，点击可重新选择">最多 3 张，支持图片</span>
+        </span>
+      </button>
+    </div>
+
+    <p class="field-tip">
+      聊天记录截图、付款凭证、律师出具的材料都可以。<b>截图要露出时间</b>，否则无法确认先后顺序。
+    </p>
+  </section>
+
+  <section class="card-block">
+    <div class="contact-row">
+      <span class="contact-row__key">处理结果通知到</span>
+      <span class="contact-row__val">187****1576</span>
+    </div>
+    <p class="field-tip" style="padding-block-start: var(--sp-xs)">
+      处理结果会同时发到站内消息和这个手机号。需要换号请先到<a href="44-change-phone.html" style="color: var(--brand-primary-pressed); font-weight: var(--fw-medium); text-decoration: none">账号与安全</a>换绑。
+    </p>
+  </section>
+
+</main>
+
+<div class="actionbar">
+  <button class="btn-primary actionbar__cta" type="button" data-submit-complaint>提交投诉</button>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

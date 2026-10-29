@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="dsh-design" content="web 1440x900">
+<title>实名认证审核 · 法泽管理后台</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   A-04 实名认证审核
+   --------------------------------------------------------------------------
+   职责：C 端用户提交实名认证后的审核队列与单条审核。
+   依据：《PC 后台开发计划_v1.0》§2.1 A-04；技术路线 §15.1「用户管理」
+   接口：**缺**。见《未完成需备注》§1
+   说明：
+     1. 审核类页面统一用「左队列 + 右详情」的分栏（本页、律师入驻审核、
+        内容审核队列、工单详情都是这个骨架），左右各自滚动，整屏不滚。
+     2. 证件影像是敏感信息：每张图下面都要说明「查看会被记录」，
+        这是等保要求，不是装饰。
+     3. 驳回必须填理由，理由用固定枚举而不是自由文本 —— 后面要统计驳回原因。
+   ========================================================================== */
+
+/* 让内容区撑满：页头固定，分栏吃掉剩余高度 */
+.audit-page {
+  display: flex;
+  flex-direction: column;
+}
+
+.audit-page .page-head {
+  flex: 0 0 auto;
+}
+
+.audit {
+  flex: 1 1 0;
+  min-height: 0;
+  height: auto;
+}
+
+/* 左队列：chips + 记录列表 + 底部计数 */
+.audit .chips {
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--border-divider);
+  flex-wrap: wrap;
+}
+
+/* 右详情里的一条记录用 rec，但要能显示等待时长 */
+.audit .rec--active .rec__meta {
+  color: var(--state-warning-deep);
+}
+
+/* 等待超 24 小时：红字。审核队列最该看的就是「谁等太久了」 */
+.rec__wait--late {
+  color: var(--state-danger-deep);
+  font-weight: var(--fw-medium);
+}
+
+/* 用户头部 */
+.audit__user {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding-bottom: var(--sp-4);
+  border-bottom: 1px solid var(--border-divider);
+}
+
+.audit__user-main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.audit__user-name {
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+}
+
+.audit__user-sub {
+  margin-top: 2px;
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+
+/* 段落标题 */
+.audit__label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: var(--sp-5) 0 var(--sp-3);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--text-body);
+}
+
+.audit__label span {
+  font-weight: var(--fw-regular);
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+
+/* 证件影像：比默认 .img-cell 矮，证件是横向的 */
+.id-card {
+  width: 100%;
+  height: 78px;
+}
+
+.id-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--sp-3);
+}
+
+.id-grid .img-cell {
+  width: 100%;
+  height: 78px;
+}
+
+/* 驳回理由：只有点「驳回」才展开。设计稿里默认收起，用一行说明交代 */
+.audit__reject {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-4);
+  border-top: 1px solid var(--border-divider);
+  background: var(--state-danger-soft);
+  font-size: var(--fs-xs);
+  color: var(--state-danger-deep);
+}
+
+.audit__reject svg {
+  flex: 0 0 14px;
+  width: 14px;
+  height: 14px;
+}
+</style>
+</head>
+<body class="shell" data-page="03-verify-audit">
+
+<aside class="sidebar" id="sidebar"></aside>
+
+<div class="main">
+  <header class="navbar" id="navbar"></header>
+  <div class="tags-view" id="tags-view"></div>
+
+  <main class="app-container scroll-y audit-page">
+
+    <div class="page-head">
+      <div>
+        <h1 class="page-head__title">实名认证审核</h1>
+        <p class="page-head__desc">
+          用户提交身份证后进入本队列。通过后该用户可下单与发起咨询；驳回需选择理由，理由对用户可见。
+        </p>
+      </div>
+      <div class="page-head__actions">
+        <button class="btn" type="button">审核规则说明</button>
+      </div>
+    </div>
+
+    <div class="split audit">
+
+      <!-- ==================== 左：待审队列 ==================== -->
+      <section class="panel">
+        <div class="panel__head">
+          <h2 class="panel__title">待审队列</h2>
+          <span class="tag tag--warning tag--dot">12 条待审</span>
+        </div>
+
+        <div class="chips">
+          <a class="chip chip--active" href="#">待审 <span class="chip__count">12</span></a>
+          <a class="chip" href="#">已通过 <span class="chip__count">934</span></a>
+          <a class="chip" href="#">已驳回 <span class="chip__count">8</span></a>
+        </div>
+
+        <div class="panel__body">
+          <a class="rec rec--active" href="#">
+            <div class="rec__top">
+              <span class="rec__title">阿依努尔·买买提</span>
+              <span class="tag tag--warning tag--dot">待审核</span>
+            </div>
+            <div class="rec__meta">
+              654002********1234 · 提交于 2026-10-29 19:12
+            </div>
+            <div class="rec__meta">
+              <span class="rec__wait--late">已等待 3 小时 06 分</span>
+            </div>
+          </a>
+
+          <a class="rec" href="#">
+            <div class="rec__top">
+              <span class="rec__title">古丽娜尔·哈力克</span>
+              <span class="tag tag--warning tag--dot">待审核</span>
+            </div>
+            <div class="rec__meta">654003********4240 · 提交于 2026-10-29 20:40</div>
+            <div class="rec__meta"><span class="rec__wait--late">已等待 1 小时 38 分</span></div>
+          </a>
+
+          <a class="rec" href="#">
+            <div class="rec__top">
+              <span class="rec__title">张建国</span>
+              <span class="tag tag--warning tag--dot">待审核</span>
+            </div>
+            <div class="rec__meta">654002********0918 · 提交于 2026-10-29 21:02</div>
+            <div class="rec__meta">已等待 1 小时 16 分</div>
+          </a>
+
+          <a class="rec" href="#">
+            <div class="rec__top">
+              <span class="rec__title">玛尔哈巴·吐尔逊</span>
+              <span class="tag tag--warning tag--dot">待审核</span>
+            </div>
+            <div class="rec__meta">654021********5503 · 提交于 2026-10-29 21:25</div>
+            <div class="rec__meta">已等待 0 小时 53 分</div>
+          </a>
+
+          <a class="rec" href="#">
+            <div class="rec__top">
+              <span class="rec__title">艾力·热合曼</span>
+              <span class="tag tag--warning tag--dot">待审核</span>
+            </div>
+            <div class="rec__meta">654022********2086 · 提交于 2026-10-29 21:52</div>
+            <div class="rec__meta">已等待 0 小时 26 分</div>
+          </a>
+
+          <a class="rec" href="#">
+            <div class="rec__top">
+              <span class="rec__title">刘敏</span>
+              <span class="tag tag--warning tag--dot">待审核</span>
+            </div>
+            <div class="rec__meta">654002********2264 · 提交于 2026-10-29 22:04</div>
+            <div class="rec__meta">已等待 0 小时 14 分</div>
+          </a>
+        </div>
+
+        <div class="panel__foot">
+          <span class="pagination__total" style="margin:0">共 12 条 · 第 1 / 2 页</span>
+        </div>
+      </section>
+
+      <!-- ==================== 右：审核详情 ==================== -->
+      <section class="panel">
+        <div class="panel__head">
+          <h2 class="panel__title">审核详情</h2>
+          <button class="icon-btn" type="button" aria-label="关闭">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                 stroke-linecap="round" aria-hidden="true">
+              <path d="m6.4 6.4 11.2 11.2M17.6 6.4 6.4 17.6"/>
+            </svg>
+          </button>
+        </div>
+
+        <div class="panel__body" style="padding:20px">
+
+          <div class="audit__user">
+            <span class="avatar avatar--lg">阿</span>
+            <div class="audit__user-main">
+              <div class="audit__user-name">阿依努尔·买买提</div>
+              <div class="audit__user-sub">
+                用户 ID U-10284 · 138****6621 · 2026-03-14 注册（已注册 7 个月）
+              </div>
+            </div>
+            <span class="tag tag--warning tag--dot">待审核</span>
+          </div>
+
+          <div class="audit__label">提交信息 <span>提交于 2026-10-29 19:12</span></div>
+          <div class="desc-grid">
+            <div class="desc-item">
+              <span class="desc-label">真实姓名</span>
+              <span class="desc-value desc-value--strong">阿依努尔·买买提</span>
+            </div>
+            <div class="desc-item">
+              <span class="desc-label">身份证号</span>
+              <span class="desc-value mono">654002********1234</span>
+            </div>
+            <div class="desc-item">
+              <span class="desc-label">民族</span>
+              <span class="desc-value">维吾尔族</span>
+            </div>
+            <div class="desc-item">
+              <span class="desc-label">所属地区</span>
+              <span class="desc-value">伊宁市 · 巴彦岱镇</span>
+            </div>
+            <div class="desc-item">
+              <span class="desc-label">手机号</span>
+              <span class="desc-value mono">138****6621</span>
+            </div>
+            <div class="desc-item">
+              <span class="desc-label">常住地址</span>
+              <span class="desc-value">伊宁市解放路 128 号</span>
+            </div>
+          </div>
+
+          <div class="audit__label">证件影像 <span>3 张 · 点击可放大</span></div>
+          <div class="id-grid">
+            <div class="img-cell" role="img" aria-label="身份证人像面">
+              <svg viewBox="0 0 96 60" fill="none" aria-hidden="true">
+                <rect x="1" y="1" width="94" height="58" rx="3" stroke="var(--border-strong)"/>
+                <circle cx="20" cy="22" r="8" stroke="var(--border-strong)"/>
+                <path d="M8 44c0-6 5.4-9 12-9s12 3 12 9" stroke="var(--border-strong)"/>
+                <path d="M40 16h44M40 24h44M40 32h30M40 40h36" stroke="var(--border-subtle)"/>
+              </svg>
+              <span class="img-cell__tag">人像面</span>
+            </div>
+            <div class="img-cell" role="img" aria-label="身份证国徽面">
+              <svg viewBox="0 0 96 60" fill="none" aria-hidden="true">
+                <rect x="1" y="1" width="94" height="58" rx="3" stroke="var(--border-strong)"/>
+                <circle cx="48" cy="18" r="7" stroke="var(--border-strong)"/>
+                <path d="M24 34h48M24 42h48M24 50h30" stroke="var(--border-subtle)"/>
+              </svg>
+              <span class="img-cell__tag">国徽面</span>
+            </div>
+            <div class="img-cell" role="img" aria-label="手持身份证照片">
+              <svg viewBox="0 0 96 60" fill="none" aria-hidden="true">
+                <circle cx="48" cy="18" r="10" stroke="var(--border-strong)"/>
+                <path d="M30 56c0-9 8-14 18-14s18 5 18 14" stroke="var(--border-strong)"/>
+                <rect x="34" y="34" width="28" height="17" rx="2" stroke="var(--border-subtle)"
+                      fill="var(--bg-surface)"/>
+              </svg>
+              <span class="img-cell__tag">手持照</span>
+            </div>
+          </div>
+
+          <div class="alert mt-4">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="8.6"/>
+              <path d="M12 11v5.4"/><path d="M12 7.8v.2"/>
+            </svg>
+            <span>
+              证件影像属敏感个人信息。本次查看已记录（操作人 admin、时间 2026-10-29 22:18、
+              来源 IP 192.168.1.24），下载需二次确认。
+            </span>
+          </div>
+        </div>
+
+        <div class="audit__reject">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="8.6"/><path d="M12 7.6v5"/><path d="M12 15.6v.2"/>
+          </svg>
+          <span>驳回需选择理由：证件模糊 / 信息不符 / 非本人 / 证件已过期 — 理由会展示给用户</span>
+        </div>
+
+        <div class="panel__foot" style="display:flex;justify-content:flex-end;gap:8px">
+          <button class="btn btn--danger" type="button">驳回</button>
+          <button class="btn btn--primary" type="button">通过认证</button>
+        </div>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<script src="shell.js"></script>
+</body>
+</html>

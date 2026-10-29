@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="dsh-design" content="web 1440x900">
+<title>系统参数 · 法泽管理后台</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   A-08 系统参数
+   --------------------------------------------------------------------------
+   职责：平台运行参数（服务费比例、充值提现限额、内容审核口径、AI 检索行为）
+         的查看与修改，对应 sys_config 表。
+   依据：《PC 后台开发计划_v1.0》§2.3 A-08；数据表 sys_config
+   接口：**缺**。读写 sys_config 的 admin 接口未定义，见《未完成需备注》§1
+   说明：
+     1. 这是表单页，不套列表母版。骨架：页头 → 风险提示 → 4 个分组卡片 →
+        底部保存栏。分组按「改坏了会伤到什么」切：钱（交易结算、充值提现）
+        在前，内容与 AI 在后。
+     2. 四组卡片按 2×2 网格排，而不是纵向四条 —— 纵向排要 1100px 以上，
+        必然滚两屏；2×2 后每组仍有 570px 宽，两列表单控件不挤。
+     3. 参数保存后立即生效，所以「保存设置」是全屏唯一 primary，且放在
+        最后一个可见块里：改完必然要往下看到它，避免改了一半就切页。
+     4. 平台服务费比例是占位值（《PC 后台开发计划》§未决清单第 4 条），
+        在字段下用 form-hint 明写「需业务方确认」，不让它看起来像已定稿。
+   ========================================================================== */
+
+/* 风险提示：与下方卡片间距 12，本页块多，统一用小间距 */
+.config__alert {
+  margin-bottom: var(--sp-3);
+}
+
+/* 2×2 分组网格。 .card + .card 会额外加 16 的 margin-top，
+   在 grid 里会破坏行对齐，所以只让网格的第一行卡片保留外边距归零 */
+.config__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-4);
+}
+
+.config__grid > .card {
+  margin-top: 0;
+}
+
+/* 卡体比默认薄一档：默认 padding 20 上下，4 张卡会多占 32px，
+   而本页高度预算只剩个位数 */
+.config__card .card__body {
+  padding: var(--sp-4) var(--sp-5);
+}
+
+/* 表单行间距从 16 收到 12：4 张卡共 8 个行间隙，能省 32px，
+   而 12 仍是 4 的倍数、与控件高度处在同一档，不会显挤 */
+.config__card .form-grid {
+  gap: var(--sp-3) var(--sp-6);
+}
+
+/* 表单控件撑满列宽：2×2 后每列只有 264px，固定宽度会留下空洞 */
+.config__card .input,
+.config__card .select,
+.config__card .textarea {
+  width: 100%;
+}
+
+/* 两行 textarea：components.css 的默认 min-height 是 88（约三行半），
+   这里两处说明都只要两行，显式收到 61 以免把卡片撑高 */
+.config__card .textarea {
+  min-height: 61px;
+}
+
+/* 带单位的输入框：单位贴在输入框内右侧，不单独占一列 */
+.config__field {
+  position: relative;
+}
+
+.config__field .input {
+  padding-right: 48px;
+}
+
+.config__unit {
+  position: absolute;
+  top: 50%;
+  right: var(--sp-3);
+  transform: translateY(-50%);
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+  pointer-events: none;
+}
+
+/* 开关行：开关 + 一句后果说明，说明文字比 label 低一档 */
+.config__switch-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: var(--ctrl-h);
+}
+
+.config__switch-note {
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+
+/* 只读字段：法条库版本由导入任务写入，这里只展示不可改，
+   所以做成一个和 input 同高的静态块，视觉上与其他控件对齐但明显不同 */
+.config__readonly {
+  display: flex;
+  align-items: center;
+  height: var(--ctrl-h);
+  padding: 0 var(--sp-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-ctrl);
+  background: var(--bg-surface-2);
+  color: var(--text-body);
+  font-size: var(--fs-md);
+}
+
+/* 底部保存栏：与上方网格间距 16 */
+.config__foot {
+  margin-top: var(--sp-4);
+}
+
+.config__foot .row--between {
+  padding: var(--sp-3) var(--sp-5);
+}
+
+.config__saved {
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+</style>
+</head>
+<body class="shell" data-page="07-sys-config">
+
+<aside class="sidebar" id="sidebar"></aside>
+
+<div class="main">
+  <header class="navbar" id="navbar"></header>
+  <div class="tags-view" id="tags-view"></div>
+
+  <main class="app-container scroll-y config">
+
+    <!-- ==================== 页头 ==================== -->
+    <div class="page-head">
+      <div>
+        <h1 class="page-head__title">系统参数</h1>
+        <p class="page-head__desc">
+          平台服务费、提现限额、内容审核口径与 AI 检索行为。只有管理员可以修改。
+        </p>
+      </div>
+    </div>
+
+    <!-- ==================== 风险提示 ==================== -->
+    <div class="alert alert--warning config__alert">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M12 3.6 2.8 20.4h18.4z"/><path d="M12 9.6v4.4"/>
+        <path d="M12 17.2h.01"/>
+      </svg>
+      <span>参数保存后立即生效，直接影响资金结算与审核口径；每次改动都会记入操作日志，可按时间回溯。</span>
+    </div>
+
+    <!-- ==================== 分组参数 ==================== -->
+    <div class="config__grid">
+
+      <!-- ---------- 1. 交易与结算 ---------- -->
+      <section class="card config__card">
+        <div class="card__head">
+          <h2 class="card__title">交易与结算</h2>
+          <div class="card__extra"><span>影响订单金额与律师收入</span></div>
+        </div>
+        <div class="card__body">
+          <div class="form-grid">
+            <div class="form-row">
+              <label class="form-label" for="c-fee-rate">平台服务费比例</label>
+              <div class="config__field">
+                <input class="input" id="c-fee-rate" type="text" value="15">
+                <span class="config__unit">%</span>
+              </div>
+              <p class="form-hint">现为占位值 15%，需业务方确认</p>
+            </div>
+
+            <div class="form-row">
+              <label class="form-label" for="c-settle">律师结算周期</label>
+              <select class="select" id="c-settle">
+                <option>每周</option>
+                <option>每半月</option>
+                <option selected>每月</option>
+              </select>
+            </div>
+
+            <div class="form-row">
+              <label class="form-label" for="c-auto-done">订单自动完成天数</label>
+              <div class="config__field">
+                <input class="input" id="c-auto-done" type="text" value="7">
+                <span class="config__unit">天</span>
+              </div>
+              <p class="form-hint">律师不点「完成」时按此天数自动确认</p>
+            </div>
+
+            <div class="form-row">
+              <label class="form-label" for="c-refund">退款审核时限</label>
+              <div class="config__field">
+                <input class="input" id="c-refund" type="text" value="24">
+                <span class="config__unit">小时</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ---------- 2. 充值提现 ---------- -->
+      <section class="card config__card">
+        <div class="card__head">
+          <h2 class="card__title">充值提现</h2>
+          <div class="card__extra"><span>影响账户资金流入流出</span></div>
+        </div>
+        <div class="card__body">
+          <div class="form-grid">
+            <div class="form-row">
+              <label class="form-label" for="c-min-recharge">单次最低充值</label>
+              <div class="config__field">
+                <input class="input" id="c-min-recharge" type="text" value="10">
+                <span class="config__unit">元</span>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <label class="form-label" for="c-min-withdraw">单次最低提现</label>
+              <div class="config__field">
+                <input class="input" id="c-min-withdraw" type="text" value="100">
+                <span class="config__unit">元</span>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <label class="form-label" for="c-max-withdraw">单笔提现上限</label>
+              <div class="config__field">
+                <input class="input" id="c-max-withdraw" type="text" value="5000">
+                <span class="config__unit">元</span>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <label class="form-label" for="c-fee-withdraw">提现手续费率</label>
+              <div class="config__field">
+                <input class="input" id="c-fee-withdraw" type="text" value="0.6">
+                <span class="config__unit">%</span>
+              </div>
+            </div>
+
+            <div class="form-row form-row--wide">
+              <label class="form-label" for="c-arrive-note">提现到账说明</label>
+              <textarea class="textarea" id="c-arrive-note" rows="2">审核通过后 1 至 3 个工作日到账。到账时间以银行处理为准，节假日顺延。</textarea>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ---------- 3. 内容与审核 ---------- -->
+      <section class="card config__card">
+        <div class="card__head">
+          <h2 class="card__title">内容与审核</h2>
+          <div class="card__extra"><span>影响发布流程与抽检</span></div>
+        </div>
+        <div class="card__body">
+          <div class="form-grid">
+            <div class="form-row">
+              <span class="form-label">新用户实名前置</span>
+              <div class="config__switch-row">
+                <span class="switch switch--on" role="switch" aria-checked="true"
+                      tabindex="0" aria-label="新用户实名前置"></span>
+                <span class="config__switch-note">未实名不可发起咨询</span>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <span class="form-label">文章发布后自动上线</span>
+              <div class="config__switch-row">
+                <span class="switch" role="switch" aria-checked="false"
+                      tabindex="0" aria-label="文章发布后自动上线"></span>
+                <span class="config__switch-note">关闭时需人工点上线</span>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <label class="form-label" for="c-sensitive">敏感词默认分级</label>
+              <select class="select" id="c-sensitive">
+                <option selected>阻断</option>
+                <option>送审</option>
+                <option>警示</option>
+              </select>
+            </div>
+
+            <div class="form-row">
+              <label class="form-label" for="c-audit-timeout">审核超时提醒</label>
+              <div class="config__field">
+                <input class="input" id="c-audit-timeout" type="text" value="24">
+                <span class="config__unit">小时</span>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <label class="form-label" for="c-sample">内容审核抽检比例</label>
+              <div class="config__field">
+                <input class="input" id="c-sample" type="text" value="10">
+                <span class="config__unit">%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ---------- 4. AI 与法条检索 ---------- -->
+      <section class="card config__card">
+        <div class="card__head">
+          <h2 class="card__title">AI 与法条检索</h2>
+          <div class="card__extra"><span>影响 AI 问答的可用性</span></div>
+        </div>
+        <div class="card__body">
+          <div class="form-grid">
+            <div class="form-row">
+              <span class="form-label">AI 问答开关</span>
+              <div class="config__switch-row">
+                <span class="switch switch--on" role="switch" aria-checked="true"
+                      tabindex="0" aria-label="AI 问答开关"></span>
+                <span class="config__switch-note">关闭后前台只保留人工咨询</span>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <label class="form-label" for="c-free-ask">每日免费问答次数</label>
+              <div class="config__field">
+                <input class="input" id="c-free-ask" type="text" value="10">
+                <span class="config__unit">次</span>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <span class="form-label">法条库版本（只读）</span>
+              <div class="config__readonly">民法典（2021-01-01 施行）</div>
+            </div>
+
+            <div class="form-row">
+              <span class="form-label">AI 回答附带法条引用</span>
+              <div class="config__switch-row">
+                <span class="switch switch--on" role="switch" aria-checked="true"
+                      tabindex="0" aria-label="AI 回答附带法条引用"></span>
+                <span class="config__switch-note">回答末尾附条文原文</span>
+              </div>
+            </div>
+
+            <div class="form-row form-row--wide">
+              <label class="form-label" for="c-ai-fallback">命中未收录法条的兜底话术</label>
+              <textarea class="textarea" id="c-ai-fallback" rows="2">该问题涉及的法条暂未收录，建议转人工律师咨询。已为您记录，我们会尽快补充。</textarea>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ==================== 保存栏 ==================== -->
+    <div class="card config__foot">
+      <div class="row row--between">
+        <span class="config__saved">
+          上次保存：<span class="mono">2026-10-28 15:22</span> · admin
+        </span>
+        <div class="row">
+          <button class="btn" type="button">恢复默认</button>
+          <button class="btn btn--primary" type="button">保存设置</button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script src="shell.js"></script>
+</body>
+</html>

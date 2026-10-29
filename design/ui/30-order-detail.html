@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390, initial-scale=1">
+<meta name="dsh-design" content="app">
+<title>订单详情</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   订单详情页（第 9 批 · 延展，无参考图）
+   ==========================================================================
+   职责：一单的全部信息与可执行动作都在这页。主屏画「待支付」态，
+         另两种关键态（进行中 / 已完成）见 _walkthrough/29-34-orders.html。
+   入口：29-orders.html 点任一卡片
+   母版：**详情页母版**（同 14-lawyer-detail / 19-case-detail：
+         导航栏 + 状态头 + 若干信息卡 + 底部固定操作栏）
+   数据来源：订单详情接口（订单号 / 服务项 / 律师 / 金额分 / 状态 / 时间戳 / 支付流水号）
+
+   ★ 状态决定这一页的全部内容，不是只换一个标签：
+     待支付 → 状态头是倒计时 + 底部「取消订单 / 立即支付」
+     进行中 → 状态头是进度 + 底部「联系律师」
+     已完成 → 状态头是完成时间 + 底部「申请退款 / 评价」
+     三套动作互斥，画在同一个 HTML 里会分叉，所以这屏只画待支付，
+     另两态进走查文件。
+
+   ★ 为什么状态头里要放倒计时：
+     待支付订单超时会自动关闭，钱没付出去但服务也没了。
+     不显示剩余时间，用户会以为这单会一直等他。倒计时是这页唯一有时效性的信息。
+
+   ★ 为什么单号带「复制」：
+     用户找客服、投诉、报障第一句话就是「我的订单号是……」，
+     让他长按选中一串 13 位字符再复制，这一步能省掉。
+
+   ★ 合规红线：订单编号是**平台单号**（FAZE- 前缀），不是法院案号。
+     格式刻意与「(2026) 新 4002 民初 1234 号」拉开，不给用户混淆空间。
+     诉讼费由人民法院依法收取，平台不代收，这条必须留在费用明细下面。
+   ========================================================================== */
+
+body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-canvas);
+}
+
+/* 顶部浅蓝渐变，让状态头和导航栏连成一块（同 15/24 的处理） */
+.navbar {
+  background: transparent;
+}
+
+.screen {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding: 0 var(--sp-xl) var(--sp-xl);
+  background: linear-gradient(to bottom, var(--banner-start) 0, var(--bg-canvas) 240px);
+}
+.screen::-webkit-scrollbar {
+  display: none;
+}
+
+/* 卡片之间留 12，比页面左右边距(20)紧一档：同属一页的信息，靠间距分层。
+   用后代选择器而不是直接子选择器 —— 三态各自包在 [data-state] 里，
+   section 已经不是 .screen 的直接子元素了。 */
+.screen section + section {
+  margin-block-start: var(--sp-md);
+}
+
+/* ---------- 状态头 ---------- */
+.status-hero {
+  padding-block: var(--sp-md) var(--sp-lg);
+}
+
+/* 待支付用暖色不用红色：还没出错，只是在等，标红会让人以为付失败了 */
+.status-hero--pending .status-hero__icon {
+  color: var(--brand-primary);
+}
+
+.status-hero__desc {
+  max-width: none;
+}
+
+/* 倒计时：等宽数字，秒数跳动时宽度不抖 */
+.countdown {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  margin-block-start: var(--sp-md);
+  padding: 5px 12px;
+  border-radius: var(--r-pill);
+  background: var(--bg-surface);
+  font-size: var(--fs-caption);
+  color: var(--text-secondary);
+}
+
+.countdown b {
+  font-family: var(--font-num);
+  font-size: var(--fs-lg);
+  font-variant-numeric: tabular-nums;
+  color: var(--brand-primary-pressed);
+  letter-spacing: 0.02em;
+}
+
+/* ---------- 信息卡 ---------- */
+.card-block {
+  padding: var(--sp-md) var(--sp-lg) var(--sp-lg);
+  border-radius: var(--r-md);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.block-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-sm);
+  padding-block: var(--sp-xs) var(--sp-md);
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.block-title__note {
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-regular);
+  color: var(--text-muted);
+}
+
+/* ---------- 只读的键值行 ---------- */
+.info-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-md);
+  padding-block: 8px;
+  font-size: var(--fs-md);
+  line-height: 1.5;
+}
+
+.info-row__label {
+  flex: 0 0 auto;
+  color: var(--text-muted);
+}
+
+.info-row__value {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--text-body);
+  text-align: end;
+  word-break: break-all;
+}
+
+/* 订单号：等宽 + 稍微加重，和普通值区分开 */
+.info-row__value--code {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+  color: var(--text-primary);
+}
+
+/* 复制：44 热区，用负边距压回行高 */
+.copy-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin-block: -12px;
+  margin-inline-end: -10px;
+  border: 0;
+  background: transparent;
+  color: var(--brand-primary);
+  cursor: pointer;
+  vertical-align: middle;
+}
+
+.copy-btn svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* ---------- 律师一行 ---------- */
+.lawyer-mini {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-md);
+  padding-block: var(--sp-xs) var(--sp-sm);
+  text-decoration: none;
+  color: inherit;
+}
+
+.lawyer-mini__avatar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: var(--brand-primary-soft);
+  color: var(--brand-primary-pressed);
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-medium);
+}
+
+.lawyer-mini__main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.lawyer-mini__name {
+  display: block;
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.lawyer-mini__firm {
+  display: block;
+  margin-block-start: 2px;
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lawyer-mini__arrow {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  color: var(--text-muted);
+}
+
+/* 联系律师用次要按钮，不用主色 —— 这一页的主动作是「立即支付」，
+   两个主色按钮会抢焦点，用户不知道该点哪个 */
+.lawyer-contact {
+  width: 100%;
+  margin-block-start: var(--sp-xs);
+}
+
+/* ---------- 费用明细 ---------- */
+.fee-block {
+  padding-block-end: var(--sp-md);
+}
+
+.fee-note {
+  margin-block-start: var(--sp-sm);
+  padding-block-start: var(--sp-sm);
+  border-block-start: 1px solid var(--border-divider);
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+/* ---------- 底部客服行 ---------- */
+.help-line {
+  padding: var(--sp-lg) 0 var(--sp-xs);
+  text-align: center;
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+}
+
+.help-line a {
+  color: var(--brand-primary);
+  text-decoration: none;
+}
+
+/* 操作栏里「取消订单」在左、「立即支付」占满剩余 —— 危险动作用次要样式，
+   不做成红按钮：取消订单是可逆的（钱没付），标红会让人以为有损失 */
+</style>
+</head>
+<body>
+
+<header class="statusbar">
+  <span>9:41</span>
+  <span class="statusbar__icons">
+    <svg width="17" height="11" viewBox="0 0 17 11" fill="none" aria-hidden="true">
+      <rect x="0" y="7" width="3" height="4" rx="1" fill="currentColor"/>
+      <rect x="4.5" y="5" width="3" height="6" rx="1" fill="currentColor"/>
+      <rect x="9" y="2.5" width="3" height="8.5" rx="1" fill="currentColor"/>
+      <rect x="13.5" y="0" width="3" height="11" rx="1" fill="currentColor"/>
+    </svg>
+    <svg width="16" height="11" viewBox="0 0 16 11" fill="none" aria-hidden="true">
+      <path d="M1 3.2A10.5 10.5 0 0 1 15 3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M3.6 5.9a7 7 0 0 1 8.8 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M6.2 8.6a3.4 3.4 0 0 1 3.6 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden="true">
+      <rect x="0.6" y="0.6" width="21" height="10.8" rx="3" stroke="currentColor" stroke-opacity="0.4" stroke-width="1.2"/>
+      <rect x="2.2" y="2.2" width="15" height="7.6" rx="1.8" fill="currentColor"/>
+      <path d="M23.4 4.2v3.6" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+  </span>
+</header>
+
+<div class="navbar">
+  <a class="navbar__back" href="29-orders.html" aria-label="返回订单列表">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M15.2 4.6 7.8 12l7.4 7.4" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </a>
+  <h1 class="navbar__title">订单详情</h1>
+  <div class="navbar__actions">
+    <a class="navbar__icon" href="55-support.html" aria-label="联系客服">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M12 3.4a8.6 8.6 0 0 0-8.6 8.6v3.4a2.4 2.4 0 0 0 2.4 2.4h1.4V11a4.8 4.8 0 0 1 9.6 0v6.8h1.4a2.4 2.4 0 0 0 2.4-2.4V12A8.6 8.6 0 0 0 12 3.4Z"
+              stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+        <path d="M18.2 17.8v1a2.6 2.6 0 0 1-2.6 2.6H12" stroke="currentColor"
+              stroke-width="1.7" stroke-linecap="round"/>
+      </svg>
+    </a>
+  </div>
+</div>
+
+<main class="screen">
+
+  <!-- ======================================================================
+       待支付（主态）
+       ====================================================================== -->
+  <div data-state="wait">
+
+  <section class="status-hero status-hero--pending">
+    <div class="status-hero__icon">
+      <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
+        <circle cx="32" cy="32" r="24" stroke="currentColor" stroke-width="3"/>
+        <path d="M32 18v14l9 6" stroke="currentColor" stroke-width="3"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <h2 class="status-hero__title">等待支付</h2>
+    <p class="status-hero__desc">订单提交成功，付完款律师才会收到服务请求。</p>
+    <p class="countdown">剩余支付时间 <b>14:32</b></p>
+  </section>
+
+  <section class="card-block">
+    <h3 class="block-title">服务信息</h3>
+    <div class="info-row">
+      <span class="info-row__label">服务名称</span>
+      <span class="info-row__value">法律咨询 · 30 分钟</span>
+    </div>
+    <div class="info-row">
+      <span class="info-row__label">服务类型</span>
+      <span class="info-row__value">即时咨询</span>
+    </div>
+    <div class="info-row">
+      <span class="info-row__label">下单时间</span>
+      <span class="info-row__value info-row__value--code">2026-10-29 14:22</span>
+    </div>
+    <div class="info-row">
+      <span class="info-row__label">订单编号</span>
+      <span class="info-row__value info-row__value--code">FAZE-2026-0087<button
+            class="copy-btn" type="button" data-copy="FAZE-2026-0087" aria-label="复制订单编号">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <rect x="8.4" y="8.4" width="11.2" height="11.2" rx="2"
+                stroke="currentColor" stroke-width="1.9"/>
+          <path d="M15.6 8.4V6.4a2 2 0 0 0-2-2H6.4a2 2 0 0 0-2 2v7.2a2 2 0 0 0 2 2h2"
+                stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/>
+        </svg>
+      </button></span>
+    </div>
+  </section>
+
+  <section class="card-block">
+    <h3 class="block-title">
+      服务律师
+      <span class="block-title__note">执业 11 年</span>
+    </h3>
+    <a class="lawyer-mini" href="14-lawyer-detail.html">
+      <span class="lawyer-mini__avatar">王</span>
+      <span class="lawyer-mini__main">
+        <span class="lawyer-mini__name">王建国律师</span>
+        <span class="lawyer-mini__firm">新疆天山律师事务所 · 擅长民间借贷、合同纠纷</span>
+      </span>
+      <svg class="lawyer-mini__arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="m9.2 4.6 7.4 7.4-7.4 7.4" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </a>
+    <a class="btn-ghost lawyer-contact" href="17-chat.html">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M4.2 6.2a2.2 2.2 0 0 1 2.2-2.2h11.2a2.2 2.2 0 0 1 2.2 2.2v7.6a2.2 2.2 0 0 1-2.2 2.2H10l-4.4 3.6a.6.6 0 0 1-1.4-.5Z"
+              stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+        <path d="M8.4 9.6h7.2M8.4 12.8h4.4" stroke="currentColor" stroke-width="1.8"
+              stroke-linecap="round"/>
+      </svg>
+      联系律师
+    </a>
+  </section>
+
+  <section class="card-block fee-block">
+    <h3 class="block-title">费用明细</h3>
+    <div class="money-row">
+      <span class="money-row__label">咨询服务费</span>
+      <span class="money-row__note">30 分钟一对一</span>
+      <span class="money-row__value money"><span class="money__sym">¥</span>99.00</span>
+    </div>
+    <div class="money-row">
+      <span class="money-row__label">平台服务费</span>
+      <span class="money-row__note">本平台不向用户收取</span>
+      <span class="money-row__value money"><span class="money__sym">¥</span>0.00</span>
+    </div>
+    <div class="money-row money-row--total">
+      <span class="money-row__label">应付金额</span>
+      <span class="money-row__value money"><span class="money__sym">¥</span>99.00</span>
+    </div>
+    <p class="fee-note">诉讼费由人民法院依法收取，本平台不代收也不代缴。本单是咨询服务的费用，与案件受理费、公告费等司法收费无关。</p>
+  </section>
+
+  <p class="help-line">对订单有疑问？<a href="55-support.html">联系客服</a></p>
+
+  </div>
+
+  <!-- ======================================================================
+       进行中：律师已接单，这一态的主动作是「联系律师」而不是付钱
+       ====================================================================== -->
+  <div data-state="doing" hidden>
+
+    <section class="status-hero">
+      <div class="status-hero__icon">
+        <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
+          <circle cx="32" cy="32" r="24" stroke="currentColor" stroke-width="3"/>
+          <path d="m22 32.4 6.6 6.6L42 24.6" stroke="currentColor" stroke-width="3.4"
+                stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <h2 class="status-hero__title">服务进行中</h2>
+      <p class="status-hero__desc">律师已接单，可以通过站内消息约定具体的咨询时间。</p>
+    </section>
+
+    <section class="card-block">
+      <h3 class="block-title">服务信息</h3>
+      <div class="info-row">
+        <span class="info-row__label">服务名称</span>
+        <span class="info-row__value">法律咨询 · 30 分钟</span>
+      </div>
+      <div class="info-row">
+        <span class="info-row__label">接单时间</span>
+        <span class="info-row__value info-row__value--code">2026-10-29 14:31</span>
+      </div>
+      <div class="info-row">
+        <span class="info-row__label">订单编号</span>
+        <span class="info-row__value info-row__value--code">FAZE-2026-0087</span>
+      </div>
+    </section>
+
+    <section class="card-block">
+      <h3 class="block-title">
+        服务律师
+        <span class="block-title__note">执业 11 年</span>
+      </h3>
+      <a class="lawyer-mini" href="14-lawyer-detail.html">
+        <span class="lawyer-mini__avatar">王</span>
+        <span class="lawyer-mini__main">
+          <span class="lawyer-mini__name">王建国律师</span>
+          <span class="lawyer-mini__firm">新疆天山律师事务所 · 擅长民间借贷、合同纠纷</span>
+        </span>
+        <svg class="lawyer-mini__arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="m9.2 4.6 7.4 7.4-7.4 7.4" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </a>
+    </section>
+
+    <section class="card-block fee-block">
+      <h3 class="block-title">费用明细</h3>
+      <div class="money-row">
+        <span class="money-row__label">咨询服务费</span>
+        <span class="money-row__note">30 分钟一对一</span>
+        <span class="money-row__value money"><span class="money__sym">¥</span>99.00</span>
+      </div>
+      <div class="money-row">
+        <span class="money-row__label">支付方式</span>
+        <span class="money-row__note">2026-10-29 14:24</span>
+        <span class="money-row__value">账户余额</span>
+      </div>
+      <div class="money-row money-row--total">
+        <span class="money-row__label">实付金额</span>
+        <span class="money-row__value money"><span class="money__sym">¥</span>99.00</span>
+      </div>
+      <p class="fee-note">诉讼费由人民法院依法收取，本平台不代收也不代缴。本单是咨询服务的费用，与案件受理费、公告费等司法收费无关。</p>
+    </section>
+
+    <p class="help-line">对订单有疑问？<a href="55-support.html">联系客服</a></p>
+
+  </div>
+
+  <!-- ======================================================================
+       已完成：服务结束，主动作变成「评价」；退款留口子但不主推
+       ====================================================================== -->
+  <div data-state="done" hidden>
+
+    <section class="status-hero">
+      <div class="status-hero__icon">
+        <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
+          <circle cx="32" cy="32" r="24" stroke="currentColor" stroke-width="3"/>
+          <path d="m22 33.4 7 7 13.4-14.2" stroke="currentColor" stroke-width="3.4"
+                stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <h2 class="status-hero__title">服务已完成</h2>
+      <p class="status-hero__desc">2026-10-29 15:02 咨询结束。这次的帮助到不到位，给个评价让后面的人好判断。</p>
+    </section>
+
+    <section class="card-block">
+      <h3 class="block-title">服务信息</h3>
+      <div class="info-row">
+        <span class="info-row__label">服务名称</span>
+        <span class="info-row__value">法律咨询 · 30 分钟</span>
+      </div>
+      <div class="info-row">
+        <span class="info-row__label">完成时间</span>
+        <span class="info-row__value info-row__value--code">2026-10-29 15:02</span>
+      </div>
+      <div class="info-row">
+        <span class="info-row__label">订单编号</span>
+        <span class="info-row__value info-row__value--code">FAZE-2026-0087</span>
+      </div>
+    </section>
+
+    <section class="card-block">
+      <h3 class="block-title">服务律师</h3>
+      <a class="lawyer-mini" href="14-lawyer-detail.html">
+        <span class="lawyer-mini__avatar">王</span>
+        <span class="lawyer-mini__main">
+          <span class="lawyer-mini__name">王建国律师</span>
+          <span class="lawyer-mini__firm">新疆天山律师事务所 · 已回复你的咨询</span>
+        </span>
+        <svg class="lawyer-mini__arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="m9.2 4.6 7.4 7.4-7.4 7.4" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </a>
+    </section>
+
+    <section class="card-block fee-block">
+      <h3 class="block-title">费用明细</h3>
+      <div class="money-row">
+        <span class="money-row__label">咨询服务费</span>
+        <span class="money-row__note">30 分钟一对一</span>
+        <span class="money-row__value money"><span class="money__sym">¥</span>99.00</span>
+      </div>
+      <div class="money-row">
+        <span class="money-row__label">支付方式</span>
+        <span class="money-row__note">2026-10-29 14:24</span>
+        <span class="money-row__value">账户余额</span>
+      </div>
+      <div class="money-row money-row--total">
+        <span class="money-row__label">实付金额</span>
+        <span class="money-row__value money"><span class="money__sym">¥</span>99.00</span>
+      </div>
+      <p class="fee-note">诉讼费由人民法院依法收取，本平台不代收也不代缴。本单是咨询服务的费用，与案件受理费、公告费等司法收费无关。</p>
+    </section>
+
+    <p class="help-line">对订单有疑问？<a href="55-support.html">联系客服</a></p>
+
+  </div>
+
+</main>
+
+<div class="actionbar" data-state="wait">
+  <button class="btn-ghost" type="button" data-cancel-order>取消订单</button>
+  <a class="btn-primary actionbar__cta" href="31-pay.html">立即支付</a>
+</div>
+
+<div class="actionbar" data-state="doing" hidden>
+  <a class="btn-ghost" href="33-refund.html">申请退款</a>
+  <a class="btn-primary actionbar__cta" href="17-chat.html">联系律师</a>
+</div>
+
+<div class="actionbar" data-state="done" hidden>
+  <a class="btn-ghost" href="33-refund.html">申请退款</a>
+  <a class="btn-primary actionbar__cta" href="34-review.html">评价服务</a>
+</div>
+
+<!-- ======================================================================
+     取消订单的二次确认
+     ★ 不写「确定取消吗？」就完事：取消后这单的律师档期会被释放，
+       用户要重新下单、可能价格已经变了。得把这句后果说出来。
+     ====================================================================== -->
+<div class="mask" data-cancel-mask hidden></div>
+<div class="dialog" data-cancel-dialog hidden role="dialog" aria-modal="true" aria-labelledby="cancel-title">
+  <h2 class="dialog__title" id="cancel-title">取消这个订单？</h2>
+  <p class="dialog__body">取消后律师的咨询时段会被释放给其他人，这个价格也保留不了。如果还想咨询，需要重新下单。</p>
+  <div class="dialog__actions">
+    <button class="dialog__btn" type="button" data-cancel-dismiss>再想想</button>
+    <button class="dialog__btn dialog__btn--danger" type="button" data-cancel-confirm>确认取消</button>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

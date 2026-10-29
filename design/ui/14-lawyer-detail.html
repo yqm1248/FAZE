@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390, initial-scale=1">
+<meta name="dsh-design" content="app">
+<title>律师详情</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   律师详情页（第 4 批 · 有参考图 06-detail.png）
+   ==========================================================================
+   职责：律师个人主页。列表点卡片进来，或点「立即咨询」进来（统一入口）。
+   母版：**详情页母版** —— 本屏定下的结构，后续 20 多屏详情页都要照它：
+         渐变头 + 负边距压上去的头卡 + 分区卡（带竖条标题）+ 底部固定操作栏
+   数据来源：lawyer_id 请求律师详情 + 统计数据
+
+   与原图的差异：
+     1. **头像改为圆形占位**。原图是真人照片方形圆角，占位期没有照片，
+        圆形占位比方形空缺更稳（后续真人照片一律 cover 裁圆）
+     2. 原图只有「立即咨询」一个全宽按钮。导航树要求「收藏/关注律师（心形）」
+        和「分享律师名片」，所以底部栏改成 [收藏][立即咨询]，分享放导航栏右上角——
+        三个动作全塞底部会把主按钮挤窄，而咨询是这屏唯一的目标动作
+     3. **新增「联系方式」分区**。导航树明确要求「联系电话（仅展示号码，不直接拨号）」，
+        原图没有。这条是合规要求：不给一键拨号，避免被当成导流工具
+     4. 图标全部改线性 SVG，保留原项目的青/蓝/橙三色
+   ========================================================================== */
+
+body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  /* 渐变直接铺在 body 上，不用「hero 元素 + 负 margin」那套。
+     负 margin 会让滚动区底边和底部操作栏的点击区打架（实测被压 13px），
+     而渐变本来就是个背景，铺在 body 上最省事：卡片有白底，自然把渐变盖住。 */
+  background: linear-gradient(
+    to bottom,
+    var(--banner-start) 0,
+    var(--banner-end) 220px
+  );
+}
+
+/* 导航栏浮在渐变上，不要白底 */
+.navbar {
+  background: transparent;
+}
+
+/* ---------- 滚动区 ---------- */
+.screen {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  /* 顶部留出渐变可见的高度，原图导航栏到卡片约 32px */
+  padding: var(--sp-xxxl) var(--sp-xl) var(--sp-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-xl);
+}
+
+/* ★ 卡片的父容器是 <div data-state="...">，不是 .screen。
+   把 gap 加在 .screen 上不会生效 —— 它只有一个子元素。
+   间距必须加在真正包住卡片的那一层。 */
+.screen > [data-state] {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-xl);
+}
+
+.screen > [data-state] > section {
+  margin: 0;
+}
+.screen::-webkit-scrollbar {
+  display: none;
+}
+
+/* ---------- 头卡 ---------- */
+.profile {
+  padding: var(--sp-lg);
+}
+
+.profile__top {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-lg);
+}
+
+/* 85px 圆形占位；真实照片按 cover 裁圆 */
+.profile__avatar {
+  flex: 0 0 auto;
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: #E8EDFB;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.profile__avatar svg {
+  width: 46px;
+  height: 46px;
+  color: #9AA9D4;
+}
+
+.profile__intro {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.profile__name-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  flex-wrap: wrap;
+}
+
+.profile__name {
+  font-size: var(--fs-h1);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  line-height: 1.25;
+  /* 长名字不能把标签挤出去 */
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile__firm {
+  margin-block-start: var(--sp-xs);
+  font-size: var(--fs-md);
+  color: var(--text-secondary);
+  line-height: var(--lh-normal);
+}
+
+/* ---------- 三栏统计 ---------- */
+.profile__stats {
+  margin-block-start: var(--sp-lg);
+  padding-block-start: var(--sp-lg);
+  border-block-start: 1px solid var(--border-divider);
+  display: flex;
+}
+
+.profile__stat {
+  flex: 1 1 0;
+  min-width: 0;
+  text-align: center;
+}
+
+.profile__stat strong {
+  display: block;
+  font-family: var(--font-num);
+  font-size: 21px;
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+
+.profile__stat span {
+  display: block;
+  margin-block-start: 5px;
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.2;
+}
+
+/* ---------- 分区卡 ---------- */
+.section {
+  padding: var(--sp-lg);
+}
+
+/* 竖条 + 标题。竖条用 <i> 但必须把默认斜体关掉，否则不影响布局但语义上是斜体元素 */
+.section__title {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  font-size: var(--fs-h2);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+.section__bar {
+  flex: 0 0 auto;
+  width: 4px;
+  height: 17px;
+  border-radius: 2px;
+  background: var(--brand-primary);
+  font-style: normal;
+}
+
+.section__text {
+  margin-block-start: var(--sp-md);
+  font-size: var(--fs-lg);
+  color: var(--text-body);
+  line-height: 1.75;
+}
+
+/* ---------- 业务擅长 ---------- */
+.skill-list {
+  margin-block-start: var(--sp-md);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-sm) 10px;
+}
+
+.skill {
+  display: inline-flex;
+  align-items: center;
+  height: 34px;
+  padding-inline: var(--sp-lg);
+  border-radius: var(--r-pill);
+  background: var(--brand-primary-soft);
+  color: var(--brand-primary-pressed);
+  /* 用 fs-md 而不是 fs-sm：这屏字号种类已经偏多，13 这一档在别处没用上 */
+  font-size: var(--fs-md);
+  line-height: 1;
+  white-space: nowrap;
+}
+
+/* ---------- 联系方式 ---------- */
+.contact {
+  margin-block-start: var(--sp-md);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-md);
+}
+
+.contact__label {
+  font-size: var(--fs-lg);
+  color: var(--text-secondary);
+}
+
+.contact__value {
+  font-family: var(--font-num);
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.contact__hint {
+  margin-block-start: var(--sp-sm);
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: var(--lh-relaxed);
+}
+
+/* ---------- 底部固定操作栏 ---------- */
+.actionbar {
+  flex: 0 0 auto;
+  /* 必须压住 .screen（它靠负 margin 上移，底边超出来会盖住操作栏的点击区） */
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-md);
+  padding: 10px var(--sp-xl) calc(10px + var(--safe-bottom));
+  background: var(--bg-surface);
+  border-block-start: 1px solid var(--border-divider);
+  box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.04);
+}
+
+.fav-btn {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  width: 52px;
+  min-height: 44px;
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  /* 用 caption 而不是 micro：micro 11 在这屏算第 9 档字号，收敛一档 */
+  font-size: var(--fs-caption);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.fav-btn svg {
+  width: 22px;
+  height: 22px;
+}
+
+/* 已关注：图标填充 + 暖红。用 danger 红是因为「关注」在中文语境里就是红心，
+   不是危险语义，这里的颜色挪用是惯例而非语义 */
+.fav-btn.is-on {
+  color: var(--state-danger);
+}
+
+.fav-btn.is-on svg {
+  fill: currentColor;
+}
+
+.actionbar__cta {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* 本屏只有一个 .tag（「资深律师」），默认 11px(micro)。
+   提到 12(caption) 是为了收敛字号档位：本屏实测有 8 种字号
+   （24 姓名 / 21 统计 / 17 区块标题 / 16 主按钮 / 15 正文 /
+   14 状态栏 / 12 说明 / 11 标签），去掉 11 这一档后是 7 种。
+   顺带也更好读 —— 11px 的白底标签对中老年用户偏小。 */
+.tag {
+  font-size: var(--fs-caption);
+  padding-inline: 7px;
+}
+</style>
+</head>
+<body>
+
+<header class="statusbar">
+  <span>9:41</span>
+  <span class="statusbar__icons">
+    <svg width="17" height="11" viewBox="0 0 17 11" fill="none" aria-hidden="true">
+      <rect x="0" y="7" width="3" height="4" rx="1" fill="currentColor"/>
+      <rect x="4.5" y="5" width="3" height="6" rx="1" fill="currentColor"/>
+      <rect x="9" y="2.5" width="3" height="8.5" rx="1" fill="currentColor"/>
+      <rect x="13.5" y="0" width="3" height="11" rx="1" fill="currentColor"/>
+    </svg>
+    <svg width="16" height="11" viewBox="0 0 16 11" fill="none" aria-hidden="true">
+      <path d="M1 3.2A10.5 10.5 0 0 1 15 3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M3.6 5.9a7 7 0 0 1 8.8 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M6.2 8.6a3.4 3.4 0 0 1 3.6 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden="true">
+      <rect x="0.6" y="0.6" width="21" height="10.8" rx="3" stroke="currentColor" stroke-opacity="0.4" stroke-width="1.2"/>
+      <rect x="2.2" y="2.2" width="15" height="7.6" rx="1.8" fill="currentColor"/>
+      <path d="M23.4 4.2v3.6" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+  </span>
+</header>
+
+<div class="navbar">
+  <a class="navbar__back" href="02-lawyer.html" aria-label="返回律师列表">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M15.2 4.6 7.8 12l7.4 7.4" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </a>
+  <h1 class="navbar__title">律师详情</h1>
+  <div class="navbar__actions">
+    <button class="navbar__icon" type="button" data-share-open aria-label="分享律师名片">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <circle cx="17.6" cy="5.8" r="2.9" stroke="currentColor" stroke-width="1.9"/>
+        <circle cx="6.4" cy="12" r="2.9" stroke="currentColor" stroke-width="1.9"/>
+        <circle cx="17.6" cy="18.2" r="2.9" stroke="currentColor" stroke-width="1.9"/>
+        <path d="m9 10.6 6.1-3.3M9 13.4l6.1 3.3" stroke="currentColor" stroke-width="1.9"
+              stroke-linecap="round"/>
+      </svg>
+    </button>
+  </div>
+</div>
+
+<main class="screen">
+
+  <!-- ======================================================================
+       正常态
+       ====================================================================== -->
+  <div data-state="normal" class="screen__stack">
+
+    <section class="card profile">
+      <div class="profile__top">
+        <div class="profile__avatar" aria-label="律师头像占位">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="12" cy="8.6" r="3.6" fill="currentColor"/>
+            <path d="M4.4 22c0-4.2 3.4-7.2 7.6-7.2s7.6 3 7.6 7.2" fill="currentColor"/>
+          </svg>
+        </div>
+        <div class="profile__intro">
+          <div class="profile__name-row">
+            <h2 class="profile__name">张领</h2>
+            <span class="tag tag--brand">资深律师</span>
+          </div>
+          <p class="profile__firm">法泽律师事务所 · 合伙人</p>
+        </div>
+      </div>
+
+      <div class="profile__stats">
+        <div class="profile__stat">
+          <strong>15年</strong>
+          <span>从业经验</span>
+        </div>
+        <div class="profile__stat">
+          <strong>98%</strong>
+          <span>好评率</span>
+        </div>
+        <div class="profile__stat">
+          <strong>2k+</strong>
+          <span>咨询次数</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="card section">
+      <h2 class="section__title"><i class="section__bar"></i>业务擅长</h2>
+      <div class="skill-list">
+        <span class="skill">民商事纠纷</span>
+        <span class="skill">刑事辩护</span>
+        <span class="skill">合同审查</span>
+        <span class="skill">企业法律顾问</span>
+      </div>
+    </section>
+
+    <section class="card section">
+      <h2 class="section__title"><i class="section__bar"></i>个人简介</h2>
+      <p class="section__text">
+        张领律师毕业于知名法学院，拥有超过 15 年的执业经验。长期致力于民商事诉讼与仲裁，深谙法庭审理逻辑，擅长从证据链中找突破口。
+      </p>
+      <p class="section__text">
+        执业期间代理各类民商事案件三百余件，其中调解结案占比过半。处理纠纷时习惯先把「最坏的结果」讲清楚，再谈方案 —— 当事人知道底线在哪，才不会被情绪推着走。
+      </p>
+    </section>
+
+    <section class="card section">
+      <h2 class="section__title"><i class="section__bar"></i>联系方式</h2>
+      <div class="contact">
+        <span class="contact__label">联系电话</span>
+        <!-- 占位号码：伊犁区号 0999 + 连号，正式上线前替换为律师真实号码 -->
+        <span class="contact__value">0999-8888 666</span>
+      </div>
+      <p class="contact__hint">
+        平台不提供直接拨号。咨询请走站内消息，沟通记录可留存，后续产生纠纷时可作为凭证。
+      </p>
+    </section>
+
+  </div>
+
+  <!-- ======================================================================
+       加载态：详情骨架
+       ====================================================================== -->
+  <div data-state="loading" hidden>
+    <section class="card profile">
+      <div class="profile__top">
+        <div class="skeleton" style="width:84px;height:84px;border-radius:50%"></div>
+        <div class="profile__intro">
+          <div class="skeleton" style="height:24px;width:46%"></div>
+          <div class="skeleton" style="height:14px;width:72%;margin-block-start:10px"></div>
+        </div>
+      </div>
+      <div class="profile__stats">
+        <div class="profile__stat"><div class="skeleton" style="height:21px;width:56%;margin:0 auto"></div></div>
+        <div class="profile__stat"><div class="skeleton" style="height:21px;width:56%;margin:0 auto"></div></div>
+        <div class="profile__stat"><div class="skeleton" style="height:21px;width:56%;margin:0 auto"></div></div>
+      </div>
+    </section>
+    <section class="card section">
+      <div class="skeleton" style="height:17px;width:30%"></div>
+      <div class="skeleton" style="height:34px;width:100%;margin-block-start:14px;border-radius:999px"></div>
+      <div class="skeleton" style="height:34px;width:78%;margin-block-start:12px;border-radius:999px"></div>
+    </section>
+    <section class="card section">
+      <div class="skeleton" style="height:17px;width:30%"></div>
+      <div class="skeleton" style="height:15px;width:100%;margin-block-start:14px"></div>
+      <div class="skeleton" style="height:15px;width:88%;margin-block-start:10px"></div>
+    </section>
+  </div>
+
+  <!-- ======================================================================
+       空态：律师已下架 / 账号被停用
+       ====================================================================== -->
+  <div data-state="empty" hidden>
+    <div class="empty">
+      <svg class="empty__art" viewBox="0 0 96 96" fill="none" aria-hidden="true">
+        <circle cx="48" cy="36" r="16" stroke="currentColor" stroke-width="2.4"/>
+        <path d="M18 80c0-16.6 13.4-28 30-28s30 11.4 30 28" stroke="currentColor"
+              stroke-width="2.4" stroke-linecap="round"/>
+        <path d="m36 29 24 24M60 29 36 53" stroke="currentColor" stroke-width="2.4"
+              stroke-linecap="round"/>
+      </svg>
+      <p class="empty__title">这位律师的信息暂时不可见</p>
+      <p class="empty__desc">可能是资料正在更新，也可能已暂停接单。可更换其他律师。</p>
+      <a class="btn-primary empty__action" href="02-lawyer.html">返回律师列表</a>
+    </div>
+  </div>
+
+  <!-- ======================================================================
+       错误态：详情加载失败
+       ====================================================================== -->
+  <div data-state="error" hidden>
+    <div class="errorbox">
+      <svg class="errorbox__art" viewBox="0 0 96 96" fill="none" aria-hidden="true">
+        <circle cx="48" cy="48" r="30" stroke="currentColor" stroke-width="2.4"/>
+        <path d="M48 32v20" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
+        <circle cx="48" cy="62" r="2.4" fill="currentColor"/>
+      </svg>
+      <p class="errorbox__title">律师资料没有加载出来</p>
+      <p class="errorbox__desc">网络不稳定或者服务器维护中。请稍后重试。</p>
+      <button class="errorbox__retry" type="button" data-retry>
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M20.2 12a8.2 8.2 0 1 1-2.4-5.8" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round"/>
+          <path d="M20.4 3.6v4.6h-4.6" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        重新加载
+      </button>
+    </div>
+  </div>
+
+</main>
+
+<div class="actionbar">
+  <button class="fav-btn" type="button" data-fav aria-pressed="false"
+          data-fav-on="已关注张领律师，可在「我的 - 关注律师」查看"
+          data-fav-off="已取消关注"
+          aria-label="关注律师">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M12 20.4S3.6 15.2 3.6 9.6a4.6 4.6 0 0 1 8.4-2.6 4.6 4.6 0 0 1 8.4 2.6c0 5.6-8.4 10.8-8.4 10.8Z"
+            stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/>
+    </svg>
+    <span data-fav-text>关注</span>
+  </button>
+  <a class="btn-primary actionbar__cta" href="17-chat.html">立即咨询</a>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

@@ -6,6 +6,7 @@
 <meta name="dsh-design" content="app">
 <title>AI 对话</title>
 <link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
 <style>
 /* ==========================================================================
    AI 对话页（Tab 3）—— 复刻原项目 pages/ai-agent/ai-agent.vue
@@ -149,24 +150,32 @@ body {
 <div class="appbar">
   <h1 class="appbar__title">法泽智能体</h1>
   <div class="appbar__actions">
-    <button class="icon-btn" type="button" aria-label="语音通话">
+    <a class="icon-btn" href="18-ai-history.html" aria-label="对话历史">
       <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path d="M8.2 3.6 10.5 8l-2 2.3a13.4 13.4 0 0 0 5.2 5.2L16 13.5l4.4 2.3v3.1a1.6 1.6 0 0 1-1.8 1.6C10.2 19.7 4.3 13.8 3.5 5.4A1.6 1.6 0 0 1 5.1 3.6h3.1Z"
-              stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/>
+        <path d="M3.4 12a8.6 8.6 0 1 0 2.7-6.2" stroke="currentColor" stroke-width="1.9"
+              stroke-linecap="round"/>
+        <path d="M3.1 4.1v4.5h4.5" stroke="currentColor" stroke-width="1.9"
+              stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M12 8.2V12l2.9 1.8" stroke="currentColor" stroke-width="1.9"
+              stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
-    </button>
-    <button class="icon-btn" type="button" aria-label="扫描">
+    </a>
+    <button class="icon-btn" type="button" aria-label="清空当前对话" data-clear-open>
       <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path d="M3.5 8.5v-3a2 2 0 0 1 2-2h3M15.5 3.5h3a2 2 0 0 1 2 2v3M20.5 15.5v3a2 2 0 0 1-2 2h-3M8.5 20.5h-3a2 2 0 0 1-2-2v-3"
+        <path d="M4.6 6.8h14.8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+        <path d="M9.2 6.8V5a1.6 1.6 0 0 1 1.6-1.6h2.4A1.6 1.6 0 0 1 14.8 5v1.8"
               stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
-        <path d="M3.5 12h17" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+        <path d="M6.4 6.8 7.3 19a1.8 1.8 0 0 0 1.8 1.7h5.8A1.8 1.8 0 0 0 16.7 19l.9-12.2"
+              stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M10.4 10.8v5.6M13.6 10.8v5.6" stroke="currentColor" stroke-width="1.9"
+              stroke-linecap="round"/>
       </svg>
     </button>
   </div>
 </div>
 
 <div class="chat-body">
-  <p class="chat-hint">描述您遇到的法律问题，例如「借钱不还怎么办」</p>
+  <p class="chat-hint">描述你遇到的法律问题，例如「借钱不还怎么办」</p>
 </div>
 
 <div class="composer">
@@ -239,6 +248,33 @@ body {
   </a>
   <i class="tabbar__home-indicator"></i>
 </nav>
+
+<!-- ========================================================================
+     浮层：清空当前对话二次确认（第 5 批交付的页内浮层）
+     ==========================================================================
+     计划 §3.2 把这条排在「AI 对话 · 清空当前对话（二次确认）」。
+     用 components.css 的 .mask / .dialog，和「退出登录」同一个组件。
+
+     文案上做了一件事：告诉用户「其实不用清空」。
+     清空是不可撤销的，但用户点这个按钮往往只是嫌上下文乱了 ——
+     真正该做的是一次「新对话」，不是销毁。所以 hint 里给了替代路径。
+     ======================================================================== -->
+<div class="mask" data-clear-mask hidden></div>
+
+<div class="dialog" data-clear-dialog hidden role="alertdialog" aria-modal="true"
+     aria-labelledby="clear-title" aria-describedby="clear-desc">
+  <h2 class="dialog__title" id="clear-title">清空当前对话？</h2>
+  <p class="dialog__body" id="clear-desc">
+    这一轮对话的内容会被清空，也不会保留在「对话历史」里。
+  </p>
+  <p class="dialog__hint">
+    如需更换问题，可直接继续提问，不必清空 —— 保留上下文时回答更准确。
+  </p>
+  <div class="dialog__actions">
+    <button class="dialog__btn" type="button" data-clear-close>取消</button>
+    <button class="dialog__btn dialog__btn--danger" type="button" data-clear-confirm>清空</button>
+  </div>
+</div>
 
 <script src="app.js"></script>
 </body>

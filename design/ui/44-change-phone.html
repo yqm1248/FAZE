@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390, initial-scale=1">
+<meta name="dsh-design" content="app">
+<title>换绑手机号</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   换绑手机号页（第 12 批 · 延展，无参考图）
+   ==========================================================================
+   职责：验证旧手机，绑定新手机。手机号是登录凭证，换它等于换门锁。
+   入口：42-account-security「手机号」
+   母版：**表单页母版**（同 43：两张卡 + 两个验证码 + 底部提交栏）
+   数据来源：短信验证码接口 + 换绑接口
+
+   ★ 为什么两个验证码都要：
+     验证旧手机 = 证明「你是现在这个账号的主人」；
+     验证新手机 = 证明「这个号确实是你的」。
+     只验旧的不验新的，可以绑到一个不存在的号上，账号就丢了；
+     只验新的不验旧的，别人拿到你手机就能把号换走。
+
+   ★ 为什么先验证旧手机再填新号，而不是两个一起填：
+     一次填两处验证码，中途发错一个就得全部重来。
+     分开做，出错时用户知道自己卡在哪一步。
+
+   ★ 换绑成功后旧号立即失效，这句必须写在提交前面：
+     用户可能还留着旧号的短信提醒，换完才发现登不进去了。
+   ========================================================================== */
+
+body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-canvas);
+}
+
+.navbar {
+  background: var(--bg-surface);
+}
+
+.screen {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding: 0 var(--sp-xl) var(--sp-xl);
+}
+.screen::-webkit-scrollbar {
+  display: none;
+}
+
+.screen > section + section {
+  margin-block-start: var(--sp-md);
+}
+
+.card-block {
+  margin-block-start: var(--sp-md);
+  padding: var(--sp-md) var(--sp-lg) var(--sp-lg);
+  border-radius: var(--r-md);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.block-title {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-xs);
+  padding-block: var(--sp-xs) var(--sp-sm);
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+/* 步骤序号：两段流程，标清楚现在在第几步 */
+.step-no {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--brand-primary);
+  color: var(--text-on-brand);
+  font-family: var(--font-num);
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-bold);
+  line-height: 1;
+}
+
+/* ---------- 字段 ---------- */
+.form-field {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  min-height: 52px;
+  border-block-end: 1px solid var(--border-divider);
+}
+
+.form-field:last-of-type {
+  border-block-end: 0;
+}
+
+.form-field__label {
+  flex: 0 0 76px;
+  font-size: var(--fs-md);
+  color: var(--text-secondary);
+}
+
+.form-field input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 52px;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: var(--fs-lg);
+  outline: none;
+}
+
+.form-field input::placeholder {
+  color: #A3A9AE;
+}
+
+/* 数字输入用等宽，验证码逐位对齐 */
+.form-field input[inputmode="numeric"] {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.06em;
+}
+
+.code-btn {
+  flex: 0 0 auto;
+  min-width: 88px;
+  min-height: 44px;
+  padding: 0 var(--sp-sm);
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  font-size: var(--fs-md);
+  color: var(--brand-primary);
+  cursor: pointer;
+}
+
+.code-btn[disabled] {
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+/* ---------- 当前号展示 ---------- */
+.current-phone {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-sm);
+  padding-block: var(--sp-xs) var(--sp-sm);
+}
+
+.current-phone__label {
+  font-size: var(--fs-md);
+  color: var(--text-muted);
+}
+
+.current-phone__num {
+  font-family: var(--font-num);
+  font-size: var(--fs-h3);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+  letter-spacing: 0.02em;
+}
+
+/* ---------- 提醒 ---------- */
+.notice {
+  margin-block-start: var(--sp-md);
+  padding: var(--sp-md) var(--sp-lg);
+  border-radius: var(--r-sm);
+  background: var(--state-warning-soft);
+  font-size: var(--fs-caption);
+  color: var(--state-warning-deep);
+  line-height: 1.8;
+}
+</style>
+</head>
+<body>
+
+<header class="statusbar">
+  <span>9:41</span>
+  <span class="statusbar__icons">
+    <svg width="17" height="11" viewBox="0 0 17 11" fill="none" aria-hidden="true">
+      <rect x="0" y="7" width="3" height="4" rx="1" fill="currentColor"/>
+      <rect x="4.5" y="5" width="3" height="6" rx="1" fill="currentColor"/>
+      <rect x="9" y="2.5" width="3" height="8.5" rx="1" fill="currentColor"/>
+      <rect x="13.5" y="0" width="3" height="11" rx="1" fill="currentColor"/>
+    </svg>
+    <svg width="16" height="11" viewBox="0 0 16 11" fill="none" aria-hidden="true">
+      <path d="M1 3.2A10.5 10.5 0 0 1 15 3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M3.6 5.9a7 7 0 0 1 8.8 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M6.2 8.6a3.4 3.4 0 0 1 3.6 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden="true">
+      <rect x="0.6" y="0.6" width="21" height="10.8" rx="3" stroke="currentColor" stroke-opacity="0.4" stroke-width="1.2"/>
+      <rect x="2.2" y="2.2" width="15" height="7.6" rx="1.8" fill="currentColor"/>
+      <path d="M23.4 4.2v3.6" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+  </span>
+</header>
+
+<div class="navbar">
+  <a class="navbar__back" href="42-account-security.html" aria-label="返回账号与安全">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M15.2 4.6 7.8 12l7.4 7.4" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </a>
+  <h1 class="navbar__title">换绑手机号</h1>
+</div>
+
+<main class="screen">
+
+  <section class="card-block">
+    <h3 class="block-title"><span class="step-no">1</span>验证现在的手机号</h3>
+    <div class="current-phone">
+      <span class="current-phone__label">当前绑定</span>
+      <span class="current-phone__num">187****1576</span>
+    </div>
+    <div class="form-field">
+      <span class="form-field__label">验证码</span>
+      <input type="text" inputmode="numeric" maxlength="6" placeholder="6 位数字"
+             aria-label="旧手机验证码" data-phone-code="old">
+      <button class="code-btn" type="button" data-send-code="old">获取验证码</button>
+    </div>
+  </section>
+
+  <section class="card-block">
+    <h3 class="block-title"><span class="step-no">2</span>绑定新的手机号</h3>
+    <div class="form-field">
+      <span class="form-field__label">新手机号</span>
+      <input type="text" inputmode="numeric" maxlength="11" placeholder="11 位手机号"
+             aria-label="新手机号" data-phone-new>
+    </div>
+    <div class="form-field">
+      <span class="form-field__label">验证码</span>
+      <input type="text" inputmode="numeric" maxlength="6" placeholder="6 位数字"
+             aria-label="新手机验证码" data-phone-code="new">
+      <button class="code-btn" type="button" data-send-code="new">获取验证码</button>
+    </div>
+  </section>
+
+  <div class="notice">
+    换绑成功后，旧手机号立刻不能再用于登录或找回密码。若你仍在使用旧号接收平台的电话或短信，请一并处理。
+  </div>
+
+</main>
+
+<div class="actionbar">
+  <button class="btn-primary actionbar__cta" type="button" data-save-phone>确认换绑</button>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

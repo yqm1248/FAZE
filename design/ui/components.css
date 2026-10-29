@@ -1,0 +1,2258 @@
+/* ==========================================================================
+   法泽 FAZE · 跨屏复用组件
+   ==========================================================================
+   职责：一个以上屏要用的组件样式。第 1 批到第 2 批这些组件写在各自 <style> 里，
+         从第 3 批开始必须收在这里 —— 分享面板、确认框、Loading、骨架屏这些
+         第 4（律师详情 / IM）、5（AI 对话）、6（案例详情）、8（文书预览）批
+         还要用，每屏复制一份必然分叉。
+
+   数据来源：全部取 tokens.css 的变量，不写字面量（遮罩与阴影除外，规则同 tokens.css）
+
+   包含：
+     1. .navbar        二级页导航栏（返回 + 标题 + 右侧操作）
+     2. .refresher     下拉刷新提示
+     3. .loadmore      上拉加载更多
+     4. .skeleton      骨架屏
+     5. .empty         空状态
+     6. .errorbox      错误状态（含断网）
+     7. .offline-bar   断网提示条
+     8. .mask / .sheet 底部弹出层（分享面板用它）
+     9. .share-grid    分享渠道网格
+    10. .dialog        居中二次确认框
+    11. .loading       遮罩式加载
+
+   注意：
+     1. 所有定位用逻辑属性（inset-inline-*），RTL 下自动镜像
+     2. 打开 / 关闭用 [hidden] 与 .is-open 两个开关，app.js 只改 class 不写内联样式
+     3. 遮罩层 z-index 从 60 起，.dialog 70，.loading 80 —— 低于演示用的 .demo-toast(999)
+   ========================================================================== */
+
+/* ==========================================================================
+   1. 二级页导航栏
+   ==========================================================================
+   顶部安全区（54px 状态栏）已经在 .navbar 的 padding 里吃掉，
+   内容区不需要再留顶部间距。
+   ========================================================================== */
+.navbar {
+  flex: 0 0 auto;
+  position: relative;
+  /* 必须低于 .statusbar 的 20，否则白底会把状态栏的时间/电量盖掉 */
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  padding-block-start: calc(var(--statusbar-h) + 2px);
+  padding-block-end: 6px;
+  padding-inline: var(--sp-sm) var(--sp-md);
+  background: var(--bg-surface);
+  min-height: calc(var(--statusbar-h) + var(--navbar-h) + 2px);
+}
+
+.navbar--plain {
+  background: var(--bg-canvas);
+}
+
+.navbar__back {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.navbar__back:active {
+  background: var(--bg-input);
+}
+
+.navbar__back svg {
+  width: 22px;
+  height: 22px;
+}
+
+/* 返回箭头在 RTL 下要翻方向：逻辑属性做不到，单独覆盖。
+   这条是第 3 批给 RTL 轨道留的第一处镜像 —— 第 4 批定白名单时并入统一规则。 */
+[dir="rtl"] .navbar__back svg {
+  transform: scaleX(-1);
+}
+
+.navbar__title {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: var(--fs-h2);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.navbar__title--center {
+  text-align: center;
+}
+
+.navbar__actions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-xxs);
+  margin-inline-start: auto;
+}
+
+/* 导航栏右侧图标按钮 */
+.navbar__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+  text-decoration: none;
+  position: relative;
+}
+
+.navbar__icon:active {
+  background: var(--bg-input);
+}
+
+.navbar__icon svg {
+  width: 23px;
+  height: 23px;
+}
+
+/* 已收藏：图标填充 + 主色 */
+.navbar__icon.is-on {
+  color: var(--brand-primary);
+}
+
+.navbar__icon.is-on svg {
+  fill: currentColor;
+}
+
+/* ==========================================================================
+   2. 下拉刷新提示
+   ==========================================================================
+   平时 display: none 完全不占位，展开时才参与布局。
+   不能用 height: 0 + overflow: hidden —— 那样文字在几何上仍会溢出容器，
+   走查工具会判为「文字被切掉」，而且过渡动画的中间态会被量到。
+   ========================================================================== */
+.refresher {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-xs);
+  height: 46px;
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+}
+
+.is-pulling .refresher {
+  display: flex;
+}
+
+.refresher svg {
+  width: 16px;
+  height: 16px;
+}
+
+.refresher.is-spinning svg {
+  animation: spin 900ms linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ==========================================================================
+   3. 上拉加载更多
+   ========================================================================== */
+.loadmore {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-xs);
+  min-height: 52px;
+  padding-block: var(--sp-sm);
+  color: var(--text-muted);
+  font-size: var(--fs-caption);
+}
+
+.loadmore svg {
+  width: 15px;
+  height: 15px;
+}
+
+.loadmore.is-spinning svg {
+  animation: spin 900ms linear infinite;
+}
+
+/* 到底了：一行细线夹着「没有更多了」 */
+.loadmore--end::before,
+.loadmore--end::after {
+  content: "";
+  width: 28px;
+  height: 1px;
+  background: var(--border-outline);
+}
+
+/* ==========================================================================
+   4. 骨架屏
+   ==========================================================================
+   用 background-image 渐变扫光，比纯灰块更像真实加载。
+   ========================================================================== */
+.skeleton {
+  background-color: var(--bg-input);
+  background-image: linear-gradient(
+    90deg,
+    var(--bg-input) 0%,
+    #ECEFF3 50%,
+    var(--bg-input) 100%
+  );
+  background-size: 200% 100%;
+  border-radius: var(--r-xs);
+  animation: skeleton-sweep 1.3s ease-in-out infinite;
+}
+
+@keyframes skeleton-sweep {
+  from {
+    background-position: 140% 0;
+  }
+  to {
+    background-position: -40% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
+}
+
+/* ==========================================================================
+   5. 空状态
+   ==========================================================================
+   图形 + 一句说明 + 一个可点的下一步，三样缺一不可（计划 §6.1）。
+   ========================================================================== */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-huge) var(--sp-xl) var(--sp-xxxl);
+  text-align: center;
+}
+
+.empty__art {
+  width: 96px;
+  height: 96px;
+  color: #C6CDD6;
+}
+
+.empty__title {
+  margin-block-start: var(--sp-lg);
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-medium);
+  color: var(--text-body);
+  line-height: 1.4;
+}
+
+.empty__desc {
+  margin-block-start: var(--sp-xs);
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  line-height: var(--lh-relaxed);
+  max-width: 260px;
+}
+
+.empty__action {
+  margin-block-start: var(--sp-xl);
+}
+
+/* ==========================================================================
+   6. 错误状态
+   ========================================================================== */
+.errorbox {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-huge) var(--sp-xl) var(--sp-xxxl);
+  text-align: center;
+}
+
+.errorbox__art {
+  width: 88px;
+  height: 88px;
+  color: #C6CDD6;
+}
+
+.errorbox__title {
+  margin-block-start: var(--sp-lg);
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-medium);
+  color: var(--text-body);
+  line-height: 1.4;
+}
+
+.errorbox__desc {
+  margin-block-start: var(--sp-xs);
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  line-height: var(--lh-relaxed);
+  max-width: 280px;
+}
+
+/* 重试按钮：描边款，和主色的「去别处看看」区分开 */
+.errorbox__retry {
+  margin-block-start: var(--sp-xl);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-xs);
+  min-width: 120px;
+  height: 44px;
+  padding-inline: var(--sp-xl);
+  border: 1px solid var(--brand-primary);
+  border-radius: var(--r-pill);
+  background: var(--bg-surface);
+  color: var(--brand-primary);
+  font-family: inherit;
+  font-size: var(--fs-md);
+  font-weight: var(--fw-medium);
+  cursor: pointer;
+}
+
+.errorbox__retry:active {
+  background: var(--brand-primary-soft);
+}
+
+.errorbox__retry svg {
+  width: 17px;
+  height: 17px;
+}
+
+/* ==========================================================================
+   7. 断网提示条
+   ==========================================================================
+   压在安全区下面、导航栏上面，占满宽度。不遮内容，只是提示 + 重试入口。
+   ========================================================================== */
+.offline-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  padding: var(--sp-sm) var(--sp-md);
+  background: var(--state-warning-soft);
+  color: var(--state-warning-deep);
+  font-size: var(--fs-caption);
+  line-height: 1.4;
+}
+
+.offline-bar svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.offline-bar__text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.offline-bar__retry {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* 「重试」只有两个字，靠 padding 撑不到 44 宽，必须给 min-width */
+  min-width: 44px;
+  min-height: 44px;
+  margin-block: -13px;
+  padding-inline: var(--sp-sm);
+  border: 0;
+  background: transparent;
+  color: var(--state-warning-deep);
+  font-family: inherit;
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-bold);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* ==========================================================================
+   8. 遮罩 + 底部弹出层
+   ========================================================================== */
+.mask {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  background: rgba(0, 0, 0, 0.45);
+  animation: mask-in 180ms ease;
+}
+
+@keyframes mask-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.sheet {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: 0;
+  z-index: 61;
+  padding-block-end: var(--safe-bottom);
+  border-start-start-radius: var(--r-lg);
+  border-start-end-radius: var(--r-lg);
+  background: var(--bg-surface);
+  animation: sheet-up 240ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+}
+
+/* 顶部小把手 */
+.sheet__handle {
+  width: 36px;
+  height: 4px;
+  margin: var(--sp-sm) auto 0;
+  border-radius: var(--r-pill);
+  background: var(--border-outline);
+}
+
+.sheet__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-md);
+  padding: var(--sp-md) var(--sp-xl) var(--sp-sm);
+}
+
+.sheet__title {
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+.sheet__close {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  margin-block: -8px;
+  margin-inline-end: -10px;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.sheet__close svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* 底部红色危险操作（清空 / 退出 / 删除） */
+.sheet__danger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 52px;
+  margin-block-start: var(--sp-sm);
+  border: 0;
+  border-block-start: 1px solid var(--border-divider);
+  background: transparent;
+  color: var(--state-danger);
+  font-family: inherit;
+  font-size: var(--fs-lg);
+  cursor: pointer;
+}
+
+/* ==========================================================================
+   9. 分享渠道网格
+   ========================================================================== */
+.share-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--sp-xl) var(--sp-md);
+  padding: var(--sp-sm) var(--sp-xl) var(--sp-xl);
+}
+
+.share-grid__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-sm);
+  min-height: 72px;
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  color: var(--text-body);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.share-grid__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 50px;
+  height: 50px;
+  border-radius: var(--r-lg);
+  background: var(--bg-input);
+}
+
+.share-grid__icon svg {
+  width: 25px;
+  height: 25px;
+}
+
+/* 微信绿 / 朋友圈绿 / 主色 / 中性 —— 渠道色是品牌识别，不并入令牌 */
+.share-grid__item--wechat .share-grid__icon {
+  background: #E8F7EC;
+  color: #1AAD19;
+}
+
+.share-grid__item--moments .share-grid__icon {
+  background: #E8F7EC;
+  color: #07C160;
+}
+
+.share-grid__item--link .share-grid__icon {
+  background: var(--brand-primary-soft);
+  color: var(--brand-primary);
+}
+
+.share-grid__label {
+  font-size: var(--fs-caption);
+  line-height: 1.3;
+  color: var(--text-secondary);
+}
+
+/* 分享面板底部「取消」 */
+.sheet__cancel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 54px;
+  border: 0;
+  border-block-start: 1px solid var(--border-divider);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: var(--fs-lg);
+  cursor: pointer;
+}
+
+.sheet__cancel:active {
+  background: var(--bg-input);
+}
+
+/* ==========================================================================
+   10. 居中二次确认框
+   ==========================================================================
+   用于删除 / 退出 / 注销 / 清空这类不可撤销操作。
+   ========================================================================== */
+.dialog {
+  position: absolute;
+  z-index: 70;
+  inset-inline: 40px;
+  inset-block-start: 50%;
+  transform: translateY(-50%);
+  padding-block-start: var(--sp-xxl);
+  border-radius: var(--r-md);
+  background: var(--bg-surface);
+  overflow: hidden;
+  animation: dialog-in 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(-50%) scale(0.94);
+  }
+}
+
+.dialog__title {
+  padding-inline: var(--sp-xl);
+  font-size: var(--fs-h2);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  text-align: center;
+  line-height: 1.35;
+}
+
+.dialog__body {
+  margin-block-start: var(--sp-md);
+  padding-inline: var(--sp-xl);
+  font-size: var(--fs-md);
+  color: var(--text-secondary);
+  line-height: var(--lh-relaxed);
+  text-align: center;
+}
+
+/* 后果说明：用暖色底块强调，不靠红字恐吓 */
+.dialog__hint {
+  margin: var(--sp-lg) var(--sp-xl) 0;
+  padding: var(--sp-md);
+  border-radius: var(--r-sm);
+  background: var(--state-warning-soft);
+  color: var(--state-warning-deep);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-normal);
+  text-align: start;
+}
+
+.dialog__actions {
+  display: flex;
+  margin-block-start: var(--sp-xl);
+  border-block-start: 1px solid var(--border-divider);
+}
+
+.dialog__btn {
+  flex: 1;
+  min-height: 52px;
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  font-size: var(--fs-lg);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.dialog__btn + .dialog__btn {
+  border-inline-start: 1px solid var(--border-divider);
+}
+
+.dialog__btn--primary {
+  color: var(--brand-primary);
+  font-weight: var(--fw-bold);
+}
+
+.dialog__btn--danger {
+  color: var(--state-danger);
+  font-weight: var(--fw-bold);
+}
+
+.dialog__btn:active {
+  background: var(--bg-input);
+}
+
+/* ---------- 弹窗图标（第 16 批从 07b 收到这里，41b 复用） ----------
+   52 圆形浅底 + 27 图标。收进来的直接原因：41b 用了 .dialog 却没有 .dialog__icon
+   的定义（那一套原本只在 07b 的 <style> 里），图标按 SVG 默认尺寸撑满了整个弹窗。
+   组件族的类要成套，缺一个就是这种塌法。 */
+.dialog__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  margin: 0 auto;
+  border-radius: 50%;
+  background: var(--brand-primary-soft);
+}
+
+.dialog__icon svg {
+  width: 27px;
+  height: 27px;
+  color: var(--brand-primary);
+}
+
+/* 强制 / 警示类弹窗用暖色，与「可以稍后」的弹窗区分开 */
+.dialog__icon--warn {
+  background: var(--state-warning-soft);
+}
+
+.dialog__icon--warn svg {
+  color: var(--state-warning-deep);
+}
+
+/* ==========================================================================
+   11. 遮罩式 Loading
+   ==========================================================================
+   用于「提交中 / 生成中 / 支付中」这类会卡住操作的动作。
+   只是转圈、没有文案的纯遮罩会让人以为卡死，所以下面必须有一句说明。
+   ========================================================================== */
+.loading {
+  position: absolute;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-md);
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.loading__box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-md);
+  min-width: 132px;
+  padding: var(--sp-xl) var(--sp-xxl);
+  border-radius: var(--r-md);
+  background: rgba(26, 26, 26, 0.9);
+}
+
+.loading__spinner {
+  width: 30px;
+  height: 30px;
+  border: 2.5px solid rgba(255, 255, 255, 0.28);
+  border-block-start-color: var(--text-on-brand);
+  border-radius: 50%;
+  animation: spin 800ms linear infinite;
+}
+
+.loading__text {
+  font-size: var(--fs-sm);
+  color: var(--text-on-brand);
+  line-height: 1.4;
+  text-align: center;
+}
+
+/* ==========================================================================
+   12. 横向分类筛选条
+   ==========================================================================
+   第 1 批写在 02-lawyer.html 的 <style> 里，第 3 批起提到这里共用：
+   律师列表、文章列表、案例列表、我的案件、订单列表都用同一套 chips。
+   ========================================================================== */
+.filter {
+  display: flex;
+  gap: var(--sp-sm);
+  padding: var(--sp-md) var(--sp-xl);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.filter::-webkit-scrollbar {
+  display: none;
+}
+
+/* ★ 视觉药丸 34 高，元素本身仍是 44 高。
+   44 是 iOS HIG / WCAG 2.5.5 的最低点击区，分类条是高频点击元素，
+   目标用户里还有中老年人，不能为了好看把热区压到 34。
+   做法：5px 透明边框撑出热区，background-clip: padding-box 让背景只画在
+   34 高的 padding box 里 —— 文案和药丸都变小了，手指能点到的地方还是 44。 */
+.filter__chip {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 44px;
+  padding: 0 var(--sp-lg);
+  border: 5px solid transparent;
+  border-radius: var(--r-pill);
+  background: var(--bg-input);
+  background-clip: padding-box;
+  color: var(--text-body);
+  font-size: var(--fs-sm);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.filter__chip--active {
+  /* 注意：background 简写会重置 background-clip，这里必须再写一次 */
+  background: var(--brand-primary);
+  background-clip: padding-box;
+  color: var(--text-on-brand);
+  font-weight: var(--fw-medium);
+}
+
+/* ==========================================================================
+   13. 主色标签（分类标签用，与灰底 .tag 区分）
+   ==========================================================================
+   文字色用 brand-primary-pressed 而不是 brand-primary：
+   #4A66EE 压在 #EEF2FF 上只有 4.24:1，达不到 4.5:1。
+   #3A53D4 压同一底色是 5.51:1，过了。底色与主色都仍在令牌内。
+   ========================================================================== */
+.tag--brand {
+  background: var(--brand-primary-soft);
+  color: var(--brand-primary-pressed);
+  font-weight: var(--fw-medium);
+}
+
+/* ==========================================================================
+   14. 分类条容器与下方列表的分界线
+   ==========================================================================
+   白底顶栏 #FFFFFF 和列表底 #F7F8FA 只差 3 个色阶，色差几乎为零。
+   不画这条线，第一张卡片会像「粘」在分类条上，两层容器糊成一片
+   （项目负责人第 3 批走查时直接指出「两条线合在一起了」）。
+   ========================================================================== */
+.topbar {
+  border-block-end: 1px solid var(--border-outline);
+}
+
+/* ==========================================================================
+   15. 浮层开关（app.js 只切这个）
+   ========================================================================== */
+[hidden] {
+  display: none !important;
+}
+
+/* ==========================================================================
+   16. 步骤条（第 6 批从 15-lawyer-join 提到这里，20-filing 复用）
+   ==========================================================================
+   结构：<div class="steps">
+           <div class="step is-active" data-step-dot="1">
+             <i class="step__dot">1</i><span class="step__label">标签</span>
+           </div>…
+         </div>
+   状态：is-active（当前步，实心主色）/ is-done（已完成，由 app.js 加）/ 无（未开始，灰）
+
+   ★ 两个细节是第 6 批走查时项目负责人直接指出的，改法记在这里：
+
+   1. **连接线两端都要让出圆点半径，不能只让一端。**
+      原来写 width:100% + 只在结束侧 margin 14px：右端退到了本步圆心左侧 14px（正确），
+      左端却直接顶在上一步的圆心上 —— 而圆点半径是 12.5px，所以上一步圆点的
+      左边会露出一小截线头，看起来像圆点被线扎穿了。
+      现在宽度改成 calc(100% - 28px)，两端各让 14px，距各自圆点边缘都是 1.5px。
+
+   2. **连线只在「上一步已完成」时变蓝，不能把 is-active 也算进去。**
+      原来写 `.step.is-active + .step::before` 也变蓝，结果是刚进第 1 步
+      （active 但没完成）第 1→2 的线就已经是主色，看起来像「已经走到第 2 步」，
+      和圆点状态自相矛盾。正确语义：第 1 步完成、进入第 2 步时，1→2 的线才亮。
+   ========================================================================== */
+.steps {
+  display: flex;
+  align-items: flex-start;
+  margin-block-end: var(--sp-lg);
+}
+
+.step {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  position: relative;
+}
+
+/* 连接线：画在每一步的起始侧（第一步没有），从上一个圆点连到这一个 */
+.step + .step::before {
+  content: "";
+  position: absolute;
+  inset-block-start: 12px;
+  inset-inline-end: 50%;
+  /* 两端各让 14px 给圆点，见上面第 1 条 */
+  width: calc(100% - 28px);
+  margin-inline-end: 14px;
+  height: 2px;
+  background: var(--border-outline);
+  z-index: 0;
+}
+
+/* 只认 is-done，不认 is-active，见上面第 2 条 */
+.step.is-done + .step::before {
+  background: var(--brand-primary);
+}
+
+.step__dot {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 25px;
+  height: 25px;
+  border-radius: 50%;
+  background: var(--bg-input);
+  color: var(--text-muted);
+  font-family: var(--font-num);
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-bold);
+  /* <i> 默认斜体，数字会歪 */
+  font-style: normal;
+  line-height: 1;
+}
+
+.step.is-active .step__dot,
+.step.is-done .step__dot {
+  background: var(--brand-primary);
+  color: var(--text-on-brand);
+}
+
+.step.is-done .step__dot svg {
+  width: 13px;
+  height: 13px;
+}
+
+.step__label {
+  font-size: var(--fs-micro);
+  color: var(--text-muted);
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.step.is-active .step__label {
+  color: var(--brand-primary);
+  font-weight: var(--fw-medium);
+}
+
+/* ==========================================================================
+   17. 分组卡 + 横排行式字段（第 8 批从 24-doc-lawsuit 提出，25 复用）
+   ==========================================================================
+   用于「文书表单」这一类页面：起诉状、其他文书（证据清单 / 劳动合同等）。
+
+   和 20-filing 的竖排字段是两种东西，不要混：
+     - 竖排（20-filing）：字段名长、以句子为主（「事发地 / 合同履行地」），
+       label 在上、input 在下，纵向空间够用
+     - 横排（本节）：字段名短、以词为主（「姓名/名称」「住所地」），
+       label 在左固定宽度、input 在右，读起来像一张表格 —— 这是原图
+       11-lawsuit.png 的版式，复刻它
+
+   ★ label 固定 84px 不是随便定的：原图三行 label（姓名/名称、联系电话、
+     住所地）字数不一，让 label 自适应的话右边输入起点会参差，看着像排版坏了。
+     固定宽度让输入区左边对齐成一条竖线，表格感就来自这条线。
+   ========================================================================== */
+
+/* 卡片内的分组：标题 + 若干字段行。padding 横向由卡片给，这里只管纵向 */
+.group {
+  padding: 0 var(--sp-lg);
+}
+
+.group__head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  padding-block: var(--sp-lg) var(--sp-xs);
+}
+
+/* 竖条用 <i>，默认斜体要关掉 */
+.group__bar {
+  flex: 0 0 auto;
+  width: 4px;
+  height: 16px;
+  border-radius: 2px;
+  background: var(--brand-primary);
+  font-style: normal;
+}
+
+.group__title {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+/* 多份样本时的序号（多原告 / 多被告用，只有一份时不显示） */
+.group__index {
+  flex: 0 0 auto;
+  font-family: var(--font-num);
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+}
+
+/* 删除这一份：视觉 17 的图标，热区 44，用负边距压回布局占位 */
+.group__del {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin-block: -14px;
+  margin-inline-end: -12px;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.group__del svg {
+  width: 17px;
+  height: 17px;
+}
+
+/* ---------- 行式字段 ---------- */
+.form-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-md);
+  min-height: 52px;
+  border-block-end: 1px solid var(--border-divider);
+}
+
+.form-row:last-of-type {
+  border-block-end: 0;
+}
+
+.form-row__label {
+  flex: 0 0 84px;
+  /* 与输入文字基线对齐：input 高 52、文字 15px，标签上边距补到同一基线 */
+  padding-block-start: 16px;
+  font-size: var(--fs-md);
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.form-row__label em {
+  font-style: normal;
+  color: var(--state-danger);
+}
+
+.form-row__main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* 无框行式输入 —— 原图就是这样，靠行尾分隔线暗示可输入 */
+.form-row input,
+.form-row textarea {
+  display: block;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: var(--fs-lg);
+  line-height: 1.5;
+  outline: none;
+}
+
+.form-row input {
+  height: 52px;
+}
+
+.form-row input::placeholder,
+.form-row textarea::placeholder {
+  color: #A3A9AE;
+}
+
+.form-row textarea {
+  min-height: 88px;
+  padding-block: 16px 12px;
+  line-height: 1.7;
+  resize: none;
+}
+
+.form-row.is-invalid input {
+  color: var(--state-danger);
+}
+
+.form-row__error {
+  display: none;
+  padding-block-end: var(--sp-sm);
+  font-size: var(--fs-caption);
+  color: var(--state-danger);
+  line-height: 1.4;
+}
+
+.form-row.is-invalid .form-row__error {
+  display: block;
+}
+
+/* 多行输入改块式（灰底圆角）。行式靠「行尾一条线」暗示输入区，单行够用；
+   多行段落没有边框就完全看不出能点 —— 24 第一版走查时，诉讼请求那一块
+   看起来像一段说明文字，不像输入框。 */
+.form-row--block {
+  display: block;
+  padding-block: var(--sp-md);
+  border-block-end: 0;
+}
+
+.form-row--block .form-row__main {
+  width: 100%;
+}
+
+.form-row--block textarea {
+  padding: var(--sp-md);
+  border-radius: var(--r-sm);
+  background: var(--bg-input);
+}
+
+/* ---------- 虚线「添加一份」 ---------- */
+.add-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-xs);
+  width: 100%;
+  min-height: 46px;
+  margin-block: var(--sp-sm) var(--sp-lg);
+  border: 1px dashed var(--border-outline);
+  border-radius: var(--r-sm);
+  background: var(--bg-canvas);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: var(--fs-md);
+  cursor: pointer;
+}
+
+.add-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.add-btn:active {
+  background: var(--bg-input);
+}
+
+/* ==========================================================================
+   18. 药丸单选 / 多选标签（第 8 批从 15 / 20 两屏提到这里，25 复用）
+   ==========================================================================
+   结构：<div class="pick-list"><button class="pick is-active" data-pick-one>…</button></div>
+   第 4 批在 15-lawyer-join 写过一次，第 6 批做 20-filing 时复制了一份，
+   第 8 批的 25-doc-other 也要用 —— 三处了，收进来。
+
+   ★ 视觉药丸 34 高，元素本身 44 高（WCAG 2.5.5 最低点击区），
+     做法同 .filter__chip：5px 透明边框撑出热区，background-clip: padding-box
+     让背景只画在 34 高的 padding box 里。
+     选中态的描边不能用 border 画（边框已经是透明的热区了），改用 inset 阴影，
+     画在 padding box 内边缘，视觉上就是 34 高药丸的 1px 描边。
+   ========================================================================== */
+.pick-list {
+  margin-block-start: var(--sp-md);
+  display: flex;
+  flex-wrap: wrap;
+  /* gap 用 0：药丸自带 5px 透明边框，两边一夹就是 10px 视觉间距，
+     再叠加 gap 会让行距松成 20px */
+  gap: 0;
+}
+
+.pick {
+  height: 44px;
+  padding: 0 var(--sp-lg);
+  border: 5px solid transparent;
+  border-radius: var(--r-pill);
+  background: var(--bg-surface);
+  background-clip: padding-box;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: var(--fs-md);
+  cursor: pointer;
+  white-space: nowrap;
+  /* 未选中态的描边同样用 inset 阴影（边框已经是透明的热区了） */
+  box-shadow: inset 0 0 0 1px var(--border-outline);
+}
+
+.pick.is-active {
+  background: var(--brand-primary-soft);
+  background-clip: padding-box;
+  color: var(--brand-primary-pressed);
+  font-weight: var(--fw-medium);
+  box-shadow: inset 0 0 0 1px var(--brand-primary);
+}
+
+/* ==========================================================================
+   19. 底部固定操作栏（第 9 批从 19 / 24 / 25 / 26 四屏收到这里）
+   ==========================================================================
+   结构（与 .screen 同级、排在最后）：
+     <div class="actionbar">
+       <button class="btn-ghost" type="button">保存草稿</button>
+       <a class="btn-primary actionbar__cta" href="…">立即生成</a>
+     </div>
+
+   ★ 这一栏不浮在内容上。它是 body（flex column）的最后一个 flex 子项，
+     flex:0 0 auto 占住自己的高度，.screen 的滚动区自然止于栏顶 ——
+     所以 .screen 不需要像 tabbar 那样补 padding-block-end。
+     19 / 24 / 25 / 26 / 30 / 31 / 33 / 34 都是这条规则。
+
+   ★ .btn-ghost 的 min-width 有意不在这节定死：19 用 96、25 用 104、26 用 112，
+     各屏按自己文案长度调。这里只给共同形态与最小点击高度，
+     各屏仍可在自己的 <style> 里覆盖（屏内 style 在 components.css 之后加载）。
+   ========================================================================== */
+.actionbar {
+  flex: 0 0 auto;
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-md);
+  padding: 10px var(--sp-xl) calc(10px + var(--safe-bottom));
+  background: var(--bg-surface);
+  border-block-start: 1px solid var(--border-divider);
+  box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.04);
+}
+
+.actionbar__cta {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.btn-ghost {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-xs);
+  min-width: 96px;
+  min-height: 44px;
+  height: var(--btn-h);
+  padding-inline: var(--sp-lg);
+  border: 1px solid var(--border-outline);
+  border-radius: var(--r-pill);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: var(--fs-h3);
+  cursor: pointer;
+}
+
+.btn-ghost:active {
+  background: var(--bg-input);
+}
+
+.btn-ghost:disabled {
+  border-color: var(--border-divider);
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+/* ==========================================================================
+   20. 金额展示（第 9 批新增）
+   ==========================================================================
+   全项目所有金额都照这三条：
+     1. 接口传整数分，界面显示元。设计稿写的是元，实现时除以 100 再格式化，
+        禁止浮点运算。
+     2. 千分位 + 两位小数：¥1,280.00。不写「1280元」也不写「¥1280」——
+        缺小数位会让人怀疑还有尾数没显示出来。
+     3. 等宽数字 tabular-nums。金额上下对齐时不会因为「1」比「8」窄而参差，
+        对账目类界面，这比好看重要。
+
+   ★ 金额不做颜色区分：优惠与实付都不上色，只用减号前缀与 label 文字表达。
+     本套的 --state-danger 已经绑定了「删除 / 退出 / 风险操作」的语义，
+     再拿它画优惠红字，会让「−¥50.00」和「删除账号」看起来是同一类警告。
+     信息靠文案传递不靠颜色，对色弱用户也更稳。
+   ========================================================================== */
+.money {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+  white-space: nowrap;
+  color: var(--text-body);
+}
+
+/* 货币符号：用 clamp 而不用纯 em。
+   纯 em 在两端都会失控 —— 第 9 批走查量出来两个极端：
+   12px 的余额说明里 0.72em 只有 8.6px（读不清），
+   34px 的展示金额里 0.72em 是 24.5px（和数字一样重，整块头重脚轻）。
+   上下限都取令牌里已有的字号档位（10 是 --fs-micro 附近的实际下限，
+   17 是 --fs-h2），这样一屏里的字号档位不会因为金额符号多出一两个零碎值。 */
+.money__sym {
+  margin-inline-end: 1px;
+  font-size: clamp(10px, 0.6em, 17px);
+  font-weight: var(--fw-medium);
+}
+
+/* 「元」用中文字体，再小一档。阿拉伯语系下由 LtrText 单独成段，见 §七 */
+.money__unit {
+  margin-inline-start: 3px;
+  font-family: var(--font-sans);
+  font-size: clamp(9px, 0.42em, 14px);
+  font-weight: var(--fw-regular);
+  color: var(--text-muted);
+}
+
+/* 展示级：支付页与支付结果页的主金额，整屏唯一的焦点数字。
+   不用 inline-flex —— 普通行内元素靠字号差自然做 baseline 对齐，
+   用 flex 反而要额外处理基线。 */
+.money--display {
+  font-size: var(--fs-display);
+  font-weight: var(--fw-bold);
+  line-height: 1.15;
+  color: var(--text-primary);
+}
+
+/* ---------- 费用明细行 ---------- */
+.money-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-md);
+  padding-block: 9px;
+  font-size: var(--fs-md);
+  line-height: 1.4;
+}
+
+.money-row__label {
+  flex: 0 0 auto;
+  color: var(--text-secondary);
+}
+
+/* 分项后面跟的小字说明。挤不下时先压缩它，不动金额 */
+.money-row__note {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.money-row__value {
+  flex: 0 0 auto;
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-body);
+  text-align: end;
+}
+
+/* 合计行：上边缘画一条线 + 加粗加大，和上面的分项拉开 */
+.money-row--total {
+  margin-block-start: var(--sp-xs);
+  padding-block-start: var(--sp-md);
+  border-block-start: 1px solid var(--border-divider);
+  font-size: var(--fs-lg);
+}
+
+.money-row--total .money-row__label {
+  color: var(--text-primary);
+  font-weight: var(--fw-medium);
+}
+
+.money-row--total .money-row__value {
+  color: var(--text-primary);
+  font-weight: var(--fw-bold);
+}
+
+/* ==========================================================================
+   21. 结果页状态头（第 9 批从 16 / 21 两屏收到这里，32 复用）
+   ==========================================================================
+   结构：
+     <section class="status-hero">
+       <div class="status-hero__icon">…svg…</div>
+       <h2 class="status-hero__title">支付成功</h2>
+       <p class="status-hero__desc">…</p>
+     </section>
+
+   ★ 这套只负责「一眼看懂结果」，不负责后续动作。下一步的按钮要放在
+     头卡外面的 .actionbar 里 —— 结果和下一步是两件事，塞进同一张卡，
+     用户会以为按钮是卡的一部分，不像能点的。
+   ========================================================================== */
+.status-hero {
+  padding: var(--sp-xxl) var(--sp-lg) var(--sp-xl);
+  text-align: center;
+}
+
+.status-hero__icon {
+  width: 64px;
+  height: 64px;
+  margin-inline: auto;
+  color: var(--state-success);
+}
+
+.status-hero__icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.status-hero__title {
+  margin-block-start: var(--sp-md);
+  font-size: var(--fs-h1);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+.status-hero__desc {
+  margin-block-start: var(--sp-sm);
+  max-width: 300px;
+  margin-inline: auto;
+  font-size: var(--fs-md);
+  color: var(--text-secondary);
+  line-height: var(--lh-relaxed);
+}
+
+/* 失败 / 已取消 / 未通过：图标换 danger 色，标题文字不变 */
+.status-hero--danger .status-hero__icon {
+  color: var(--state-danger);
+}
+
+/* 处理中 / 待确认：暖色。不用红色是故意的 —— 处理中不是错误，
+   标红会让人以为钱出了问题 */
+.status-hero--pending .status-hero__icon {
+  color: var(--state-warning);
+}
+
+/* ==========================================================================
+   22. 列表 meta 分隔点（第 9 批从 27-doc-mine 收到这里，35-balance 复用）
+   ==========================================================================
+   用法：<span class="bill__meta">微信支付<i class="dot"></i>2026-10-28 09:12</span>
+
+   ★ 用细圆点不用竖线：竖线在 RTL 下要额外处理方向（`|` 在阿拉伯语环境
+     里读起来是反向的），圆点是旋转对称的，翻不翻都一样。
+   ★ 用 <i> 承载是因为它没有语义、不进入朗读顺序；分隔符不该被读屏念出来。
+   ========================================================================== */
+.dot {
+  display: inline-block;
+  width: 3px;
+  height: 3px;
+  margin-inline: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  vertical-align: middle;
+  font-style: normal;
+}
+
+/* ==========================================================================
+   23. 六位数字密码格（第 9 批：37-pay-password 先写，31-pay 支付面板复用）
+   ==========================================================================
+   结构：
+     <div class="pwd-field" data-pwd-field>
+       <input class="pwd-input" type="tel" inputmode="numeric" maxlength="6"
+              data-pwd-input="set">
+       <div class="pwd-cells" aria-hidden="true">
+         <span class="pwd-cell"></span> × 6
+       </div>
+     </div>
+
+   ★ 真实的 input 铺满整块并设为透明，键盘、粘贴、删除都由它承担；
+     视觉上的六个格子是纯装饰，所以整组给 aria-hidden。
+     不要反过来做（六个 contenteditable 或六个 input）—— 焦点会在格子之间跳，
+     退格删不掉、粘贴只进一格，用户会以为是 bug。
+
+   ★ input 字号必须是 16：小于 16 时 iOS Safari 聚焦会自动放大整个页面，
+     输完不缩回去，页面就歪了。
+   ========================================================================== */
+.pwd-field {
+  position: relative;
+}
+
+.pwd-input {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: transparent;
+  color: transparent;
+  caret-color: transparent;
+  font-size: 16px;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.pwd-cells {
+  display: flex;
+  gap: var(--sp-sm);
+}
+
+.pwd-cell {
+  flex: 1 1 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 52px;
+  border: 1px solid var(--border-outline);
+  border-radius: var(--r-sm);
+  background: var(--bg-surface);
+  transition: border-color 140ms ease;
+}
+
+/* 正在输入的那一格高亮，用户才知道自己输到第几个了 */
+.pwd-field.is-focus .pwd-cell.is-current {
+  border-color: var(--brand-primary);
+}
+
+.pwd-cell.is-filled {
+  border-color: var(--text-primary);
+}
+
+.pwd-cell::after {
+  content: "";
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: transparent;
+}
+
+.pwd-cell.is-filled::after {
+  background: var(--text-primary);
+}
+
+/* ==========================================================================
+   24. 设置列表（第 12 批：41-settings 立母版，42~47 复用）
+   ==========================================================================
+   结构：
+     <h2 class="set-group__title">账号与安全</h2>
+     <div class="set-list">
+       <a class="set-row" href="…">
+         <span class="set-row__label">账号与安全</span>
+         <span class="set-row__value">已保护</span>
+         <svg class="set-row__chevron">…</svg>
+       </a>
+       <button class="set-row" type="button">
+         <span class="set-row__label">清除缓存</span>
+         <span class="set-row__value">12.4 MB</span>
+       </button>
+       <button class="set-row set-row--danger" type="button">退出登录</button>
+     </div>
+
+   ★ 不用 05-profile 的 .menu：那一套每行带图标、没有值列，
+     适合「入口集合」；设置页的每一行是「一个可调的项」，值比图标重要得多
+     （简体中文 / 标准 / 12.4 MB / 已是最新）。两套并存，各管一摊。
+
+   ★ 组标题放在卡外上方（类似 iOS 设置），不放进卡里：
+     放进去会和行标题抢层级 —— 一行 15px 的「账号与安全」上面再顶一个
+     同色的「账号与安全」，看不出哪层是分组。
+   ========================================================================== */
+.set-group__title {
+  padding: var(--sp-lg) 0 var(--sp-sm);
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.set-list {
+  border-radius: var(--r-md);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+
+.set-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  width: 100%;
+  min-height: 52px;
+  padding: 12px var(--sp-lg);
+  border: 0;
+  border-block-end: 1px solid var(--border-divider);
+  background: transparent;
+  font-family: inherit;
+  text-align: start;
+  text-decoration: none;
+  color: var(--text-body);
+  cursor: pointer;
+}
+
+.set-row:last-child {
+  border-block-end: 0;
+}
+
+.set-row:active {
+  background: var(--bg-canvas);
+}
+
+.set-row__label {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: var(--fs-lg);
+  color: var(--text-primary);
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 值列：右对齐、比标签弱一档。等宽类内容（版本号、缓存大小）用 --font-num */
+.set-row__value {
+  flex: 0 0 auto;
+  font-size: var(--fs-md);
+  color: var(--text-muted);
+  line-height: 1.4;
+  text-align: end;
+  white-space: nowrap;
+}
+
+.set-row__value--num {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 值列需要提醒时用暖色（如「未认证」）。
+   不用 danger 红：没实名不是错误，是「还没做」，标红会让人以为账号出了问题。 */
+.set-row__value--warn {
+  color: var(--state-warning-deep);
+}
+
+.set-row__chevron {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  color: var(--text-muted);
+}
+
+/* 危险行：退出登录 / 注销账号。整行居中、红字、无箭头（它不跳页面，是执行动作） */
+.set-row--danger {
+  justify-content: center;
+  font-size: var(--fs-lg);
+  color: var(--state-danger);
+}
+
+.set-row--danger .set-row__label {
+  flex: 0 0 auto;
+  color: var(--state-danger);
+  font-weight: var(--fw-medium);
+}
+
+/* ==========================================================================
+   25. 开关（第 12 批从 37-pay-password 收到这里，46 / 47 复用）
+   ==========================================================================
+   结构：<button class="switch is-on" type="button" role="switch" aria-checked="true"></button>
+
+   ★ 元素本身 48×44，胶囊与滑块都用伪元素画。
+     不把 28 高的胶囊当元素、再拿 ::before 补热区 —— 那样量出来还是 28，
+     而且伪元素一旦被别的样式覆盖，热区就没了。元素尺寸直接给 44，最稳。
+
+   ★ 开关的定位用 inset-inline-start，不用 transform：
+     transform 在 RTL 下不会自动镜像，得为阿拉伯语系单独写一份反向规则。
+   ========================================================================== */
+.switch {
+  position: relative;
+  flex: 0 0 auto;
+  width: 48px;
+  height: 44px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.switch::before {
+  content: "";
+  position: absolute;
+  inset-block-start: 8px;
+  inset-inline: 0;
+  height: 28px;
+  border-radius: var(--r-pill);
+  background: var(--bg-input);
+  transition: background-color 160ms ease;
+}
+
+.switch::after {
+  content: "";
+  position: absolute;
+  inset-block-start: 10px;
+  inset-inline-start: 2px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--bg-surface);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.16);
+  transition: inset-inline-start 160ms ease;
+}
+
+.switch.is-on::before {
+  background: var(--brand-primary);
+}
+
+.switch.is-on::after {
+  inset-inline-start: calc(100% - 26px);
+}
+
+/* 被禁用的开关（总开关关闭时，下面的分项会变成这个状态）。
+   必须同时有视觉变化和不可点：只变淡不禁用的后果是用户拨了没反应，
+   会以为开关坏了，然后来问客服 */
+.switch[disabled] {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.switch[disabled]::before {
+  background: var(--bg-input);
+}
+
+/* 开关行的容器：左边一组说明，右边一个开关 */
+.switch-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-md);
+  min-height: 56px;
+  padding: 10px var(--sp-lg);
+  border-block-end: 1px solid var(--border-divider);
+}
+
+.switch-row:last-child {
+  border-block-end: 0;
+}
+
+.switch-row__main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.switch-row__name {
+  display: block;
+  font-size: var(--fs-lg);
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.switch-row__desc {
+  display: block;
+  margin-block-start: 2px;
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+/* ==========================================================================
+   26. 材料上传位（第 13 批从 15-lawyer-join 收到这里，48 / 49 复用）
+   ==========================================================================
+   结构：
+     <div class="upload-list">
+       <button class="upload" type="button" data-upload>
+         <svg>…图标…</svg>
+         <span class="upload__text">身份证人像面
+           <span class="upload__hint">四角完整入框，别反光</span></span>
+       </button>
+     </div>
+
+   ★ 虚线边框是关键。实线看起来像输入框，虚线才像「等你把东西放进来」。
+     这是证件上传位与普通输入框唯一能一眼区分开的信号，不要为了「整齐」改成实线。
+
+   ★ 已上传态不隐藏、不置灰，改成主色实线 + 「已上传，点击可重拍」。
+     证件照拍糊了是最高频的驳回原因，用户必须能自己发现并重拍；
+     如果把上传位变成一张缩略图，他就不敢点了 —— 怕再点会删掉。
+   ========================================================================== */
+.upload-list {
+  margin-block-start: var(--sp-md);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.upload {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-md);
+  width: 100%;
+  min-height: 66px;
+  padding: var(--sp-md);
+  border: 1px dashed var(--border-outline);
+  border-radius: var(--r-sm);
+  background: var(--bg-canvas);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: var(--fs-md);
+  text-align: start;
+  cursor: pointer;
+}
+
+.upload svg {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  color: var(--text-muted);
+}
+
+.upload__text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.upload__hint {
+  display: block;
+  margin-block-start: 3px;
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+/* 已上传：实线边 + 主色 */
+.upload.is-done {
+  border-style: solid;
+  border-color: var(--brand-primary);
+  background: var(--brand-primary-soft);
+  color: var(--brand-primary-pressed);
+}
+
+.upload.is-done svg {
+  color: var(--brand-primary-pressed);
+}
+
+/* 必填但还没传：虚线变红 + 文案说清缺什么。
+   不用禁用提交按钮来替代它 —— 按钮禁用不解释原因，这一条能。 */
+.upload.is-missing {
+  border-color: var(--state-danger);
+  background: var(--bg-surface);
+  color: var(--state-danger);
+}
+
+.upload.is-missing svg {
+  color: var(--state-danger);
+}
+
+.upload.is-missing .upload__hint {
+  color: var(--state-danger);
+}
+
+/* ==========================================================================
+   27. 分段 Tab（第 13 批新增，51-favorites 立）
+   ==========================================================================
+   结构：
+     <div class="seg" role="tablist">
+       <button class="seg__item is-active" data-seg="article" role="tab">
+         文章 <span class="seg__count">12</span>
+       </button>
+       …
+     </div>
+
+   与 .filter__chip 的分工：
+     - chips 是「筛选」—— 可横向滚动、可多选、不带数量、点完列表还在这屏
+     - seg 是「看哪一类」—— 互斥、等宽均分、带条数
+
+   ★ 为什么带条数：收藏页的用户常是来找「我之前存的那篇」，如果不知道
+     文章只有 8 条、案例有 21 条，他会三个 Tab 都翻一遍。数字先告诉他该去哪个。
+     条数为 0 的 Tab 也要显示，否则用户会以为这个类别没做，而不是没收藏过。
+   ========================================================================== */
+.seg {
+  display: flex;
+  gap: 4px;
+  margin-block-start: var(--sp-md);
+  padding: 4px;
+  border-radius: var(--r-md);
+  background: var(--bg-input);
+}
+
+.seg__item {
+  flex: 1 1 0;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 44px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: var(--fs-md);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.seg__item.is-active {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-weight: var(--fw-medium);
+  box-shadow: var(--shadow-card);
+}
+
+.seg__count {
+  font-family: var(--font-num);
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+}
+
+.seg__item.is-active .seg__count {
+  color: var(--text-secondary);
+}
+
+/* ==========================================================================
+   28. 左滑操作（第 13 批新增，51-favorites 立）
+   ==========================================================================
+   结构：
+     <div class="swipe">
+       <div class="swipe__body">…条目内容…</div>
+       <button class="swipe__action" type="button">取消收藏</button>
+     </div>
+     容器加 .is-open 即滑开（演示态静态标记，真实 App 是手势）
+
+   ★ 操作按钮必须同时在条目上留一个可见入口，不能只靠手势：
+     左滑是 iOS 老用户的本能，但 Android 用户、中老年用户不会去试。
+     51 的每条收藏右侧还留了「取消收藏」的入口（见页内说明），
+     手势是捷径，不是唯一入口 —— 这是无障碍与可用性的底线。
+   ========================================================================== */
+.swipe {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--r-md);
+}
+
+.swipe__body {
+  position: relative;
+  z-index: 1;
+  background: var(--bg-surface);
+  transition: transform 200ms ease;
+}
+
+/* 定位用 inset-inline-end：RTL 下自动换到左边 */
+.swipe.is-open .swipe__body {
+  transform: translateX(-84px);
+}
+
+/* RTL：滑开方向镜像。设计稿只做 LTR，这里先留好，落地时由 RN 的 I18nManager 处理 */
+[dir="rtl"] .swipe.is-open .swipe__body {
+  transform: translateX(84px);
+}
+
+.swipe__action {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: 0;
+  width: 84px;
+  border: 0;
+  background: var(--state-danger);
+  color: var(--text-on-brand);
+  font-family: inherit;
+  font-size: var(--fs-md);
+  cursor: pointer;
+}
+
+/* ==========================================================================
+   29. 纵向时间轴（第 14 批从 16-join-status / 21-filing-done 合并，54 复用）
+   ==========================================================================
+   结构：
+     <ol class="timeline">
+       <li class="tl-item is-done">
+         <p class="tl-item__title">材料已提交</p>
+         <p class="tl-item__meta">2026-10-29 14:32</p>
+       </li>
+       <li class="tl-item is-active">
+         <p class="tl-item__title">人民法院审查材料</p>
+         <p class="tl-item__meta">2026-10-30 起</p>
+         <p class="tl-item__boundary">该环节不由平台决定……</p>
+       </li>
+       <li class="tl-item">……（未开始，不加类）</li>
+       <li class="tl-item is-fail">……（驳回 / 不予受理）</li>
+     </ol>
+
+   三态 + 一个失败态：
+     is-done    已完成 —— 实心主色点，连到下一节的线也是主色
+     is-active  当前进行中 —— 主色点 + 浅色光圈
+     （无类）   未开始 —— 空心灰点 + 灰线，标题降为次要色
+     is-fail    驳回 / 不予受理 —— 红点 + 红光圈
+
+   ★ 16 和 21 各写过一份，差异只有「驳回态」和「边界说明块」。
+     合并时取并集，不是二选一 —— 少一个态就会在某屏用不了，
+     然后那屏又会复制一份出来，第三次分叉。
+
+   ★ 未开始的节点不要整条降透明度。时间轴的价值有一半是让人看到
+     「后面还有几步、大概还要等多久」；整条变淡后用户会以为那几步不存在。
+     这里只降标题和时间的颜色，圆点和竖线保持可见。
+
+   ★ 竖线画在「本节点::before」上、方向向下，最后一个节点 content: none 收尾。
+     不这么做就得给容器算高度，节点一多必错位。
+
+   ★ is-fail 的光圈用 --state-danger-soft，不再写裸色值。
+     16 原来写的是 #FDECEE，第 14 批收进令牌（见 tokens.json color.state.dangerSoft）。
+   ========================================================================== */
+.timeline {
+  margin-block-start: var(--sp-md);
+  padding-inline-start: 0;
+  list-style: none;
+  position: relative;
+}
+
+.tl-item {
+  position: relative;
+  padding-inline-start: 30px;
+  padding-block-end: var(--sp-xl);
+}
+
+.tl-item:last-child {
+  padding-block-end: 0;
+}
+
+/* 竖线：从本节点连到下一个，画在本节点左侧 */
+.tl-item::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: 5px;
+  inset-block-start: 20px;
+  inset-block-end: 0;
+  width: 2px;
+  background: var(--border-outline);
+}
+
+.tl-item:last-child::before {
+  content: none;
+}
+
+.tl-item.is-done::before {
+  background: var(--brand-primary);
+}
+
+/* 节点圆点 */
+.tl-item::after {
+  content: "";
+  position: absolute;
+  inset-inline-start: 0;
+  inset-block-start: 5px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--bg-surface);
+  box-shadow: inset 0 0 0 2px var(--border-outline);
+}
+
+.tl-item.is-done::after {
+  background: var(--brand-primary);
+  box-shadow: none;
+}
+
+.tl-item.is-active::after {
+  background: var(--brand-primary);
+  box-shadow: 0 0 0 4px var(--brand-primary-soft);
+}
+
+/* 驳回 / 不予受理：红点 + 红光圈 */
+.tl-item.is-fail::after {
+  background: var(--state-danger);
+  box-shadow: 0 0 0 4px var(--state-danger-soft);
+}
+
+.tl-item.is-fail::before {
+  background: var(--border-outline);
+}
+
+.tl-item__title {
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.tl-item:not(.is-done):not(.is-active):not(.is-fail) .tl-item__title {
+  color: var(--text-muted);
+  font-weight: var(--fw-regular);
+}
+
+.tl-item__meta {
+  margin-block-start: 3px;
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.tl-item.is-active .tl-item__meta {
+  color: var(--brand-primary-pressed);
+}
+
+.tl-item.is-fail .tl-item__meta {
+  color: var(--state-danger);
+}
+
+/* 边界说明块：写清「这一步不由平台决定」，用于法院环节 */
+.tl-item__boundary {
+  margin-block-start: var(--sp-sm);
+  padding: var(--sp-sm) var(--sp-md);
+  border-radius: var(--r-xs);
+  background: var(--bg-canvas);
+  font-size: var(--fs-caption);
+  color: var(--text-secondary);
+  line-height: var(--lh-relaxed);
+}
+
+/* ==========================================================================
+   30. 状态药丸（第 14 批从 29-orders 的 .order-state 提到这里，53 复用）
+   ==========================================================================
+   结构：<span class="state-pill state-pill--success">审理中</span>
+
+   五个语义档，订单和案件共用同一套：
+     --brand     待办 / 在等别人（待支付、待补材料、审核中）
+     --success   正常推进或已完成（进行中、已受理、审理中）
+     --warning   卡住但没失败（退款中、待补正材料）
+     --muted     结束且无需处理（已完成、已取消、已结案）
+     --danger    失败 / 终止（不予受理、已驳回）
+
+   ★ 颜色只表达「现在该不该管」，不表达业务分类。
+     订单和案件的状态名完全不同，但用户应该看到同一套视觉语言：
+     蓝 = 还等着处理，绿 = 在正常推进，黄 = 卡住了，灰 = 结束了，红 = 不行了。
+
+   ★ 「已完成」和「已取消」同用 muted 是 29 定下的规则：对用户来说
+     两者都意味着「这单不用管了」。53 的「已结案」沿用同一条。
+
+   ★ 底色全部来自令牌，其中 --danger 的浅底是第 14 批新补的
+     color.state.dangerSoft（16 原来写裸值 #FDECEE，已收回）。
+   ========================================================================== */
+.state-pill {
+  flex: 0 0 auto;
+  padding: 2px 7px;
+  border-radius: var(--r-xs);
+  font-size: var(--fs-micro);
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.state-pill--brand {
+  background: var(--brand-primary-soft);
+  color: var(--brand-primary-pressed);
+}
+
+.state-pill--success {
+  background: var(--state-success-soft);
+  color: var(--state-success);
+}
+
+.state-pill--warning {
+  background: var(--state-warning-soft);
+  color: var(--state-warning-deep);
+}
+
+.state-pill--muted {
+  background: var(--bg-input);
+  color: var(--text-secondary);
+}
+
+.state-pill--danger {
+  background: var(--state-danger-soft);
+  color: var(--state-danger);
+}
+
+/* ==========================================================================
+   31. 语言行（第 16 批从 07c-language-picker 提到这里，60-language 复用）
+   ==========================================================================
+   结构：
+     <div class="lang-list">
+       <button class="lang is-active" type="button" data-lang="zh-Hans">
+         <span class="lang__native">简体中文</span>
+         <span class="lang__cn">中文</span>
+         <svg class="lang__check">…</svg>
+       </button>
+       …
+     </div>
+
+   ★ 语言名用它自己的文字写（བོད་ཡིག / ئۇيغۇرچە / قازاقشا），右侧跟一行中文对照。
+     这是语言选择器唯一的硬要求：看不懂当前界面语言的用户，
+     必须能从字形认出自己那一行。全用中文写「藏文 / 维吾尔文」的列表，
+     恰恰是这批用户最认不出来的 —— 他们多数不认汉字。
+
+   ★ 每行文字的 dir 跟着语言本身走，不跟界面走。
+     藏文是从左往右（ltr），维吾尔文和哈萨克文是从右往左（rtl）。
+     给 rtl 的 span 指定 dir，否则阿拉伯系会被按 LTR 排，
+     连写的字母顺序看起来是反的。
+
+   ★ 阿拉伯系必须命中自托管字体（--font-arabic），靠系统 fallback 的后果是
+     不同机型观感不一致、低端机上连写断裂。这里用 [dir="rtl"] 属性选择器
+     统一挂字体，比给每个 span 手写 style 干净，也保证漏写不了。
+   ========================================================================== */
+.lang-list {
+  margin-block-start: var(--sp-md);
+  border-radius: var(--r-md);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+
+.lang {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-md);
+  width: 100%;
+  min-height: 56px;
+  padding: 0 var(--sp-md);
+  border: 0;
+  background: none;
+  font-family: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.lang + .lang {
+  border-block-start: 1px solid var(--border-divider);
+}
+
+.lang.is-active {
+  background: var(--brand-primary-soft);
+  border-block-start-color: transparent;
+}
+
+.lang__native {
+  flex: 0 0 auto;
+  font-size: var(--fs-h3);
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+/* 阿拉伯系语言：自托管字体。藏文与中文走系统栈即可 */
+.lang__native[dir="rtl"] {
+  font-family: var(--font-arabic);
+  font-size: 19px;
+  line-height: 1.5;
+}
+
+.lang__cn {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+}
+
+.lang__check {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  color: var(--brand-primary);
+  opacity: 0;
+}
+
+.lang.is-active .lang__check {
+  opacity: 1;
+}
+
+/* ==========================================================================
+   32. 律师工作台深色顶栏（第 17 批新增，62~68 七屏复用）
+   ==========================================================================
+   结构：
+     <header class="statusbar statusbar--light">…</header>
+     <div class="navbar navbar--dark">
+       <a class="navbar__back">…</a>
+       <h1 class="navbar__title">律师工作台</h1>
+     </div>
+
+   ★ 为什么靠顶栏底色区分角色，而不是换一套主色：
+     主色在用户侧承担「这里可以点」的信号（按钮、链接、选中态全是它）。
+     律师同时是用户 —— 他自己的咨询、订单、余额都在用户侧。
+     律师侧再引入第二套主色的话，他在两边来回切几次之后，
+     就没人记得哪个颜色代表可点了。
+     深色顶栏只改「环境」，不改「控件语言」—— 控件在两边长得一样。
+
+   ★ 必须配 statusbar--light（状态栏文字反白），否则深底上黑字看不见。
+
+   ★ 工作台没有底部 tabbar：导航靠首页六宫格 + 各页返回箭头。
+     给两套 tabbar 会让「我现在在哪一侧」变模糊，而这恰恰是这批要解决的问题。
+
+   ★ 深色底上的按压态不能用 --bg-input（那是给白底设计的浅灰），
+     否则按下时会冒出一块发灰的亮块。这里用白色低透明度叠一层。
+   ========================================================================== */
+.navbar--dark {
+  background: var(--bg-workbench);
+}
+
+/* ★ 状态栏是绝对定位浮在 body 上的（tokens.css），它下面露出的是 body 的浅色底。
+   深色顶栏如果不往上补这 54px，白色时间就压在 #F7F8FA 上，对比度只有 1.06:1。
+   用 ::before 往上铺一块同色，比给 body 加背景更安全 —— body 上还有别的页要用浅底。 */
+.navbar--dark::before {
+  content: "";
+  position: absolute;
+  inset-block-start: calc(-1 * var(--statusbar-h));
+  inset-inline: 0;
+  height: var(--statusbar-h);
+  background: var(--bg-workbench);
+}
+
+.navbar--dark .navbar__back,
+.navbar--dark .navbar__title,
+.navbar--dark .navbar__icon {
+  color: var(--text-on-brand);
+}
+
+.navbar--dark .navbar__back:active,
+.navbar--dark .navbar__icon:active {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* 深色底上主色图标对比不足，选中态改用纯白 */
+.navbar--dark .navbar__icon.is-on {
+  color: var(--text-on-brand);
+}

@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390, initial-scale=1">
+<meta name="dsh-design" content="app">
+<title>全部功能</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   功能总览页（第 16 批 · 延展，无参考图）
+   ==========================================================================
+   职责：把全 App 的功能按用户任务分组铺开，是找不到入口时的兜底导航。
+   入口：05-profile 底部 / 首页「全部功能」
+   数据来源：静态路由表（与 app.js 的 tabbar / 首页宫格同一份）
+
+   ★ 分组按「用户想干什么」，不按产品模块。产品模块的名字（文书中心、
+     案件中心）是开发者的语言，用户脑子里想的是「我要写个起诉状」。
+     所以分组是：找律师与咨询 / 办案件 / 订单与钱 / 我的与服务。
+
+   ★ 这一页的存在本身就是承认「主入口设计得不够好」。
+     首页三宫格 + 我的页菜单覆盖了高频路径，但总有人找不到东西 ——
+     与其让他一层层点进去试，不如给一个全平的清单。
+     所以这里的顺序按使用频率排，不按信息架构的漂亮程度排。
+
+   ★ 每格文字控制在 4 字以内。4 列宫格在 390 宽下每格约 85px，
+     5 个字会折行或截断，一行 4 列里只要有一格折行，整行基线就歪了。
+
+   ★ 图标沿用各页自己的线性 SVG 形状，不重新画一套。
+     用户在首页见过同一个形状，在这里再见到才能对应上。
+   ========================================================================== */
+
+body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-canvas);
+}
+
+.navbar {
+  background: var(--bg-surface);
+}
+
+.screen {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding: var(--sp-md) var(--sp-xl) var(--sp-xxl);
+}
+.screen::-webkit-scrollbar {
+  display: none;
+}
+
+/* ---------- 分组 ---------- */
+.feat-group {
+  margin-block-start: var(--sp-lg);
+}
+
+.feat-group:first-child {
+  margin-block-start: 0;
+}
+
+.feat-group__title {
+  padding-block-end: var(--sp-sm);
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+/* ---------- 宫格 ---------- */
+.feat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  padding-block: var(--sp-sm);
+  border-radius: var(--r-md);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.feat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 2px;
+  min-height: 76px;
+  text-decoration: none;
+  color: inherit;
+}
+
+.feat:active .feat__icon {
+  background: var(--brand-primary-soft);
+}
+
+/* 图标：40 圆的浅底 + 20 的线性图标。底色调成中性，
+   避免 17 个彩色圆把这一页搞得像儿童应用 */
+.feat__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--bg-input);
+  color: var(--text-secondary);
+  transition: background-color 120ms ease;
+}
+
+.feat__icon svg {
+  width: 21px;
+  height: 21px;
+}
+
+/* 少数几个高频功能给主色，作为视觉锚点，其余保持中性 */
+.feat--primary .feat__icon {
+  background: var(--brand-primary-soft);
+  color: var(--brand-primary-pressed);
+}
+
+.feat__label {
+  max-width: 100%;
+  font-size: var(--fs-micro);
+  color: var(--text-body);
+  line-height: 1.3;
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* ---------- 页尾 ---------- */
+.page-note {
+  margin-block-start: var(--sp-lg);
+  padding-inline: 2px;
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.8;
+}
+
+.page-note b {
+  font-weight: var(--fw-medium);
+  color: var(--text-secondary);
+}
+</style>
+</head>
+<body>
+
+<header class="statusbar">
+  <span>9:41</span>
+  <span class="statusbar__icons">
+    <svg width="17" height="11" viewBox="0 0 17 11" fill="none" aria-hidden="true">
+      <rect x="0" y="7" width="3" height="4" rx="1" fill="currentColor"/>
+      <rect x="4.5" y="5" width="3" height="6" rx="1" fill="currentColor"/>
+      <rect x="9" y="2.5" width="3" height="8.5" rx="1" fill="currentColor"/>
+      <rect x="13.5" y="0" width="3" height="11" rx="1" fill="currentColor"/>
+    </svg>
+    <svg width="16" height="11" viewBox="0 0 16 11" fill="none" aria-hidden="true">
+      <path d="M1 3.2A10.5 10.5 0 0 1 15 3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M3.6 5.9a7 7 0 0 1 8.8 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M6.2 8.6a3.4 3.4 0 0 1 3.6 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden="true">
+      <rect x="0.6" y="0.6" width="21" height="10.8" rx="3" stroke="currentColor" stroke-opacity="0.4" stroke-width="1.2"/>
+      <rect x="2.2" y="2.2" width="15" height="7.6" rx="1.8" fill="currentColor"/>
+      <path d="M23.4 4.2v3.6" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+  </span>
+</header>
+
+<div class="navbar">
+  <a class="navbar__back" href="05-profile.html" aria-label="返回我的">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M15.2 4.6 7.8 12l7.4 7.4" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </a>
+  <h1 class="navbar__title">全部功能</h1>
+</div>
+
+<main class="screen">
+
+  <section class="feat-group">
+    <h2 class="feat-group__title">找律师与咨询</h2>
+    <div class="feat-grid">
+
+      <a class="feat feat--primary" href="02-lawyer.html">
+        <span class="feat__icon">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="12" cy="8.4" r="3.6" stroke="currentColor" stroke-width="1.8"/>
+            <path d="M4.8 20.4c0-3.8 3.2-6.4 7.2-6.4s7.2 2.6 7.2 6.4" stroke="currentColor"
+                  stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+        </span>
+        <span class="feat__label">找律师</span>
+      </a>
+
+      <a class="feat feat--primary" href="03-agent.html">
+        <span class="feat__icon">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M20.4 12.2c0 4-3.8 7.2-8.4 7.2-1 0-2-.15-2.9-.42L4.1 20.4l1.3-3.5a7 7 0 0 1-1.9-4.7c0-4 3.8-7.2 8.5-7.2s8.4 3.2 8.4 7.2Z"
+                  stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+          </svg>
+        </span>
+        <span class="feat__label">AI 问答</span>
+      </a>
+
+      <a class="feat" href="04-case.html">
+        <span class="feat__icon">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M4.4 5.2h6.2a2.4 2.4 0 0 1 2.4 2.4v11.2a1.8 1.8 0 0 0-1.8-1.8H4.4V5.2Z"
+                  stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+            <path d="M19.6 5.2h-6.2a2.4 2.4 0 0 0-2.4 2.4v11.2a1.8 1.8 0 0 1 1.8-1.8h6.8V5.2Z"
+                  stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+          </svg>
+        </span>
+        <span class="feat__label">案例查询</span>
+      </a>
+
+      <a class="feat" href="12-articles.html">
+        <span class="feat__icon">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M6.2 3.4h8.2l4.6 4.6v12.6a1.6 1.6 0 0 1-1.6 1.6H6.2a1.6 1.6 0 0 1-1.6-1.6V5a1.6 1.6 0 0 1 1.6-1.6Z"
+                  stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+            <path d="M13.6 3.6V8.2h4.6M8.2 12.4h7M8.2 16h4.6" stroke="currentColor"
+                  stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+        </span>
+        <span class="feat__label">普法文章</span>
+      </a>
+
+    </div>
+  </section>
+
+  <section class="feat-group">
+    <h2 class="feat-group__title">办案件</h2>
+    <div class="feat-grid">
+
+      <a class="feat" href="20-filing.html">
+        <span class="feat__icon">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="m12 3.4 7.4 4.2v8.8L12 20.6l-7.4-4.2V7.6L12 3.4Z" stroke="currentColor"
+                  stroke-width="1.8" stroke-linejoin="round"/>
+            <path d="m9.4 12.2 1.9 1.9 3.6-3.8" stroke="currentColor" stroke-width="1.8"
+                  stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </span>
+        <span class="feat__label">在线立案</span>
+      </a>
+
+      <a class="feat" href="53-my-cases.html">
+        <span class="feat__icon">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M3.6 7.4a1.8 1.8 0 0 1 1.8-1.8h4l2 2.4h6.6a1.8 1.8 0 0 1 1.8 1.8v8.6a1.8 1.8 0 0 1-1.8 1.8H5.4a1.8 1.8 0 0 1-1.8-1.8V7.4Z"
+                  stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+          </svg>
+        </span>
+        <span class="feat__label">我的案件</span>
+      </a>
+
+      <a class="feat" href="23-doc-templates.html">
+        <span class="feat__icon">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M5.6 3.4h8.2l5 5v11.2a1.8 1.8 0 0 1-1.8 1.8H5.6a1.8 1.8 0 0 1-1.8-1.8V5.2a1.8 1.8 0 0 1 1.8-1.8Z"
+                  stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+            <path d="M13.6 3.6v5.2h5" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+          </svg>
+        </span>
+        <span class="feat__label">文书生成</span>
+      </a>
+
+      <a class="feat" href="27-doc-mine.html">
+        <span class="feat__icon">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <rect x="3.2" y="4.6" width="12.4" height="15.2" rx="1.8" stroke="currentColor"
+                  stroke-width="1.8"/>
+            <path d="M18.4 7.2v13.4a1.2 1.2 0 0 1-1.2 1.2H7" stroke="currentColor"
+                  stroke-width="1.8" stroke-linecap="round"/>
+            <path d="M6.6 9.4h5.6M6.6 12.8h5.6M6.6 16.2h3.2" stroke="currentColor"
+                  stroke-width="1.7" stroke-linecap="round"/>
+          </svg>
+        </span>
+        <span class="feat__label">我的文书</span>
+      </a>
+
+    </div>
+  </section>
+
+  <section class="feat-group">
+    <h2 class="feat-group__title">订单与钱</h2>
+    <div class="feat-grid">
+
+      <a class="feat" href="29-orders.html">
+        <span class="feat__icon">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M6.2 3.2h11.6v17.6l-2.9-1.9-2.9 1.9-2.9-1.9-2.9 1.9V3.2Z"
+                  stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+            <path d="M9.2 8.2h5.6M9.2 12h5.6" stroke="currentColor" stroke-width="1.8"
+                  stroke-linecap="round"/>
+          </svg>
+        </span>
+        <span class="feat__label">我的订单</span>
+      </a>
+
+      <a class="feat" href="35-balance.html">
+        <span class="feat__icon">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <rect x="2.8" y="6" width="18.4" height="12.4" rx="2.4" stroke="currentColor"
+                  stroke-width="1.8"/>
+            <path d="M2.8 10.4h18.4" stroke="currentColor" stroke-width="1.8"/>
+            <circle cx="17.2" cy="14.6" r="1.2" fill="currentColor"/>
+          </svg>
+        </span>
+        <span class="feat__label">账户余额</span>
+      </a>
+
+      <a class="feat" href="36-recharge.html">
+        <span class="feat__icon">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <rect x="2.8" y="6" width="18.4" height="12.4" rx="2.4" stroke="currentColor"
+                  stroke-width="1.8"/>
+            <path d="M12 9.6v5.2M9.4 12.2h5.2" stroke="currentColor" stroke-width="1.8"
+                  stroke-linecap="round"/>
+          </svg>
+        </span>
+        <span class="feat__label">充值</span>
+      </a>
+
+      <a class="feat" href="33-refund.html">
+        <span class="feat__icon">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M4.6 9.2A8 8 0 1 1 4 14.4" stroke="currentColor" stroke-width="1.8"
+                  stroke-linecap="round"/>
+            <path d="M4.2 4.8v4.8h4.8" stroke="currentColor" stroke-width="1.8"
+                  stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </span>
+        <span class="feat__label">退款申请</span>
+      </a>
+
+    </div>
+  </section>
+
+  <section class="feat-group">
+    <h2 class="feat-group__title">我的与服务</h2>
+    <div class="feat-grid">
+
+      <a class="feat" href="38-messages.html">
+        <span class="feat__icon">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M3.4 6.6a2 2 0 0 1 2-2h13.2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-7.3l-4.3 3.4v-3.4H5.4a2 2 0 0 1-2-2v-9Z"
+                  stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+          </svg>
+        </span>
+        <span class="feat__label">消息中心</span>
+      </a>
+
+      <a class="feat" href="51-favorites.html">
+        <span class="feat__icon">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M12 20.6C7.2 17.4 3.4 14.2 3.4 10.2a4.6 4.6 0 0 1 8.6-2.3 4.6 4.6 0 0 1 8.6 2.3c0 4-3.8 7.2-8.6 10.4Z"
+                  stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+          </svg>
+        </span>
+        <span class="feat__label">我的收藏</span>
+      </a>
+
+      <a class="feat" href="52-following.html">
+        <span class="feat__icon">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="10.4" cy="8.6" r="3.4" stroke="currentColor" stroke-width="1.8"/>
+            <path d="M3.8 20.2c0-3.6 3-6.1 6.6-6.1 1.5 0 2.9.4 4 1.2" stroke="currentColor"
+                  stroke-width="1.8" stroke-linecap="round"/>
+            <path d="M16.4 16.2v4.2M14.3 18.3h4.2" stroke="currentColor" stroke-width="1.8"
+                  stroke-linecap="round"/>
+          </svg>
+        </span>
+        <span class="feat__label">关注律师</span>
+      </a>
+
+      <a class="feat" href="48-verify-real.html">
+        <span class="feat__icon">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <rect x="2.8" y="5.4" width="18.4" height="13.2" rx="2.2" stroke="currentColor"
+                  stroke-width="1.8"/>
+            <circle cx="8.8" cy="10.6" r="2" stroke="currentColor" stroke-width="1.7"/>
+            <path d="M5.4 16.4c.4-1.8 1.7-2.9 3.4-2.9s3 1.1 3.4 2.9" stroke="currentColor"
+                  stroke-width="1.7" stroke-linecap="round"/>
+            <path d="M15 10.4h3.4M15 13.4h3.4" stroke="currentColor" stroke-width="1.7"
+                  stroke-linecap="round"/>
+          </svg>
+        </span>
+        <span class="feat__label">实名认证</span>
+      </a>
+
+      <a class="feat" href="55-support.html">
+        <span class="feat__icon">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M4.4 15.2v-3a7.6 7.6 0 0 1 15.2 0v3" stroke="currentColor"
+                  stroke-width="1.8" stroke-linecap="round"/>
+            <rect x="2.8" y="13.8" width="3.6" height="5.6" rx="1.6" stroke="currentColor"
+                  stroke-width="1.8"/>
+            <rect x="17.6" y="13.8" width="3.6" height="5.6" rx="1.6" stroke="currentColor"
+                  stroke-width="1.8"/>
+          </svg>
+        </span>
+        <span class="feat__label">客服中心</span>
+      </a>
+
+      <a class="feat" href="41-settings.html">
+        <span class="feat__icon">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="12" cy="12" r="3.1" stroke="currentColor" stroke-width="1.8"/>
+            <path d="M19.4 14.8a1.7 1.7 0 0 0 .35 1.9l.06.06a2.1 2.1 0 1 1-2.95 2.95l-.06-.06a1.7 1.7 0 0 0-2.9 1.2v.16a2.1 2.1 0 1 1-4.2 0v-.09a1.7 1.7 0 0 0-2.99-1.2l-.06.06a2.1 2.1 0 1 1-2.95-2.95l.06-.06a1.7 1.7 0 0 0 .35-1.9 1.7 1.7 0 0 0-1.55-1H2.5a2.1 2.1 0 1 1 0-4.2h.09a1.7 1.7 0 0 0 1.55-1.09 1.7 1.7 0 0 0-.35-1.9l-.06-.06a2.1 2.1 0 1 1 2.95-2.95l.06.06a1.7 1.7 0 0 0 2.99-1.2V2.5a2.1 2.1 0 1 1 4.2 0v.09a1.7 1.7 0 0 0 2.9 1.2l.06-.06a2.1 2.1 0 1 1 2.95 2.95l-.06.06a1.7 1.7 0 0 0-.35 1.9v.08a1.7 1.7 0 0 0 1.55 1h.16a2.1 2.1 0 1 1 0 4.2h-.09a1.7 1.7 0 0 0-1.55 1Z"
+                  stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </span>
+        <span class="feat__label">设置</span>
+      </a>
+
+    </div>
+  </section>
+
+  <p class="page-note">
+    这一页是兜底导航：首页和「我的」只放高频入口，覆盖不到的都收在这里。<b>找不到某个功能时，先来这里看一眼。</b>
+  </p>
+
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

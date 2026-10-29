@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>走查 · 设置页的三个浮层</title>
+<style>
+/* ==========================================================================
+   走查页：第 12 批（41 设置）的三个浮层
+   ==========================================================================
+   用途：画布一屏只显示设置列表，字号 / 深色 / 清缓存三个浮层在这里看。
+
+   注意：
+     1. 不是交付屏，放在 _walkthrough/，不上画布、不计入交付屏
+     2. 浮层靠 hash 打开（#open-font / #open-dark / #open-cache）
+     3. 必须用 HTTP 打开（端口 8123），file:// 下 iframe 的 hash 不生效
+
+   核对要点：
+     open-font  —— 四档用真实字号渲染，用户直接看到差别
+     open-dark  —— 三个选项，含「跟随系统」
+     open-cache —— 说清清掉的是什么、不会删什么
+   42~47 其余五屏没有浮层：42 是纯列表，43/44 是表单，45 的确认在提交时，
+   46/47 只有开关。它们的非主态没有可看的东西，所以不建走查项。
+   ========================================================================== */
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 28px;
+  background: #EDEFF3;
+  font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  color: #1A1A1A;
+}
+
+.walk {
+  display: grid;
+  grid-template-columns: repeat(2, 390px);
+  gap: 24px 28px;
+  justify-content: center;
+}
+
+.walk__item {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.walk__head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.walk__name {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.walk__tag {
+  font-size: 11px;
+  font-weight: 500;
+  color: #4A66EE;
+  background: #EEF2FF;
+  padding: 2px 7px;
+  border-radius: 4px;
+  line-height: 1.5;
+}
+
+.walk__note {
+  font-size: 12px;
+  color: #63696E;
+  line-height: 1.6;
+  max-width: 390px;
+}
+
+iframe {
+  width: 390px;
+  height: 844px;
+  border: 0;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.1);
+}
+</style>
+</head>
+<body>
+
+<div class="walk">
+
+  <section class="walk__item">
+    <div class="walk__head">
+      <h2 class="walk__name">设置 · 字体大小</h2>
+      <span class="walk__tag">open-font</span>
+    </div>
+    <p class="walk__note">
+      四档用真实字号渲染，让用户直接看到差别。写「大 / 特大」这种描述是抽象的，看到才知道自己能不能读。选完立刻关掉并回写行上的值，不再要一次「确定」。
+    </p>
+    <iframe src="../41-settings.html#open-font" title="设置 · 字体大小"></iframe>
+  </section>
+
+  <section class="walk__item">
+    <div class="walk__head">
+      <h2 class="walk__name">设置 · 深色模式</h2>
+      <span class="walk__tag">open-dark</span>
+    </div>
+    <p class="walk__note">
+      三个选项，默认「跟随系统」。也走同一个选择器组件，不另写一套。
+    </p>
+    <iframe src="../41-settings.html#open-dark" title="设置 · 深色模式"></iframe>
+  </section>
+
+  <section class="walk__item">
+    <div class="walk__head">
+      <h2 class="walk__name">设置 · 清除缓存</h2>
+      <span class="walk__tag">open-cache</span>
+    </div>
+    <p class="walk__note">
+      必须先说清「清掉的是什么、不会删什么」——用户最怕的是清完文书和聊天记录没了。这句在这里比在任何地方都重要。
+    </p>
+    <iframe src="../41-settings.html#open-cache" title="设置 · 清除缓存"></iframe>
+  </section>
+
+</div>
+
+</body>
+</html>

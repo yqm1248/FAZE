@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390, initial-scale=1">
+<meta name="dsh-design" content="app">
+<title>支付结果</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   支付结果页（第 9 批 · 延展，无参考图）
+   ==========================================================================
+   职责：告诉用户「付成了没有、扣了多少、扣完还剩多少、接下来谁做什么」。
+   入口：31-pay.html 确认支付后跳转
+   母版：**结果页母版**（同 21-filing-done：状态头 + 金额/凭证卡 + 底部两个出口）
+   数据来源：支付流水接口返回（流水号 / 金额分 / 支付时间 / 支付前后余额 / 结果码）
+
+   ★ 这一屏只画成功态，失败态进 _walkthrough/29-34-orders.html。
+     理由：失败态的逻辑与成功态完全对称（同一套卡片，头卡换红色、按钮换「重新支付」），
+     放在同一份 HTML 里只会增加维护面积，不会增加信息。
+
+   ★ 为什么必须显示「支付前余额 → 支付后余额」：
+     余额制的可疑点全在余额上。用户事后看到余额少了 99，如果能对上
+     「支付前 1280.00、支付后 1181.00」，就不用来找客服；
+     对不上才需要追查。两个数并排是这个页面最有价值的一行。
+
+   ★ 为什么标题不写「支付成功，服务已开始」：
+     付钱和服务生效是两件事，服务由律师接单后才开始。
+     写成「服务已开始」，律师没接的时候用户会以为平台赖账。
+     所以下面单独一句写清「律师收到请求后会在 2 小时内回复」，把预期交代在前面。
+
+   ★ 无四态：结果在支付回调那一刻就定了，不存在加载失败。
+     网络断了应该留在 31 做行内重试，不要把人跳到一个空白结果页再告诉他失败。
+   ========================================================================== */
+
+body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-canvas);
+}
+
+.navbar {
+  background: transparent;
+}
+
+.screen {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding: 0 var(--sp-xl) var(--sp-xl);
+  background: linear-gradient(to bottom, var(--banner-start) 0, var(--bg-canvas) 300px);
+}
+.screen::-webkit-scrollbar {
+  display: none;
+}
+
+/* 两态（成功 / 失败）各自包在 [data-state] 里 */
+.screen section + section {
+  margin-block-start: var(--sp-md);
+}
+
+/* ---------- 结果头 ---------- */
+.result-hero {
+  padding-block: var(--sp-lg) var(--sp-xl);
+  text-align: center;
+}
+
+.result-hero .status-hero__title {
+  margin-block-start: var(--sp-md);
+}
+
+.result-hero__amount {
+  display: block;
+  margin-block-start: var(--sp-sm);
+}
+
+.result-hero .status-hero__desc {
+  margin-block-start: var(--sp-xs);
+  max-width: none;
+}
+
+/* 失败态的叉用 danger 色；成功态沿用 components.css 的 success */
+[data-state="fail"] .status-hero__icon {
+  color: var(--state-danger);
+}
+
+/* ---------- 凭证卡 ---------- */
+.card-block {
+  padding: var(--sp-md) var(--sp-lg) var(--sp-lg);
+  border-radius: var(--r-md);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.block-title {
+  padding-block: var(--sp-xs) var(--sp-sm);
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.info-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-md);
+  padding-block: 7px;
+  font-size: var(--fs-md);
+  line-height: 1.5;
+}
+
+.info-row__label {
+  flex: 0 0 auto;
+  color: var(--text-muted);
+}
+
+.info-row__value {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--text-body);
+  text-align: end;
+  word-break: break-all;
+}
+
+.info-row__value--code {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+/* 余额变动：单独一块强调，不用普通键值行 */
+.balance-change {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-md);
+  margin-block-start: var(--sp-xs);
+  padding: var(--sp-md);
+  border-radius: var(--r-sm);
+  background: var(--bg-canvas);
+}
+
+.balance-change__side {
+  text-align: center;
+}
+
+.balance-change__label {
+  display: block;
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.balance-change__num {
+  display: block;
+  margin-block-start: 2px;
+  font-family: var(--font-num);
+  font-size: var(--fs-lg);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+
+.balance-change__num--after {
+  color: var(--text-primary);
+  font-weight: var(--fw-bold);
+}
+
+.balance-change__arrow {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  color: var(--text-muted);
+}
+
+/* ---------- 下一步说明 ---------- */
+.next-step {
+  padding: var(--sp-md) var(--sp-lg);
+  border-radius: var(--r-sm);
+  background: var(--state-success-soft);
+}
+
+.next-step__title {
+  font-size: var(--fs-md);
+  font-weight: var(--fw-medium);
+  color: var(--state-success);
+  line-height: 1.5;
+}
+
+.next-step__desc {
+  margin-block-start: 4px;
+  font-size: var(--fs-caption);
+  color: var(--text-secondary);
+  line-height: 1.7;
+}
+
+/* 失败态的「怎么办」用警示色，和成功态的绿色提示分开。
+   不用红色：支付失败不是平台出错，多半是余额或网络，红色会激化情绪 */
+.next-step--warn {
+  background: var(--state-warning-soft);
+}
+
+.next-step--warn .next-step__title {
+  color: var(--state-warning-deep);
+}
+
+.help-line {
+  padding: var(--sp-lg) 0 var(--sp-xs);
+  text-align: center;
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+}
+
+.help-line a {
+  color: var(--brand-primary);
+  text-decoration: none;
+}
+</style>
+</head>
+<body>
+
+<header class="statusbar">
+  <span>9:41</span>
+  <span class="statusbar__icons">
+    <svg width="17" height="11" viewBox="0 0 17 11" fill="none" aria-hidden="true">
+      <rect x="0" y="7" width="3" height="4" rx="1" fill="currentColor"/>
+      <rect x="4.5" y="5" width="3" height="6" rx="1" fill="currentColor"/>
+      <rect x="9" y="2.5" width="3" height="8.5" rx="1" fill="currentColor"/>
+      <rect x="13.5" y="0" width="3" height="11" rx="1" fill="currentColor"/>
+    </svg>
+    <svg width="16" height="11" viewBox="0 0 16 11" fill="none" aria-hidden="true">
+      <path d="M1 3.2A10.5 10.5 0 0 1 15 3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M3.6 5.9a7 7 0 0 1 8.8 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M6.2 8.6a3.4 3.4 0 0 1 3.6 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden="true">
+      <rect x="0.6" y="0.6" width="21" height="10.8" rx="3" stroke="currentColor" stroke-opacity="0.4" stroke-width="1.2"/>
+      <rect x="2.2" y="2.2" width="15" height="7.6" rx="1.8" fill="currentColor"/>
+      <path d="M23.4 4.2v3.6" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+  </span>
+</header>
+
+<div class="navbar">
+  <a class="navbar__back" href="29-orders.html" aria-label="返回订单列表">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M15.2 4.6 7.8 12l7.4 7.4" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </a>
+  <h1 class="navbar__title">支付结果</h1>
+</div>
+
+<main class="screen">
+
+  <!-- ======================================================================
+       支付成功（主态）
+       ====================================================================== -->
+  <div data-state="success">
+
+  <section class="result-hero">
+    <div class="status-hero__icon">
+      <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
+        <circle cx="32" cy="32" r="24" stroke="currentColor" stroke-width="3"/>
+        <path d="m22 33.4 7 7 13.4-14.2" stroke="currentColor" stroke-width="3.4"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <h2 class="status-hero__title">支付成功</h2>
+    <p class="money money--display result-hero__amount"><span class="money__sym">¥</span>99.00</p>
+    <p class="status-hero__desc">已从账户余额中扣除</p>
+  </section>
+
+  <section class="card-block">
+    <h3 class="block-title">支付凭证</h3>
+    <div class="info-row">
+      <span class="info-row__label">订单编号</span>
+      <span class="info-row__value info-row__value--code">FAZE-2026-0087</span>
+    </div>
+    <div class="info-row">
+      <span class="info-row__label">支付时间</span>
+      <span class="info-row__value info-row__value--code">2026-10-29 14:24</span>
+    </div>
+    <div class="info-row">
+      <span class="info-row__label">支付方式</span>
+      <span class="info-row__value">账户余额</span>
+    </div>
+    <div class="info-row">
+      <span class="info-row__label">流水号</span>
+      <span class="info-row__value info-row__value--code">202610291424000871</span>
+    </div>
+    <div class="balance-change">
+      <div class="balance-change__side">
+        <span class="balance-change__label">支付前余额</span>
+        <span class="balance-change__num">¥1,280.00</span>
+      </div>
+      <svg class="balance-change__arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M4.2 12h15.6M14.6 6.6l5.2 5.4-5.2 5.4" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <div class="balance-change__side">
+        <span class="balance-change__label">支付后余额</span>
+        <span class="balance-change__num balance-change__num--after">¥1,181.00</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="next-step">
+    <p class="next-step__title">律师已收到你的服务请求</p>
+    <p class="next-step__desc">王建国律师会在 2 小时内通过站内消息联系你，约定具体咨询时间。如果超过 2 小时没有回复，可以联系客服协调改派。</p>
+  </section>
+
+  <p class="help-line">有问题？<a href="55-support.html">联系客服</a></p>
+
+  </div>
+
+  <!-- ======================================================================
+       支付失败：和成功态完全对称，但第一句必须说清「钱没被扣」
+       —— 用户看到红叉第一反应是「我的钱呢」
+       ====================================================================== -->
+  <div data-state="fail" hidden>
+
+    <section class="result-hero">
+      <div class="status-hero__icon">
+        <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
+          <circle cx="32" cy="32" r="24" stroke="currentColor" stroke-width="3"/>
+          <path d="m24.4 24.4 15.2 15.2M39.6 24.4 24.4 39.6" stroke="currentColor"
+                stroke-width="3.4" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <h2 class="status-hero__title">支付没有成功</h2>
+      <p class="money money--display result-hero__amount"><span class="money__sym">¥</span>99.00</p>
+      <p class="status-hero__desc">这笔钱没有从账户余额里扣，余额仍是 ¥1,280.00</p>
+    </section>
+
+    <section class="card-block">
+      <h3 class="block-title">没有成功的原因</h3>
+      <div class="info-row">
+        <span class="info-row__label">原因</span>
+        <span class="info-row__value">账户余额不足</span>
+      </div>
+      <div class="info-row">
+        <span class="info-row__label">订单编号</span>
+        <span class="info-row__value info-row__value--code">FAZE-2026-0087</span>
+      </div>
+      <div class="info-row">
+        <span class="info-row__label">失败时间</span>
+        <span class="info-row__value info-row__value--code">2026-10-29 14:24</span>
+      </div>
+    </section>
+
+    <section class="next-step next-step--warn">
+      <p class="next-step__title">订单还在，15 分钟内可以重新支付</p>
+      <p class="next-step__desc">先充值再回来付款，或者换一个支付时段。超过 15 分钟订单会自动关闭，到时候需要重新下单。</p>
+    </section>
+
+  </div>
+
+</main>
+
+<div class="actionbar" data-state="success">
+  <a class="btn-ghost" href="01-home.html">返回首页</a>
+  <a class="btn-primary actionbar__cta" href="30-order-detail.html">查看订单</a>
+</div>
+
+<div class="actionbar" data-state="fail" hidden>
+  <a class="btn-ghost" href="30-order-detail.html">查看订单</a>
+  <a class="btn-primary actionbar__cta" href="31-pay.html">重新支付</a>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

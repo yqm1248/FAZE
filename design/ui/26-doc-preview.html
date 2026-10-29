@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390, initial-scale=1">
+<meta name="dsh-design" content="app">
+<title>文书预览</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   文书预览页（第 8 批 · 延展，无参考图）
+   ==========================================================================
+   职责：把表单填的内容按司法文书格式排版出来，供在线修改、盖章、导出。
+   入口：24-doc-lawsuit / 25-doc-other 的「生成」；27-doc-mine 点条目；
+         22-service「已签收文书」也指向这里（法院送达的文书同样在这里读）
+   母版：**A4 纸面**（本屏定）—— 灰底衬托一张白纸，纸上有页边距、有落款
+
+   ★ 这一屏的设计核心是「让它看起来像纸」，不是像卡片：
+     1. 灰底 + 白纸 + 阴影，纸张左右各留 20px 露出灰底，一眼知道这是「一张纸」
+     2. **纸面用宋体**。App 界面全是黑体，纸面一换宋体，立刻有「这是要打印出来
+        递交的东西」的心理暗示。这是本屏唯一一处不走 --font-sans 的地方，
+        也是唯一值得这么做的地方。
+     3. 纸面正文 13px、行高 1.9，按 A4 缩小显示。真实 PDF 里是 12pt 宋体、
+        行距 1.5 倍，屏幕上看是按比例缩过的样子。
+     4. 段落 contenteditable —— 导航树要求「点击段落直接修改」。
+        直接在纸上改，改完再导出，比跳回表单页改要顺手。
+
+   ★ 电子签章（底部「盖章」）：
+     签章面板里有印章预览 + 拖动说明 + 确认按钮。这里不实现真的拖拽，
+     但把「加盖后不可再编辑」这条后果先讲清楚 —— 盖章是不可撤销动作。
+
+   ★ 导出：PDF 与 Word 两个选项。PDF 用于提交（排版固定），
+     Word 用于还需要律师改的场合。这一点必须在面板里说明，
+     否则用户只会选 PDF，然后发现改不了。
+
+   四态：normal 一屏即可。本屏数据在上一页生成时就确定了，
+        不存在加载失败；网络失败发生在导出/盖章时，用 toast 报。
+   ========================================================================== */
+
+/* 纸张专用衬线字体：宋体系。中文司法文书的标准字体，不是装饰 */
+body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-canvas);
+}
+
+.navbar {
+  background: var(--bg-surface);
+}
+
+.screen {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding: var(--sp-lg) var(--sp-xl) var(--sp-xl);
+}
+.screen::-webkit-scrollbar {
+  display: none;
+}
+
+/* ---------- A4 纸 ----------
+   宽度撑满（390 - 40），高度按 A4 比例给一个下限，内容多了自然变长。
+   不锁死高度：起诉状写长了要能继续往下，不能裁掉。 */
+.paper {
+  position: relative;
+  min-height: 495px;
+  padding: 30px 24px;
+  border-radius: 2px;
+  background: var(--bg-surface);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
+  /* 宋体：这是本屏唯一的字体例外，理由见文件头 */
+  font-family: "Songti SC", "SimSun", "Noto Serif CJK SC", serif;
+  color: #1A1A1A;
+}
+
+/* 纸面标题：居中、字号最大的那一行 */
+.paper__title {
+  margin-block-end: 22px;
+  font-size: 20px;
+  font-weight: var(--fw-bold);
+  text-align: center;
+  letter-spacing: 0.08em;
+  line-height: 1.5;
+}
+
+/* 当事人信息：不缩进，行距略紧 */
+.paper__party {
+  margin-block-end: 6px;
+  font-size: var(--fs-sm);
+  line-height: 1.9;
+}
+
+/* 小节标题（诉讼请求 / 事实与理由） */
+.paper__h {
+  margin-block: 16px 8px;
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-bold);
+  line-height: 1.6;
+  letter-spacing: 0.04em;
+}
+
+/* 正文段落：首行缩进两字，这是中文公文的规矩 */
+.paper__p {
+  font-size: var(--fs-sm);
+  line-height: 1.9;
+  text-indent: 2em;
+}
+
+.paper__p + .paper__p {
+  margin-block-start: 2px;
+}
+
+/* 「此致」缩进两字，「人民法院」顶格 —— 这也是格式规矩 */
+.paper__to {
+  margin-block-start: 18px;
+  font-size: var(--fs-sm);
+  line-height: 1.9;
+  text-indent: 2em;
+}
+
+.paper__court {
+  font-size: var(--fs-sm);
+  line-height: 1.9;
+}
+
+/* 落款：右对齐 */
+.paper__sign {
+  margin-block-start: 6px;
+  font-size: var(--fs-sm);
+  line-height: 1.9;
+  text-align: end;
+}
+
+.paper__sign:first-of-type {
+  margin-block-start: 22px;
+}
+
+/* 可编辑段落：点一下就能改。聚焦时给浅蓝底提示「这一段可以改」 */
+.paper [contenteditable="true"] {
+  border-radius: 3px;
+  outline: none;
+  transition: background-color 160ms ease;
+}
+
+.paper [contenteditable="true"]:hover {
+  background: var(--bg-canvas);
+}
+
+.paper [contenteditable="true"]:focus {
+  background: var(--brand-primary-soft);
+  box-shadow: 0 0 0 2px var(--brand-primary-soft);
+}
+
+/* 编辑提示条 */
+.edit-tip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-xs);
+  margin-block-start: var(--sp-md);
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.edit-tip svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* ---------- 底部工具栏 ---------- */
+.toolbar {
+  flex: 0 0 auto;
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-md);
+  padding: 10px var(--sp-xl) calc(10px + var(--safe-bottom));
+  background: var(--bg-surface);
+  border-block-start: 1px solid var(--border-divider);
+  box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.04);
+}
+
+.btn-ghost {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-xs);
+  min-width: 112px;
+  height: var(--btn-h);
+  padding-inline: var(--sp-lg);
+  border: 1px solid var(--border-outline);
+  border-radius: var(--r-pill);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: var(--fs-h3);
+  cursor: pointer;
+}
+
+.btn-ghost svg {
+  width: 18px;
+  height: 18px;
+}
+
+.btn-ghost:active {
+  background: var(--bg-input);
+}
+
+.toolbar__cta {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* ---------- 导出面板 ---------- */
+.export-list {
+  padding: var(--sp-sm) var(--sp-xl) var(--sp-lg);
+}
+
+.export-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-md);
+  width: 100%;
+  min-height: 66px;
+  padding: var(--sp-md);
+  border: 1px solid var(--border-outline);
+  border-radius: var(--r-sm);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-family: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.export-item + .export-item {
+  margin-block-start: var(--sp-sm);
+}
+
+.export-item:active {
+  background: var(--bg-canvas);
+}
+
+.export-item__icon {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--r-sm);
+  background: var(--brand-primary-soft);
+  color: var(--brand-primary-pressed);
+}
+
+.export-item__icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.export-item__body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.export-item__name {
+  display: block;
+  font-size: var(--fs-md);
+  font-weight: var(--fw-medium);
+  line-height: 1.4;
+}
+
+.export-item__hint {
+  display: block;
+  margin-block-start: 2px;
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+/* ---------- 签章面板 ---------- */
+.seal-body {
+  padding: var(--sp-md) var(--sp-xl) var(--sp-lg);
+}
+
+.seal-stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 168px;
+  margin-block-end: var(--sp-md);
+  border: 1px dashed var(--border-outline);
+  border-radius: var(--r-sm);
+  background: var(--bg-canvas);
+}
+
+/* 手写签章：圆形印章。红色是印章的固定语义色，不进令牌 */
+.seal-stamp {
+  width: 116px;
+  height: 116px;
+  color: #D0021B;
+}
+
+.seal-hint {
+  font-size: var(--fs-caption);
+  color: var(--text-secondary);
+  line-height: var(--lh-relaxed);
+  text-align: center;
+}
+
+.seal-warn {
+  margin-block-start: var(--sp-md);
+  padding: var(--sp-md);
+  border-radius: var(--r-sm);
+  background: var(--state-warning-soft);
+  color: var(--state-warning-deep);
+  font-size: var(--fs-caption);
+  line-height: var(--lh-relaxed);
+}
+
+.sheet__confirm {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(100% - var(--sp-xl) * 2);
+  height: var(--btn-h);
+  margin: var(--sp-sm) var(--sp-xl) 0;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--brand-primary);
+  color: var(--text-on-brand);
+  font-family: inherit;
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-bold);
+  cursor: pointer;
+}
+</style>
+</head>
+<body>
+
+<header class="statusbar">
+  <span>9:41</span>
+  <span class="statusbar__icons">
+    <svg width="17" height="11" viewBox="0 0 17 11" fill="none" aria-hidden="true">
+      <rect x="0" y="7" width="3" height="4" rx="1" fill="currentColor"/>
+      <rect x="4.5" y="5" width="3" height="6" rx="1" fill="currentColor"/>
+      <rect x="9" y="2.5" width="3" height="8.5" rx="1" fill="currentColor"/>
+      <rect x="13.5" y="0" width="3" height="11" rx="1" fill="currentColor"/>
+    </svg>
+    <svg width="16" height="11" viewBox="0 0 16 11" fill="none" aria-hidden="true">
+      <path d="M1 3.2A10.5 10.5 0 0 1 15 3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M3.6 5.9a7 7 0 0 1 8.8 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M6.2 8.6a3.4 3.4 0 0 1 3.6 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden="true">
+      <rect x="0.6" y="0.6" width="21" height="10.8" rx="3" stroke="currentColor" stroke-opacity="0.4" stroke-width="1.2"/>
+      <rect x="2.2" y="2.2" width="15" height="7.6" rx="1.8" fill="currentColor"/>
+      <path d="M23.4 4.2v3.6" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+  </span>
+</header>
+
+<div class="navbar">
+  <a class="navbar__back" href="27-doc-mine.html" aria-label="返回我的文书">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M15.2 4.6 7.8 12l7.4 7.4" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </a>
+  <h1 class="navbar__title">文书预览</h1>
+  <div class="navbar__actions">
+    <button class="navbar__icon" type="button" data-save aria-label="保存到云端">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M5.6 4.2h9.2l4.8 4.8v10.8a1.6 1.6 0 0 1-1.6 1.6H5.6A1.6 1.6 0 0 1 4 19.8V5.8a1.6 1.6 0 0 1 1.6-1.6Z"
+              stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+        <path d="M8.2 4.4v5h6.4v-5" stroke="currentColor" stroke-width="1.8"/>
+      </svg>
+    </button>
+    <button class="navbar__icon" type="button" data-share-open aria-label="分享给律师">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <circle cx="17.6" cy="5.8" r="2.9" stroke="currentColor" stroke-width="1.9"/>
+        <circle cx="6.4" cy="12" r="2.9" stroke="currentColor" stroke-width="1.9"/>
+        <circle cx="17.6" cy="18.2" r="2.9" stroke="currentColor" stroke-width="1.9"/>
+        <path d="m9 10.6 6.1-3.3M9 13.4l6.1 3.3" stroke="currentColor" stroke-width="1.9"
+              stroke-linecap="round"/>
+      </svg>
+    </button>
+  </div>
+</div>
+
+<main class="screen">
+
+  <!-- 纸面。段落全部 contenteditable，点一下就能改 —— 这是导航树要求的
+       「在线编辑（点击段落直接修改）」 -->
+  <article class="paper" data-paper>
+    <h1 class="paper__title" contenteditable="true">民事起诉状</h1>
+
+    <p class="paper__party" contenteditable="true">原告：马合木提·艾山，男，1985 年 4 月出生，汉族，住新疆伊宁市解放路街道文化路 12 号，联系电话 138****6688。</p>
+    <p class="paper__party" contenteditable="true">被告：王建国，男，住新疆伊宁市解放路街道幸福路 48 号。</p>
+
+    <h2 class="paper__h" contenteditable="true">诉讼请求</h2>
+    <p class="paper__p" contenteditable="true">一、判令被告偿还借款本金 30,000 元；</p>
+    <p class="paper__p" contenteditable="true">二、判令被告支付自 2025 年 11 月 1 日起至实际清偿之日止的逾期利息；</p>
+    <p class="paper__p" contenteditable="true">三、本案诉讼费用由被告承担。</p>
+
+    <h2 class="paper__h" contenteditable="true">事实与理由</h2>
+    <p class="paper__p" contenteditable="true">2025 年 8 月，被告王建国以进货周转为由向原告借款，原告于同月通过微信转账方式向其交付 30,000 元，双方约定三个月内归还。上述借款有微信转账凭证及双方聊天记录为证。</p>
+    <p class="paper__p" contenteditable="true">借款到期后，原告多次向被告催告还款，被告均以资金紧张为由推诿，至今未偿还本金及利息。原告所留存的转账凭证与催告记录足以证明借贷关系成立及被告未履行还款义务的事实。</p>
+    <p class="paper__p" contenteditable="true">为维护自身合法权益，原告依据《中华人民共和国民法典》第六百六十七条、第六百七十五条之规定，向贵院提起诉讼，恳请依法判如所请。</p>
+
+    <p class="paper__to" contenteditable="true">此致</p>
+    <p class="paper__court" contenteditable="true">伊宁市人民法院</p>
+
+    <p class="paper__sign" contenteditable="true">具状人：马合木提·艾山</p>
+    <p class="paper__sign" contenteditable="true">2026 年 10 月 29 日</p>
+  </article>
+
+  <p class="edit-tip">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M4 20h4.2L19 9.2a2.1 2.1 0 0 0-3-3L5.2 17V20Z" stroke="currentColor"
+            stroke-width="1.8" stroke-linejoin="round"/>
+    </svg>
+    点击任意段落可直接修改
+  </p>
+
+</main>
+
+<div class="toolbar">
+  <button class="btn-ghost" type="button" data-export-open>
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M12 3.8v11.4M7.6 11l4.4 4.4L16.4 11" stroke="currentColor" stroke-width="1.9"
+            stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M4.4 17.4v2.2a1.4 1.4 0 0 0 1.4 1.4h12.4a1.4 1.4 0 0 0 1.4-1.4v-2.2"
+            stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+    </svg>
+    导出
+  </button>
+  <button class="btn-primary toolbar__cta" type="button" data-seal-open>盖章</button>
+</div>
+
+<!-- 分享面板由 app.js 检测到 [data-share-open] 自动注入 -->
+
+<!-- ========================================================================
+     导出面板
+     ======================================================================== -->
+<div class="mask" data-export-mask hidden></div>
+<div class="sheet" data-export-sheet hidden role="dialog" aria-modal="true"
+     aria-labelledby="export-title">
+  <div class="sheet__handle"></div>
+  <div class="sheet__head">
+    <h2 class="sheet__title" id="export-title">导出文书</h2>
+    <button class="sheet__close" type="button" data-export-close aria-label="关闭">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2.2"
+              stroke-linecap="round"/>
+      </svg>
+    </button>
+  </div>
+
+  <div class="export-list">
+    <button class="export-item" type="button" data-export="pdf">
+      <span class="export-item__icon">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M6.2 3.4h8.2l5 5v11.2a1.8 1.8 0 0 1-1.8 1.8H6.2a1.8 1.8 0 0 1-1.8-1.8V5.2a1.8 1.8 0 0 1 1.8-1.8Z"
+                stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+          <path d="M14.2 3.6v5.2h5" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+        </svg>
+      </span>
+      <span class="export-item__body">
+        <span class="export-item__name">导出 PDF</span>
+        <span class="export-item__hint">排版固定，适合打印与网上立案提交</span>
+      </span>
+    </button>
+
+    <button class="export-item" type="button" data-export="word">
+      <span class="export-item__icon">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M6.2 3.4h8.2l5 5v11.2a1.8 1.8 0 0 1-1.8 1.8H6.2a1.8 1.8 0 0 1-1.8-1.8V5.2a1.8 1.8 0 0 1 1.8-1.8Z"
+                stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+          <path d="m8 12.4 1.6 5 2.2-3.4 2.2 3.4 1.6-5" stroke="currentColor" stroke-width="1.8"
+                stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </span>
+      <span class="export-item__body">
+        <span class="export-item__name">导出 Word</span>
+        <span class="export-item__hint">可继续编辑，适合交给律师修改后再定稿</span>
+      </span>
+    </button>
+  </div>
+
+  <button class="sheet__cancel" type="button" data-export-close>取消</button>
+</div>
+
+<!-- ========================================================================
+     电子签章面板
+     ======================================================================== -->
+<div class="mask" data-seal-mask hidden></div>
+<div class="sheet" data-seal-sheet hidden role="dialog" aria-modal="true"
+     aria-labelledby="seal-title">
+  <div class="sheet__handle"></div>
+  <div class="sheet__head">
+    <h2 class="sheet__title" id="seal-title">电子签章</h2>
+    <button class="sheet__close" type="button" data-seal-close aria-label="关闭">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2.2"
+              stroke-linecap="round"/>
+      </svg>
+    </button>
+  </div>
+
+  <div class="seal-body">
+    <div class="seal-stage">
+      <!-- 圆形印章：外圈 + 五角星 + 上下文字。红色是印章的固定语义色 -->
+      <svg class="seal-stamp" viewBox="0 0 120 120" fill="none" aria-hidden="true">
+        <circle cx="60" cy="60" r="53" stroke="currentColor" stroke-width="3"/>
+        <path d="M60 34.5l5.4 11 12.1 1.8-8.8 8.5 2.1 12-10.8-5.7-10.8 5.7 2.1-12-8.8-8.5 12.1-1.8L60 34.5Z"
+              fill="currentColor"/>
+        <text x="60" y="82" text-anchor="middle" font-size="11" fill="currentColor"
+              font-family="PingFang SC, sans-serif">法泽法律服务</text>
+        <text x="60" y="97" text-anchor="middle" font-size="8" fill="currentColor"
+              font-family="PingFang SC, sans-serif">电子签章</text>
+      </svg>
+    </div>
+
+    <p class="seal-hint">按住印章可拖动到文书落款处。当前使用默认签章，可在「电子签章管理」中新增。</p>
+
+    <p class="seal-warn">
+      加盖后本份文书<b>不可再编辑</b>，印章与文书内容会一并生成防篡改校验值。请确认内容无误后再盖章。
+    </p>
+
+    <a class="seal-hint" href="28-doc-seal.html" style="display:block;margin-block-start:var(--sp-md);color:var(--brand-primary-pressed);text-decoration:underline;">
+      管理我的签章
+    </a>
+  </div>
+
+  <button class="sheet__confirm" type="button" data-seal-confirm>确认盖章</button>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

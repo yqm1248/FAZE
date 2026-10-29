@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="dsh-design" content="web 1440x900">
+<title>订单列表 · 法泽管理后台</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   A-11 订单列表
+   --------------------------------------------------------------------------
+   职责：法律订单的查询、状态筛选、导出、进入详情（退款审批入口在详情页）。
+   依据：《PC 后台开发计划_v1.0》§2.4 A-11；技术路线 §15.1「订单管理」
+   接口：**有** —— GET /admin/orders
+         （26 页里少数已有 admin 接口的页，见计划表 A-11 行；查询参数按
+          status / type / keyword / 时间范围分页，与下方查询栏字段一一对应）
+   说明：
+     1. 结构完全套 02-user-list.html：页头 → 查询栏 → 工具栏 → 表格 → 分页。
+     2. 状态 chips 放进表格工具栏左侧，不单独占一行：6 个 chip 独立成行要
+        多占 40px（28 + 12 间距），10 行数据就得压到 9 行。chips 本质就是
+        表格的快捷筛选器，贴着表格反而比飘在查询栏上方更准。
+     3. 订单号与操作列「详情」都链到 11-order-detail.html（计划 A-12）。
+   ========================================================================== */
+
+/* 列宽用 colgroup 百分比固定：8 列合计 100%。
+   订单号 15% 要放下 FAZE-2026-0087（13 位等宽字符），用户/律师各 17% 要放
+   两行（姓名 + 手机号 / 律所），所以这两列最宽。 */
+.order-table col.c-no { width: 15%; }
+.order-table col.c-type { width: 10%; }
+.order-table col.c-user { width: 17%; }
+.order-table col.c-lawyer { width: 17%; }
+.order-table col.c-amount { width: 10%; }
+.order-table col.c-state { width: 10%; }
+.order-table col.c-time { width: 14%; }
+.order-table col.c-ops { width: 7%; }
+
+/* 创建时间列：等宽 12px，10 行竖排能对齐（与母版同一做法） */
+.order-table .mono-time {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+
+/* 订单号是链接，但不要下划线 —— 表格里 10 行全带下划线会显得很吵 */
+.order-table__no {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  font-family: var(--font-num);
+  color: var(--brand-text);
+  text-decoration: none;
+}
+
+.order-table__no:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* 状态 chips 在工具栏里：工具栏 min-height 48，chip 28 居中，不再额外撑高 */
+.order-toolbar .chips {
+  flex-wrap: nowrap;
+}
+</style>
+</head>
+<body class="shell" data-page="10-order-list">
+
+<aside class="sidebar" id="sidebar"></aside>
+
+<div class="main">
+  <header class="navbar" id="navbar"></header>
+  <div class="tags-view" id="tags-view"></div>
+
+  <main class="app-container scroll-y">
+
+    <!-- ==================== 页头 ==================== -->
+    <div class="page-head">
+      <div>
+        <h1 class="page-head__title">订单列表</h1>
+        <p class="page-head__desc">
+          全部法律订单，含待接单、进行中、已完成与退款中。导出为当前筛选条件下的全量数据。
+        </p>
+      </div>
+      <div class="page-head__actions">
+        <button class="btn" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"
+               style="width:14px;height:14px">
+            <path d="M12 3.8v11.4"/><path d="m7.6 11 4.4 4.4 4.4-4.4"/>
+            <path d="M4.4 18.6v1.2h15.2v-1.2"/>
+          </svg>
+          导出订单
+        </button>
+      </div>
+    </div>
+
+    <!-- ==================== 查询栏 ==================== -->
+    <div class="card">
+      <form class="query-bar" method="get">
+        <div class="field-inline">
+          <label class="field-inline__label" for="q-no">订单号</label>
+          <input class="input" id="q-no" type="text" placeholder="FAZE-2026-0087">
+        </div>
+
+        <div class="field-inline">
+          <label class="field-inline__label" for="q-person">用户或律师</label>
+          <input class="input" id="q-person" type="text" placeholder="姓名 / 手机号">
+        </div>
+
+        <div class="field-inline">
+          <label class="field-inline__label" for="q-type">订单类型</label>
+          <select class="select" id="q-type">
+            <option>全部</option>
+            <option>文字咨询</option>
+            <option>电话咨询</option>
+            <option>文书代写</option>
+            <option>案件代理</option>
+          </select>
+        </div>
+
+        <div class="field-inline">
+          <label class="field-inline__label" for="q-time">创建时间</label>
+          <select class="select" id="q-time">
+            <option>近 7 天</option>
+            <option>今天</option>
+            <option>近 30 天</option>
+            <option>近 90 天</option>
+            <option>自定义</option>
+          </select>
+        </div>
+
+        <div class="query-bar__actions">
+          <button class="btn btn--primary" type="submit">查询</button>
+          <button class="btn" type="reset">重置</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- ==================== 表格 ==================== -->
+    <div class="card card--flush" style="margin-top:var(--sp-4)">
+      <div class="toolbar order-toolbar">
+        <div class="toolbar__left">
+          <!-- 状态快捷筛选：数字与下方分页总数同源 -->
+          <div class="chips">
+            <a class="chip chip--active" href="#">全部 <span class="chip__count">1,284</span></a>
+            <a class="chip" href="#">待接单 <span class="chip__count">12</span></a>
+            <a class="chip" href="#">进行中 <span class="chip__count">34</span></a>
+            <a class="chip" href="#">已完成 <span class="chip__count">1,196</span></a>
+            <a class="chip" href="#">退款中 <span class="chip__count">4</span></a>
+            <a class="chip" href="#">已取消 <span class="chip__count">38</span></a>
+          </div>
+        </div>
+        <div class="toolbar__right">
+          <span class="toolbar__count">共 <b>1,284</b> 条</span>
+          <button class="icon-btn" type="button" title="刷新" aria-label="刷新">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M20 12a8 8 0 1 1-2.4-5.7"/>
+              <path d="M20.2 4.6v4.2H16"/>
+            </svg>
+          </button>
+          <button class="icon-btn" type="button" title="列设置" aria-label="列设置">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="3.6" y="4.4" width="16.8" height="15.2" rx="2"/>
+              <path d="M9.4 4.4v15.2"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="table order-table">
+          <colgroup>
+            <col class="c-no">
+            <col class="c-type">
+            <col class="c-user">
+            <col class="c-lawyer">
+            <col class="c-amount">
+            <col class="c-state">
+            <col class="c-time">
+            <col class="c-ops">
+          </colgroup>
+          <thead>
+            <tr>
+              <th>订单号</th>
+              <th>类型</th>
+              <th>用户</th>
+              <th>律师</th>
+              <th style="text-align:right">金额</th>
+              <th>状态</th>
+              <th>创建时间</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><a class="order-table__no" href="11-order-detail.html">FAZE-2026-0087</a></td>
+              <td>文字咨询</td>
+              <td>
+                <span class="cell-stack">
+                  <span class="cell-strong">阿依努尔·买买提</span>
+                  <span class="cell-stack__sub mono">138****6621</span>
+                </span>
+              </td>
+              <td>
+                <span class="cell-stack">
+                  <span>阿不都热依木·赛买提</span>
+                  <span class="cell-stack__sub">新疆天赛律师事务所</span>
+                </span>
+              </td>
+              <td class="cell-num">¥ 300.00</td>
+              <td><span class="tag tag--dot tag--primary">进行中</span></td>
+              <td><span class="mono-time">2026-10-29 21:14</span></td>
+              <td>
+                <div class="table__ops">
+                  <a class="btn btn--text" href="11-order-detail.html">详情</a>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><a class="order-table__no" href="11-order-detail.html">FAZE-2026-0086</a></td>
+              <td>电话咨询</td>
+              <td>
+                <span class="cell-stack">
+                  <span class="cell-strong">张建国</span>
+                  <span class="cell-stack__sub mono">159****3308</span>
+                </span>
+              </td>
+              <td>
+                <span class="cell-stack">
+                  <span>王振华</span>
+                  <span class="cell-stack__sub">新疆伊河律师事务所</span>
+                </span>
+              </td>
+              <td class="cell-num">¥ 800.00</td>
+              <td><span class="tag tag--dot tag--success">已完成</span></td>
+              <td><span class="mono-time">2026-10-29 20:52</span></td>
+              <td>
+                <div class="table__ops">
+                  <a class="btn btn--text" href="11-order-detail.html">详情</a>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><a class="order-table__no" href="11-order-detail.html">FAZE-2026-0085</a></td>
+              <td>文书代写</td>
+              <td>
+                <span class="cell-stack">
+                  <span class="cell-strong">迪丽热巴·艾山</span>
+                  <span class="cell-stack__sub mono">186****9917</span>
+                </span>
+              </td>
+              <td>
+                <span class="cell-stack">
+                  <span>古丽米拉·吐尔干</span>
+                  <span class="cell-stack__sub">新疆霍尔果斯律师事务所</span>
+                </span>
+              </td>
+              <td class="cell-num">¥ 150.00</td>
+              <td><span class="tag tag--dot tag--warning">待接单</span></td>
+              <td><span class="mono-time">2026-10-29 19:38</span></td>
+              <td>
+                <div class="table__ops">
+                  <a class="btn btn--text" href="11-order-detail.html">详情</a>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><a class="order-table__no" href="11-order-detail.html">FAZE-2026-0084</a></td>
+              <td>案件代理</td>
+              <td>
+                <span class="cell-stack">
+                  <span class="cell-strong">李伟</span>
+                  <span class="cell-stack__sub mono">135****2046</span>
+                </span>
+              </td>
+              <td>
+                <span class="cell-stack">
+                  <span>陈志远</span>
+                  <span class="cell-stack__sub">新疆众诚律师事务所</span>
+                </span>
+              </td>
+              <td class="cell-num">¥ 1,200.00</td>
+              <td><span class="tag tag--dot tag--danger">退款中</span></td>
+              <td><span class="mono-time">2026-10-29 18:07</span></td>
+              <td>
+                <div class="table__ops">
+                  <a class="btn btn--text" href="11-order-detail.html">详情</a>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><a class="order-table__no" href="11-order-detail.html">FAZE-2026-0083</a></td>
+              <td>文字咨询</td>
+              <td>
+                <span class="cell-stack">
+                  <span class="cell-strong">古丽娜尔·哈力克</span>
+                  <span class="cell-stack__sub mono">131****7782</span>
+                </span>
+              </td>
+              <td>
+                <span class="cell-stack">
+                  <span>努尔兰·哈布力</span>
+                  <span class="cell-stack__sub">新疆奎屯正阳律师事务所</span>
+                </span>
+              </td>
+              <td class="cell-num">¥ 60.00</td>
+              <td><span class="tag tag--dot tag--success">已完成</span></td>
+              <td><span class="mono-time">2026-10-29 16:42</span></td>
+              <td>
+                <div class="table__ops">
+                  <a class="btn btn--text" href="11-order-detail.html">详情</a>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><a class="order-table__no" href="11-order-detail.html">FAZE-2026-0082</a></td>
+              <td>电话咨询</td>
+              <td>
+                <span class="cell-stack">
+                  <span class="cell-strong">王海涛</span>
+                  <span class="cell-stack__sub mono">137****5520</span>
+                </span>
+              </td>
+              <td>
+                <span class="cell-stack">
+                  <span>赵明诚</span>
+                  <span class="cell-stack__sub">新疆天赛律师事务所</span>
+                </span>
+              </td>
+              <td class="cell-num">¥ 200.00</td>
+              <td><span class="tag tag--dot tag--success">已完成</span></td>
+              <td><span class="mono-time">2026-10-29 15:20</span></td>
+              <td>
+                <div class="table__ops">
+                  <a class="btn btn--text" href="11-order-detail.html">详情</a>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><a class="order-table__no" href="11-order-detail.html">FAZE-2026-0081</a></td>
+              <td>文书代写</td>
+              <td>
+                <span class="cell-stack">
+                  <span class="cell-strong">玛尔哈巴·吐尔逊</span>
+                  <span class="cell-stack__sub mono">150****8843</span>
+                </span>
+              </td>
+              <td>
+                <span class="cell-stack">
+                  <span>热依扎·阿不力孜</span>
+                  <span class="cell-stack__sub">新疆伊宁衡平律师事务所</span>
+                </span>
+              </td>
+              <td class="cell-num">¥ 480.00</td>
+              <td><span class="tag tag--dot tag--primary">进行中</span></td>
+              <td><span class="mono-time">2026-10-29 14:05</span></td>
+              <td>
+                <div class="table__ops">
+                  <a class="btn btn--text" href="11-order-detail.html">详情</a>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><a class="order-table__no" href="11-order-detail.html">FAZE-2026-0080</a></td>
+              <td>文字咨询</td>
+              <td>
+                <span class="cell-stack">
+                  <span class="cell-strong">刘敏</span>
+                  <span class="cell-stack__sub mono">189****4417</span>
+                </span>
+              </td>
+              <td>
+                <span class="cell-stack">
+                  <span>阿不都热依木·赛买提</span>
+                  <span class="cell-stack__sub">新疆天赛律师事务所</span>
+                </span>
+              </td>
+              <td class="cell-num">¥ 0.00</td>
+              <td><span class="tag tag--dot tag--gray">已取消</span></td>
+              <td><span class="mono-time">2026-10-28 22:31</span></td>
+              <td>
+                <div class="table__ops">
+                  <a class="btn btn--text" href="11-order-detail.html">详情</a>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><a class="order-table__no" href="11-order-detail.html">FAZE-2026-0079</a></td>
+              <td>电话咨询</td>
+              <td>
+                <span class="cell-stack">
+                  <span class="cell-strong">艾力·热合曼</span>
+                  <span class="cell-stack__sub mono">176****2095</span>
+                </span>
+              </td>
+              <td>
+                <span class="cell-stack">
+                  <span>王振华</span>
+                  <span class="cell-stack__sub">新疆伊河律师事务所</span>
+                </span>
+              </td>
+              <td class="cell-num">¥ 120.00</td>
+              <td><span class="tag tag--dot tag--warning">待接单</span></td>
+              <td><span class="mono-time">2026-10-28 20:16</span></td>
+              <td>
+                <div class="table__ops">
+                  <a class="btn btn--text" href="11-order-detail.html">详情</a>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><a class="order-table__no" href="11-order-detail.html">FAZE-2026-0078</a></td>
+              <td>案件代理</td>
+              <td>
+                <span class="cell-stack">
+                  <span class="cell-strong">赵雪梅</span>
+                  <span class="cell-stack__sub mono">133****6654</span>
+                </span>
+              </td>
+              <td>
+                <span class="cell-stack">
+                  <span>陈志远</span>
+                  <span class="cell-stack__sub">新疆众诚律师事务所</span>
+                </span>
+              </td>
+              <td class="cell-num">¥ 3,600.00</td>
+              <td><span class="tag tag--dot tag--success">已完成</span></td>
+              <td><span class="mono-time">2026-10-28 17:48</span></td>
+              <td>
+                <div class="table__ops">
+                  <a class="btn btn--text" href="11-order-detail.html">详情</a>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- 分页 -->
+      <div class="pagination">
+        <span class="pagination__total">共 <b>1,284</b> 条 · 当前第 <b>1</b> / 129 页</span>
+        <button class="page-btn page-btn--disabled" type="button" aria-label="上一页">‹</button>
+        <button class="page-btn page-btn--active" type="button">1</button>
+        <button class="page-btn" type="button">2</button>
+        <button class="page-btn" type="button">3</button>
+        <button class="page-btn" type="button">4</button>
+        <button class="page-btn page-btn--disabled" type="button" aria-label="更多">…</button>
+        <button class="page-btn" type="button">129</button>
+        <button class="page-btn" type="button" aria-label="下一页">›</button>
+        <select class="pagination__size" aria-label="每页条数">
+          <option>10 条 / 页</option>
+          <option>20 条 / 页</option>
+          <option>50 条 / 页</option>
+        </select>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script src="shell.js"></script>
+</body>
+</html>

@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390, initial-scale=1">
+<meta name="dsh-design" content="app">
+<title>语言</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   语言切换页（第 16 批 · 延展，无参考图）
+   ==========================================================================
+   职责：在 4 种语言之间切换，说明切换后的行为（即时 / 软重载 / 界面镜像）。
+   入口：41-settings「通用 → 语言」
+   数据来源：语言偏好（本地存储 + 服务端同步）
+
+   语言行组件见 components.css 第 31 段（第 16 批从 07c-language-picker 提取）。
+   这一页只负责「说明」，不重复定义列表样式。
+
+   ★ 这一页唯一真正的设计问题是「切换之后会发生什么」，不是列表长什么样。
+     中文 → 藏文：方向相同，点完就变了；
+     中文 → 维吾尔文 / 哈萨克文：整页从右往左，**布局会整体镜像**。
+     用户第一次遇到这种情况会以为 App 坏了（「怎么左右反了」），
+     所以必须在点之前就告诉他，而不是切完再说。
+
+   ★ 必须写明「已填的内容不会丢」。换语言最让人犹豫的就是这个 ——
+     正填到一半的起诉状、刚写好的咨询描述，用户怕一切重来。
+     写清楚之后，他敢切；不写，他会在关键操作前退出去换语言。
+
+   ★ 不给「确定」按钮。语言是点一下立刻能看见效果的东西，
+     多一步确认只会让人以为没生效。07c 那个首启浮层有确认按钮，
+     是因为它后面还跟着「同意协议」的流程，情况不同。
+   ========================================================================== */
+
+body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-canvas);
+}
+
+.navbar {
+  background: var(--bg-surface);
+}
+
+.screen {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding: 0 var(--sp-xl) var(--sp-xxl);
+}
+.screen::-webkit-scrollbar {
+  display: none;
+}
+
+/* ---------- 顶部说明 ---------- */
+.lead {
+  padding-block: var(--sp-md) var(--sp-xs);
+  font-size: var(--fs-md);
+  color: var(--text-secondary);
+  line-height: 1.7;
+}
+
+.lead b {
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+}
+
+/* ---------- 切换行为说明 ---------- */
+.behavior {
+  margin-block-start: var(--sp-lg);
+  padding: var(--sp-md) var(--sp-lg);
+  border-radius: var(--r-md);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.behavior__title {
+  font-size: var(--fs-md);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+
+.behavior__list {
+  margin-block-start: var(--sp-sm);
+  padding-inline-start: 0;
+  list-style: none;
+}
+
+.behavior__list li {
+  position: relative;
+  padding-inline-start: 16px;
+  margin-block-start: 7px;
+  font-size: var(--fs-caption);
+  color: var(--text-secondary);
+  line-height: 1.7;
+}
+
+.behavior__list li::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: 3px;
+  inset-block-start: 9px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--border-outline);
+}
+
+.behavior__list b {
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+}
+
+/* RTL 预览小标：让用户先看一眼「反过来的样子」 */
+.rtl-sample {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  margin-block-start: var(--sp-md);
+  padding: var(--sp-sm) var(--sp-md);
+  border-radius: var(--r-sm);
+  background: var(--bg-canvas);
+  font-family: var(--font-arabic);
+  font-size: 17px;
+  color: var(--text-secondary);
+  direction: rtl;
+}
+
+.rtl-sample__note {
+  flex: 1 1 auto;
+  font-family: var(--font-sans);
+  font-size: var(--fs-micro);
+  color: var(--text-muted);
+  text-align: end;
+  direction: ltr;
+}
+
+/* ---------- 页尾 ---------- */
+.page-note {
+  margin-block-start: var(--sp-lg);
+  padding-inline: 2px;
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.8;
+}
+
+.page-note b {
+  font-weight: var(--fw-medium);
+  color: var(--text-secondary);
+}
+</style>
+</head>
+<body>
+
+<header class="statusbar">
+  <span>9:41</span>
+  <span class="statusbar__icons">
+    <svg width="17" height="11" viewBox="0 0 17 11" fill="none" aria-hidden="true">
+      <rect x="0" y="7" width="3" height="4" rx="1" fill="currentColor"/>
+      <rect x="4.5" y="5" width="3" height="6" rx="1" fill="currentColor"/>
+      <rect x="9" y="2.5" width="3" height="8.5" rx="1" fill="currentColor"/>
+      <rect x="13.5" y="0" width="3" height="11" rx="1" fill="currentColor"/>
+    </svg>
+    <svg width="16" height="11" viewBox="0 0 16 11" fill="none" aria-hidden="true">
+      <path d="M1 3.2A10.5 10.5 0 0 1 15 3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M3.6 5.9a7 7 0 0 1 8.8 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M6.2 8.6a3.4 3.4 0 0 1 3.6 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden="true">
+      <rect x="0.6" y="0.6" width="21" height="10.8" rx="3" stroke="currentColor" stroke-opacity="0.4" stroke-width="1.2"/>
+      <rect x="2.2" y="2.2" width="15" height="7.6" rx="1.8" fill="currentColor"/>
+      <path d="M23.4 4.2v3.6" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+  </span>
+</header>
+
+<div class="navbar">
+  <a class="navbar__back" href="41-settings.html" aria-label="返回设置">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M15.2 4.6 7.8 12l7.4 7.4" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </a>
+  <h1 class="navbar__title">语言</h1>
+</div>
+
+<main class="screen">
+
+  <p class="lead">
+    选一种你用起来最顺的语言。<b>切换只改界面文字</b>，已经填好的内容、订单和案件都不会受影响。
+  </p>
+
+  <div class="lang-list" data-lang-list>
+
+    <button class="lang is-active" type="button" data-lang="zh-Hans">
+      <span class="lang__native">简体中文</span>
+      <span class="lang__cn">当前语言</span>
+      <svg class="lang__check" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="m5 12.6 4.4 4.4L19 6.6" stroke="currentColor" stroke-width="2.4"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+
+    <button class="lang" type="button" data-lang="bo">
+      <span class="lang__native" dir="ltr">བོད་ཡིག</span>
+      <span class="lang__cn">藏文</span>
+      <svg class="lang__check" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="m5 12.6 4.4 4.4L19 6.6" stroke="currentColor" stroke-width="2.4"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+
+    <button class="lang" type="button" data-lang="ug-Arab-CN">
+      <span class="lang__native" dir="rtl">ئۇيغۇرچە</span>
+      <span class="lang__cn">维吾尔文</span>
+      <svg class="lang__check" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="m5 12.6 4.4 4.4L19 6.6" stroke="currentColor" stroke-width="2.4"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+
+    <button class="lang" type="button" data-lang="kk-Arab-CN">
+      <span class="lang__native" dir="rtl">قازاقشا</span>
+      <span class="lang__cn">哈萨克文</span>
+      <svg class="lang__check" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="m5 12.6 4.4 4.4L19 6.6" stroke="currentColor" stroke-width="2.4"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+
+  </div>
+
+  <section class="behavior">
+    <p class="behavior__title">切换后会发生什么</p>
+    <ul class="behavior__list">
+      <li>中文 ↔ 藏文：读写方向相同，<b>点完立即生效</b>。</li>
+      <li>中文 ↔ 维吾尔文 / 哈萨克文：这两种文字从右往左写，<b>整个界面会左右镜像</b>，需要 1 至 2 秒重新加载。按钮、图标、返回方向都会跟着翻过来，这是正常的。</li>
+      <li>不管切到哪种语言，<b>你填过的表单内容、订单、案件和消息都在</b>，无需重新填写。</li>
+    </ul>
+
+    <div class="rtl-sample">
+      <span>تەڭپۇڭلۇق</span>
+      <span class="rtl-sample__note">维吾尔文排版示意 · 从右往左</span>
+    </div>
+  </section>
+
+  <p class="page-note">
+    语言偏好会记在你的账号上，换手机登录后仍然是这个语言。<b>系统语言改变不会自动切回来</b> —— 想跟随系统的话，在这里重新选一次即可。
+  </p>
+
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

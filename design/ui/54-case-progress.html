@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390, initial-scale=1">
+<meta name="dsh-design" content="app">
+<title>案件进度</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   案件进度页（第 14 批 · 复刻 10-progress.png，时间轴母版）
+   ==========================================================================
+   职责：展示一个案件从提交到执行的全过程进度，提供补充材料与联系律师入口。
+   入口：53-my-cases 的案件卡片 / 21-filing-done 底部
+   数据来源：案件进度接口（六段状态 + 每段时间 + 法院案号）
+
+   复刻了什么：原图是一张白卡包住「单号 + 状态药丸 → 信息行 → 纵向时间轴」，
+   时间轴圆点在左、竖线相连。这个骨架原样保留。
+   延展了什么：原图只有两个节点，这里按导航树补全六段
+   （提交 / 审查 / 立案 / 开庭 / 判决 / 执行），并给每段标出「谁负责」。
+
+   ★ 六段里有五段不归平台管。第 2 段下面用一块 boundary 把边界划一次就够了，
+     不必每段都重复 —— 重复五次会被读成免责声明，用户直接跳过。
+     一次说清、说在正确的位置（平台动作结束、法院动作开始的地方），才有人看。
+
+   ★ 平台单号和法院案号在同一张卡上同时出现，必须视觉上区分开：
+     平台号用 FAZE- 前缀 + 等宽小字，法院案号带年份括号和「号」字。
+     这两个号长得像，用户在电话里报错号是常事，界面上就要帮着分开。
+
+   ★ 未来节点不给具体日期，写「预计 2026 年 11 月中旬」。
+     写死一个日期而法院改期，用户会拿截图来问「不是说 11 月 18 号吗」。
+   三态：normal（默认）/ supplement（法院要求补正）/ rejected（不予受理）
+         用 URL hash 切换 #state-supplement / #state-rejected
+   ========================================================================== */
+
+body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-canvas);
+}
+
+.navbar {
+  background: var(--bg-surface);
+}
+
+.screen {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding: var(--sp-md) var(--sp-xl) var(--sp-xl);
+}
+.screen::-webkit-scrollbar {
+  display: none;
+}
+
+/* ---------- 主卡 ---------- */
+.card-block {
+  padding: var(--sp-lg);
+  border-radius: var(--r-md);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+}
+
+/* ---------- 单号 + 状态 ---------- */
+.progress-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-md);
+  padding-block-end: var(--sp-md);
+  border-block-end: 1px solid var(--border-divider);
+}
+
+.progress-head__label {
+  font-size: var(--fs-micro);
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.progress-head__no {
+  margin-block-start: 3px;
+  font-family: var(--font-num);
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  letter-spacing: 0.3px;
+  line-height: 1.3;
+}
+
+.progress-head .state-pill {
+  margin-block-start: 4px;
+  padding: 3px 9px;
+  font-size: var(--fs-caption);
+}
+
+/* ---------- 案件信息 ---------- */
+.progress-info {
+  padding-block: var(--sp-sm);
+}
+
+.info-row {
+  display: flex;
+  gap: var(--sp-md);
+  padding-block: 7px;
+  font-size: var(--fs-md);
+  line-height: 1.5;
+}
+
+.info-row__k {
+  flex: 0 0 76px;
+  color: var(--text-secondary);
+}
+
+.info-row__v {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--text-primary);
+  word-break: break-all;
+}
+
+/* 案号和日期用等宽数字：一串数字里 0/O、1/7 要分得清 */
+.info-row__v--num {
+  font-family: var(--font-num);
+  letter-spacing: 0.2px;
+}
+
+/* ---------- 时间轴容器 ---------- */
+.tl-wrap {
+  margin-block-start: var(--sp-sm);
+  padding-block-start: var(--sp-md);
+  border-block-start: 1px solid var(--border-divider);
+}
+
+.tl-title {
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+/* 时间轴里的法院案号单独一行，比说明字重一点 */
+.tl-item__case-no {
+  margin-block-start: 4px;
+  font-family: var(--font-num);
+  font-size: var(--fs-caption);
+  color: var(--text-secondary);
+  line-height: 1.5;
+  letter-spacing: 0.2px;
+}
+
+/* 已完成的节点，meta 后面跟一个对勾，扫一眼就知道走到哪了 */
+.tl-item__done {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tl-item__done svg {
+  width: 13px;
+  height: 13px;
+  color: var(--state-success);
+}
+
+/* ---------- 补正提示条 ---------- */
+.fix-bar {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-sm);
+  margin-block-end: var(--sp-md);
+  padding: var(--sp-md);
+  border-radius: var(--r-md);
+  background: var(--state-warning-soft);
+}
+
+.fix-bar svg {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  margin-block-start: 1px;
+  color: var(--state-warning-deep);
+}
+
+.fix-bar__main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.fix-bar__title {
+  font-size: var(--fs-md);
+  font-weight: var(--fw-bold);
+  color: var(--state-warning-deep);
+  line-height: 1.5;
+}
+
+.fix-bar__desc {
+  margin-block-start: 4px;
+  font-size: var(--fs-caption);
+  color: var(--text-secondary);
+  line-height: 1.7;
+}
+
+/* ---------- 页尾说明 ---------- */
+.page-note {
+  margin-block-start: var(--sp-lg);
+  padding-inline: 2px;
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.8;
+}
+
+.page-note b {
+  font-weight: var(--fw-medium);
+  color: var(--text-secondary);
+}
+</style>
+</head>
+<body>
+
+<header class="statusbar">
+  <span>9:41</span>
+  <span class="statusbar__icons">
+    <svg width="17" height="11" viewBox="0 0 17 11" fill="none" aria-hidden="true">
+      <rect x="0" y="7" width="3" height="4" rx="1" fill="currentColor"/>
+      <rect x="4.5" y="5" width="3" height="6" rx="1" fill="currentColor"/>
+      <rect x="9" y="2.5" width="3" height="8.5" rx="1" fill="currentColor"/>
+      <rect x="13.5" y="0" width="3" height="11" rx="1" fill="currentColor"/>
+    </svg>
+    <svg width="16" height="11" viewBox="0 0 16 11" fill="none" aria-hidden="true">
+      <path d="M1 3.2A10.5 10.5 0 0 1 15 3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M3.6 5.9a7 7 0 0 1 8.8 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M6.2 8.6a3.4 3.4 0 0 1 3.6 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden="true">
+      <rect x="0.6" y="0.6" width="21" height="10.8" rx="3" stroke="currentColor" stroke-opacity="0.4" stroke-width="1.2"/>
+      <rect x="2.2" y="2.2" width="15" height="7.6" rx="1.8" fill="currentColor"/>
+      <path d="M23.4 4.2v3.6" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+  </span>
+</header>
+
+<div class="navbar">
+  <a class="navbar__back" href="53-my-cases.html" aria-label="返回我的案件">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M15.2 4.6 7.8 12l7.4 7.4" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </a>
+  <h1 class="navbar__title">案件进度</h1>
+</div>
+
+<main class="screen">
+
+  <!-- ====================================================================
+       状态 normal：进行中，无待办（默认）
+       ==================================================================== -->
+  <section data-state="normal">
+
+    <section class="card-block">
+      <div class="progress-head">
+        <div>
+          <p class="progress-head__label">平台业务单号</p>
+          <p class="progress-head__no">FAZE-2026-0087</p>
+        </div>
+        <span class="state-pill state-pill--success">审理中</span>
+      </div>
+
+      <div class="progress-info">
+        <div class="info-row">
+          <span class="info-row__k">案由</span>
+          <span class="info-row__v">房屋租赁合同纠纷</span>
+        </div>
+        <div class="info-row">
+          <span class="info-row__k">受理法院</span>
+          <span class="info-row__v">伊宁市人民法院</span>
+        </div>
+        <div class="info-row">
+          <span class="info-row__k">立案日期</span>
+          <span class="info-row__v info-row__v--num">2026-04-12</span>
+        </div>
+        <div class="info-row">
+          <span class="info-row__k">承办律师</span>
+          <span class="info-row__v">张领律师 · 法泽律师事务所</span>
+        </div>
+      </div>
+
+      <div class="tl-wrap">
+        <p class="tl-title">办理进度</p>
+
+        <ol class="timeline">
+          <li class="tl-item is-done">
+            <p class="tl-item__title">立案材料已提交</p>
+            <p class="tl-item__meta tl-item__done">
+              2026-04-01 09:30
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="m5 12.6 4.4 4.4L19 6.6" stroke="currentColor" stroke-width="2.4"
+                      stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </p>
+          </li>
+
+          <li class="tl-item is-done">
+            <p class="tl-item__title">人民法院审查材料</p>
+            <p class="tl-item__meta tl-item__done">
+              2026-04-05 14:20
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="m5 12.6 4.4 4.4L19 6.6" stroke="currentColor" stroke-width="2.4"
+                      stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </p>
+            <p class="tl-item__boundary">从这一步开始，进度由人民法院决定。平台只负责把材料交上去、把法院的结果转达给你，不能催办、也不能改期。</p>
+          </li>
+
+          <li class="tl-item is-done">
+            <p class="tl-item__title">人民法院受理并立案</p>
+            <p class="tl-item__meta tl-item__done">
+              2026-04-12 10:05
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="m5 12.6 4.4 4.4L19 6.6" stroke="currentColor" stroke-width="2.4"
+                      stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </p>
+            <p class="tl-item__case-no">法院案号 (2026) 新 4002 民初 1234 号</p>
+          </li>
+
+          <li class="tl-item is-active">
+            <p class="tl-item__title">开庭审理</p>
+            <p class="tl-item__meta">预计 2026 年 11 月中旬</p>
+            <p class="tl-item__boundary">开庭日期由法院排期，确定后会另行送达开庭传票。具体以传票为准，平台这个时间只是参考。</p>
+          </li>
+
+          <li class="tl-item">
+            <p class="tl-item__title">一审判决</p>
+            <p class="tl-item__meta">尚未判决</p>
+          </li>
+
+          <li class="tl-item">
+            <p class="tl-item__title">判决生效与执行</p>
+            <p class="tl-item__meta">尚未进入</p>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <p class="page-note">
+      审理期限一般为立案之日起 3 至 6 个月，适用简易程序的会更短。<b>催进度请直接联系承办律师</b>，平台看不到法院内部流程，代问也拿不到更快的结果。
+    </p>
+
+  </section>
+
+  <!-- ====================================================================
+       状态 supplement：法院要求补正材料
+       ==================================================================== -->
+  <section data-state="supplement" hidden>
+
+    <div class="fix-bar">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/>
+        <path d="M12 7.6v5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        <circle cx="12" cy="15.8" r="1.1" fill="currentColor"/>
+      </svg>
+      <div class="fix-bar__main">
+        <p class="fix-bar__title">法院要求补正 1 项材料</p>
+        <p class="fix-bar__desc">需要在 2026 年 11 月 1 日前补交《房屋租赁合同》原件照片。逾期未补，法院可按撤回起诉处理 —— 这个期限是法院给的，平台不能延长。</p>
+      </div>
+    </div>
+
+    <section class="card-block">
+      <div class="progress-head">
+        <div>
+          <p class="progress-head__label">平台业务单号</p>
+          <p class="progress-head__no">FAZE-2026-0075</p>
+        </div>
+        <span class="state-pill state-pill--warning">待补材料</span>
+      </div>
+
+      <div class="progress-info">
+        <div class="info-row">
+          <span class="info-row__k">案由</span>
+          <span class="info-row__v">离婚纠纷</span>
+        </div>
+        <div class="info-row">
+          <span class="info-row__k">受理法院</span>
+          <span class="info-row__v">伊宁市人民法院</span>
+        </div>
+        <div class="info-row">
+          <span class="info-row__k">承办律师</span>
+          <span class="info-row__v">古丽娜尔律师 · 伊犁天正律师事务所</span>
+        </div>
+      </div>
+
+      <div class="tl-wrap">
+        <p class="tl-title">办理进度</p>
+
+        <ol class="timeline">
+          <li class="tl-item is-done">
+            <p class="tl-item__title">立案材料已提交</p>
+            <p class="tl-item__meta">2026-10-20 11:06</p>
+          </li>
+          <li class="tl-item is-fail">
+            <p class="tl-item__title">人民法院要求补正材料</p>
+            <p class="tl-item__meta">2026-10-25 16:40</p>
+            <p class="tl-item__boundary">补正不是驳回。补齐材料后法院会继续审查，不影响这次立案；逾期的后果见上方期限说明。</p>
+          </li>
+          <li class="tl-item">
+            <p class="tl-item__title">人民法院审查材料</p>
+            <p class="tl-item__meta">等待补正后继续</p>
+          </li>
+          <li class="tl-item">
+            <p class="tl-item__title">受理并立案</p>
+            <p class="tl-item__meta">尚未立案</p>
+          </li>
+          <li class="tl-item">
+            <p class="tl-item__title">开庭审理</p>
+            <p class="tl-item__meta">尚未排期</p>
+          </li>
+          <li class="tl-item">
+            <p class="tl-item__title">一审判决</p>
+            <p class="tl-item__meta">尚未判决</p>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <p class="page-note">
+      补正材料提交后，平台会在 1 个工作日内转交法院。<b>上传前先看一眼要求</b>：上传错的文件同样会被退回，而期限不会因此顺延。
+    </p>
+
+  </section>
+
+  <!-- ====================================================================
+       状态 rejected：法院裁定不予受理
+       ==================================================================== -->
+  <section data-state="rejected" hidden>
+
+    <section class="card-block">
+      <div class="progress-head">
+        <div>
+          <p class="progress-head__label">平台业务单号</p>
+          <p class="progress-head__no">FAZE-2026-0066</p>
+        </div>
+        <span class="state-pill state-pill--danger">不予受理</span>
+      </div>
+
+      <div class="progress-info">
+        <div class="info-row">
+          <span class="info-row__k">案由</span>
+          <span class="info-row__v">买卖合同纠纷</span>
+        </div>
+        <div class="info-row">
+          <span class="info-row__k">受理法院</span>
+          <span class="info-row__v">伊宁县人民法院</span>
+        </div>
+        <div class="info-row">
+          <span class="info-row__k">裁定日期</span>
+          <span class="info-row__v info-row__v--num">2026-09-28</span>
+        </div>
+      </div>
+
+      <div class="tl-wrap">
+        <p class="tl-title">办理进度</p>
+
+        <ol class="timeline">
+          <li class="tl-item is-done">
+            <p class="tl-item__title">立案材料已提交</p>
+            <p class="tl-item__meta">2026-09-20 10:12</p>
+          </li>
+          <li class="tl-item is-done">
+            <p class="tl-item__title">人民法院审查材料</p>
+            <p class="tl-item__meta">2026-09-22 09:30</p>
+          </li>
+          <li class="tl-item is-fail">
+            <p class="tl-item__title">人民法院裁定不予受理</p>
+            <p class="tl-item__meta">2026-09-28 15:45</p>
+            <p class="tl-item__boundary">裁定书载明的理由：不属于本院管辖范围，应向被告住所地人民法院起诉。裁定书原文已经通过消息发给你，可在「消息」里查看。</p>
+          </li>
+          <li class="tl-item">
+            <p class="tl-item__title">上诉</p>
+            <p class="tl-item__meta">收到裁定书之日起 10 日内可上诉</p>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <p class="page-note">
+      <b>不予受理不等于这次白跑了。</b>材料本身没被否定，多数情况是选错了法院或起诉状需要改。建议先联系承办律师判断要不要上诉，或在改好后向正确的法院重新提交。
+    </p>
+
+  </section>
+
+</main>
+
+<!-- 底部按钮跟着状态走：主屏是「补充材料 + 联系律师」；
+     补正态把补充材料提成主按钮（有时限，优先级最高）；
+     不予受理态换成「重新提交」，因为这时补充材料已经没意义了。 -->
+<div class="actionbar" data-state="normal">
+  <button class="btn-ghost" type="button" data-add-material>补充材料</button>
+  <a class="btn-primary actionbar__cta" href="17-chat.html">联系律师</a>
+</div>
+
+<div class="actionbar" data-state="supplement" hidden>
+  <a class="btn-ghost" href="17-chat.html">联系律师</a>
+  <button class="btn-primary actionbar__cta" type="button" data-add-material>上传补正材料</button>
+</div>
+
+<div class="actionbar" data-state="rejected" hidden>
+  <a class="btn-ghost" href="17-chat.html">联系律师</a>
+  <a class="btn-primary actionbar__cta" href="20-filing.html">重新提交</a>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

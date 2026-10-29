@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390, initial-scale=1">
+<meta name="dsh-design" content="app">
+<title>电子签章</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   电子签章管理页（第 8 批 · 延展，无参考图）
+   ==========================================================================
+   职责：管理自己的电子签章（单位印章 / 手写签名），新建、设为默认、删除。
+   入口：我的页「我的服务 - 电子签章」；26 的签章面板里「管理我的签章」
+   母版：**列表母版** + 底部新建面板（.sheet）
+   数据来源：签章列表接口（id / 名称 / 类型 / 图片 / 是否默认 / 已使用次数）
+
+   ★ 合规要点（页面顶部必须留这一条）：
+     《电子签名法》第十四条：可靠的电子签名与手写签名或者盖章具有同等法律效力。
+     第十三条规定了「可靠」的四个条件（专有、可控、可发现改动）。
+     所以这一屏不只是「上传个图」，要说明：
+       1. 签章与账号绑定，换设备不能复制走（专有性）
+       2. 每次盖章都会记录时间、设备与文书校验值（可发现改动）
+     光写「上传你的印章」会让人以为可以随便截图一个红章贴上去 —— 那不具备效力。
+
+   ★ 为什么单位印章和个人签名分两类：单位印章要求主体是机构，个人签名要求
+     主体是自然人，两者在诉讼中的使用场合不同（起诉状用签名，合同用印章）。
+     合并成一类会让用户不知道该建哪个。
+
+   四态：normal / 空态（还没建过签章）/ 错误态。
+   ========================================================================== */
+
+body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-canvas);
+}
+
+.navbar {
+  background: var(--bg-surface);
+}
+
+.screen {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding: var(--sp-lg) var(--sp-xl) var(--sp-xl);
+}
+.screen::-webkit-scrollbar {
+  display: none;
+}
+
+/* ---------- 合规说明 ---------- */
+.notice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-sm);
+  padding: var(--sp-md);
+  border-radius: var(--r-sm);
+  background: var(--brand-primary-soft);
+  color: var(--brand-primary-pressed);
+  font-size: var(--fs-caption);
+  line-height: var(--lh-relaxed);
+}
+
+.notice svg {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  margin-block-start: 2px;
+}
+
+/* ---------- 签章列表 ---------- */
+.seal-list {
+  margin-block-start: var(--sp-xl);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-md);
+}
+
+.seal-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-md);
+  padding: var(--sp-md) var(--sp-lg);
+  border-radius: var(--r-md);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+}
+
+/* 签章预览：白底 + 细边框，形状随类型变（圆章 / 签名） */
+.seal-item__preview {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border: 1px solid var(--border-outline);
+  border-radius: var(--r-sm);
+  background: var(--bg-surface);
+  color: #D0021B;
+}
+
+/* 印章红是固定语义色（印章就是这个颜色），不进令牌 */
+.seal-item__preview svg {
+  width: 54px;
+  height: 54px;
+}
+
+/* 手写签名用深色，不用印章红 —— 签名是笔迹，章是印泥 */
+.seal-item__preview--sign {
+  color: var(--text-primary);
+}
+
+.seal-item__main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.seal-item__name {
+  display: block;
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.seal-item__meta {
+  display: block;
+  margin-block-start: 3px;
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+/* 默认标记 */
+.seal-item__default {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-block-start: var(--sp-xs);
+  padding: 1px 7px;
+  border-radius: var(--r-xs);
+  background: var(--state-success-soft);
+  color: var(--state-success);
+  font-size: var(--fs-micro);
+  line-height: 1.6;
+}
+
+.seal-item__default svg {
+  width: 11px;
+  height: 11px;
+}
+
+/* 右侧操作 */
+.seal-item__actions {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--sp-xxs);
+}
+
+.seal-act {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* 「查看」「删除」只有两个字，靠 padding 撑不到 44 宽，必须给 min-width */
+  min-width: 44px;
+  min-height: 44px;
+  padding-inline: var(--sp-sm);
+  border: 0;
+  background: transparent;
+  color: var(--brand-primary-pressed);
+  font-family: inherit;
+  font-size: var(--fs-caption);
+  cursor: pointer;
+}
+
+.seal-act--danger {
+  color: var(--state-danger);
+}
+
+/* ---------- 使用说明 ---------- */
+.tips-card {
+  margin-block-start: var(--sp-xl);
+  padding: var(--sp-lg);
+  border-radius: var(--r-md);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.tips-card__title {
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+.tips {
+  margin-block-start: var(--sp-sm);
+  padding-inline-start: 0;
+  list-style: none;
+}
+
+.tips li {
+  position: relative;
+  margin-block-start: var(--sp-sm);
+  padding-inline-start: 18px;
+  font-size: var(--fs-md);
+  color: var(--text-body);
+  line-height: var(--lh-relaxed);
+}
+
+.tips li::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: 3px;
+  inset-block-start: 9px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--brand-primary);
+}
+
+/* ---------- 底部固定栏 ---------- */
+.actionbar {
+  flex: 0 0 auto;
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-md);
+  padding: 10px var(--sp-xl) calc(10px + var(--safe-bottom));
+  background: var(--bg-surface);
+  border-block-start: 1px solid var(--border-divider);
+  box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.04);
+}
+
+/* ---------- 新建签章面板 ---------- */
+.new-body {
+  padding: var(--sp-sm) var(--sp-xl) var(--sp-lg);
+}
+
+/* 手写区：虚线框 + 提示，真实项目里是 canvas 手写板 */
+.sign-board {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-sm);
+  min-height: 156px;
+  border: 1px dashed var(--border-primary, var(--border-outline));
+  border-radius: var(--r-sm);
+  background: var(--bg-canvas);
+  color: var(--text-muted);
+}
+
+.sign-board__hint {
+  font-size: var(--fs-caption);
+  line-height: 1.5;
+}
+
+/* 模拟的手写笔迹：几条贝塞尔弧线，看起来像签名，不是真签名 */
+.sign-board__stroke {
+  width: 168px;
+  height: 62px;
+  color: var(--text-primary);
+}
+
+.field-label {
+  display: block;
+  margin-block: var(--sp-lg) var(--sp-xs);
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.3;
+}
+
+.field-box {
+  display: flex;
+  align-items: center;
+  height: 48px;
+  padding-inline: var(--sp-md);
+  border: 1px solid var(--border-outline);
+  border-radius: var(--r-sm);
+  background: var(--bg-surface);
+}
+
+.field-box input {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: var(--fs-lg);
+  outline: none;
+}
+
+.field-box input::placeholder {
+  color: #A3A9AE;
+}
+
+/* 设为默认 */
+.set-default {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  min-height: 44px;
+  margin-block-start: var(--sp-md);
+  font-size: var(--fs-md);
+  color: var(--text-body);
+  cursor: pointer;
+}
+
+.set-default input {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  accent-color: var(--brand-primary);
+}
+
+.sheet__confirm {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(100% - var(--sp-xl) * 2);
+  height: var(--btn-h);
+  margin: var(--sp-sm) var(--sp-xl) 0;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--brand-primary);
+  color: var(--text-on-brand);
+  font-family: inherit;
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-bold);
+  cursor: pointer;
+}
+</style>
+</head>
+<body>
+
+<header class="statusbar">
+  <span>9:41</span>
+  <span class="statusbar__icons">
+    <svg width="17" height="11" viewBox="0 0 17 11" fill="none" aria-hidden="true">
+      <rect x="0" y="7" width="3" height="4" rx="1" fill="currentColor"/>
+      <rect x="4.5" y="5" width="3" height="6" rx="1" fill="currentColor"/>
+      <rect x="9" y="2.5" width="3" height="8.5" rx="1" fill="currentColor"/>
+      <rect x="13.5" y="0" width="3" height="11" rx="1" fill="currentColor"/>
+    </svg>
+    <svg width="16" height="11" viewBox="0 0 16 11" fill="none" aria-hidden="true">
+      <path d="M1 3.2A10.5 10.5 0 0 1 15 3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M3.6 5.9a7 7 0 0 1 8.8 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M6.2 8.6a3.4 3.4 0 0 1 3.6 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden="true">
+      <rect x="0.6" y="0.6" width="21" height="10.8" rx="3" stroke="currentColor" stroke-opacity="0.4" stroke-width="1.2"/>
+      <rect x="2.2" y="2.2" width="15" height="7.6" rx="1.8" fill="currentColor"/>
+      <path d="M23.4 4.2v3.6" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+  </span>
+</header>
+
+<div class="navbar">
+  <a class="navbar__back" href="05-profile.html" aria-label="返回我的">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M15.2 4.6 7.8 12l7.4 7.4" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </a>
+  <h1 class="navbar__title">电子签章</h1>
+</div>
+
+<main class="screen">
+
+  <div data-state="normal">
+
+    <div class="notice">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <circle cx="12" cy="12" r="9.2" stroke="currentColor" stroke-width="1.9"/>
+        <path d="M12 7.6v5.2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <circle cx="12" cy="16.4" r="1.2" fill="currentColor"/>
+      </svg>
+      <span>
+        依据《电子签名法》第十四条，可靠的电子签名与手写签名或者盖章具有同等法律效力。本平台的签章与你的账号绑定，每次加盖均记录时间、设备与文书校验值。
+      </span>
+    </div>
+
+    <div class="seal-list">
+
+      <!-- 单位印章 -->
+      <div class="seal-item">
+        <span class="seal-item__preview">
+          <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
+            <circle cx="32" cy="32" r="27" stroke="currentColor" stroke-width="2.4"/>
+            <path d="M32 18.6l3 6.1 6.7 1-4.9 4.7 1.2 6.6-6-3.2-6 3.2 1.2-6.6-4.9-4.7 6.7-1 3-6.1Z"
+                  fill="currentColor"/>
+            <text x="32" y="47" text-anchor="middle" font-size="7" fill="currentColor"
+                  font-family="PingFang SC, sans-serif">法泽法律服务</text>
+          </svg>
+        </span>
+        <span class="seal-item__main">
+          <span class="seal-item__name">法泽法律服务 · 单位印章</span>
+          <span class="seal-item__meta">单位印章 · 已使用 3 次</span>
+          <span class="seal-item__default">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="m5 12.4 4.6 4.6L19 6.6" stroke="currentColor" stroke-width="2.6"
+                    stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            默认签章
+          </span>
+        </span>
+        <span class="seal-item__actions">
+          <button class="seal-act" type="button" data-seal-edit>查看</button>
+        </span>
+      </div>
+
+      <!-- 手写签名 -->
+      <div class="seal-item">
+        <span class="seal-item__preview seal-item__preview--sign">
+          <svg viewBox="0 0 64 40" fill="none" aria-hidden="true">
+            <path d="M6 28c6-9 10-16 12-14 2 2-3 12-1 14s6-4 9-9c3-5 5-9 6-8 1 1-2 10 0 12s5-1 8-5c3-4 5-7 6-6 1 1-1 7 1 9s12-8 17-13"
+                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </span>
+        <span class="seal-item__main">
+          <span class="seal-item__name">马合木提·艾山 · 手写签名</span>
+          <span class="seal-item__meta">手写签名 · 尚未使用</span>
+        </span>
+        <span class="seal-item__actions">
+          <button class="seal-act" type="button" data-seal-default>设为默认</button>
+          <button class="seal-act seal-act--danger" type="button" data-seal-delete>删除</button>
+        </span>
+      </div>
+
+    </div>
+
+    <div class="tips-card">
+      <h2 class="tips-card__title">使用说明</h2>
+      <ul class="tips">
+        <li>单位印章需要与营业执照上的名称一致，个人签名使用你自己的笔迹。</li>
+        <li>设为默认的签章会在文书预览页的「盖章」中优先出现，可随时更换。</li>
+        <li>加盖后文书内容即锁定，不可再编辑。如发现盖错，只能重新生成一份。</li>
+        <li>签章不可转让、不可共享。账号注销时签章一并销毁。</li>
+      </ul>
+    </div>
+
+  </div>
+
+  <!-- ======================================================================
+       空态：还没建过签章
+       ====================================================================== -->
+  <div data-state="empty" hidden>
+    <div class="empty">
+      <svg class="empty__art" viewBox="0 0 96 96" fill="none" aria-hidden="true">
+        <circle cx="48" cy="48" r="30" stroke="currentColor" stroke-width="2.4"/>
+        <path d="M48 32v32M32 48h32" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+      </svg>
+      <p class="empty__title">还没有创建签章</p>
+      <p class="empty__desc">创建后即可在生成的文书上盖章。手写签名和单位印章都支持。</p>
+      <button class="btn-primary empty__action" type="button" data-seal-new>创建签章</button>
+    </div>
+  </div>
+
+  <!-- ======================================================================
+       错误态
+       ====================================================================== -->
+  <div data-state="error" hidden>
+    <div class="errorbox">
+      <svg class="errorbox__art" viewBox="0 0 96 96" fill="none" aria-hidden="true">
+        <circle cx="48" cy="48" r="30" stroke="currentColor" stroke-width="2.4"/>
+        <path d="M48 32v20" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
+        <circle cx="48" cy="62" r="2.4" fill="currentColor"/>
+      </svg>
+      <p class="errorbox__title">签章信息没有加载出来</p>
+      <p class="errorbox__desc">网络不稳定或者服务器维护中。请稍后重试。</p>
+      <button class="errorbox__retry" type="button" data-retry>
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M20.2 12a8.2 8.2 0 1 1-2.4-5.8" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round"/>
+          <path d="M20.4 3.6v4.6h-4.6" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        重新加载
+      </button>
+    </div>
+  </div>
+
+</main>
+
+<div class="actionbar">
+  <button class="btn-primary" type="button" data-seal-new style="width:100%">
+    新建签章
+  </button>
+</div>
+
+<!-- ========================================================================
+     新建签章面板
+     ======================================================================== -->
+<div class="mask" data-seal-new-mask hidden></div>
+<div class="sheet" data-seal-new-sheet hidden role="dialog" aria-modal="true"
+     aria-labelledby="seal-new-title">
+  <div class="sheet__handle"></div>
+  <div class="sheet__head">
+    <h2 class="sheet__title" id="seal-new-title">新建手写签名</h2>
+    <button class="sheet__close" type="button" data-seal-new-close aria-label="关闭">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2.2"
+              stroke-linecap="round"/>
+      </svg>
+    </button>
+  </div>
+
+  <div class="new-body">
+    <!-- 真实项目里这里是 canvas 手写板；设计稿画的是示意笔迹 -->
+    <div class="sign-board">
+      <svg class="sign-board__stroke" viewBox="0 0 168 62" fill="none" aria-hidden="true">
+        <path d="M8 44c10-16 17-27 20-24 3 3-5 21-2 24s10-7 15-16c5-9 9-15 11-13 2 2-4 17 0 20s9-2 14-9c5-7 9-12 11-10 2 2-2 12 2 15s20-14 28-22"
+              stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M14 52h140" stroke="currentColor" stroke-width="1" stroke-dasharray="3 4"
+              opacity="0.4"/>
+      </svg>
+      <span class="sign-board__hint">在此区域手写签名</span>
+    </div>
+
+    <label class="field-label" for="seal-name">签章名称</label>
+    <label class="field-box">
+      <input id="seal-name" type="text" placeholder="如：马合木提·艾山 · 手写签名">
+    </label>
+
+    <label class="set-default">
+      <input type="checkbox">
+      <span>设为默认签章</span>
+    </label>
+  </div>
+
+  <button class="sheet__confirm" type="button" data-seal-new-confirm>保存并使用</button>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

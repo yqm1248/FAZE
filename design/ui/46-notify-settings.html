@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390, initial-scale=1">
+<meta name="dsh-design" content="app">
+<title>消息通知</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   通知设置页（第 12 批 · 延展，无参考图）
+   ==========================================================================
+   职责：控制哪些消息推到手机通知栏、什么时候不要推。
+   入口：41-settings「消息通知」
+   母版：**开关列表母版**（同 47：组标题 + 卡片 + .switch-row）
+   数据来源：通知配置接口（总开关 / 各类型开关 / 免打扰时段）
+
+   ★ 总开关关掉后，下面四个分开关必须置灰且点不动。
+     不置灰的话，用户关了总开关还会去拨分开关，拨完发现没反应，
+     会认为「这个开关坏了」，然后又来问客服。
+
+   ★ 每个分开关都带一句说明，不只写名字：
+     「营销活动」这种词，用户不知道关掉会不会连订单消息也收不到。
+     一句「不影响订单和案件通知」能挡掉一半的犹豫。
+
+   ★ 免打扰只给时段，不给「始终免打扰」：
+     始终免打扰等于关掉推送，用户想要那个效果直接关总开关就行，
+     两个入口做同一件事只会让人纠结用哪个。
+
+   ★ 关闭推送不等于收不到消息：App 内的消息中心照常收。
+     这句写在总开关下面，因为用户最担心的就是「关了会不会漏掉重要的事」。
+   ========================================================================== */
+
+body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-canvas);
+}
+
+.navbar {
+  background: var(--bg-surface);
+}
+
+.screen {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding: 0 var(--sp-xl) calc(var(--safe-bottom) + var(--sp-xl));
+}
+.screen::-webkit-scrollbar {
+  display: none;
+}
+
+.set-group__title:first-child {
+  padding-block-start: var(--sp-md);
+}
+
+/* 总开关关掉时，分项整块变淡。不只是开关变淡，文字也淡 ——
+   否则用户会把「淡了的开关」和「正常的说明文字」看成混乱的一团 */
+.set-list.is-muted .switch-row__name {
+  color: var(--text-muted);
+}
+
+.set-list.is-muted .switch-row__desc {
+  color: #A3A9AE;
+}
+
+.page-note {
+  padding: var(--sp-lg) var(--sp-xs) 0;
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.8;
+}
+</style>
+</head>
+<body>
+
+<header class="statusbar">
+  <span>9:41</span>
+  <span class="statusbar__icons">
+    <svg width="17" height="11" viewBox="0 0 17 11" fill="none" aria-hidden="true">
+      <rect x="0" y="7" width="3" height="4" rx="1" fill="currentColor"/>
+      <rect x="4.5" y="5" width="3" height="6" rx="1" fill="currentColor"/>
+      <rect x="9" y="2.5" width="3" height="8.5" rx="1" fill="currentColor"/>
+      <rect x="13.5" y="0" width="3" height="11" rx="1" fill="currentColor"/>
+    </svg>
+    <svg width="16" height="11" viewBox="0 0 16 11" fill="none" aria-hidden="true">
+      <path d="M1 3.2A10.5 10.5 0 0 1 15 3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M3.6 5.9a7 7 0 0 1 8.8 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M6.2 8.6a3.4 3.4 0 0 1 3.6 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden="true">
+      <rect x="0.6" y="0.6" width="21" height="10.8" rx="3" stroke="currentColor" stroke-opacity="0.4" stroke-width="1.2"/>
+      <rect x="2.2" y="2.2" width="15" height="7.6" rx="1.8" fill="currentColor"/>
+      <path d="M23.4 4.2v3.6" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+  </span>
+</header>
+
+<div class="navbar">
+  <a class="navbar__back" href="41-settings.html" aria-label="返回设置">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M15.2 4.6 7.8 12l7.4 7.4" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </a>
+  <h1 class="navbar__title">消息通知</h1>
+</div>
+
+<main class="screen">
+
+  <h2 class="set-group__title">推送通知</h2>
+  <div class="set-list">
+    <div class="switch-row">
+      <span class="switch-row__main">
+        <span class="switch-row__name">接收推送通知</span>
+        <span class="switch-row__desc">关闭后不再推到手机通知栏，App 内的消息中心照常收，一条不会少</span>
+      </span>
+      <button class="switch is-on" type="button" role="switch" aria-checked="true"
+              data-switch data-switch-master aria-label="接收推送通知"></button>
+    </div>
+  </div>
+
+  <h2 class="set-group__title">通知类型</h2>
+  <div class="set-list" data-keep-sub>
+    <div class="switch-row">
+      <span class="switch-row__main">
+        <span class="switch-row__name">系统通知</span>
+        <span class="switch-row__desc">订单状态、退款结果、协议更新</span>
+      </span>
+      <button class="switch is-on" type="button" role="switch" aria-checked="true"
+              data-switch data-switch-sub aria-label="系统通知"></button>
+    </div>
+    <div class="switch-row">
+      <span class="switch-row__main">
+        <span class="switch-row__name">律师回复</span>
+        <span class="switch-row__desc">律师给你发的消息</span>
+      </span>
+      <button class="switch is-on" type="button" role="switch" aria-checked="true"
+              data-switch data-switch-sub aria-label="律师回复"></button>
+    </div>
+    <div class="switch-row">
+      <span class="switch-row__main">
+        <span class="switch-row__name">案件进度</span>
+        <span class="switch-row__desc">立案、开庭、判决等节点提醒</span>
+      </span>
+      <button class="switch is-on" type="button" role="switch" aria-checked="true"
+              data-switch data-switch-sub aria-label="案件进度"></button>
+    </div>
+    <div class="switch-row">
+      <span class="switch-row__main">
+        <span class="switch-row__name">营销活动</span>
+        <span class="switch-row__desc">优惠、活动推荐。关掉不影响订单和案件通知</span>
+      </span>
+      <button class="switch" type="button" role="switch" aria-checked="false"
+              data-switch data-switch-sub aria-label="营销活动"></button>
+    </div>
+  </div>
+
+  <h2 class="set-group__title">免打扰</h2>
+  <div class="set-list">
+    <button class="set-row" type="button" data-quiet>
+      <span class="set-row__label">免打扰时段</span>
+      <span class="set-row__value set-row__value--num">22:00 - 08:00</span>
+      <svg class="set-row__chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="m9.2 4.6 7.4 7.4-7.4 7.4" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+  </div>
+
+  <p class="page-note">
+    免打扰时段内不会推送，但消息仍然会进消息中心。案件开庭这类有时效的提醒，如果碰上免打扰时段，会在时段结束后的第一次推送里补发。
+  </p>
+
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390, initial-scale=1">
+<meta name="dsh-design" content="app">
+<title>隐私设置</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   隐私设置页（第 12 批 · 延展，无参考图）
+   ==========================================================================
+   职责：控制别人（尤其是律师）能看到你的哪些信息。
+   入口：41-settings「隐私设置」
+   母版：**开关列表母版**（同 46：组标题 + 卡片 + .switch-row）
+   数据来源：隐私配置接口（各项开关）+ 用户资料
+
+   ★ 手机上做隐私，最要紧的不是「给不给开关」，而是「关了之后会发生什么」。
+     所以每一项都写清代价，而且把代价写在说明里，不藏在帮助文档：
+       - 关掉「手机号对律师可见」→ 律师没法主动打电话，只能站内消息
+       - 关掉「在线状态」→ 你也看不到别人的在线状态
+     第二句是关键：单向关闭会让用户觉得吃亏，说明白「互为条件」才公平。
+
+   ★ 「个性化推荐」关掉以后还是会推荐，只是不基于你的浏览记录。
+     这句话必须写。不写的话，用户关了以后发现还在推荐，会认为开关是假的。
+
+   ★ 隐私设置里不放「注销账号」：注销是账号生命周期，归 42 那一页。
+     混进隐私设置会让人以为「注销」也是一种隐私开关。
+   ========================================================================== */
+
+body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-canvas);
+}
+
+.navbar {
+  background: var(--bg-surface);
+}
+
+.screen {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding: 0 var(--sp-xl) calc(var(--safe-bottom) + var(--sp-xl));
+}
+.screen::-webkit-scrollbar {
+  display: none;
+}
+
+.set-group__title:first-child {
+  padding-block-start: var(--sp-md);
+}
+
+.page-note {
+  padding: var(--sp-lg) var(--sp-xs) 0;
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.8;
+}
+
+.page-note b {
+  font-weight: var(--fw-medium);
+  color: var(--text-secondary);
+}
+</style>
+</head>
+<body>
+
+<header class="statusbar">
+  <span>9:41</span>
+  <span class="statusbar__icons">
+    <svg width="17" height="11" viewBox="0 0 17 11" fill="none" aria-hidden="true">
+      <rect x="0" y="7" width="3" height="4" rx="1" fill="currentColor"/>
+      <rect x="4.5" y="5" width="3" height="6" rx="1" fill="currentColor"/>
+      <rect x="9" y="2.5" width="3" height="8.5" rx="1" fill="currentColor"/>
+      <rect x="13.5" y="0" width="3" height="11" rx="1" fill="currentColor"/>
+    </svg>
+    <svg width="16" height="11" viewBox="0 0 16 11" fill="none" aria-hidden="true">
+      <path d="M1 3.2A10.5 10.5 0 0 1 15 3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M3.6 5.9a7 7 0 0 1 8.8 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M6.2 8.6a3.4 3.4 0 0 1 3.6 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden="true">
+      <rect x="0.6" y="0.6" width="21" height="10.8" rx="3" stroke="currentColor" stroke-opacity="0.4" stroke-width="1.2"/>
+      <rect x="2.2" y="2.2" width="15" height="7.6" rx="1.8" fill="currentColor"/>
+      <path d="M23.4 4.2v3.6" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+  </span>
+</header>
+
+<div class="navbar">
+  <a class="navbar__back" href="41-settings.html" aria-label="返回设置">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M15.2 4.6 7.8 12l7.4 7.4" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </a>
+  <h1 class="navbar__title">隐私设置</h1>
+</div>
+
+<main class="screen">
+
+  <h2 class="set-group__title">谁能看到我的信息</h2>
+  <div class="set-list">
+    <div class="switch-row">
+      <span class="switch-row__main">
+        <span class="switch-row__name">手机号对律师可见</span>
+        <span class="switch-row__desc">关掉后律师不能直接打电话，只能用站内消息联系你</span>
+      </span>
+      <button class="switch" type="button" role="switch" aria-checked="false"
+              data-switch aria-label="手机号对律师可见"></button>
+    </div>
+    <div class="switch-row">
+      <span class="switch-row__main">
+        <span class="switch-row__name">个人资料对律师可见</span>
+        <span class="switch-row__desc">昵称、地区这类基本信息。律师需要这些才知道你是哪个地方的当事人</span>
+      </span>
+      <button class="switch is-on" type="button" role="switch" aria-checked="true"
+              data-switch aria-label="个人资料对律师可见"></button>
+    </div>
+  </div>
+
+  <h2 class="set-group__title">在线状态</h2>
+  <div class="set-list">
+    <div class="switch-row">
+      <span class="switch-row__main">
+        <span class="switch-row__name">向律师展示在线状态</span>
+        <span class="switch-row__desc">关掉后律师看不到你在线，你也看不到律师的在线状态</span>
+      </span>
+      <button class="switch is-on" type="button" role="switch" aria-checked="true"
+              data-switch aria-label="向律师展示在线状态"></button>
+    </div>
+  </div>
+
+  <h2 class="set-group__title">推荐</h2>
+  <div class="set-list">
+    <div class="switch-row">
+      <span class="switch-row__main">
+        <span class="switch-row__name">个性化推荐</span>
+        <span class="switch-row__desc">按你的浏览和咨询记录推荐律师与文章。关掉后仍会推荐，只是不依据你的记录</span>
+      </span>
+      <button class="switch is-on" type="button" role="switch" aria-checked="true"
+              data-switch aria-label="个性化推荐"></button>
+    </div>
+  </div>
+
+  <p class="page-note">
+    <b>关掉的选项只影响展示，不影响你的数据本身。</b>平台仍会依法保存订单、文书、案件等必要记录，保存期限见《隐私政策》。你把手机号设为不可见之后，之前已经联系过的律师仍然保有你留下的联系方式 —— 那是双方沟通过程中产生的，不在这个开关的范围内。
+  </p>
+
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

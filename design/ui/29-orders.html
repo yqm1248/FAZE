@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390, initial-scale=1">
+<meta name="dsh-design" content="app">
+<title>我的订单</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   我的订单列表页（第 9 批 · 延展，无参考图）
+   ==========================================================================
+   职责：按状态筛选看到自己下过的所有订单，点卡片进订单详情。
+   入口：我的页「我的订单」；支付结果页「查看订单」也落到这里
+   母版：**列表母版**（同 12-articles / 18-ai-history / 27-doc-mine：
+         导航栏 + 顶部筛选条 + 条目列表 + 四态）
+   数据来源：订单列表接口（订单号 / 服务名称 / 律师 / 金额分 / 状态 / 下单时间）
+
+   ★ 为什么列表卡片不放「申请退款」「评价」按钮：
+     这两个动作都在动钱或者动口碑，必须看完明细再决定。放在列表里，
+     手指划过就可能点到退款。所以除「待支付」外一律不放按钮，进详情再说。
+     待支付是唯一例外，见下一段。
+
+   ★ 为什么「待支付」单独给一个「去支付」快捷按钮：
+     待支付订单有时效（超时会自动关闭），用户从列表里能直接续付比点两次省事。
+     其余状态都不急，不占用卡片的视觉重量。
+
+   ★ 状态有 5 种，筛选条只给 5 个 Tab，把「退款中」并进「进行中」：
+     导航树定的 Tab 是 全部/待支付/进行中/已完成/已取消，没有「退款中」。
+     退款审核期间订单不会消失，用户还是能从「进行中」里找到它，
+     卡片标签写「退款中」，比多一个 Tab 更省位置。
+
+   四态：normal / loading（骨架）/ empty（一单都没有）/ error。
+   ========================================================================== */
+
+body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-canvas);
+}
+
+.navbar {
+  background: var(--bg-surface);
+}
+
+.screen {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding-block-end: calc(var(--safe-bottom) + var(--sp-xl));
+}
+.screen::-webkit-scrollbar {
+  display: none;
+}
+
+/* 筛选条白底与列表灰底之间画线（同 27-doc-mine） */
+.list-top {
+  background: var(--bg-surface);
+  border-block-end: 1px solid var(--border-outline);
+}
+
+.filter {
+  padding-inline: var(--sp-md);
+}
+
+/* ---------- 订单卡片 ---------- */
+.list {
+  padding: var(--sp-md) var(--sp-xl) 0;
+}
+
+.order-card {
+  padding: var(--sp-md) var(--sp-lg) var(--sp-lg);
+  border-radius: var(--r-md);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.order-card + .order-card {
+  margin-block-start: var(--sp-md);
+}
+
+/* 整卡可点进详情。外层用 article、内层用 a，是为了让「去支付」按钮
+   不嵌在链接里（HTML 不允许 a 套 a） */
+.order-card__link {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+}
+
+.order-card__head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-sm);
+}
+
+.order-card__name {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.order-card__who {
+  margin-block-start: 4px;
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  line-height: 1.5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.order-card__foot {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-md);
+  margin-block-start: var(--sp-sm);
+  padding-block-start: var(--sp-sm);
+  border-block-start: 1px solid var(--border-divider);
+}
+
+.order-card__time {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--font-num);
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 卡片里的金额是次要信息（主信息是服务名与状态），所以用 15 不用展示级字号。
+   金额大小要看场合：整屏唯一焦点才上 --fs-display，列表里上 34 会把卡片撑爆。 */
+.order-card__sum {
+  flex: 0 0 auto;
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+}
+
+.order-card__act {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--sp-sm);
+  margin-block-start: var(--sp-md);
+}
+
+/* ---------- 状态标签 ---------- */
+/* .state-pill 已提到 components.css 第 30 段（第 14 批：29 的 .order-state 与
+   53 的案件状态同构，第二处就该收，别等第三处）。
+   原来这段的配色说明也一并搬进了第 30 段的注释里。 */
+
+/* ---------- 空态 / 错误态 ---------- */
+.state-wrap {
+  padding-block: var(--sp-huge) var(--sp-xxxl);
+}
+</style>
+</head>
+<body>
+
+<header class="statusbar">
+  <span>9:41</span>
+  <span class="statusbar__icons">
+    <svg width="17" height="11" viewBox="0 0 17 11" fill="none" aria-hidden="true">
+      <rect x="0" y="7" width="3" height="4" rx="1" fill="currentColor"/>
+      <rect x="4.5" y="5" width="3" height="6" rx="1" fill="currentColor"/>
+      <rect x="9" y="2.5" width="3" height="8.5" rx="1" fill="currentColor"/>
+      <rect x="13.5" y="0" width="3" height="11" rx="1" fill="currentColor"/>
+    </svg>
+    <svg width="16" height="11" viewBox="0 0 16 11" fill="none" aria-hidden="true">
+      <path d="M1 3.2A10.5 10.5 0 0 1 15 3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M3.6 5.9a7 7 0 0 1 8.8 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M6.2 8.6a3.4 3.4 0 0 1 3.6 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden="true">
+      <rect x="0.6" y="0.6" width="21" height="10.8" rx="3" stroke="currentColor" stroke-opacity="0.4" stroke-width="1.2"/>
+      <rect x="2.2" y="2.2" width="15" height="7.6" rx="1.8" fill="currentColor"/>
+      <path d="M23.4 4.2v3.6" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+  </span>
+</header>
+
+<div class="navbar">
+  <a class="navbar__back" href="05-profile.html" aria-label="返回我的">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M15.2 4.6 7.8 12l7.4 7.4" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </a>
+  <h1 class="navbar__title">我的订单</h1>
+</div>
+
+<main class="screen">
+
+  <div data-state="normal">
+
+    <div class="list-top">
+      <div class="filter" data-drag-scroll>
+        <button class="filter__chip filter__chip--active" type="button" data-order-filter="all">全部</button>
+        <button class="filter__chip" type="button" data-order-filter="wait">待支付</button>
+        <button class="filter__chip" type="button" data-order-filter="doing">进行中</button>
+        <button class="filter__chip" type="button" data-order-filter="done">已完成</button>
+        <button class="filter__chip" type="button" data-order-filter="closed">已取消</button>
+      </div>
+    </div>
+
+    <div class="list">
+
+      <article class="order-card" data-order-state="wait">
+        <a class="order-card__link" href="30-order-detail.html">
+          <div class="order-card__head">
+            <span class="order-card__name">法律咨询 · 30 分钟</span>
+            <span class="state-pill state-pill--brand">待支付</span>
+          </div>
+          <p class="order-card__who">王建国律师 · 新疆天山律师事务所</p>
+          <div class="order-card__foot">
+            <span class="order-card__time">2026-10-29 14:22</span>
+            <span class="money order-card__sum"><span class="money__sym">¥</span>99.00</span>
+          </div>
+        </a>
+        <div class="order-card__act">
+          <a class="btn-pill-sm" href="31-pay.html">去支付</a>
+        </div>
+      </article>
+
+      <article class="order-card" data-order-state="refund">
+        <a class="order-card__link" href="30-order-detail.html">
+          <div class="order-card__head">
+            <span class="order-card__name">合同审查 · 采购合同</span>
+            <span class="state-pill state-pill--warning">退款中</span>
+          </div>
+          <p class="order-card__who">张伟律师 · 伊犁河谷律师事务所</p>
+          <div class="order-card__foot">
+            <span class="order-card__time">2026-10-27 09:15</span>
+            <span class="money order-card__sum"><span class="money__sym">¥</span>600.00</span>
+          </div>
+        </a>
+      </article>
+
+      <article class="order-card" data-order-state="doing">
+        <a class="order-card__link" href="30-order-detail.html">
+          <div class="order-card__head">
+            <span class="order-card__name">案件委托 · 民间借贷纠纷</span>
+            <span class="state-pill state-pill--success">进行中</span>
+          </div>
+          <p class="order-card__who">李静律师 · 伊宁正大律师事务所</p>
+          <div class="order-card__foot">
+            <span class="order-card__time">2026-10-26 16:40</span>
+            <span class="money order-card__sum"><span class="money__sym">¥</span>3,000.00</span>
+          </div>
+        </a>
+      </article>
+
+      <article class="order-card" data-order-state="done">
+        <a class="order-card__link" href="30-order-detail.html">
+          <div class="order-card__head">
+            <span class="order-card__name">文书生成 · 民事起诉状</span>
+            <span class="state-pill state-pill--muted">已完成</span>
+          </div>
+          <p class="order-card__who">平台生成 · 已交付 PDF</p>
+          <div class="order-card__foot">
+            <span class="order-card__time">2026-10-21 10:08</span>
+            <span class="money order-card__sum"><span class="money__sym">¥</span>30.00</span>
+          </div>
+        </a>
+      </article>
+
+      <article class="order-card" data-order-state="closed">
+        <a class="order-card__link" href="30-order-detail.html">
+          <div class="order-card__head">
+            <span class="order-card__name">法律咨询 · 30 分钟</span>
+            <span class="state-pill state-pill--muted">已取消</span>
+          </div>
+          <p class="order-card__who">赵敏律师 · 奎屯律师事务所</p>
+          <div class="order-card__foot">
+            <span class="order-card__time">2026-10-18 19:32</span>
+            <span class="money order-card__sum"><span class="money__sym">¥</span>99.00</span>
+          </div>
+        </a>
+      </article>
+
+    </div>
+
+  </div>
+
+  <!-- ======================================================================
+       加载态：骨架卡片
+       ====================================================================== -->
+  <div data-state="loading" hidden>
+    <div class="list">
+      <div class="order-card" style="box-shadow:none">
+        <div class="skeleton" style="height:15px;width:52%"></div>
+        <div class="skeleton" style="height:12px;width:70%;margin-block-start:10px"></div>
+        <div class="skeleton" style="height:12px;width:38%;margin-block-start:14px"></div>
+      </div>
+      <div class="order-card" style="box-shadow:none">
+        <div class="skeleton" style="height:15px;width:44%"></div>
+        <div class="skeleton" style="height:12px;width:64%;margin-block-start:10px"></div>
+        <div class="skeleton" style="height:12px;width:42%;margin-block-start:14px"></div>
+      </div>
+      <div class="order-card" style="box-shadow:none">
+        <div class="skeleton" style="height:15px;width:58%"></div>
+        <div class="skeleton" style="height:12px;width:56%;margin-block-start:10px"></div>
+        <div class="skeleton" style="height:12px;width:34%;margin-block-start:14px"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================================
+       空态：一单都没有
+       引导去律师列表 —— 空态不能只写「暂无订单」，
+       用户看到的是「这里什么都没有」，需要知道下一步去哪。
+       ====================================================================== -->
+  <div data-state="empty" hidden>
+    <div class="state-wrap">
+      <div class="empty">
+        <svg class="empty__art" viewBox="0 0 96 96" fill="none" aria-hidden="true">
+          <rect x="24" y="18" width="48" height="60" rx="5"
+                stroke="currentColor" stroke-width="2.4"/>
+          <path d="M36 34h24M36 46h24M36 58h14" stroke="currentColor"
+                stroke-width="2.4" stroke-linecap="round"/>
+        </svg>
+        <p class="empty__title">还没有订单</p>
+        <p class="empty__desc">找律师咨询、委托案件或者生成文书，下单后都会记录在这里。</p>
+        <a class="btn-primary empty__action" href="02-lawyer.html">去找律师</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================================
+       错误态
+       ====================================================================== -->
+  <div data-state="error" hidden>
+    <div class="state-wrap">
+      <div class="errorbox">
+        <svg class="errorbox__art" viewBox="0 0 96 96" fill="none" aria-hidden="true">
+          <circle cx="48" cy="48" r="30" stroke="currentColor" stroke-width="2.4"/>
+          <path d="M48 32v20" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
+          <circle cx="48" cy="62" r="2.4" fill="currentColor"/>
+        </svg>
+        <p class="errorbox__title">订单没有加载出来</p>
+        <p class="errorbox__desc">网络不稳定或者服务器维护中。请稍后重试。</p>
+        <button class="errorbox__retry" type="button" data-retry>
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M20.2 12a8.2 8.2 0 1 1-2.4-5.8" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round"/>
+            <path d="M20.4 3.6v4.6h-4.6" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          重新加载
+        </button>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>
