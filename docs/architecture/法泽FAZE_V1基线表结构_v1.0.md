@@ -39,7 +39,7 @@
 
 # 三、`app_user` 完整 DDL
 
-> ⚠️ **本 DDL 尚未在真实库执行过。** 第 0 段 T0-13 是它第一次被执行；届时若出现语法或 collation 报错，以实际可执行的版本为准并回头修正本文件。
+> ⚠️ **本 DDL 尚未在真实库执行过。** 第 0 段工作流里的「建库 + Flyway V1 基线」任务是它第一次被执行；届时若出现语法或 collation 报错，以实际可执行的版本为准并回头修正本文件。
 >
 > **已实测通过的部分**：`MEDIUMTEXT` 字段上建 `FULLTEXT ... WITH PARSER ngram`，在 MySQL 8.0.44 + `utf8mb4_0900_ai_ci` 下可成功创建，且 `EXPLAIN` 确认走 `ft_law_content` 索引。
 
@@ -204,7 +204,7 @@ CREATE TABLE law_item (
 | 迁移 | 内容 | 属于哪段 |
 |---|---|---|
 | `V1__baseline.sql` | **只建 `app_user` + `law_item` 两张表结构**，不含数据 | 第 0 段 |
-| `V2__init_law_items.sql` | 5 条真实法条种子数据 | 第 0 段（T0-34） |
+| `V2__init_law_items.sql` | 5 条真实法条种子数据 | 第 0 段（P-3 法条检索探针） |
 | `V3__` 起 | 其余 49 张表，按段落建，每段占版本号区段 | 第 1 段起 |
 
 **版本号分段规则**（写进 ADR）：
