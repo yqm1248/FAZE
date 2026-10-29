@@ -304,6 +304,16 @@ body {
   flex: 1 1 auto;
   min-width: 0;
 }
+
+/* 本屏只有一个 .tag（「资深律师」），默认 11px(micro)。
+   提到 12(caption) 是为了收敛字号档位：本屏实测有 8 种字号
+   （24 姓名 / 21 统计 / 17 区块标题 / 16 主按钮 / 15 正文 /
+   14 状态栏 / 12 说明 / 11 标签），去掉 11 这一档后是 7 种。
+   顺带也更好读 —— 11px 的白底标签对中老年用户偏小。 */
+.tag {
+  font-size: var(--fs-caption);
+  padding-inline: 7px;
+}
 </style>
 </head>
 <body>
