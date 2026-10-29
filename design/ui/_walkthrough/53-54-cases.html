@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>法泽 · 我的案件 / 案件进度 —— 非主态走查</title>
+<style>
+/* ==========================================================================
+   走查页：第 14 批（53 / 54）的非主态
+   ==========================================================================
+   用途：画布一屏只显示主态，其余状态集中在这里看。
+   注意：
+     1. 不是交付屏，放在 _walkthrough/，不上画布、不计入交付页数
+     2. 状态靠 data-state 切换（#state-empty / #state-supplement / #state-rejected）
+     3. 必须用 HTTP 打开（端口 8123），file:// 下 iframe 的 hash 不生效
+   核对要点：
+     empty      ——空态引导去「找律师」，因为案件来自一次委托；
+                   引导去「填表」会让没请过律师的人直接卡在起诉状上
+     supplement ——补正不是驳回。这一点必须在时间轴里写死，
+                   否则用户会以为案子被拒了，转头就走
+     rejected   ——不予受理要给出路（10 日内上诉 / 换个法院重交），
+                   只写「不予受理」等于把用户丢在原地
+   ========================================================================== */
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 28px;
+  background: #EDEFF3;
+  font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  color: #1A1A1A;
+}
+
+.walk {
+  display: grid;
+  grid-template-columns: repeat(2, 390px);
+  gap: 24px 28px;
+  justify-content: center;
+}
+
+.walk__item {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.walk__head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.walk__name {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.walk__tag {
+  font-size: 11px;
+  font-weight: 500;
+  color: #4A66EE;
+  background: #EEF2FF;
+  padding: 2px 7px;
+  border-radius: 4px;
+  line-height: 1.5;
+}
+
+.walk__note {
+  margin: 0;
+  font-size: 12px;
+  color: #63696E;
+  line-height: 1.6;
+  max-width: 390px;
+}
+
+iframe {
+  width: 390px;
+  height: 844px;
+  border: 0;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.1);
+}
+</style>
+</head>
+<body>
+
+<div class="walk">
+
+  <section class="walk__item">
+    <div class="walk__head">
+      <h2 class="walk__name">我的案件 · 空态</h2>
+      <span class="walk__tag">empty</span>
+    </div>
+    <p class="walk__note">
+      空态落到「去找律师」而不是「去写起诉状」：案件来自一次委托，多数用户是先问律师才立案的。把没请过律师的人直接丢到起诉状表单，他只会在第一个字段就退出。
+    </p>
+    <iframe src="../53-my-cases.html#state-empty" title="我的案件 · 空态"></iframe>
+  </section>
+
+  <section class="walk__item">
+    <div class="walk__head">
+      <h2 class="walk__name">案件进度 · 待补材料</h2>
+      <span class="walk__tag">supplement</span>
+    </div>
+    <p class="walk__note">
+      顶部黄条写死两件事：补什么、几号前补、逾期什么后果。时间轴里那个红点是「补正」不是「驳回」—— 这句话不写，用户会以为案子被拒了。主按钮这时切成「上传补正材料」，因为它有时限，优先级高于联系律师。
+    </p>
+    <iframe src="../54-case-progress.html#state-supplement" title="案件进度 · 待补材料"></iframe>
+  </section>
+
+  <section class="walk__item">
+    <div class="walk__head">
+      <h2 class="walk__name">案件进度 · 不予受理</h2>
+      <span class="walk__tag">rejected</span>
+    </div>
+    <p class="walk__note">
+      不予受理必须给两步出路：10 日内可上诉、或改好后换个法院重交。裁定书原文走消息送达（39），这里只给结论和期限 —— 平台不是司法机关，不复述裁定书全文，也不替法院解释。
+    </p>
+    <iframe src="../54-case-progress.html#state-rejected" title="案件进度 · 不予受理"></iframe>
+  </section>
+
+</div>
+
+</body>
+</html>

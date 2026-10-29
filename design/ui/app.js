@@ -2552,4 +2552,17 @@
       showToast(pair[1]);
     });
   });
+
+  /* ---------- 54 案件进度的补充材料 ----------
+     同一页有两条 actionbar 各带一个「补充材料」（normal / supplement），
+     所以这里用 querySelectorAll —— 上面的数组走 querySelector 只绑第一个，
+     另一个状态的按钮会点了没反应。 */
+  Array.prototype.forEach.call(
+    document.querySelectorAll("[data-add-material]"),
+    function (btn) {
+      btn.addEventListener("click", function () {
+        showToast("打开材料上传（演示）");
+      });
+    }
+  );
 })();
