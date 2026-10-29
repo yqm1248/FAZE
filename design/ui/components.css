@@ -881,3 +881,250 @@
   color: var(--brand-primary);
   font-weight: var(--fw-medium);
 }
+
+/* ==========================================================================
+   17. 分组卡 + 横排行式字段（第 8 批从 24-doc-lawsuit 提出，25 复用）
+   ==========================================================================
+   用于「文书表单」这一类页面：起诉状、其他文书（证据清单 / 劳动合同等）。
+
+   和 20-filing 的竖排字段是两种东西，不要混：
+     - 竖排（20-filing）：字段名长、以句子为主（「事发地 / 合同履行地」），
+       label 在上、input 在下，纵向空间够用
+     - 横排（本节）：字段名短、以词为主（「姓名/名称」「住所地」），
+       label 在左固定宽度、input 在右，读起来像一张表格 —— 这是原图
+       11-lawsuit.png 的版式，复刻它
+
+   ★ label 固定 84px 不是随便定的：原图三行 label（姓名/名称、联系电话、
+     住所地）字数不一，让 label 自适应的话右边输入起点会参差，看着像排版坏了。
+     固定宽度让输入区左边对齐成一条竖线，表格感就来自这条线。
+   ========================================================================== */
+
+/* 卡片内的分组：标题 + 若干字段行。padding 横向由卡片给，这里只管纵向 */
+.group {
+  padding: 0 var(--sp-lg);
+}
+
+.group__head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  padding-block: var(--sp-lg) var(--sp-xs);
+}
+
+/* 竖条用 <i>，默认斜体要关掉 */
+.group__bar {
+  flex: 0 0 auto;
+  width: 4px;
+  height: 16px;
+  border-radius: 2px;
+  background: var(--brand-primary);
+  font-style: normal;
+}
+
+.group__title {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+/* 多份样本时的序号（多原告 / 多被告用，只有一份时不显示） */
+.group__index {
+  flex: 0 0 auto;
+  font-family: var(--font-num);
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+}
+
+/* 删除这一份：视觉 17 的图标，热区 44，用负边距压回布局占位 */
+.group__del {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin-block: -14px;
+  margin-inline-end: -12px;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.group__del svg {
+  width: 17px;
+  height: 17px;
+}
+
+/* ---------- 行式字段 ---------- */
+.form-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-md);
+  min-height: 52px;
+  border-block-end: 1px solid var(--border-divider);
+}
+
+.form-row:last-of-type {
+  border-block-end: 0;
+}
+
+.form-row__label {
+  flex: 0 0 84px;
+  /* 与输入文字基线对齐：input 高 52、文字 15px，标签上边距补到同一基线 */
+  padding-block-start: 16px;
+  font-size: var(--fs-md);
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.form-row__label em {
+  font-style: normal;
+  color: var(--state-danger);
+}
+
+.form-row__main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* 无框行式输入 —— 原图就是这样，靠行尾分隔线暗示可输入 */
+.form-row input,
+.form-row textarea {
+  display: block;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: var(--fs-lg);
+  line-height: 1.5;
+  outline: none;
+}
+
+.form-row input {
+  height: 52px;
+}
+
+.form-row input::placeholder,
+.form-row textarea::placeholder {
+  color: #A3A9AE;
+}
+
+.form-row textarea {
+  min-height: 88px;
+  padding-block: 16px 12px;
+  line-height: 1.7;
+  resize: none;
+}
+
+.form-row.is-invalid input {
+  color: var(--state-danger);
+}
+
+.form-row__error {
+  display: none;
+  padding-block-end: var(--sp-sm);
+  font-size: var(--fs-caption);
+  color: var(--state-danger);
+  line-height: 1.4;
+}
+
+.form-row.is-invalid .form-row__error {
+  display: block;
+}
+
+/* 多行输入改块式（灰底圆角）。行式靠「行尾一条线」暗示输入区，单行够用；
+   多行段落没有边框就完全看不出能点 —— 24 第一版走查时，诉讼请求那一块
+   看起来像一段说明文字，不像输入框。 */
+.form-row--block {
+  display: block;
+  padding-block: var(--sp-md);
+  border-block-end: 0;
+}
+
+.form-row--block .form-row__main {
+  width: 100%;
+}
+
+.form-row--block textarea {
+  padding: var(--sp-md);
+  border-radius: var(--r-sm);
+  background: var(--bg-input);
+}
+
+/* ---------- 虚线「添加一份」 ---------- */
+.add-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-xs);
+  width: 100%;
+  min-height: 46px;
+  margin-block: var(--sp-sm) var(--sp-lg);
+  border: 1px dashed var(--border-outline);
+  border-radius: var(--r-sm);
+  background: var(--bg-canvas);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: var(--fs-md);
+  cursor: pointer;
+}
+
+.add-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.add-btn:active {
+  background: var(--bg-input);
+}
+
+/* ==========================================================================
+   18. 药丸单选 / 多选标签（第 8 批从 15 / 20 两屏提到这里，25 复用）
+   ==========================================================================
+   结构：<div class="pick-list"><button class="pick is-active" data-pick-one>…</button></div>
+   第 4 批在 15-lawyer-join 写过一次，第 6 批做 20-filing 时复制了一份，
+   第 8 批的 25-doc-other 也要用 —— 三处了，收进来。
+
+   ★ 视觉药丸 34 高，元素本身 44 高（WCAG 2.5.5 最低点击区），
+     做法同 .filter__chip：5px 透明边框撑出热区，background-clip: padding-box
+     让背景只画在 34 高的 padding box 里。
+     选中态的描边不能用 border 画（边框已经是透明的热区了），改用 inset 阴影，
+     画在 padding box 内边缘，视觉上就是 34 高药丸的 1px 描边。
+   ========================================================================== */
+.pick-list {
+  margin-block-start: var(--sp-md);
+  display: flex;
+  flex-wrap: wrap;
+  /* gap 用 0：药丸自带 5px 透明边框，两边一夹就是 10px 视觉间距，
+     再叠加 gap 会让行距松成 20px */
+  gap: 0;
+}
+
+.pick {
+  height: 44px;
+  padding: 0 var(--sp-lg);
+  border: 5px solid transparent;
+  border-radius: var(--r-pill);
+  background: var(--bg-surface);
+  background-clip: padding-box;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: var(--fs-md);
+  cursor: pointer;
+  white-space: nowrap;
+  /* 未选中态的描边同样用 inset 阴影（边框已经是透明的热区了） */
+  box-shadow: inset 0 0 0 1px var(--border-outline);
+}
+
+.pick.is-active {
+  background: var(--brand-primary-soft);
+  background-clip: padding-box;
+  color: var(--brand-primary-pressed);
+  font-weight: var(--fw-medium);
+  box-shadow: inset 0 0 0 1px var(--brand-primary);
+}

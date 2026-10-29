@@ -323,48 +323,8 @@ body {
 }
 
 /* ---------- 单选 / 多选标签 ---------- */
-.pick-list {
-  margin-block-start: var(--sp-md);
-  display: flex;
-  flex-wrap: wrap;
-  /* gap 用 0：每个药丸自带 5px 透明边框，两边一夹就是 10px 的视觉间距，
-     再叠加 gap 会让行距松成 20px（第一次走查就是这样，看着像没睡醒）。 */
-  gap: 0;
-}
+/* .pick-list / .pick 已提到 components.css 第 18 段（15 / 20 / 25 三处都用） */
 
-/* ★ 视觉药丸 34 高，元素本身 44 高（WCAG 2.5.5 最低点击区）。
-   做法同 components.css 的 .filter__chip：5px 透明边框撑出热区，
-   background-clip: padding-box 让背景只画在 34 高的 padding box 里。
-
-   上一版是用 ::after 伪元素往下扩 4px 补热区，看着也行，但走查工具量到的
-   元素盒子还是 36，而且视觉上药丸只有 36 高、手指对准边缘容易点空。
-   这批标签是选案件类型的高频入口，直接把元素做到 44 更实在。
-
-   选中态不能用 border 画描边（边框已经是透明的热区了），改用 inset 阴影，
-   画在 padding box 内边缘，视觉上就是 34 高药丸的 1px 描边。 */
-.pick {
-  height: 44px;
-  padding: 0 var(--sp-lg);
-  border: 5px solid transparent;
-  border-radius: var(--r-pill);
-  background: var(--bg-surface);
-  background-clip: padding-box;
-  color: var(--text-secondary);
-  font-family: inherit;
-  font-size: var(--fs-md);
-  cursor: pointer;
-  white-space: nowrap;
-  /* 未选中态的描边同样用 inset 阴影（边框已经是透明的热区了） */
-  box-shadow: inset 0 0 0 1px var(--border-outline);
-}
-
-.pick.is-active {
-  background: var(--brand-primary-soft);
-  background-clip: padding-box;
-  color: var(--brand-primary-pressed);
-  font-weight: var(--fw-medium);
-  box-shadow: inset 0 0 0 1px var(--brand-primary);
-}
 
 /* ---------- 证据材料网格 ---------- */
 .evidence {
