@@ -794,6 +794,184 @@ HTTP 状态码：**成功一律 200**（含业务失败也返回 200 + code）�
 
 ---
 
+### 4.8.4 管理端接口补全（V2.3，2026-10-30）
+
+> **为什么补**：4.8.2 的 `/api/v1/admin/**` 原本只有 4 个接口（律师入驻审核 2 个、订单列表 1 个、退款审批 1 个）。PC 后台定了 28 页（`法泽FAZE_PC后台开发计划_v1.0.md`），其中 25 页在接口层无法施工。本节把 28 页需要的契约一次列全；**只冻结「方法 + 路径 + 用途 + 主要表」，字段级定义以运行时 Swagger（springdoc-openapi）为准**，避免前后端各写一份文档漂移。
+
+#### 4.8.4.1 三条边界（先看，不然会做错）
+
+| 边界 | 说明 |
+|---|---|
+| 谁提供 | 全部由 **faze-api** 提供（`/api/v1/admin/**`），不是 RuoYi 后端 |
+| RuoYi 自带页 | 用户 / 角色 / 菜单 / 部门 / 字典 / 日志管理这 8 页仍走 **RuoYi 自己的后端**（`/system/**`），不在本节范围、也不由 faze-api 实现；A-01 登录同理走 RuoYi 的 `/captchaImage`、`/login` |
+| 角色 | 只有「管理员」一个角色（`AGENTS.md` 决策）。`@PreAuthorize` 只校验角色，不做数据级权限细分 |
+
+#### 4.8.4.2 契约约定（与 4.4 接口规范一致）
+
+- 响应体：`R<T>`（4.5）。
+- 分页：`pageNum` / `pageSize`（默认 10、最大 100），响应 `{ list, total, pageNum, pageSize, hasMore }`（4.4）。**后台用页码分页，不用 IM 的游标分页。**
+- 时间范围：`beginTime` / `endTime`（ISO-8601 带偏移）。
+- 排序：`orderBy`，服务端白名单校验，**禁止把前端字符串直接拼进 SQL**。
+- 审核类动作统一：`POST .../audit`，body `{ "action": "approve" | "reject", "reason": "..." }`；`action=reject` 时 `reason` 必填。
+- 错误码：沿用 4.8.3 的 `0xxxxx` 运营/后台域，不新增码段。
+- 留痕：充值、调账、封禁、清退、提现出款等敏感操作必须写 `operation_log`（谁 / 何时 / 从哪 IP / 改了什么）。
+
+#### 4.8.4.3 看板（A-02）
+
+| 方法与路径 | 用途 | 主要表 |
+|---|---|---|
+| `GET /admin/dashboard/summary?range=7d\|30d` | 核心指标（DAU / 新增 / 订单量 / 收入 / 留存） | 跨域聚合 |
+| `GET /admin/dashboard/online` | 实时在线数 | Redis |
+| `GET /admin/dashboard/trends?metric=orders\|revenue&range=` | 趋势序列（折线图数据） | 跨域聚合 |
+
+> **A-02 的口径仍未定**：DAU、留存、转化怎么算没有业务定义，接口形状先冻结，数字口径由项目负责人拍板后补进本表。
+
+#### 4.8.4.4 用户与资质（A-03、A-04、A-06）
+
+| 方法与路径 | 用途 | 主要表 |
+|---|---|---|
+| `GET /admin/users` | 用户列表（昵称 / 手机号 / 用户 ID / 实名状态 / 账号状态） | `app_user` |
+| `GET /admin/users/{id}` | 用户详情（含累计消费、订单数、设备） | `app_user`、`legal_order` |
+| `POST /admin/users/{id}/ban` | 封禁（body 含原因与期限） | `app_user`、`user_violation` |
+| `POST /admin/users/{id}/unban` | 解封 | `app_user` |
+| `GET /admin/verifications?type=realname\|enterprise&status=` | 待审队列（实名与企业认证**同一队列两种类型**） | `app_user`、`lawyer`、`file_record` |
+| `POST /admin/verifications/{id}/audit` | 实名 / 企业认证审核 | 同上 |
+| `GET /admin/lawyers` | 律师列表（分类 / 状态 / 评分） | `lawyer` |
+| `GET /admin/lawyers/{id}` | 律师详情（含资质、服务设置、违规记录） | `lawyer`、`lawyer_audit`、`user_violation` |
+| `POST /admin/lawyers/{id}/violations` | 违规处理（警告 / 限流 / 下架 / 清退） | `user_violation` |
+
+> A-05 的两个接口（`GET /admin/lawyer-applications`、`POST /admin/lawyer-applications/{id}/audit`）已在 4.8.2 定义，沿用。
+> **A-04 承载两种认证**：设计稿只画了实名影像，企业认证审核开发时按 A-04 加一个 `type` 切换（见《未完成需备注》§九）。
+
+#### 4.8.4.5 财务（A-07 ~ A-10）
+
+| 方法与路径 | 用途 | 主要表 |
+|---|---|---|
+| `GET /admin/wallets/{userId}` | 用户余额查询 | `account` |
+| `POST /admin/wallets/{userId}/recharge` | 手工充值（**第 1 段验收的唯一验账手段**） | `account`、`balance_flow` |
+| `POST /admin/wallets/{userId}/adjust` | 调账（增减，必须写原因） | `account`、`balance_flow` |
+| `GET /admin/balance-flows?userId=&type=&beginTime=&endTime=` | 流水查询 | `balance_flow` |
+| `GET /admin/sys-configs?keys=` | 系统参数读取 | `sys_config` |
+| `PUT /admin/sys-configs` | 系统参数保存（抽成比例、充值上下限、提现限额、AI 开关） | `sys_config` |
+| `GET /admin/reconciliation/summary` | 恒等式巡检结果（余额 = SUM(流水)） | `balance_flow` |
+| `GET /admin/reconciliation/diffs` | 差异列表 | `reconciliation_diff` |
+| `POST /admin/reconciliation/run` | 手动触发巡检 | 同上 |
+| `GET /admin/withdrawals?status=` | 提现队列 | `withdraw_order` |
+| `POST /admin/withdrawals/{id}/audit` | 提现审核 | `withdraw_order`、`balance_flow` |
+| `POST /admin/withdrawals/{id}/voucher` | 上传出款凭证（先转账再点通过） | `withdraw_order`、`file_record` |
+
+> **手工充值必须走 `balance_flow`**，禁止直接 UPDATE `account.balance` —— 第 1 段验收第 6 条就是「直接改余额字段后接口仍返回流水汇总值」。
+
+#### 4.8.4.6 交易（A-11 ~ A-13）
+
+| 方法与路径 | 用途 | 主要表 |
+|---|---|---|
+| `GET /admin/orders` | 订单列表（**已有**，4.8.2） | `legal_order` |
+| `GET /admin/orders/{id}` | 订单详情 | `legal_order`、`payment_record` |
+| `GET /admin/orders/{id}/status-log` | 状态流转记录（详情页时间线） | `order_status_log` |
+| `POST /admin/refunds/{id}/audit` | 退款审批（**已有**，4.8.2） | `legal_order`、`balance_flow` |
+| `GET /admin/lawyer-settlements?lawyerId=&status=` | 结算单列表 | `lawyer_income_settlement` |
+| `POST /admin/lawyer-settlements/generate` | 生成结算单（按律师 + 账期） | 同上 |
+| `GET /admin/lawyer-settlements/{id}` | 结算单详情 | 同上 |
+| `POST /admin/lawyer-settlements/{id}/confirm` | 确认结算 | 同上、`balance_flow` |
+
+#### 4.8.4.7 内容（A-14 ~ A-18、A-27）
+
+| 方法与路径 | 用途 | 主要表 |
+|---|---|---|
+| `GET /admin/articles?category=&status=&lang=` | 文章列表（含 4 语言完成度） | `law_article` |
+| `POST /admin/articles` | 新建文章 | `law_article` |
+| `GET /admin/articles/{id}` | 文章详情（含 4 语言版本） | `law_article`、`law_article_translation` |
+| `PUT /admin/articles/{id}` | 保存文章（正文 + 法条引用绑定） | 同上 |
+| `POST /admin/articles/{id}/publish` | 上架 | `law_article` |
+| `POST /admin/articles/{id}/offline` | 下架 | `law_article` |
+| `GET /admin/case-library?category=&status=` | 案例列表 | `case_library` |
+| `POST /admin/case-library` | 新建案例 | `case_library` |
+| `GET /admin/case-library/{id}` | 案例详情 | 同上 + translation |
+| `PUT /admin/case-library/{id}` | 保存案例 | 同上 |
+| `GET /admin/translations/pending?lang=` | 待翻译 / 待更新队列 | `law_article_translation`、`case_library_translation` |
+| `GET /admin/glossary?lang=` | 术语表 | `i18n_glossary` |
+| `POST /admin/glossary` | 新增术语 | `i18n_glossary` |
+| `PUT /admin/glossary/{id}` | 修改术语 | `i18n_glossary` |
+| `GET /admin/doc-templates?type=` | 文书模板列表 | `document_template` |
+| `POST /admin/doc-templates` | 新建模板 | `document_template` |
+| `PUT /admin/doc-templates/{id}` | 保存 / 启停模板（含字段定义与 4 语言） | `document_template` |
+| `GET /admin/law-items?lawCode=&articleNo=&kw=&status=` | 法条库列表 | `law_item` |
+| `GET /admin/law-items/{id}` | 法条详情 | `law_item` |
+| `PUT /admin/law-items/{id}` | 修正条文（写新版本，不改旧行） | `law_item` |
+| `POST /admin/law-items/import` | 批量导入（CSV / JSON，幂等键 = 法律 + 条号 + 生效日期） | `law_item` |
+| `POST /admin/law-items/{id}/disable` | 标记失效（**不提供物理删除**） | `law_item` |
+
+> **法条库没有 DELETE**：AI 历史回答的 `refs` 快照按 `law_item` 记录，物理删除会让历史引用悬空。只能标记失效。
+
+#### 4.8.4.8 案件与内容审核（A-19、A-20）
+
+| 方法与路径 | 用途 | 主要表 |
+|---|---|---|
+| `GET /admin/cases?status=&lawyerId=` | 案件列表 | `legal_case` |
+| `GET /admin/cases/{id}` | 案件详情（材料、当事人、承办律师） | `legal_case`、`file_record` |
+| `POST /admin/cases/{id}/audit` | 立案审核 | `legal_case` |
+| `POST /admin/cases/{id}/progress` | 推进进度节点 | `case_progress` |
+| `GET /admin/cases/{id}/deliveries` | 送达记录 | `case_service_record` |
+| `POST /admin/cases/{id}/deliveries` | 发起送达 | `case_service_record` |
+| `GET /admin/content-reviews?status=&type=` | 命中记录列表（IM / 评价 / 评论） | `content_review` |
+| `POST /admin/content-reviews/{id}/audit` | 复核处置（忽略 / 警告 / 封禁） | `content_review`、`user_violation` |
+
+> **审核接口不得改写原文**：`content_review` 只记录命中位置与分级，原文保留在 `conversation_message` / `review` 里。这是第 7 段验收「原文完整不被替换」的要求。
+
+#### 4.8.4.9 投诉工单（A-21、A-22）
+
+| 方法与路径 | 用途 | 主要表 |
+|---|---|---|
+| `GET /admin/tickets?type=&status=&assignee=` | 工单列表 | `service_ticket` |
+| `GET /admin/tickets/{id}` | 工单详情（正文、截图、处理记录） | `service_ticket`、`file_record` |
+| `POST /admin/tickets/{id}/assign` | 分配 | `service_ticket` |
+| `POST /admin/tickets/{id}/reply` | 回复（用户端消息中心可见） | `service_ticket`、`notify_template` |
+| `POST /admin/tickets/{id}/close` | 关闭 | `service_ticket` |
+
+#### 4.8.4.10 消息（A-23、A-24）
+
+| 方法与路径 | 用途 | 主要表 |
+|---|---|---|
+| `GET /admin/announcements?status=` | 公告列表（含触达 / 打开率） | `notify_template`、`notification` |
+| `POST /admin/announcements` | 新建公告（人群 / 渠道 / 定时） | 同上 |
+| `POST /admin/announcements/{id}/push` | 立即推送 / 取消定时 | 同上 |
+| `GET /admin/notify-templates?scene=` | 通知模板列表 | `notify_template` |
+| `POST /admin/notify-templates` | 新建模板 | `notify_template` |
+| `PUT /admin/notify-templates/{id}` | 保存模板（变量占位符校验） | `notify_template` |
+
+#### 4.8.4.11 系统（A-25、A-26、A-28）
+
+| 方法与路径 | 用途 | 主要表 |
+|---|---|---|
+| `GET /admin/sensitive-words?level=&lang=&kw=` | 词库列表（三级：block / review / warn） | `sensitive_word` |
+| `POST /admin/sensitive-words` | 新增词条 | `sensitive_word` |
+| `PUT /admin/sensitive-words/{id}` | 修改词条 | `sensitive_word` |
+| `DELETE /admin/sensitive-words/{id}` | 删除词条（**词库可删，法条库不可删**） | `sensitive_word` |
+| `GET /admin/sensitive-word-appeals?status=` | 申诉复核队列 | `sensitive_word_appeal` |
+| `POST /admin/sensitive-word-appeals/{id}/audit` | 申诉处置（维持 / 撤销 / 降级） | 同上 |
+| `GET /admin/operation-logs?adminId=&action=&beginTime=&endTime=` | 操作日志 | `operation_log` |
+| `GET /admin/login-logs?adminId=&ip=&beginTime=&endTime=` | 登录日志 | `login_log` |
+| `GET /admin/ai-sessions?userId=&beginTime=&endTime=&refStatus=` | AI 会话检索 | `ai_conversation` |
+| `GET /admin/ai-sessions/{id}/messages` | 问答原文 + 生成时冻结的 `refs` 快照 | `ai_message` |
+| `POST /admin/ai-sessions/{id}/review` | 标记已复核（只写复核状态，不改原文） | `ai_conversation` |
+| `GET /admin/ai-sessions/{id}/export` | 导出本条记录（合规追溯留档） | 同上 |
+
+> **A-28 的 `refs` 快照是生成时冻结的**：法条修订不回溯改历史记录；回答里引的条文与快照内容不一致时，说明法条在回答之后被改过。
+
+#### 4.8.4.12 覆盖核对与明确不做
+
+**覆盖核对**：28 页里 **26 页**有契约（A-01 走 RuoYi 自带登录；A-05 沿用 4.8.2 已有的 2 个接口）。本节表格列出 **85 个**接口（其中 2 个是原有接口，行内标「已有」），加上 4.8.2 里沿用、未在本节重复列出的 2 个律师入驻审核接口，**admin 接口合计 87 个，本轮新补 83 个**。
+
+**明确不做**：
+
+- **发票管理**：技术路线 §15.1 列了，但 V1 不做（PC 计划 §七），不提供接口；
+- **数据大屏 / BI 报表**：不在 A-01 ~ A-28 内；
+- **权限细分接口**：只有一个管理员角色，不提供角色 / 数据范围配置接口；
+- **IM 聊天原文接口**：**待定**（涉隐私合规，见《未完成需备注》§5.2）。A-12 订单详情、A-20 审核队列暂只返回摘要与命中片段；A-28 返回的是 **AI 对话原文**（合规留痕所必需），不是律师与用户的聊天。
+
+---
+
 # 五、数据库设计（完整 DDL）
 
 ## 5.1 表清单（V2.3：51 张表）
