@@ -781,3 +781,103 @@
 [hidden] {
   display: none !important;
 }
+
+/* ==========================================================================
+   16. 步骤条（第 6 批从 15-lawyer-join 提到这里，20-filing 复用）
+   ==========================================================================
+   结构：<div class="steps">
+           <div class="step is-active" data-step-dot="1">
+             <i class="step__dot">1</i><span class="step__label">标签</span>
+           </div>…
+         </div>
+   状态：is-active（当前步，实心主色）/ is-done（已完成，由 app.js 加）/ 无（未开始，灰）
+
+   ★ 两个细节是第 6 批走查时项目负责人直接指出的，改法记在这里：
+
+   1. **连接线两端都要让出圆点半径，不能只让一端。**
+      原来写 width:100% + 只在结束侧 margin 14px：右端退到了本步圆心左侧 14px（正确），
+      左端却直接顶在上一步的圆心上 —— 而圆点半径是 12.5px，所以上一步圆点的
+      左边会露出一小截线头，看起来像圆点被线扎穿了。
+      现在宽度改成 calc(100% - 28px)，两端各让 14px，距各自圆点边缘都是 1.5px。
+
+   2. **连线只在「上一步已完成」时变蓝，不能把 is-active 也算进去。**
+      原来写 `.step.is-active + .step::before` 也变蓝，结果是刚进第 1 步
+      （active 但没完成）第 1→2 的线就已经是主色，看起来像「已经走到第 2 步」，
+      和圆点状态自相矛盾。正确语义：第 1 步完成、进入第 2 步时，1→2 的线才亮。
+   ========================================================================== */
+.steps {
+  display: flex;
+  align-items: flex-start;
+  margin-block-end: var(--sp-lg);
+}
+
+.step {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  position: relative;
+}
+
+/* 连接线：画在每一步的起始侧（第一步没有），从上一个圆点连到这一个 */
+.step + .step::before {
+  content: "";
+  position: absolute;
+  inset-block-start: 12px;
+  inset-inline-end: 50%;
+  /* 两端各让 14px 给圆点，见上面第 1 条 */
+  width: calc(100% - 28px);
+  margin-inline-end: 14px;
+  height: 2px;
+  background: var(--border-outline);
+  z-index: 0;
+}
+
+/* 只认 is-done，不认 is-active，见上面第 2 条 */
+.step.is-done + .step::before {
+  background: var(--brand-primary);
+}
+
+.step__dot {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 25px;
+  height: 25px;
+  border-radius: 50%;
+  background: var(--bg-input);
+  color: var(--text-muted);
+  font-family: var(--font-num);
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-bold);
+  /* <i> 默认斜体，数字会歪 */
+  font-style: normal;
+  line-height: 1;
+}
+
+.step.is-active .step__dot,
+.step.is-done .step__dot {
+  background: var(--brand-primary);
+  color: var(--text-on-brand);
+}
+
+.step.is-done .step__dot svg {
+  width: 13px;
+  height: 13px;
+}
+
+.step__label {
+  font-size: var(--fs-micro);
+  color: var(--text-muted);
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.step.is-active .step__label {
+  color: var(--brand-primary);
+  font-weight: var(--fw-medium);
+}

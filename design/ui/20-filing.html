@@ -93,82 +93,9 @@ body {
   margin-block-start: 2px;
 }
 
-/* ---------- 步骤条 ---------- */
-.steps {
-  display: flex;
-  align-items: flex-start;
-  margin-block-end: var(--sp-lg);
-}
-
-.step {
-  flex: 1 1 0;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  position: relative;
-}
-
-/* 连接线：从上一个圆点连到这一个，画在本步起始侧 */
-.step + .step::before {
-  content: "";
-  position: absolute;
-  inset-block-start: 12px;
-  inset-inline-end: 50%;
-  width: 100%;
-  height: 2px;
-  margin-inline-end: 14px;
-  background: var(--border-outline);
-  z-index: 0;
-}
-
-.step.is-done + .step::before,
-.step.is-active + .step::before {
-  background: var(--brand-primary);
-}
-
-.step__dot {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 25px;
-  height: 25px;
-  border-radius: 50%;
-  background: var(--bg-input);
-  color: var(--text-muted);
-  font-family: var(--font-num);
-  font-size: var(--fs-caption);
-  font-weight: var(--fw-bold);
-  /* <i> 默认斜体，数字会歪 */
-  font-style: normal;
-  line-height: 1;
-}
-
-.step.is-active .step__dot,
-.step.is-done .step__dot {
-  background: var(--brand-primary);
-  color: var(--text-on-brand);
-}
-
-.step.is-done .step__dot svg {
-  width: 13px;
-  height: 13px;
-}
-
-.step__label {
-  font-size: var(--fs-micro);
-  color: var(--text-muted);
-  line-height: 1.2;
-  white-space: nowrap;
-}
-
-.step.is-active .step__label {
-  color: var(--brand-primary);
-  font-weight: var(--fw-medium);
-}
+/* 步骤条（.steps / .step / .step__dot / .step__label）已提到 components.css，
+   第 6 批从本屏提出去 —— 15-lawyer-join 也用它，两处复制必然分叉。
+   见 components.css 第 16 段，那里记了两个走查时发现的连线 bug。 */
 
 /* ---------- 表单卡 ---------- */
 .form-card {
@@ -663,7 +590,7 @@ body {
       <circle cx="12" cy="16.4" r="1.2" fill="currentColor"/>
     </svg>
     <span>
-      这一步是<b>整理材料</b>：平台法务做形式审查后，代为提交至有管辖权的人民法院。平台不是司法机关，<b>是否受理由法院决定</b>，我们只能保证材料格式规范、该带的都带齐。
+      本页用于<b>整理立案材料</b>。平台法务完成形式审查后，代为提交至有管辖权的人民法院。平台不作出受理决定，<b>是否受理由人民法院裁定</b>；平台仅保证材料格式规范、材料齐备。
     </span>
   </div>
 
@@ -690,8 +617,8 @@ body {
        Step 1：案件类型（默认显示）
        ====================================================================== -->
   <section class="card form-card" data-step="1">
-    <p class="form-card__title">这是什么类型的案子？</p>
-    <p class="form-card__sub">选错不影响提交，法务审查时会帮你纠正，但选对能少一轮沟通。</p>
+    <p class="form-card__title">案件类型</p>
+    <p class="form-card__sub">选择不影响提交，法务审查时予以更正；选择准确可减少一次补正沟通。</p>
 
     <div class="case-types" data-case-types>
       <button class="case-type is-active" type="button" data-case-type="civil">
@@ -702,7 +629,7 @@ body {
                 stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
         </svg>
         <span class="case-type__name">民事</span>
-        <span class="case-type__hint">借钱不还、<br>合同、事故</span>
+        <span class="case-type__hint">借贷、合同、<br>侵权</span>
       </button>
 
       <button class="case-type" type="button" data-case-type="admin">
@@ -713,7 +640,7 @@ body {
                 stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
         </svg>
         <span class="case-type__name">行政</span>
-        <span class="case-type__hint">告政府部门、<br>处罚复议</span>
+        <span class="case-type__hint">行政处罚、<br>行政复议</span>
       </button>
 
       <button class="case-type" type="button" data-case-type="criminal">
@@ -724,11 +651,11 @@ body {
                 stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
         <span class="case-type__name">刑事</span>
-        <span class="case-type__hint">报案、<br>刑事附带民事</span>
+        <span class="case-type__hint">报案、<br>附带民事诉讼</span>
       </button>
     </div>
 
-    <p class="form-card__title" style="margin-block-start:20px">具体是哪类纠纷？</p>
+    <p class="form-card__title" style="margin-block-start:20px">具体纠纷类型</p>
     <!-- 单选：用 data-pick-one，不要用 data-pick —— 后者是多选 toggle，一个案子不可能既算民间借贷又算买卖合同 -->
     <div class="pick-list" data-pick-one-list>
       <button class="pick is-active" type="button" data-pick-one>民间借贷</button>
@@ -746,7 +673,7 @@ body {
         <input id="filing-place" name="place" type="text"
                placeholder="如：伊宁市解放路街道" autocomplete="off">
         <span class="field-row__hint">
-          用来判断由哪个法院管辖。写不准也没关系，法务会按地址核。
+          用于确定管辖法院。地址不准确的，法务将按实际情况核实。
         </span>
       </div>
     </div>
@@ -760,15 +687,15 @@ body {
        Step 2：当事人
        ====================================================================== -->
   <section class="card form-card" data-step="2" hidden>
-    <p class="form-card__title">你是谁，要告谁</p>
+    <p class="form-card__title">当事人信息</p>
     <p class="form-card__sub">
-      当事人信息要和身份证一致，写错了法院会退回来补正。
+      当事人信息须与身份证件一致。信息有误的，人民法院将要求补正。
     </p>
 
     <div class="fields">
       <div class="field-row">
-        <label class="field-row__label" for="filing-name">你的姓名 <em>*</em></label>
-        <input id="filing-name" name="plaintiffName" type="text" placeholder="与身份证一致"
+        <label class="field-row__label" for="filing-name">原告姓名 <em>*</em></label>
+        <input id="filing-name" name="plaintiffName" type="text" placeholder="与身份证件一致"
                autocomplete="name">
       </div>
 
@@ -788,27 +715,27 @@ body {
                placeholder="11 位手机号" autocomplete="tel" maxlength="11">
         <p class="field-row__error">请填写 11 位手机号</p>
         <span class="field-row__hint">
-          法院通知会发到这个号码，停机或换号要及时改。
+          人民法院的通知将发送至该号码，号码变更请及时更新。
         </span>
       </div>
     </div>
 
-    <p class="form-card__title" style="margin-block-start:24px">对方当事人</p>
+    <p class="form-card__title" style="margin-block-start:24px">被告信息</p>
     <p class="form-card__sub">
-      欠钱的、撞你的、违约的那一方。不知道对方身份证号可以先空着，但姓名和住址越准确，法院送达越顺利。
+      指与本案有直接利害关系的相对方。对方身份证号未知的可暂不填写；姓名与住址信息越完整，送达越顺利。
     </p>
 
     <div class="fields">
       <div class="field-row">
         <label class="field-row__label" for="filing-defendant">姓名 / 单位名称</label>
         <input id="filing-defendant" name="defendantName" type="text"
-               placeholder="个人写姓名，公司写全称">
+               placeholder="自然人填写姓名，法人填写全称">
       </div>
 
       <div class="field-row">
         <label class="field-row__label" for="filing-defendant-addr">住址 / 注册地址</label>
         <input id="filing-defendant-addr" name="defendantAddr" type="text"
-               placeholder="写到你所在县市的街道即可">
+               placeholder="填写至县市街道即可">
       </div>
     </div>
 
@@ -822,19 +749,19 @@ body {
        Step 3：案情与诉求
        ====================================================================== -->
   <section class="card form-card" data-step="3" hidden>
-    <p class="form-card__title">说清楚发生了什么</p>
+    <p class="form-card__title">案情陈述</p>
     <p class="form-card__sub">
-      按时间顺序写：什么时候、谁做了什么、造成了什么结果。不用写法律依据，那是法务和律师的事。
+      请按时间顺序陈述纠纷发生时间、各方行为及造成的后果。法律依据无需填写，由法务与承办律师处理。
     </p>
 
     <div class="textarea-row">
-      <textarea placeholder="例：2025 年 8 月，朋友王某以进货周转为由向我借款 3 万元，约定 3 个月归还，我通过微信转的账。到期后多次催要，他一直说再等等，到现在一分没还。"></textarea>
+      <textarea placeholder="例：2025 年 8 月，我通过微信向王某出借 3 万元，用于其进货周转，约定 3 个月归还。到期后经多次催告，对方至今未归还。"></textarea>
       <span class="textarea-row__count">0 / 2000</span>
     </div>
 
-    <p class="form-card__title" style="margin-block-start:20px">你的诉讼请求</p>
+    <p class="form-card__title" style="margin-block-start:20px">诉讼请求</p>
     <p class="form-card__sub">
-      就是你希望法院判对方做什么。可以写多条，比如「归还本金」+「支付利息」。
+      指请求人民法院判令对方承担的义务，可列多项，如「归还本金」「支付逾期利息」。
     </p>
 
     <div class="textarea-row">
@@ -843,7 +770,7 @@ body {
     </div>
 
     <p class="form-card__title" style="margin-block-start:20px">争议金额</p>
-    <p class="form-card__sub">诉讼费按这个金额计算，写实际要主张的钱，不含利息也可以。</p>
+    <p class="form-card__sub">诉讼费按此金额计算。填写实际主张的数额，可不含利息。</p>
 
     <label class="amount">
       <span>¥</span>
@@ -863,7 +790,7 @@ body {
   <section class="card form-card" data-step="4" hidden>
     <p class="form-card__title">证据材料</p>
     <p class="form-card__sub">
-      有多少传多少，先传能直接证明关键事实的那几份。照片拍清楚、四角入框。
+      请上传全部证据材料，优先上传能直接证明关键事实的部分。拍照须清晰、四角完整入框。
     </p>
 
     <div class="evidence">
@@ -905,10 +832,10 @@ body {
     </div>
 
     <p class="evidence-note">
-      支持照片和 PDF，单份不超过 20MB，最多 50 份。微信聊天记录请截图后上传，要能看清双方头像和完整对话。
+      支持照片与 PDF 格式，单份不超过 20MB，最多 50 份。微信聊天记录请截图上传，须能辨认双方头像及完整对话内容。
     </p>
 
-    <p class="form-card__title" style="margin-block-start:24px">提交前确认一下</p>
+    <p class="form-card__title" style="margin-block-start:24px">提交前核对</p>
 
     <div class="summary">
       <div class="summary__row">
@@ -938,7 +865,7 @@ body {
     </div>
 
     <div class="fee">
-      <b>费用说明：</b>诉讼费由人民法院按《诉讼费用交纳办法》收取，本平台<b>不代收</b>，也不从中抽成。以 32,000 元标的估算约 600 元，适用简易程序减半，最终以法院核定为准。平台整理与代提交服务本期免费。
+      <b>费用说明：</b>诉讼费由人民法院按《诉讼费用交纳办法》收取，本平台<b>不代收</b>，亦不从中分成。以 32,000 元标的估算约 600 元，适用简易程序减半，最终以人民法院核定为准。平台材料整理与代提交服务本期免费。
     </div>
 
     <div class="form-actions">
@@ -947,7 +874,7 @@ body {
     </div>
 
     <p class="form-note">
-      提交即表示你确认以上信息真实。伪造证据要承担法律责任，也会让本来能赢的案子输掉。
+      提交即视为你确认上述信息真实。伪造证据应承担相应法律责任，并可能导致本可成立的诉讼请求不获支持。
     </p>
   </section>
 
