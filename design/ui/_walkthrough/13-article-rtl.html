@@ -31,22 +31,20 @@
      4. 标题字距      letter-spacing: -0.01em 在连写文字上会把字形拉开，RTL 下归零
      5. 数字与日期    包 unicode-bidi: isolate，避免被 bidi 重排
 
-   ★ 本批还发现一个必须记进文档的问题：
-     中文的 --font-sans 栈里没有任何阿拉伯系字体，浏览器只能靠系统 fallback，
-     不同机器上维语的观感会不一致。真实项目要在 tokens 里补一条
-     --font-arabic（推荐 "Noto Naskh Arabic" 打包进 App，不依赖系统）。
-     本文件先用 Tahoma 兜底，见下面 [dir="rtl"] body 的覆盖。
+   ★ 字体：2026-10-29 已定打包 Noto Naskh Arabic，令牌 --font-arabic 指向自托管字体
+     （design/ui/fonts/noto-naskh-arabic.woff2，94,032 字节，SIL OFL 1.1，
+      可变字体 wght 400~700，维吾尔文 + 哈萨克文 38/38 字符全覆盖）。
+     本文件从此刻起用**真实字体渲染**，不再是「系统 fallback」。
+     在此之前它只能靠 Tahoma 之类的系统字体兜底，各机型观感不一致 ——
+     那正是决定打包的原因。
    ========================================================================== */
 
 body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-}
-
-/* 阿拉伯系字体兜底：中文字体栈里没有阿拉伯字形 */
-[dir="rtl"] body {
-  font-family: "Segoe UI", Tahoma, "Noto Naskh Arabic", sans-serif;
+  /* 阿拉伯系字体：走令牌 --font-arabic（自托管 Noto Naskh Arabic） */
+  font-family: var(--font-arabic);
 }
 
 /* 连写文字不能调字距 */
