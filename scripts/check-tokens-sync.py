@@ -38,6 +38,7 @@ MAP = {
     "bg-canvas": "color.background.canvas.value",
     "bg-surface": "color.background.surface.value",
     "bg-input": "color.background.input.value",
+    "bg-workbench": "color.background.workbench.value",
     "text-primary": "color.text.primary.value",
     "text-body": "color.text.body.value",
     "text-secondary": "color.text.secondary.value",

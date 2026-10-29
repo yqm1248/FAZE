@@ -2199,3 +2199,60 @@
 .lang.is-active .lang__check {
   opacity: 1;
 }
+
+/* ==========================================================================
+   32. 律师工作台深色顶栏（第 17 批新增，62~68 七屏复用）
+   ==========================================================================
+   结构：
+     <header class="statusbar statusbar--light">…</header>
+     <div class="navbar navbar--dark">
+       <a class="navbar__back">…</a>
+       <h1 class="navbar__title">律师工作台</h1>
+     </div>
+
+   ★ 为什么靠顶栏底色区分角色，而不是换一套主色：
+     主色在用户侧承担「这里可以点」的信号（按钮、链接、选中态全是它）。
+     律师同时是用户 —— 他自己的咨询、订单、余额都在用户侧。
+     律师侧再引入第二套主色的话，他在两边来回切几次之后，
+     就没人记得哪个颜色代表可点了。
+     深色顶栏只改「环境」，不改「控件语言」—— 控件在两边长得一样。
+
+   ★ 必须配 statusbar--light（状态栏文字反白），否则深底上黑字看不见。
+
+   ★ 工作台没有底部 tabbar：导航靠首页六宫格 + 各页返回箭头。
+     给两套 tabbar 会让「我现在在哪一侧」变模糊，而这恰恰是这批要解决的问题。
+
+   ★ 深色底上的按压态不能用 --bg-input（那是给白底设计的浅灰），
+     否则按下时会冒出一块发灰的亮块。这里用白色低透明度叠一层。
+   ========================================================================== */
+.navbar--dark {
+  background: var(--bg-workbench);
+}
+
+/* ★ 状态栏是绝对定位浮在 body 上的（tokens.css），它下面露出的是 body 的浅色底。
+   深色顶栏如果不往上补这 54px，白色时间就压在 #F7F8FA 上，对比度只有 1.06:1。
+   用 ::before 往上铺一块同色，比给 body 加背景更安全 —— body 上还有别的页要用浅底。 */
+.navbar--dark::before {
+  content: "";
+  position: absolute;
+  inset-block-start: calc(-1 * var(--statusbar-h));
+  inset-inline: 0;
+  height: var(--statusbar-h);
+  background: var(--bg-workbench);
+}
+
+.navbar--dark .navbar__back,
+.navbar--dark .navbar__title,
+.navbar--dark .navbar__icon {
+  color: var(--text-on-brand);
+}
+
+.navbar--dark .navbar__back:active,
+.navbar--dark .navbar__icon:active {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* 深色底上主色图标对比不足，选中态改用纯白 */
+.navbar--dark .navbar__icon.is-on {
+  color: var(--text-on-brand);
+}
