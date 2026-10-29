@@ -1,0 +1,22 @@
+# 法泽 FAZE —— 换行符策略
+#
+# 为什么强制 LF（2026-10-29 加）：
+#   本机 core.autocrlf = true，检出时会把 LF 转成 CRLF。后果是
+#   **同一个 commit 在不同机器上工作区字节数不同**，而 docs/BASELINE.md 的
+#   文档指纹是 SHA256（按字节算）—— 基线在别人机器上直接失效。
+#   实测过一次：设计令牌.md 仓库里 11343 字节、工作区 11499 字节，差 156 个 \r；
+#   设计主文档差 1873 字节。当时登记的指纹按工作区算，等于给了一个复现不了的基线。
+#
+#   所以：全库统一 LF，检出即文库，指纹在任何机器上都对得上。
+
+* text=auto eol=lf
+
+# 二进制/资源文件不做换行符转换
+*.woff2 binary
+*.woff  binary
+*.ttf   binary
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.ico   binary
+*.zip   binary
