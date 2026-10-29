@@ -1455,3 +1455,214 @@
 .pwd-cell.is-filled::after {
   background: var(--text-primary);
 }
+
+/* ==========================================================================
+   24. 设置列表（第 12 批：41-settings 立母版，42~47 复用）
+   ==========================================================================
+   结构：
+     <h2 class="set-group__title">账号与安全</h2>
+     <div class="set-list">
+       <a class="set-row" href="…">
+         <span class="set-row__label">账号与安全</span>
+         <span class="set-row__value">已保护</span>
+         <svg class="set-row__chevron">…</svg>
+       </a>
+       <button class="set-row" type="button">
+         <span class="set-row__label">清除缓存</span>
+         <span class="set-row__value">12.4 MB</span>
+       </button>
+       <button class="set-row set-row--danger" type="button">退出登录</button>
+     </div>
+
+   ★ 不用 05-profile 的 .menu：那一套每行带图标、没有值列，
+     适合「入口集合」；设置页的每一行是「一个可调的项」，值比图标重要得多
+     （简体中文 / 标准 / 12.4 MB / 已是最新）。两套并存，各管一摊。
+
+   ★ 组标题放在卡外上方（类似 iOS 设置），不放进卡里：
+     放进去会和行标题抢层级 —— 一行 15px 的「账号与安全」上面再顶一个
+     同色的「账号与安全」，看不出哪层是分组。
+   ========================================================================== */
+.set-group__title {
+  padding: var(--sp-lg) 0 var(--sp-sm);
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.set-list {
+  border-radius: var(--r-md);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+
+.set-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  width: 100%;
+  min-height: 52px;
+  padding: 12px var(--sp-lg);
+  border: 0;
+  border-block-end: 1px solid var(--border-divider);
+  background: transparent;
+  font-family: inherit;
+  text-align: start;
+  text-decoration: none;
+  color: var(--text-body);
+  cursor: pointer;
+}
+
+.set-row:last-child {
+  border-block-end: 0;
+}
+
+.set-row:active {
+  background: var(--bg-canvas);
+}
+
+.set-row__label {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: var(--fs-lg);
+  color: var(--text-primary);
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 值列：右对齐、比标签弱一档。等宽类内容（版本号、缓存大小）用 --font-num */
+.set-row__value {
+  flex: 0 0 auto;
+  font-size: var(--fs-md);
+  color: var(--text-muted);
+  line-height: 1.4;
+  text-align: end;
+  white-space: nowrap;
+}
+
+.set-row__value--num {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+}
+
+.set-row__chevron {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  color: var(--text-muted);
+}
+
+/* 危险行：退出登录 / 注销账号。整行居中、红字、无箭头（它不跳页面，是执行动作） */
+.set-row--danger {
+  justify-content: center;
+  font-size: var(--fs-lg);
+  color: var(--state-danger);
+}
+
+.set-row--danger .set-row__label {
+  flex: 0 0 auto;
+  color: var(--state-danger);
+  font-weight: var(--fw-medium);
+}
+
+/* ==========================================================================
+   25. 开关（第 12 批从 37-pay-password 收到这里，46 / 47 复用）
+   ==========================================================================
+   结构：<button class="switch is-on" type="button" role="switch" aria-checked="true"></button>
+
+   ★ 元素本身 48×44，胶囊与滑块都用伪元素画。
+     不把 28 高的胶囊当元素、再拿 ::before 补热区 —— 那样量出来还是 28，
+     而且伪元素一旦被别的样式覆盖，热区就没了。元素尺寸直接给 44，最稳。
+
+   ★ 开关的定位用 inset-inline-start，不用 transform：
+     transform 在 RTL 下不会自动镜像，得为阿拉伯语系单独写一份反向规则。
+   ========================================================================== */
+.switch {
+  position: relative;
+  flex: 0 0 auto;
+  width: 48px;
+  height: 44px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.switch::before {
+  content: "";
+  position: absolute;
+  inset-block-start: 8px;
+  inset-inline: 0;
+  height: 28px;
+  border-radius: var(--r-pill);
+  background: var(--bg-input);
+  transition: background-color 160ms ease;
+}
+
+.switch::after {
+  content: "";
+  position: absolute;
+  inset-block-start: 10px;
+  inset-inline-start: 2px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--bg-surface);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.16);
+  transition: inset-inline-start 160ms ease;
+}
+
+.switch.is-on::before {
+  background: var(--brand-primary);
+}
+
+.switch.is-on::after {
+  inset-inline-start: calc(100% - 26px);
+}
+
+/* 被禁用的开关（总开关关闭时，下面的分项会变成这个状态）。
+   必须同时有视觉变化和不可点：只变淡不禁用的后果是用户拨了没反应，
+   会以为开关坏了，然后来问客服 */
+.switch[disabled] {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.switch[disabled]::before {
+  background: var(--bg-input);
+}
+
+/* 开关行的容器：左边一组说明，右边一个开关 */
+.switch-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-md);
+  min-height: 56px;
+  padding: 10px var(--sp-lg);
+  border-block-end: 1px solid var(--border-divider);
+}
+
+.switch-row:last-child {
+  border-block-end: 0;
+}
+
+.switch-row__main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.switch-row__name {
+  display: block;
+  font-size: var(--fs-lg);
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.switch-row__desc {
+  display: block;
+  margin-block-start: 2px;
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.5;
+}

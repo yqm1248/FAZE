@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390, initial-scale=1">
+<meta name="dsh-design" content="app">
+<title>设置</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   设置页（第 12 批 · 延展，无参考图）★ 设置页母版
+   ==========================================================================
+   职责：所有「不常用但要能改」的东西都从这里进。
+   入口：05-profile 底部「设置」；语言切换、字号、深色模式也在这里
+   母版：**设置列表母版** —— 组标题 + 卡片列表 + 行（标签 / 值 / 箭头）。
+         42 账号与安全、43 修改密码、44 换绑手机、45 注销、46 通知、47 隐私
+         全部照这一屏的骨架。
+   数据来源：设置项接口（键 / 当前值）+ 本地缓存大小 + 客户端版本号
+
+   ★ 与导航树的一处调整：导航树把「语言切换」列在设置页顶层，
+     这里把它归进「通用」组。理由：语言、字号、深色模式都是「这个界面怎么显示」，
+     同一类东西散在两层，用户找语言时会先在这三个里翻一遍。
+     信息一条没丢，只是分组换了。导航树那一行建议跟着调整。
+
+   ★ 为什么大部分行右边有个「值」：
+     设置页的价值不在于「能点进去」，而在于「不用点进去就知道现在是什么状态」。
+     语言当前是简体中文、字是标准号、缓存占 12.4 MB、是不是最新版本 ——
+     这些如果都要点进去才知道，用户每改一项就要多走一个来回。
+
+   ★ 为什么「退出登录」单独一组、居中、红色：
+     它和上面所有项的性质都不一样：上面是改配置，它是把人踢出账号。
+     混在同一张卡里，手指往下滑的时候很容易顺手点到。
+
+   ★ 为什么字号 / 深色模式用浮层而不是二级页面：
+     它们各自只有 3~4 个选项，跳一页再选再返回是三次跳转；
+     底部浮层一次就完事，而且改完能立刻在浮层背景上看到效果。
+
+   四态：不适用。设置项是本地 + 少量接口，加载失败时按默认值渲染，
+         不阻塞页面（真实实现要这么做，否则断网就进不了设置，连「检查更新」都用不了）。
+   ========================================================================== */
+
+body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-canvas);
+}
+
+.navbar {
+  background: var(--bg-surface);
+}
+
+.screen {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding: 0 var(--sp-xl) calc(var(--safe-bottom) + var(--sp-xl));
+}
+.screen::-webkit-scrollbar {
+  display: none;
+}
+
+/* 第一组的标题不需要上边距 —— 导航栏下面直接接内容 */
+.set-group__title:first-child {
+  padding-block-start: var(--sp-md);
+}
+
+/* 最后一组（退出登录）不需要组标题，但要有和上面拉开的上边距 */
+.set-list--tail {
+  margin-block-start: var(--sp-lg);
+}
+
+/* ---------- 字号选择（浮层里） ---------- */
+.opt-list {
+  padding: var(--sp-xs) var(--sp-lg) var(--sp-md);
+}
+
+.opt {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-md);
+  width: 100%;
+  min-height: 52px;
+  padding: var(--sp-sm) 0;
+  border: 0;
+  border-block-end: 1px solid var(--border-divider);
+  background: transparent;
+  font-family: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.opt:last-child {
+  border-block-end: 0;
+}
+
+.opt__label {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+/* 四档字号各自用真实的字号渲染，让用户直接看到差别，
+   而不是靠描述文字想象「大」有多大 */
+.opt--fs-sm .opt__label {
+  font-size: var(--fs-md);
+}
+
+.opt--fs-md .opt__label {
+  font-size: var(--fs-lg);
+}
+
+.opt--fs-lg .opt__label {
+  font-size: 18px;
+}
+
+.opt--fs-xl .opt__label {
+  font-size: 21px;
+}
+
+
+.opt__check {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  color: var(--brand-primary);
+  opacity: 0;
+}
+
+.opt.is-active .opt__check {
+  opacity: 1;
+}
+
+/* ---------- 浮层里的说明 ---------- */
+.sheet-note {
+  padding: 0 var(--sp-lg) var(--sp-lg);
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+/* ---------- 清除缓存确认框 ---------- */
+.cache-line {
+  margin-block: var(--sp-sm) var(--sp-lg);
+  padding: var(--sp-md);
+  border-radius: var(--r-sm);
+  background: var(--bg-canvas);
+  font-size: var(--fs-md);
+  color: var(--text-secondary);
+  line-height: 1.6;
+  text-align: start;
+}
+
+.cache-line b {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+</style>
+</head>
+<body>
+
+<header class="statusbar">
+  <span>9:41</span>
+  <span class="statusbar__icons">
+    <svg width="17" height="11" viewBox="0 0 17 11" fill="none" aria-hidden="true">
+      <rect x="0" y="7" width="3" height="4" rx="1" fill="currentColor"/>
+      <rect x="4.5" y="5" width="3" height="6" rx="1" fill="currentColor"/>
+      <rect x="9" y="2.5" width="3" height="8.5" rx="1" fill="currentColor"/>
+      <rect x="13.5" y="0" width="3" height="11" rx="1" fill="currentColor"/>
+    </svg>
+    <svg width="16" height="11" viewBox="0 0 16 11" fill="none" aria-hidden="true">
+      <path d="M1 3.2A10.5 10.5 0 0 1 15 3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M3.6 5.9a7 7 0 0 1 8.8 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M6.2 8.6a3.4 3.4 0 0 1 3.6 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden="true">
+      <rect x="0.6" y="0.6" width="21" height="10.8" rx="3" stroke="currentColor" stroke-opacity="0.4" stroke-width="1.2"/>
+      <rect x="2.2" y="2.2" width="15" height="7.6" rx="1.8" fill="currentColor"/>
+      <path d="M23.4 4.2v3.6" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+  </span>
+</header>
+
+<div class="navbar">
+  <a class="navbar__back" href="05-profile.html" aria-label="返回我的">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M15.2 4.6 7.8 12l7.4 7.4" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </a>
+  <h1 class="navbar__title">设置</h1>
+</div>
+
+<main class="screen">
+
+  <h2 class="set-group__title">账号与安全</h2>
+  <div class="set-list">
+    <a class="set-row" href="42-account-security.html">
+      <span class="set-row__label">账号与安全</span>
+      <span class="set-row__value">已实名</span>
+      <svg class="set-row__chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="m9.2 4.6 7.4 7.4-7.4 7.4" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </a>
+    <a class="set-row" href="37-pay-password.html">
+      <span class="set-row__label">支付密码</span>
+      <span class="set-row__value">已设置</span>
+      <svg class="set-row__chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="m9.2 4.6 7.4 7.4-7.4 7.4" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </a>
+    <a class="set-row" href="46-notify-settings.html">
+      <span class="set-row__label">消息通知</span>
+      <svg class="set-row__chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="m9.2 4.6 7.4 7.4-7.4 7.4" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </a>
+    <a class="set-row" href="47-privacy-settings.html">
+      <span class="set-row__label">隐私设置</span>
+      <svg class="set-row__chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="m9.2 4.6 7.4 7.4-7.4 7.4" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </a>
+  </div>
+
+  <h2 class="set-group__title">通用</h2>
+  <div class="set-list">
+    <a class="set-row" href="60-language.html">
+      <span class="set-row__label">语言</span>
+      <span class="set-row__value">简体中文</span>
+      <svg class="set-row__chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="m9.2 4.6 7.4 7.4-7.4 7.4" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </a>
+    <button class="set-row" type="button" data-open-font>
+      <span class="set-row__label">字体大小</span>
+      <span class="set-row__value" data-font-value>标准</span>
+      <svg class="set-row__chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="m9.2 4.6 7.4 7.4-7.4 7.4" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+    <button class="set-row" type="button" data-open-dark>
+      <span class="set-row__label">深色模式</span>
+      <span class="set-row__value" data-dark-value>跟随系统</span>
+      <svg class="set-row__chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="m9.2 4.6 7.4 7.4-7.4 7.4" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+    <button class="set-row" type="button" data-open-cache>
+      <span class="set-row__label">清除缓存</span>
+      <span class="set-row__value set-row__value--num">12.4 MB</span>
+      <svg class="set-row__chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="m9.2 4.6 7.4 7.4-7.4 7.4" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+  </div>
+
+  <h2 class="set-group__title">关于</h2>
+  <div class="set-list">
+    <a class="set-row" href="59-about.html">
+      <span class="set-row__label">关于我们</span>
+      <svg class="set-row__chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="m9.2 4.6 7.4 7.4-7.4 7.4" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </a>
+    <button class="set-row" type="button" data-check-update>
+      <span class="set-row__label">检查更新</span>
+      <span class="set-row__value set-row__value--num" data-update-value>v1.0.0</span>
+      <svg class="set-row__chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="m9.2 4.6 7.4 7.4-7.4 7.4" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+    <a class="set-row" href="58-feedback.html">
+      <span class="set-row__label">意见反馈</span>
+      <svg class="set-row__chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="m9.2 4.6 7.4 7.4-7.4 7.4" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </a>
+  </div>
+
+  <div class="set-list set-list--tail">
+    <button class="set-row set-row--danger" type="button" data-logout-open>
+      <span class="set-row__label">退出登录</span>
+    </button>
+  </div>
+
+</main>
+
+<!-- ======================================================================
+     字号选择
+     ★ 四档用真实字号渲染，让用户直接看到差别。文字描述「大 / 特大」
+       在用户眼里是抽象的，看到才知道自己能不能读。
+     ====================================================================== -->
+<div class="mask" data-font-mask hidden></div>
+<div class="sheet" data-font-sheet hidden role="dialog" aria-modal="true" aria-labelledby="font-title">
+  <div class="sheet__handle"></div>
+  <div class="sheet__head">
+    <h2 class="sheet__title" id="font-title">字体大小</h2>
+    <button class="sheet__close" type="button" data-font-close aria-label="关闭">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="m5.8 5.8 12.4 12.4M18.2 5.8 5.8 18.2" stroke="currentColor"
+              stroke-width="2" stroke-linecap="round"/>
+      </svg>
+    </button>
+  </div>
+  <div class="opt-list" data-choice-group>
+    <button class="opt opt--fs-sm" type="button" data-font="小">
+      <span class="opt__label">小</span>
+      <svg class="opt__check" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="m5.2 12.4 4.6 4.6 9-9.6" stroke="currentColor" stroke-width="2.2"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+    <button class="opt opt--fs-md is-active" type="button" data-font="标准">
+      <span class="opt__label">标准</span>
+      <svg class="opt__check" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="m5.2 12.4 4.6 4.6 9-9.6" stroke="currentColor" stroke-width="2.2"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+    <button class="opt opt--fs-lg" type="button" data-font="大">
+      <span class="opt__label">大</span>
+      <svg class="opt__check" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="m5.2 12.4 4.6 4.6 9-9.6" stroke="currentColor" stroke-width="2.2"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+    <button class="opt opt--fs-xl" type="button" data-font="特大">
+      <span class="opt__label">特大</span>
+      <svg class="opt__check" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="m5.2 12.4 4.6 4.6 9-9.6" stroke="currentColor" stroke-width="2.2"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+  </div>
+  <p class="sheet-note">字体会影响全 App 的正文与按钮文字。目标用户里有不少中老年人，选「大」或「特大」不会影响任何功能。</p>
+</div>
+
+<!-- ======================================================================
+     深色模式
+     ====================================================================== -->
+<div class="mask" data-dark-mask hidden></div>
+<div class="sheet" data-dark-sheet hidden role="dialog" aria-modal="true" aria-labelledby="dark-title">
+  <div class="sheet__handle"></div>
+  <div class="sheet__head">
+    <h2 class="sheet__title" id="dark-title">深色模式</h2>
+    <button class="sheet__close" type="button" data-dark-close aria-label="关闭">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="m5.8 5.8 12.4 12.4M18.2 5.8 5.8 18.2" stroke="currentColor"
+              stroke-width="2" stroke-linecap="round"/>
+      </svg>
+    </button>
+  </div>
+  <div class="opt-list" data-choice-group>
+    <button class="opt is-active" type="button" data-dark="跟随系统">
+      <span class="opt__label">跟随系统</span>
+      <svg class="opt__check" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="m5.2 12.4 4.6 4.6 9-9.6" stroke="currentColor" stroke-width="2.2"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+    <button class="opt" type="button" data-dark="开">
+      <span class="opt__label">开</span>
+      <svg class="opt__check" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="m5.2 12.4 4.6 4.6 9-9.6" stroke="currentColor" stroke-width="2.2"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+    <button class="opt" type="button" data-dark="关">
+      <span class="opt__label">关</span>
+      <svg class="opt__check" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="m5.2 12.4 4.6 4.6 9-9.6" stroke="currentColor" stroke-width="2.2"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+  </div>
+  <p class="sheet-note">「跟随系统」会随手机的深色模式自动切换。深色模式只是换个显示，不影响任何功能。</p>
+</div>
+
+<!-- ======================================================================
+     清除缓存
+     ★ 说清「清掉的是什么」：用户最怕的是「清完我的文书和聊天记录没了」。
+       清的是可再生成的临时文件，不是账号数据，这句必须在确认框里讲。
+     ====================================================================== -->
+<div class="mask" data-cache-mask hidden></div>
+<div class="dialog" data-cache-dialog hidden role="dialog" aria-modal="true" aria-labelledby="cache-title">
+  <h2 class="dialog__title" id="cache-title">清除缓存</h2>
+  <div class="cache-line">当前缓存 <b>12.4 MB</b>，主要是看过的图片和临时文件。</div>
+  <p class="dialog__body">清除后这些文件要重新下载，第一次打开图片会慢一点。<b>不会</b>删除你的订单、文书、聊天记录和账户余额。</p>
+  <div class="dialog__actions">
+    <button class="dialog__btn" type="button" data-cache-dismiss>取消</button>
+    <button class="dialog__btn dialog__btn--primary" type="button" data-cache-confirm>清除</button>
+  </div>
+</div>
+
+<!-- ======================================================================
+     退出登录（复用 05-profile 的同一套属性名，app.js 已绑过）
+     ====================================================================== -->
+<div class="mask" data-logout-mask hidden></div>
+<div class="dialog" data-logout-dialog hidden role="dialog" aria-modal="true" aria-labelledby="logout-title">
+  <h2 class="dialog__title" id="logout-title">退出登录？</h2>
+  <p class="dialog__body">退出后要重新输手机号和密码才能进来。已经付过的订单、进行中的案件和账户余额都不会受影响。</p>
+  <div class="dialog__actions">
+    <button class="dialog__btn" type="button" data-logout-close>取消</button>
+    <a class="dialog__btn dialog__btn--danger" href="06-login.html">退出登录</a>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

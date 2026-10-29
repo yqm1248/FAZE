@@ -2083,4 +2083,292 @@
     if (walkHash === "state-idle") searchInput.value = "";
     if (walkHash === "state-empty") searchInput.value = "二胎抚养权";
   }
+
+  /* ==========================================================================
+     43. 设置页（第 12 批：41-settings）
+     ==========================================================================
+     字号 / 深色模式：底部浮层单选，选完立刻关掉并把当前值回写到行上。
+     ★ 不给「确定」按钮：这两个是「改了立刻能看见」的选项，
+       多一步确认只会让人以为没生效。和表单里「选了再提交」不是一回事。
+
+     清缓存：确认框。检查更新：轻提示。
+     退出登录复用 05-profile 那套 data-logout-*，不在这里重写。
+     ========================================================================== */
+  function setupPicker(cfg) {
+    var opener = document.querySelector(cfg.open);
+    var mask = document.querySelector(cfg.mask);
+    var sheet = document.querySelector(cfg.sheet);
+    var valueOut = document.querySelector(cfg.value);
+
+    if (!opener || !sheet) return;
+
+    function setOpen(open) {
+      toggleLayer(mask, open);
+      toggleLayer(sheet, open);
+    }
+
+    opener.addEventListener("click", function () {
+      setOpen(true);
+    });
+
+    if (mask) {
+      mask.addEventListener("click", function () {
+        setOpen(false);
+      });
+    }
+
+    Array.prototype.forEach.call(
+      document.querySelectorAll(cfg.close),
+      function (btn) {
+        btn.addEventListener("click", function () {
+          setOpen(false);
+        });
+      }
+    );
+
+    Array.prototype.forEach.call(
+      document.querySelectorAll(cfg.opt),
+      function (btn) {
+        btn.addEventListener("click", function () {
+          /* 作用域限定在当前浮层，两个 picker 互不干扰 */
+          var scope = btn.closest("[data-choice-group]") || sheet;
+
+          Array.prototype.forEach.call(scope.querySelectorAll(cfg.opt), function (other) {
+            if (other === btn) other.classList.add("is-active");
+            else other.classList.remove("is-active");
+          });
+
+          var picked = btn.getAttribute(cfg.valueAttr) || btn.textContent.trim();
+          if (valueOut) valueOut.textContent = picked;
+
+          setOpen(false);
+          showToast(cfg.toast + picked);
+        });
+      }
+    );
+  }
+
+  setupPicker({
+    open: "[data-open-font]",
+    mask: "[data-font-mask]",
+    sheet: "[data-font-sheet]",
+    close: "[data-font-close]",
+    opt: "[data-font]",
+    value: "[data-font-value]",
+    valueAttr: "data-font",
+    toast: "字体大小已设为 "
+  });
+
+  setupPicker({
+    open: "[data-open-dark]",
+    mask: "[data-dark-mask]",
+    sheet: "[data-dark-sheet]",
+    close: "[data-dark-close]",
+    opt: "[data-dark]",
+    value: "[data-dark-value]",
+    valueAttr: "data-dark",
+    toast: "深色模式："
+  });
+
+  /* ---------- 清除缓存 ---------- */
+  var cacheOpen = document.querySelector("[data-open-cache]");
+  var cacheMask = document.querySelector("[data-cache-mask]");
+  var cacheDialog = document.querySelector("[data-cache-dialog]");
+
+  function setCacheDialog(open) {
+    toggleLayer(cacheMask, open);
+    toggleLayer(cacheDialog, open);
+  }
+
+  if (cacheOpen) {
+    cacheOpen.addEventListener("click", function () {
+      setCacheDialog(true);
+    });
+
+    if (cacheMask) {
+      cacheMask.addEventListener("click", function () {
+        setCacheDialog(false);
+      });
+    }
+
+    Array.prototype.forEach.call(
+      document.querySelectorAll("[data-cache-dismiss]"),
+      function (btn) {
+        btn.addEventListener("click", function () {
+          setCacheDialog(false);
+        });
+      }
+    );
+
+    var cacheConfirm = document.querySelector("[data-cache-confirm]");
+    if (cacheConfirm) {
+      cacheConfirm.addEventListener("click", function () {
+        setCacheDialog(false);
+
+        /* 只改这一行的值，别用 .set-row__value--num —— 版本号那一行也是这个类 */
+        var cacheValue = cacheOpen.querySelector(".set-row__value");
+        if (cacheValue) cacheValue.textContent = "0 MB";
+
+        showToast("缓存已清除");
+      });
+    }
+  }
+
+  var checkUpdate = document.querySelector("[data-check-update]");
+  if (checkUpdate) {
+    checkUpdate.addEventListener("click", function () {
+      showToast("已是最新版本 v1.0.0");
+    });
+  }
+
+  /* ==========================================================================
+     44. 第 12 批的其余几屏（42 / 43 / 44 / 45 / 46 / 47）
+     ==========================================================================
+     42 账号与安全是纯列表，没有交互。
+     下面按屏分组，各管各的，互不干扰。
+     ========================================================================== */
+
+  /* ---------- 43 修改密码：显示 / 隐藏 ----------
+     用 data-eye 而不是复用 06-login 的 data-pw-toggle：
+     那一套绑在 .field 结构上，这一屏的字段结构不同，混用会互相干扰。 */
+  Array.prototype.forEach.call(document.querySelectorAll("[data-eye]"), function (btn) {
+    btn.addEventListener("click", function () {
+      var input = document.querySelector('[data-pw="' + btn.getAttribute("data-eye") + '"]');
+      if (!input) return;
+
+      var show = input.type === "password";
+      input.type = show ? "text" : "password";
+      btn.classList.toggle("is-on", show);
+    });
+  });
+
+  /* ---------- 43 修改密码：强度 ----------
+     三档：太短 / 偏弱 / 中等 / 够强。
+     这里只做「长度 + 是否字母数字混合」两个维度，不做「必须含符号」那套 ——
+     本产品用户里有不少中老年人，强制复杂规则的结果通常是密码写纸上。 */
+  var newPw = document.querySelector('[data-pw="new"]');
+  if (newPw) {
+    var strengthBars = document.querySelectorAll(".strength__bar");
+    var strengthText = document.querySelector("[data-pw-text]");
+
+    newPw.addEventListener("input", function () {
+      var value = newPw.value || "";
+      var score = 0;
+
+      if (value.length >= 8) score += 1;
+      if (/[a-zA-Z]/.test(value) && /\d/.test(value)) score += 1;
+      if (value.length >= 12) score += 1;
+
+      Array.prototype.forEach.call(strengthBars, function (bar, i) {
+        bar.classList.toggle("is-on", i < score);
+        bar.classList.toggle("is-strong", score >= 3);
+      });
+
+      if (strengthText) {
+        strengthText.textContent = ["太短", "偏弱", "中等", "够强"][score] || "";
+      }
+    });
+  }
+
+  var savePassword = document.querySelector("[data-save-password]");
+  if (savePassword) {
+    savePassword.addEventListener("click", function () {
+      showToast("登录密码已修改，下次登录用新密码");
+    });
+  }
+
+  /* ---------- 44 / 45 验证码倒计时 ----------
+     两个页面共用：44 有两个按钮（旧号 / 新号），45 有一个。
+     倒计时期间必须禁用，否则用户连点几次，服务端要发好几条短信。 */
+  Array.prototype.forEach.call(
+    document.querySelectorAll("[data-send-code]"),
+    function (btn) {
+      btn.addEventListener("click", function () {
+        if (btn.disabled) return;
+
+        var left = 60;
+        btn.disabled = true;
+        btn.textContent = left + " 秒后重发";
+
+        var timer = window.setInterval(function () {
+          left -= 1;
+
+          if (left <= 0) {
+            window.clearInterval(timer);
+            btn.disabled = false;
+            btn.textContent = "获取验证码";
+            return;
+          }
+
+          btn.textContent = left + " 秒后重发";
+        }, 1000);
+
+        showToast("验证码已发送");
+      });
+    }
+  );
+
+  var savePhone = document.querySelector("[data-save-phone]");
+  if (savePhone) {
+    savePhone.addEventListener("click", function () {
+      showToast("手机号已换绑，下次登录用新号");
+    });
+  }
+
+  /* ---------- 45 注销：危险操作，先过一道确认 ---------- */
+  var deactivateSubmit = document.querySelector("[data-deactivate-submit]");
+  if (deactivateSubmit) {
+    deactivateSubmit.addEventListener("click", function () {
+      var code = document.querySelector("[data-deactivate-code]");
+      if (code && !code.value.trim()) {
+        showToast("先填验证码");
+        return;
+      }
+      showToast("注销申请已提交，7 天内可撤销");
+    });
+  }
+
+  /* ---------- 46 通知：总开关联动分开关 ----------
+     ★ 总开关关掉后，分开关必须禁用并变淡。
+       只变淡不禁用的后果：用户拨了没反应，会以为开关坏了。
+       注意这段的注册顺序在 §36 的 [data-switch] 之后，
+       所以点击时先由 §36 切换 is-on，这里再读最新状态同步。 */
+  var masterSwitch = document.querySelector("[data-switch-master]");
+  if (masterSwitch) {
+    var subWrap = document.querySelector("[data-keep-sub]");
+    var subSwitches = document.querySelectorAll("[data-switch-sub]");
+
+    var syncSubs = function () {
+      var on = masterSwitch.classList.contains("is-on");
+
+      if (subWrap) subWrap.classList.toggle("is-muted", !on);
+
+      Array.prototype.forEach.call(subSwitches, function (sw) {
+        if (on) sw.removeAttribute("disabled");
+        else sw.setAttribute("disabled", "");
+      });
+    };
+
+    masterSwitch.addEventListener("click", syncSubs);
+    syncSubs();
+  }
+
+  var quietRow = document.querySelector("[data-quiet]");
+  if (quietRow) {
+    quietRow.addEventListener("click", function () {
+      showToast("免打扰时段：22:00 - 08:00（演示不弹选择器）");
+    });
+  }
+
+  /* 走查开关：41 的三个浮层默认 hidden，靠 hash 直接点开。
+     用 .click() 触发已绑好的事件，不重复写一遍打开逻辑。 */
+  [
+    ["open-font", "[data-open-font]"],
+    ["open-dark", "[data-open-dark]"],
+    ["open-cache", "[data-open-cache]"]
+  ].forEach(function (pair) {
+    if (walkHash !== pair[0]) return;
+    var opener = document.querySelector(pair[1]);
+    if (opener) opener.click();
+  });
 })();

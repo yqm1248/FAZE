@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390, initial-scale=1">
+<meta name="dsh-design" content="app">
+<title>账号与安全</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   账号与安全页（第 12 批 · 延展，无参考图）
+   ==========================================================================
+   职责：改密码、改支付密码、换手机、看实名状态、注销账号，全在这一页。
+   入口：41-settings「账号与安全」
+   母版：**设置列表母版**（同 41：组标题 + 卡片 + 行）
+   数据来源：账号安全状态接口（手机号脱敏 / 实名状态 / 是否设置支付密码）
+
+   ★ 为什么「注销账号」也放在这一页，而且不给箭头：
+     注销是「把账号连同数据一起销毁」，它不跳去另一个配置页 ——
+     点下去就是提交申请。所以它没有箭头，放在最后一组单独一行、红字。
+     和 41 的「退出登录」同一个道理：性质不同的动作不能和配置项混排。
+
+   ★ 为什么实名认证这一行显示状态而不是「去认证 / 已认证」两个按钮：
+     这一页的量词是「现在什么状态」，不是「可以做什么」。
+     已认证就写「已实名」，没认证会在那一行右侧写「未认证」并用警示色 ——
+     用户扫一眼就知道自己卡在哪一步。
+
+   ★ 手机号只露前三位和后四位：
+     这一页可能被背后的人看到。完整号码只有在换绑流程里、验证过旧手机之后才显示。
+   ========================================================================== */
+
+body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-canvas);
+}
+
+.navbar {
+  background: var(--bg-surface);
+}
+
+.screen {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding: 0 var(--sp-xl) calc(var(--safe-bottom) + var(--sp-xl));
+}
+.screen::-webkit-scrollbar {
+  display: none;
+}
+
+.set-group__title:first-child {
+  padding-block-start: var(--sp-md);
+}
+
+/* 危险项：左对齐、红字、仍有箭头（它跳去注销流程页，不是直接执行） */
+.set-row--warn .set-row__label {
+  color: var(--state-danger);
+}
+</style>
+</head>
+<body>
+
+<header class="statusbar">
+  <span>9:41</span>
+  <span class="statusbar__icons">
+    <svg width="17" height="11" viewBox="0 0 17 11" fill="none" aria-hidden="true">
+      <rect x="0" y="7" width="3" height="4" rx="1" fill="currentColor"/>
+      <rect x="4.5" y="5" width="3" height="6" rx="1" fill="currentColor"/>
+      <rect x="9" y="2.5" width="3" height="8.5" rx="1" fill="currentColor"/>
+      <rect x="13.5" y="0" width="3" height="11" rx="1" fill="currentColor"/>
+    </svg>
+    <svg width="16" height="11" viewBox="0 0 16 11" fill="none" aria-hidden="true">
+      <path d="M1 3.2A10.5 10.5 0 0 1 15 3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M3.6 5.9a7 7 0 0 1 8.8 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M6.2 8.6a3.4 3.4 0 0 1 3.6 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden="true">
+      <rect x="0.6" y="0.6" width="21" height="10.8" rx="3" stroke="currentColor" stroke-opacity="0.4" stroke-width="1.2"/>
+      <rect x="2.2" y="2.2" width="15" height="7.6" rx="1.8" fill="currentColor"/>
+      <path d="M23.4 4.2v3.6" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+  </span>
+</header>
+
+<div class="navbar">
+  <a class="navbar__back" href="41-settings.html" aria-label="返回设置">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M15.2 4.6 7.8 12l7.4 7.4" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </a>
+  <h1 class="navbar__title">账号与安全</h1>
+</div>
+
+<main class="screen">
+
+  <h2 class="set-group__title">登录与密码</h2>
+  <div class="set-list">
+    <a class="set-row" href="43-change-password.html">
+      <span class="set-row__label">修改登录密码</span>
+      <svg class="set-row__chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="m9.2 4.6 7.4 7.4-7.4 7.4" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </a>
+    <a class="set-row" href="37-pay-password.html">
+      <span class="set-row__label">支付密码</span>
+      <span class="set-row__value">已设置</span>
+      <svg class="set-row__chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="m9.2 4.6 7.4 7.4-7.4 7.4" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </a>
+  </div>
+
+  <h2 class="set-group__title">手机与实名</h2>
+  <div class="set-list">
+    <a class="set-row" href="44-change-phone.html">
+      <span class="set-row__label">手机号</span>
+      <span class="set-row__value">187****1576</span>
+      <svg class="set-row__chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="m9.2 4.6 7.4 7.4-7.4 7.4" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </a>
+    <a class="set-row" href="48-verify-real.html">
+      <span class="set-row__label">实名认证</span>
+      <span class="set-row__value">已实名</span>
+      <svg class="set-row__chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="m9.2 4.6 7.4 7.4-7.4 7.4" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </a>
+  </div>
+
+  <h2 class="set-group__title">账号</h2>
+  <div class="set-list">
+    <a class="set-row set-row--warn" href="45-deactivate.html">
+      <span class="set-row__label">注销账号</span>
+      <svg class="set-row__chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="m9.2 4.6 7.4 7.4-7.4 7.4" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </a>
+  </div>
+
+  <p class="set-group__title" style="padding-block-start:var(--sp-lg);line-height:1.7">
+    注销后账号不能恢复。有进行中的订单或案件的，建议先处理完再注销。
+  </p>
+
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>
