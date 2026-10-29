@@ -150,7 +150,7 @@ services/faze-api/src/main/java/com/faze/
 | **第 0 段怎么落地（单线，从第一行读到最后一行为止）** | `docs/architecture/法泽FAZE_第0段执行计划_v3.0.md` |
 | 技术路线（最新） | `docs/architecture/法泽FAZE_技术路线_v2.3.md` |
 | 页面导航树 | `docs/design/法泽APP_页面导航树_v1.4.md`（文件名叫 v1.4，内容实为 **v1.5**，**68 页**） |
-| **APP UI 设计顺序（68 屏怎么分批画完的、每屏的设计依据）** | `docs/design/法泽APP_UI设计顺序_v1.0.md`（内容 **V2.9**） |
+| **APP UI 设计顺序（68 屏怎么分批画完的、每屏的设计依据）** | `docs/design/法泽APP_UI设计顺序_v1.0.md`（内容 **V3.0**） |
 | **设计稿本体（APP 71 个 HTML，不是文档）** | `design/ui/` —— 打开 `01-home.html` 起看；组件在 `components.css`、令牌在 `tokens.css` |
 | **PC 后台开发计划（27 页分 7 个阶段怎么开发）** | `docs/architecture/法泽FAZE_PC后台开发计划_v1.0.md` |
 | **PC 后台设计稿（27 屏，正在画）** | `design/admin/` —— 打开 `00-login.html` 起看；令牌在 `tokens.css`（颜色继承 APP、尺寸另立 PC 刻度） |
