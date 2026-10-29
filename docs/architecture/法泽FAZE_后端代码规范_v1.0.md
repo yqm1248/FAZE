@@ -306,6 +306,23 @@ public class SocialApplicationService {
 
 > 4,734 行的类不是「代码多」，是**没有边界**：一个类里同时有 12 个域的查询。规范能挡住它的唯一办法是**上限数字 + CI 检查**，靠"自觉拆"挡不住。
 
+## 2.6 每个业务模块必须有 `README.md`（抄 jxyd200 唯一不用工具就守住的一条）
+
+**实测**：jxyd200 的三层 README **全部 100% 落地**——APP `features/*/README` 14/14、Java `biz/*/README` 15/15、网关 7/7。它是那份 1,138 行规范里**唯一不靠工具也守住了**的制度，原因很简单：**写一次就完事，成本极低**。
+
+`modules/<域>/README.md` 固定四段：
+
+| 段 | 写什么 | 例（trade 域） |
+|---|---|---|
+| **边界** | 这个域**管什么**、**不管什么**（明确写出邻域） | 管订单状态机、余额、流水、退款；**不管**会话（conversation）、不管文书生成（document） |
+| **数据来源** | 读哪些表、写哪些表、跨域读谁的 `QueryService` | 写 `legal_order`/`balance_flow`/`user_balance`；跨域读 `LawyerQueryService` |
+| **不可改的契约** | 对外接口里哪些字段被前端写死 | `POST /admin/wallets/{userId}/recharge` 的 `amountCents`/`bizNo` 见《接口规范》附录 A.5 |
+| **测试入口** | 测试类在哪、跑什么命令 | `OrderStatusMachineTest`；`mvn -Dtest=Order*Test test` |
+
+**为什么要求把「不管什么」也写下来**：域的边界最容易在自己加功能时被悄悄吃掉。**写下来那一刻才会发现**「这个查询其实该放 conversation 域」。
+
+**承接手段**：CI 断言 `modules/*/README.md` 存在（`find modules -maxdepth 1 -mindepth 1 -type d -exec test -f {}/README.md \;`），缺一个就构建失败。jxyd200 靠人守住了，法泽加一条脚本就不可退化。
+
 ---
 
 # 三、类与方法
@@ -509,6 +526,71 @@ public class PlatformPercentRule implements FeeRule {
 **为什么值得单列**：这类类**不需要 `@SpringBootTest` 就能测**（`new PlatformPercentRule().calculate(...)`），测试成本接近零。jxyd200 就是这么做的——根 `package.json:22-23` 的 `test:rule:*` 用 `javac` + `java -cp` 直接跑，不启动 Spring。
 
 **法泽的落点**：`OrderStatusMachine`（状态迁移合法性）、`FeeRule`（抽成）、`AmountValidator`（金额上下限）、`SensitiveWordMatcher`（敏感词分级）。
+
+## 3.9 导入与导出（抄 ZXZ 的 Excel 导入 + JSR-303 行列级报错）
+
+法泽有三个导入场景：**法条库批量导入**（`POST /admin/law-items/import`，2000~3000 条）、敏感词库导入、律师资质批量核验。
+
+**ZXZ 的做法值得直接搬**（`DefaultExcelListener:57-95` + `ExcelUtil:68-91`）：把 JSR-303 校验**塞进读取回调**，逐行校验并**收集全部错误行**，不是遇到第一个错就中断。
+
+```java
+/**
+ * 导入行校验监听器。
+ *
+ * 关键取舍：**一次收全所有错误**，而不是遇到第一个错就抛出。
+ * 用户拿到「第 3 行法律名称不能为空；第 7 行条号格式错误」可以一次改完，
+ * 而拿「第 3 行错了」要来回导 10 次。
+ */
+public class ValidatingListener<T> extends AnalysisEventListener<T> {
+    private final Validator validator;
+    private final List<String> errors = new ArrayList<>();
+    private final int maxErrors;
+    private int rowNum = 0;
+
+    @Override
+    public void invoke(T row, AnalysisContext ctx) {
+        rowNum++;
+        Set<ConstraintViolation<T>> vs = validator.validate(row);
+        if (!vs.isEmpty() && errors.size() < maxErrors) {   // 上限防 3000 行全错时刷爆响应
+            errors.add("第 " + rowNum + " 行: " + vs.stream()
+                    .map(ConstraintViolation::getMessage)
+                    .collect(Collectors.joining("; ")));
+        }
+    }
+}
+```
+
+**三条硬规则**：
+
+| # | 规则 | 为什么 |
+|---|---|---|
+| 1 | **导入必须带幂等键** | 法条的键是「法律 + 条号 + 生效日期」（技术路线 §4.8.4.7 已定）。重复导入靠 `unique` 索引拦住，**不产生重复行**——不能在应用层先查后插 |
+| 2 | **错误必须导回文件** | 所有错误行 + 原因导成 Excel 还给用户，改完直接再导。**只返回一句「有 3 行错误」等于让用户自己找** |
+| 3 | **超过 1000 行必须转异步** | 走任务表（§9.2），接口立即返回 `taskId`，前端轮询进度。3000 条同步导入会超过网关超时 |
+
+**导出**：金额字段的格式化见 §8.6，大批量导出（>5000 行）同样走任务表 + OSS，接口只返回下载用的 `ossKey`（《接口规范》§6.6）。
+
+## 3.10 图表数据的服务端降采样（抄 wgcloud，但有一个坑要避开）
+
+PC 看板 A-02 的趋势图，查 30 天可能是几十万个点，直接返回会拖垮浏览器。
+
+**wgcloud 的做法**（`HostUtil:362-389` `compressChartListData`）：按 `size / maxShow` 的步长**等间隔取样**，把点数裁到 4000，并在页面上给一句「系统已对图表数据进行压缩均衡化处理，处理前 N 条，处理后 M 条」。
+
+**三条规则**：
+
+1. **降采样在服务端做**，不把原始点全丢给前端再抽样（传输本身就要时间）。
+2. **必须告诉用户这是抽样后的**——wgcloud 的 `compressDataMsg` 这一点做对了，不能静默改变数据。
+3. **⚠️ 但要避开它的一个坑：等间隔抽样会漏掉尖峰。**
+
+```text
+原始：[1,1,999,1,1]  → 步长 2 取样 → [1, 999, 1]  ✓ 偶然保住了
+原始：[1,1,1,999,1]  → 步长 2 取样 → [1, 1, 1]    ✗ 峰值没了
+```
+
+**法泽的口径**：
+- 「趋势」图用**按时间桶聚合**（`GROUP BY FLOOR(UNIX_TIMESTAMP(created_at)/3600)`），每个桶取 `AVG`——统计意义明确，且不会漏掉真实峰值（峰值会抬高所在桶的均值）。
+- 要展示「峰值」的图，用 `MAX()` 而不是抽样。
+- **只有在「点数太多但必须是原始值」的场景**（如单日高频曲线）才用等间隔抽样，且必须在图上标注「已抽样」。
 
 ---
 
@@ -838,6 +920,97 @@ if (rows == 0) throw new BusinessException(ErrorCode.TRADE_BALANCE_INSUFFICIENT)
 
 **方案 B 为什么要 `ge` 条件**：并发下两个请求都读到余额 100、都扣 80，没有 `ge` 就变成 -60。有了 `ge`，第二个的 `rows` 是 0，直接判定余额不足。
 
+## 8.6 金额计算与舍入（抄 ZXZ 的 `BigDecimalUtils`）
+
+法泽有三处必须算金额：**平台抽成**（订单）、**退款分摊**（多人/多笔分摊）、**结算单**（律师收入）。
+
+**三条规则**：
+
+| # | 规则 | 反例 |
+|---|---|---|
+| 1 | **一律 `BigDecimal`，禁止 `double`/`float`** | `0.1 + 0.2 = 0.30000000000000004`；金额差一分钱在资金链里是事故 |
+| 2 | **舍入方式集中定义，不许每处写** | ZXZ 把它收进 `BigDecimalUtils.scan` + `RoundMode` 枚举。法泽同样收进一个工具类，业务代码只调 `Money.of(cents).percent(x)` |
+| 3 | **「差一分钱」必须显式处理** | 10000 分按 3 人分摊，`3333.33...` 除不尽——**余数必须落给某一个人**，否则三人之和 ≠ 10000 |
+
+```java
+/** 金额工具。所有舍入集中在此，业务代码不得自行 setScale。 */
+public final class Money {
+
+    /** 按基点抽成（10000 基点 = 100%）。金额是整数分，结果也必须是整数分。 */
+    public static long percent(long amountCents, int basisPoints) {
+        return BigDecimal.valueOf(amountCents)
+                .multiply(BigDecimal.valueOf(basisPoints))
+                .divide(BigDecimal.valueOf(10000), 0, RoundingMode.HALF_UP)
+                .longValueExact();
+    }
+
+    /**
+     * 均分。除不尽的余数**全部给最后一份**，保证 sum(result) == total。
+     * 不允许「四舍五入后差额不管」——那会让账对不上。
+     */
+    public static long[] splitEvenly(long totalCents, int parts) {
+        long base = totalCents / parts;
+        long remainder = totalCents - base * parts;
+        long[] out = new long[parts];
+        Arrays.fill(out, base);
+        out[parts - 1] += remainder;
+        return out;
+    }
+}
+```
+
+**为什么单列一节**：`§8.5` 讲的是「怎么不出错地扣钱」，这一节讲的是「怎么不出错地算钱」。两者都出事，但前者是并发问题、后者是**口径问题**——口径错了，测再并发也是错的钱。
+
+## 8.7 整表覆盖用「先删后插」（抄 wgcloud）
+
+适用场景：**一行一条配置、保存时整批提交**的表——`sys_config`（PC 系统参数页）、律师服务设置、通知模板变量。
+
+```java
+@Service
+@RequiredArgsConstructor
+public class SysConfigService {
+
+    /**
+     * 整批保存系统参数。
+     *
+     * 用「先删后插」而不是逐条 upsert：
+     * ① 天然幂等（同样的请求执行两次结果相同）
+     * ② 删掉界面上被移除的那几条——upsert 做不到「删除」
+     * ③ 避免 MySQL ON DUPLICATE KEY 与 MP saveOrUpdate 的隐式行为差异
+     * ④ 必须在同一事务内，否则删完插入失败会丢配置
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void saveAll(List<SysConfigBO> items) {
+        configMapper.deleteByGroup(items.get(0).getGroup());     // 先删本组
+        configMapper.insertList(items);                          // 再插（§8.4 批量分片）
+    }
+}
+```
+
+**ZXZ 的做法印证**：它全项目**唯一**一处 `@Transactional`（`ProjectServiceImpl:173`）就是 delete + reinsert 全量覆盖，且写了 `rollbackFor = Exception.class`——**同一个场景，同一个解法**。
+
+**注意**：这只适合「整组覆盖」。**不要**用在高并发写的大表（删+插之间会有短暂空窗，别的事务可能读到空）；这类表用逐条 upsert。
+
+## 8.8 攒批落库：评估后**不采用**（写明为什么，避免以后反复讨论）
+
+wgcloud 用「内存攒 9 秒 → 批量落库」（`BatchData` + `DataScheduledTask:114-124`），因为它是监控系统：**每台设备每秒一条**，写放大极高，逐条 INSERT 撑不住。
+
+**法泽不需要**：
+- 法泽的写都是**用户触发**（下单、发消息、审核），频率由用户行为决定，不存在持续高频写入。
+- 攒批的代价是**延迟 + 丢数据风险**（wgcloud 的 `addAll → clear → save` 在 save 失败时整批丢失，见附录 B）。
+- 真到需要时（如加行为埋点、AI 调用日志），再按任务表 + 分批 INSERT 做，**不要提前引入内存缓冲区**。
+
+## 8.9 多数据库方言适配：评估后**不采用**（同上，写明理由）
+
+wgcloud 用 `MyDatabaseIdProvider`（`config/MyDatabaseIdProvider:38-63`）+ mapper XML 里的 `_databaseId` 分支，让一套代码支撑 MySQL / PostgreSQL / Oracle / SQLServer / 瀚高。这是个**做得很好**的方案。
+
+**法泽不需要**，理由是两条：
+
+1. `AGENTS.md` §2 已锁定 **MySQL 8.0.44**，且是自有部署（不是卖给客户去装在他们库上）。
+2. 引入方言分支的代价是**每条复杂 SQL 都要写 N 份**，而测试只能覆盖跑得到的那个库——**没测到的分支等于没有**，反而制造"我支持"的错觉。
+
+**但要留个记号**：如果将来要进信创环境（达梦 / 人大金仓），这套 `DatabaseIdProvider + _databaseId` 就是标准做法。**现在不引入，但不能不知道它的存在**——否则到时要重写所有 XML。
+
 ---
 
 # 九、并发、锁与定时任务
@@ -963,7 +1136,6 @@ public class TraceIdFilter extends OncePerRequestFilter {
 logback pattern 必须含 `%X{traceId}`。**两个参考项目都没有 traceId**——ZXZ 的 `R` 无 `traceId` 字段，wgcloud 全项目 0 处 MDC。
 
 ## 10.4 操作日志：服务端 AOP 采集（两个项目都是 0 个 `@Aspect`）
-
 ```java
 @OperationLog(module = "trade", action = "MANUAL_RECHARGE", targetType = "USER_BALANCE")
 public void manualRecharge(...) { ... }
@@ -974,6 +1146,33 @@ public void manualRecharge(...) { ... }
 - wgcloud 的做法是 55 个 Controller 里**复制粘贴**「异常写库」，必然漏（实测 `AgentGoController:155-157` 就没有）。
 
 **审计四要素**（《数据表规范》§1.3）：谁（`operator_id`+`operator_type`）/ 何时 / 从哪（`ip`）/ 做了什么（`module`+`action`+`target_type`+`target_id`+`detail`）。
+
+### 10.4.1 异常「文件 + 库表」双写（抄 wgcloud，但要改掉它两个毛病）
+
+wgcloud 的 `LogInfoService:59-71` + `StaticKeys:58-65` 做了一件**方向完全正确**的事：异常/操作**同时写文件日志和业务库表**，并用常量分 4 类（业务告警 / 系统操作 / 告警恢复 / 第三方告警）。
+
+**为什么必须双写**：两类消费者的需求不同——**文件日志给运维 grep**（按时间、全文搜），**库表给业务页面查询统计**（PC A-26 日志中心要按操作人/时间/模块筛）。只做一样都不够。
+
+**但它的两个毛病必须改**：
+
+| wgcloud 的问题 | 出处 | 法泽的做法 |
+|---|---|---|
+| **同步单条 INSERT**，数据库挂了这次审计就丢了 | `LogInfoService:69-70` | `@Async` + 有界队列；**写库失败降级写本地文件**（`.logs/audit-fallback.log`），不丢 |
+| 存 `e.toString()`，只给「类名: 消息」，**丢了行号** | `SystemInfoController:140` | 存完整 stacktrace，**截断到 4000 字符**（防一个异常撑爆一列） |
+
+```java
+/** 审计日志落库。异步 + 失败降级：审计不能因为数据库抖动而丢。 */
+@Async("auditExecutor")
+public void record(AuditLog log, Throwable error) {
+    try {
+        if (error != null) log.setDetail(truncate(StackTraceUtils.toString(error), 4000));
+        auditMapper.insert(log);
+    } catch (Exception e) {
+        fallbackWriter.append(log);   // 降级到本地文件，人工可补录
+        log.error("审计日志落库失败，已降级到文件", e);
+    }
+}
+```
 
 ## 10.5 logback 配置（抄 ZXZ 的 `logback.xml:81-99,122-128`）
 
@@ -1179,6 +1378,34 @@ public enum OrderStatus {
 
 - 一个领域一个 `@ConfigurationProperties` 类（**不合并**）。
 - 用构造绑定 + `@DefaultValue`，不用 `@Data` + 手写 getter 加默认值（wgcloud `LevelConfig` 11 个告警级别 × 6 行 = 66 行纯样板）。
+- **密钥一律走环境变量**，配置文件里只写 `${FAZE_DB_PASSWORD}`（§11.4）。
+
+### 12.3.1 `.env.example` 必须写清「填错了会写脏哪个库」（抄 jxyd200）
+
+第 0 段就要建 `.env.example`（总纲 §5.1），**不能只写 `DB_PASSWORD=` 空着**。jxyd200 的 `.env.e2e.example` 是范本：61 行里每条都写清「这个值错了会发生什么」。
+
+```bash
+# ── 数据库 ─────────────────────────────────────────────
+# ⚠️ 不要填 3306 的生产实例：本地开发连的是 faze_dev，
+#    填成生产库会让「测试充值」直接打进真实账。
+FAZE_DB_URL=jdbc:mysql://127.0.0.1:3307/faze_dev
+FAZE_DB_USER=faze
+FAZE_DB_PASSWORD=            # 必填，留空启动失败（不提供默认值）
+
+# ── Redis ──────────────────────────────────────────────
+# ⚠️ 独立逻辑库（/14），避免清缓存时误删别的项目的 key
+FAZE_REDIS_URL=redis://127.0.0.1:6380/14
+
+# ── 第三方 ─────────────────────────────────────────────
+# 留空时 AI 走 mock（返回固定法条引用），不会调真实豆包、不花钱
+FAZE_DOUBAO_API_KEY=
+```
+
+**四条要求**：
+1. **默认拒绝**：必填项留空时**启动直接失败**，不给"看起来能跑"的默认值。
+2. **写清填错的后果**，不只写「这里填数据库地址」。
+3. **本地与测试用不同端口/库名/Redis 逻辑库**，物理隔离。
+4. `.env` 进 `.gitignore`，`.env.example` 进仓库。
 
 ## 12.4 测试
 
@@ -1188,6 +1415,23 @@ public enum OrderStatus {
 | 资金链路 | **必须单测**：幂等（同键调 3 次只生效 1 次）、余额不足、并发扣减 |
 | Controller | MockMvc 冒烟（每个接口一个 200/400 用例） |
 | 覆盖率 | 不设全局数字（会造假），只对**上述三类**要求覆盖 |
+
+### 12.4.1 「服务没起 → 用例全跳过 → 退出码仍是 0」（抄 jxyd200 的 service-preflight）
+
+这是 E2E 最常见的假绿：**服务没启动，所有用例被跳过，CI 显示通过。**
+
+jxyd200 的解法（`playwright.config.mjs:57-66`）值得直搬：
+
+```javascript
+// 服务前置门：不可用时直接失败，避免「服务没起 → 用例全跳过 → 退出码仍为 0」
+{ name: 'service-preflight', testMatch: /shared\/service-preflight\.spec\.mjs/ },
+{ name: 'app-e2e', dependencies: ['service-preflight'] }
+```
+
+**法泽的对应做法**（第 0 段 CI）：
+- 一个 `preflight` 步骤：依次探活 MySQL / Redis / faze-api `/api/v1/pub/ping` / RuoYi 后台，任一个不通就**让整个 job 失败**。
+- 所有依赖它的测试步骤 `needs: preflight`。
+- **禁止**用「跳过」代替「失败」。
 
 **两个参考项目的现状**：ZXZ 1 个测试类（`BigDecimalUtilsTest` 121 行）、wgcloud 0 个。**这是它们最大的工程债，法泽不能继承。**
 
@@ -1254,6 +1498,7 @@ jxyd200 有一份 **1,138 行**的《代码结构与注释规范改造计划》�
 | 11.4 | 禁止明文密钥进仓库 | **gitleaks** | ✅ |
 | 12.4 | 状态机 / 资金 / 分账类必须有单测 | **JaCoCo 按类阈值**（只对这几类） | ✅ |
 | 11.1 | 鉴权统一，不许逐方法写 | ArchUnit（Controller 不许直接调鉴权工具类） | ✅ |
+| 2.6 | `modules/*/README.md` 必须存在 | **CI 断言**（`find` + `test -f`） | ✅ |
 | 5.3 | 禁止 `e.getMessage()` 进响应 | 代码评审 | ⚠️ 人工 |
 | 7.3 | 事务内禁止远程调用 | 代码评审 + SonarQube `S2229` | ⚠️ 半自动 |
 | 9.2 | 任务表领取必须 CAS | 代码评审 + 单测（并发领 3 次只成功 1 次） | ⚠️ 半自动 |
@@ -1288,6 +1533,26 @@ jxyd200 有一份 **1,138 行**的《代码结构与注释规范改造计划》�
 | 「禁止 `@Autowired`」 | 同上。除非配 ArchUnit 规则，否则不写 |
 
 > 这五条不是「不重要」，而是「**在没有承接手段之前，写进来是负资产**」。等哪天真把它们做成 ArchUnit 规则，再写进 §14.2。
+
+## 14.6 把踩过的坑固化成机械约束（jxyd200 的这套思想最值得学）
+
+jxyd200 有 **6 个自定义 ESLint 插件**，每个是「`index.js` 9 行注册 + `rule.js` 纯 CommonJS 无第三方依赖」+ 一份 **11 节的 `tech.md`**。其中最有价值的两条：
+
+- **`expo/require-globalcss-and-provider`**：禁 `app/_layout.tsx` 丢 `global.css` 或丢 `Provider`。它 `tech.md` 里把「为什么」写清了——**这是白屏级事故，不是风格问题**。
+- **`restrict-linear-gradient`**：禁 `backgroundColor` 值含 `linear-gradient(`。理由写在报错文案里：**RN 的 `backgroundColor` 不接受 CSS 渐变，必须改 `experimental_backgroundImage`**——把平台限制变成编译期报错，而不是等真机背景变白。
+
+**三个可移植点（与语言无关）**：
+
+1. **一条规则 ≈ 一次真实踩坑**，不是「我觉得应该」。
+2. **`tech.md` 十一节模板**：目标 / 规则命名 / 行为定义 / 配置项 / 检测策略（精确到 ESTree 节点名）/ 报错信息 / 典型示例（触发 + 不触发）/ **边界与不做什么** / 性能 / 测试计划。**「不做什么」那一节最有价值**——它逼你先想清误报面。
+3. **必须写测试**（jxyd200 没写，这是它的缺陷）：每条规则配 `RuleTester` 的 valid/invalid 数组。它的三份 `tech.md` 都写了「测试计划」却 0 个测试文件——**这正是「规则说了但没承接」的另一种形态**。
+
+**法泽的落点**：
+
+| 端 | 用什么 | 落什么规则 |
+|---|---|---|
+| 前端 | 自建 ESLint 插件（学 jxyd200 形态） | `AGENTS.md` §5 的禁止项：`any`、颜色字面量、`left/right`、裸 `<Text>`、`alert()`、BiDi 控制符 |
+| 后端 | **checkstyle + ArchUnit，不自建插件** | §14.2 那 14 条。Java 生态已有成熟工具，自建是重复造轮子 |
 
 ---
 
