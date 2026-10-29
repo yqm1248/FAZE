@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390, initial-scale=1">
+<meta name="dsh-design" content="app">
+<title>搜索</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   全局搜索页（第 11 批 · 延展，无参考图）
+   ==========================================================================
+   职责：一次搜遍律师、文章、案例、文书，按类型分组给结果。
+   入口：首页顶部搜索框；律师/文章/案例列表页的搜索入口
+   母版：**搜索结果母版**（搜索框导航栏 + 类型 Tab + 分组结果 + 空结果态）
+   数据来源：统一搜索接口（关键词 / 类型 / 命中数 / 高亮片段 / 分页）
+
+   ★ 这一屏画的是「已有结果」的状态，不是「刚进来」的状态。
+     理由：搜索页的真正设计难点在结果怎么分组、怎么在一屏里同时露出四类东西，
+     而「历史 + 热门」那一屏几乎没有设计（两个列表）。
+     两种状态都做了，历史 + 热门在 _walkthrough/40-search.html。
+
+   ★ 为什么用「分组」而不是「混合列表」：
+     律师、文章、案例、文书是四种完全不同的东西，混在一个列表里，
+     用户扫的时候要不停切换判断标准（这个是人？这个是文章？）。
+     按类型分组后，每组一个小标题 + 命中数 + 「查看全部」，
+     用户能直接跳到自己在找的那一类。这也是导航树定的 Tab 分层：
+     综合 Tab 看全貌，单个 Tab 看全部。
+
+   ★ 为什么「综合」Tab 每组只给 2~3 条：
+     综合页的职责是「告诉你有哪几类、大概有多少」，不是「一次给全」。
+     每组给太多，用户要滚很久才发现「哦原来还有案例」。给少了又看不出有多少。
+     2~3 条 + 命中数 + 查看全部，是这个矛盾的解。
+
+   ★ 搜索框在导航栏里，不是页面顶部的大框：
+     搜索页要的是「边搜边看结果」，框占掉 80px 高，结果区就少一屏。
+     放在导航栏里 44 高，结果区能多显示两条。
+
+   四态：idle（搜索前，走查文件）/ result（主屏）/ loading / empty（无结果 + 推荐）。
+   ========================================================================== */
+
+body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-canvas);
+}
+
+/* ---------- 搜索导航栏 ----------
+   不复用 .navbar__title：这一栏中间是输入框，不是标题 */
+.navbar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  padding-block-start: calc(var(--statusbar-h) + 2px);
+  padding-block-end: 6px;
+  padding-inline: var(--sp-sm) var(--sp-md);
+  background: var(--bg-surface);
+  border-block-end: 1px solid var(--border-outline);
+  z-index: 10;
+}
+
+.navbar__back {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin-inline-start: -8px;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.navbar__back svg {
+  width: 22px;
+  height: 22px;
+}
+
+/* 搜索框：整块是 label，点哪都能聚焦 */
+.search-box {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 38px;
+  padding-inline: 10px 6px;
+  border-radius: var(--r-pill);
+  background: var(--bg-input);
+}
+
+/* 搜索框视觉高度 38（导航栏 44 里上下各留 3），但可点区域补到 44。
+   补在 label 上而不是 input 上：点 label 任意位置都会聚焦输入框，
+   这和把 input 撑到 44 是等效的，还不会让输入框显得满。
+   走查工具量的是 input 本身 191×38，属已知口径差异（同 .btn-pill-sm）。 */
+.search-box::after {
+  content: "";
+  position: absolute;
+  inset-block: -3px;
+  inset-inline: 0;
+}
+
+.search-box svg {
+  flex: 0 0 auto;
+  width: 17px;
+  height: 17px;
+  color: var(--text-muted);
+}
+
+.search-box input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: var(--fs-md);
+  outline: none;
+}
+
+.search-box input::placeholder {
+  color: #A3A9AE;
+}
+
+/* 清除按钮：视觉 24，热区 44 —— 用负边距把热区撑出去 */
+.search-box__clear {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin-block: -10px;
+  margin-inline-end: -6px;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.search-box__clear svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* 「取消」在搜索态下才有意义；这里常驻，因为搜索框已有内容 */
+.search-cancel {
+  flex: 0 0 auto;
+  min-width: 44px;
+  min-height: 44px;
+  padding-inline: 4px;
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  font-size: var(--fs-md);
+  color: var(--brand-primary);
+  cursor: pointer;
+}
+
+/* ---------- 结果区 ---------- */
+.screen {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding-block-end: calc(var(--safe-bottom) + var(--sp-xl));
+}
+.screen::-webkit-scrollbar {
+  display: none;
+}
+
+.tabs {
+  background: var(--bg-surface);
+  border-block-end: 1px solid var(--border-outline);
+}
+
+.filter {
+  padding-inline: var(--sp-md);
+}
+
+.results {
+  padding: var(--sp-md) var(--sp-xl) 0;
+}
+
+/* ---------- 结果分组 ----------
+   类名带 res- 前缀，避免和 components.css §17 的表单分组 `.group` 撞 */
+.res-group {
+  border-radius: var(--r-md);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+
+.res-group + .res-group {
+  margin-block-start: var(--sp-md);
+}
+
+.res-group__head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-xs);
+  padding: var(--sp-md) var(--sp-lg) var(--sp-sm);
+}
+
+.res-group__name {
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.res-group__count {
+  flex: 1 1 auto;
+  font-family: var(--font-num);
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 「查看全部」是次要动作，用文字不用按钮 —— 它旁边就是一整组结果，
+   做成按钮会和结果条目抢注意力 */
+.res-group__more {
+  flex: 0 0 auto;
+  min-height: 44px;
+  margin-block: -10px;
+  padding: 0 var(--sp-xs);
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  font-size: var(--fs-caption);
+  color: var(--brand-primary);
+  cursor: pointer;
+}
+
+.res-group__body {
+  padding: 0 var(--sp-lg) var(--sp-xs);
+}
+
+/* ---------- 律师结果（带头像） ---------- */
+.r-lawyer {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-md);
+  min-height: 56px;
+  padding-block: var(--sp-sm);
+  border-block-start: 1px solid var(--border-divider);
+  text-decoration: none;
+  color: inherit;
+}
+
+.r-lawyer:active {
+  background: var(--bg-canvas);
+}
+
+.r-lawyer__avatar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--brand-primary-soft);
+  color: var(--brand-primary-pressed);
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-medium);
+}
+
+.r-lawyer__main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.r-lawyer__name {
+  display: block;
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.r-lawyer__meta {
+  display: block;
+  margin-block-start: 2px;
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 命中词高亮：主色 + 加粗。不用底色块 —— 底色在密集列表里会变成干扰 */
+.hit {
+  color: var(--brand-primary-pressed);
+  font-weight: var(--fw-bold);
+}
+
+/* ---------- 通用结果条目 ---------- */
+.r-item {
+  display: block;
+  padding-block: var(--sp-md);
+  border-block-start: 1px solid var(--border-divider);
+  text-decoration: none;
+  color: inherit;
+}
+
+.r-item:active {
+  background: var(--bg-canvas);
+}
+
+.r-item__title {
+  display: block;
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+  line-height: 1.4;
+  /* 标题两行封顶：搜索结果的标题常常很长，一行截断看不出内容，
+     三行又会把 meta 挤出可视区 */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.r-item__meta {
+  display: block;
+  margin-block-start: 3px;
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 价格用等宽数字，和文章/案例的时间区分开 */
+.r-item__price {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  color: var(--brand-primary-pressed);
+  font-weight: var(--fw-medium);
+}
+
+/* ---------- 搜索前：历史 / 热门 ----------
+   这两块是「进来还没搜」时的内容。整块左右各留 20，和结果区对齐 */
+.sec {
+  padding: var(--sp-lg) var(--sp-xl) 0;
+}
+
+.sec__head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-md);
+}
+
+.sec__title {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: var(--fs-md);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+
+/* 「清空」历史：次要动作，热区仍补到 44 */
+.sec__action {
+  flex: 0 0 auto;
+  min-height: 44px;
+  margin-block: -10px;
+  padding: 0 var(--sp-xs);
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+/* 关键词标签：一行放不下就换行。点一下直接搜，不让用户再敲一遍 */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-sm);
+  padding-block-start: var(--sp-sm);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 36px;
+  padding-inline: var(--sp-md);
+  border: 1px solid var(--border-outline);
+  border-radius: var(--r-pill);
+  background: var(--bg-surface);
+  font-family: inherit;
+  font-size: var(--fs-md);
+  color: var(--text-body);
+  cursor: pointer;
+}
+
+.chip:active {
+  background: var(--bg-input);
+}
+
+/* 热门词前面的序号：只给前三名上色，有个先后感就够，
+   做成排行榜反而会让用户以为平台在推流量 */
+.chip__rank {
+  font-family: var(--font-num);
+  font-size: var(--fs-caption);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+.chip--hot .chip__rank {
+  color: var(--brand-primary-pressed);
+  font-weight: var(--fw-bold);
+}
+
+/* ---------- 空态容器 ----------
+   这一屏的 .screen 只设了 padding-block-end（结果区自己带左右边距），
+   所以空态容器要把左右边距补上，否则内容会贴边 */
+.state-wrap {
+  padding: var(--sp-huge) var(--sp-xl) var(--sp-xxxl);
+}
+</style>
+</head>
+<body>
+
+<header class="statusbar">
+  <span>9:41</span>
+  <span class="statusbar__icons">
+    <svg width="17" height="11" viewBox="0 0 17 11" fill="none" aria-hidden="true">
+      <rect x="0" y="7" width="3" height="4" rx="1" fill="currentColor"/>
+      <rect x="4.5" y="5" width="3" height="6" rx="1" fill="currentColor"/>
+      <rect x="9" y="2.5" width="3" height="8.5" rx="1" fill="currentColor"/>
+      <rect x="13.5" y="0" width="3" height="11" rx="1" fill="currentColor"/>
+    </svg>
+    <svg width="16" height="11" viewBox="0 0 16 11" fill="none" aria-hidden="true">
+      <path d="M1 3.2A10.5 10.5 0 0 1 15 3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M3.6 5.9a7 7 0 0 1 8.8 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M6.2 8.6a3.4 3.4 0 0 1 3.6 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden="true">
+      <rect x="0.6" y="0.6" width="21" height="10.8" rx="3" stroke="currentColor" stroke-opacity="0.4" stroke-width="1.2"/>
+      <rect x="2.2" y="2.2" width="15" height="7.6" rx="1.8" fill="currentColor"/>
+      <path d="M23.4 4.2v3.6" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+  </span>
+</header>
+
+<div class="navbar">
+  <a class="navbar__back" href="01-home.html" aria-label="返回首页">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M15.2 4.6 7.8 12l7.4 7.4" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </a>
+  <label class="search-box">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="10.6" cy="10.6" r="6.4" stroke="currentColor" stroke-width="1.9"/>
+      <path d="m15.4 15.4 4.4 4.4" stroke="currentColor" stroke-width="1.9"
+            stroke-linecap="round"/>
+    </svg>
+    <input type="search" value="民间借贷" placeholder="搜律师、文章、案例、文书"
+           aria-label="搜索关键词">
+    <button class="search-box__clear" type="button" data-clear-search aria-label="清空搜索">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <circle cx="12" cy="12" r="8.4" fill="currentColor" fill-opacity="0.18"/>
+        <path d="m9.2 9.2 5.6 5.6M14.8 9.2l-5.6 5.6" stroke="currentColor"
+              stroke-width="1.8" stroke-linecap="round"/>
+      </svg>
+    </button>
+  </label>
+  <button class="search-cancel" type="button" data-cancel-search>取消</button>
+</div>
+
+<main class="screen">
+
+  <!-- ======================================================================
+       结果态（主屏）
+       ====================================================================== -->
+  <div data-state="result">
+
+    <div class="tabs">
+      <div class="filter" data-drag-scroll>
+        <button class="filter__chip filter__chip--active" type="button" data-search-tab="all">综合</button>
+        <button class="filter__chip" type="button" data-search-tab="lawyer">律师</button>
+        <button class="filter__chip" type="button" data-search-tab="article">文章</button>
+        <button class="filter__chip" type="button" data-search-tab="case">案例</button>
+        <button class="filter__chip" type="button" data-search-tab="doc">文书</button>
+      </div>
+    </div>
+
+    <div class="results">
+
+      <!-- 律师 -->
+      <section class="res-group" data-res-type="lawyer">
+        <div class="res-group__head">
+          <h2 class="res-group__name">律师</h2>
+          <span class="res-group__count">2 位</span>
+          <button class="res-group__more" type="button" data-search-tab="lawyer">查看全部</button>
+        </div>
+        <div class="res-group__body">
+          <a class="r-lawyer" href="14-lawyer-detail.html">
+            <span class="r-lawyer__avatar">王</span>
+            <span class="r-lawyer__main">
+              <span class="r-lawyer__name">王建国律师</span>
+              <span class="r-lawyer__meta">新疆天山律师事务所 · 擅长<span class="hit">民间借贷</span>、合同纠纷</span>
+            </span>
+          </a>
+          <a class="r-lawyer" href="14-lawyer-detail.html">
+            <span class="r-lawyer__avatar">李</span>
+            <span class="r-lawyer__main">
+              <span class="r-lawyer__name">李静律师</span>
+              <span class="r-lawyer__meta">伊宁正大律师事务所 · <span class="hit">民间借贷</span>、婚姻家庭</span>
+            </span>
+          </a>
+        </div>
+      </section>
+
+      <!-- 文章 -->
+      <section class="res-group" data-res-type="article">
+        <div class="res-group__head">
+          <h2 class="res-group__name">文章</h2>
+          <span class="res-group__count">3 篇</span>
+          <button class="res-group__more" type="button" data-search-tab="article">查看全部</button>
+        </div>
+        <div class="res-group__body">
+          <a class="r-item" href="13-article.html">
+            <span class="r-item__title"><span class="hit">民间借贷</span>没有借条，还能要回钱吗？</span>
+            <span class="r-item__meta">每日学法 · 2026-10-26</span>
+          </a>
+          <a class="r-item" href="13-article.html">
+            <span class="r-item__title"><span class="hit">民间借贷</span>利息多少算合法？超过部分不受保护</span>
+            <span class="r-item__meta">每日学法 · 2026-10-19</span>
+          </a>
+        </div>
+      </section>
+
+      <!-- 案例 -->
+      <section class="res-group" data-res-type="case">
+        <div class="res-group__head">
+          <h2 class="res-group__name">案例</h2>
+          <span class="res-group__count">1 篇</span>
+          <button class="res-group__more" type="button" data-search-tab="case">查看全部</button>
+        </div>
+        <div class="res-group__body">
+          <a class="r-item" href="19-case-detail.html">
+            <span class="r-item__title"><span class="hit">民间借贷</span>纠纷中，转账记录能不能当证据</span>
+            <span class="r-item__meta">民间借贷纠纷 · 伊犁师范大学法学实验基地整理</span>
+          </a>
+        </div>
+      </section>
+
+      <!-- 文书 -->
+      <section class="res-group" data-res-type="doc">
+        <div class="res-group__head">
+          <h2 class="res-group__name">文书</h2>
+          <span class="res-group__count">1 份</span>
+          <button class="res-group__more" type="button" data-search-tab="doc">查看全部</button>
+        </div>
+        <div class="res-group__body">
+          <a class="r-item" href="24-doc-lawsuit.html">
+            <span class="r-item__title">民事起诉状 · <span class="hit">民间借贷</span></span>
+            <span class="r-item__meta">按模板生成 · <span class="r-item__price">¥30.00</span></span>
+          </a>
+        </div>
+      </section>
+
+    </div>
+
+  </div>
+
+  <!-- ======================================================================
+       搜索前（历史 + 热门）
+       ★ 默认进来看到的就是这一屏，主屏放结果是因为结果的设计量大得多；
+         这一态在走查文件里完整展示。
+       ====================================================================== -->
+  <div data-state="idle" hidden>
+
+    <section class="sec">
+      <div class="sec__head">
+        <h2 class="sec__title">搜索历史</h2>
+        <button class="sec__action" type="button" data-clear-history>清空</button>
+      </div>
+      <div class="chips">
+        <button class="chip" type="button" data-history="民间借贷">民间借贷</button>
+        <button class="chip" type="button" data-history="离婚财产分割">离婚财产分割</button>
+        <button class="chip" type="button" data-history="工伤认定">工伤认定</button>
+        <button class="chip" type="button" data-history="劳动合同">劳动合同</button>
+        <button class="chip" type="button" data-history="交通事故赔偿">交通事故赔偿</button>
+      </div>
+    </section>
+
+    <section class="sec">
+      <div class="sec__head">
+        <h2 class="sec__title">大家都在搜</h2>
+      </div>
+      <div class="chips">
+        <button class="chip chip--hot" type="button" data-history="民间借贷">
+          <span class="chip__rank">1</span>民间借贷
+        </button>
+        <button class="chip chip--hot" type="button" data-history="劳动仲裁">
+          <span class="chip__rank">2</span>劳动仲裁
+        </button>
+        <button class="chip chip--hot" type="button" data-history="离婚协议书">
+          <span class="chip__rank">3</span>离婚协议书
+        </button>
+        <button class="chip" type="button" data-history="欠钱不还">
+          <span class="chip__rank">4</span>欠钱不还
+        </button>
+        <button class="chip" type="button" data-history="交通事故">
+          <span class="chip__rank">5</span>交通事故
+        </button>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- ======================================================================
+       无结果 + 推荐
+       ★ 空结果不是死路：给出「可能是哪件事没说清」+ 推荐内容。
+         搜索无结果时用户最想知道的是「我是不是搜错了」，不是「什么都没有」。
+       ====================================================================== -->
+  <div data-state="empty" hidden>
+    <div class="state-wrap">
+      <div class="empty">
+        <svg class="empty__art" viewBox="0 0 96 96" fill="none" aria-hidden="true">
+          <circle cx="42" cy="42" r="20" stroke="currentColor" stroke-width="2.4"/>
+          <path d="m57 57 16 16" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+          <path d="M35 42h14" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+        </svg>
+        <p class="empty__title">没搜到「二胎抚养权」相关的内容</p>
+        <p class="empty__desc">换个说法试试，比如用更常见的词，或者只留关键词。也可以直接找律师问。</p>
+        <a class="btn-primary empty__action" href="02-lawyer.html">找律师问问</a>
+      </div>
+    </div>
+
+    <section class="sec" style="padding-block-start:0">
+      <div class="sec__head">
+        <h2 class="sec__title">也许你想找</h2>
+      </div>
+      <div class="chips">
+        <button class="chip chip--hot" type="button" data-history="子女抚养权">
+          <span class="chip__rank">1</span>子女抚养权
+        </button>
+        <button class="chip chip--hot" type="button" data-history="离婚财产分割">
+          <span class="chip__rank">2</span>离婚财产分割
+        </button>
+        <button class="chip" type="button" data-history="抚养费标准">
+          <span class="chip__rank">3</span>抚养费标准
+        </button>
+        <button class="chip" type="button" data-history="变更抚养权">
+          <span class="chip__rank">4</span>变更抚养权
+        </button>
+      </div>
+    </section>
+  </div>
+
+  <!-- ======================================================================
+       搜索中
+       ====================================================================== -->
+  <div data-state="loading" hidden>
+    <div class="results" style="padding-block-start:20px">
+      <div class="res-group" style="box-shadow:none;padding:var(--sp-md) var(--sp-lg)">
+        <div class="skeleton" style="height:16px;width:32%"></div>
+        <div class="skeleton" style="height:14px;width:78%;margin-block-start:14px"></div>
+        <div class="skeleton" style="height:14px;width:64%;margin-block-start:10px"></div>
+      </div>
+      <div class="res-group" style="box-shadow:none;padding:var(--sp-md) var(--sp-lg);margin-block-start:12px">
+        <div class="skeleton" style="height:16px;width:26%"></div>
+        <div class="skeleton" style="height:14px;width:82%;margin-block-start:14px"></div>
+        <div class="skeleton" style="height:14px;width:70%;margin-block-start:10px"></div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

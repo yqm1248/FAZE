@@ -1993,4 +1993,94 @@
       showToast("已全部标为已读");
     });
   }
+
+  /* ==========================================================================
+     42. 全局搜索（第 11 批：40-search）
+     ==========================================================================
+     Tab 切换与每组右上角的「查看全部」共用同一个 data-search-tab：
+     点「律师 → 查看全部」和点 Tab「律师」是同一件事，没必要写两套逻辑。
+
+     状态切换：
+       搜索框有内容 → result（结果）
+       搜索框清空   → idle（历史 + 热门）
+     ========================================================================== */
+  var searchTabBtns = document.querySelectorAll("[data-search-tab]");
+  var resGroups = document.querySelectorAll(".res-group[data-res-type]");
+  var searchInput = document.querySelector(".search-box input");
+
+  function applySearchTab(key) {
+    /* 只有 chips 那一排参与选中态。「查看全部」也带 data-search-tab，
+       但它不该被点亮 —— 它是动作，不是当前位置 */
+    var chips = document.querySelectorAll(".tabs [data-search-tab]");
+    Array.prototype.forEach.call(chips, function (btn) {
+      if (btn.getAttribute("data-search-tab") === key) {
+        btn.classList.add("filter__chip--active");
+      } else {
+        btn.classList.remove("filter__chip--active");
+      }
+    });
+
+    Array.prototype.forEach.call(resGroups, function (group) {
+      var hit = key === "all" || group.getAttribute("data-res-type") === key;
+      if (hit) group.removeAttribute("hidden");
+      else group.setAttribute("hidden", "");
+    });
+  }
+
+  Array.prototype.forEach.call(searchTabBtns, function (btn) {
+    btn.addEventListener("click", function () {
+      applySearchTab(btn.getAttribute("data-search-tab"));
+    });
+  });
+
+  var clearSearchBtn = document.querySelector("[data-clear-search]");
+  if (clearSearchBtn && searchInput) {
+    clearSearchBtn.addEventListener("click", function () {
+      searchInput.value = "";
+      searchInput.focus();
+      applyState("idle");
+    });
+  }
+
+  var cancelSearchBtn = document.querySelector("[data-cancel-search]");
+  if (cancelSearchBtn) {
+    cancelSearchBtn.addEventListener("click", function () {
+      /* 设计稿里直接回首页。真实实现应该 back()，从哪个页面进来就回哪 */
+      window.location.href = "01-home.html";
+    });
+  }
+
+  var clearHistoryBtn = document.querySelector("[data-clear-history]");
+  if (clearHistoryBtn) {
+    clearHistoryBtn.addEventListener("click", function () {
+      var sec = clearHistoryBtn.closest(".sec");
+      if (sec) sec.setAttribute("hidden", "");
+      showToast("搜索历史已清空");
+    });
+  }
+
+  /* 点历史词或热门词：填进搜索框并直接出结果，不让用户再敲一遍 */
+  Array.prototype.forEach.call(
+    document.querySelectorAll("[data-history]"),
+    function (btn) {
+      btn.addEventListener("click", function () {
+        if (searchInput) searchInput.value = btn.getAttribute("data-history") || "";
+        applyState("result");
+      });
+    }
+  );
+
+  if (searchInput) {
+    searchInput.addEventListener("input", function () {
+      applyState(searchInput.value.trim() ? "result" : "idle");
+    });
+  }
+
+  /* 走查用：带 #state-idle / #state-empty 进来时，把输入框同步成那一态该有的样子。
+     不处理的话，空结果那屏会一边写着「没搜到二胎抚养权」、一边框里留着「民间借贷」，
+     自己打自己。真实产品不会遇到这个问题（状态由搜索动作驱动），但设计稿会。 */
+  if (searchInput) {
+    if (walkHash === "state-idle") searchInput.value = "";
+    if (walkHash === "state-empty") searchInput.value = "二胎抚养权";
+  }
 })();
