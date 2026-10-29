@@ -1877,3 +1877,204 @@
   font-size: var(--fs-md);
   cursor: pointer;
 }
+
+/* ==========================================================================
+   29. 纵向时间轴（第 14 批从 16-join-status / 21-filing-done 合并，54 复用）
+   ==========================================================================
+   结构：
+     <ol class="timeline">
+       <li class="tl-item is-done">
+         <p class="tl-item__title">材料已提交</p>
+         <p class="tl-item__meta">2026-10-29 14:32</p>
+       </li>
+       <li class="tl-item is-active">
+         <p class="tl-item__title">人民法院审查材料</p>
+         <p class="tl-item__meta">2026-10-30 起</p>
+         <p class="tl-item__boundary">该环节不由平台决定……</p>
+       </li>
+       <li class="tl-item">……（未开始，不加类）</li>
+       <li class="tl-item is-fail">……（驳回 / 不予受理）</li>
+     </ol>
+
+   三态 + 一个失败态：
+     is-done    已完成 —— 实心主色点，连到下一节的线也是主色
+     is-active  当前进行中 —— 主色点 + 浅色光圈
+     （无类）   未开始 —— 空心灰点 + 灰线，标题降为次要色
+     is-fail    驳回 / 不予受理 —— 红点 + 红光圈
+
+   ★ 16 和 21 各写过一份，差异只有「驳回态」和「边界说明块」。
+     合并时取并集，不是二选一 —— 少一个态就会在某屏用不了，
+     然后那屏又会复制一份出来，第三次分叉。
+
+   ★ 未开始的节点不要整条降透明度。时间轴的价值有一半是让人看到
+     「后面还有几步、大概还要等多久」；整条变淡后用户会以为那几步不存在。
+     这里只降标题和时间的颜色，圆点和竖线保持可见。
+
+   ★ 竖线画在「本节点::before」上、方向向下，最后一个节点 content: none 收尾。
+     不这么做就得给容器算高度，节点一多必错位。
+
+   ★ is-fail 的光圈用 --state-danger-soft，不再写裸色值。
+     16 原来写的是 #FDECEE，第 14 批收进令牌（见 tokens.json color.state.dangerSoft）。
+   ========================================================================== */
+.timeline {
+  margin-block-start: var(--sp-md);
+  padding-inline-start: 0;
+  list-style: none;
+  position: relative;
+}
+
+.tl-item {
+  position: relative;
+  padding-inline-start: 30px;
+  padding-block-end: var(--sp-xl);
+}
+
+.tl-item:last-child {
+  padding-block-end: 0;
+}
+
+/* 竖线：从本节点连到下一个，画在本节点左侧 */
+.tl-item::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: 5px;
+  inset-block-start: 20px;
+  inset-block-end: 0;
+  width: 2px;
+  background: var(--border-outline);
+}
+
+.tl-item:last-child::before {
+  content: none;
+}
+
+.tl-item.is-done::before {
+  background: var(--brand-primary);
+}
+
+/* 节点圆点 */
+.tl-item::after {
+  content: "";
+  position: absolute;
+  inset-inline-start: 0;
+  inset-block-start: 5px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--bg-surface);
+  box-shadow: inset 0 0 0 2px var(--border-outline);
+}
+
+.tl-item.is-done::after {
+  background: var(--brand-primary);
+  box-shadow: none;
+}
+
+.tl-item.is-active::after {
+  background: var(--brand-primary);
+  box-shadow: 0 0 0 4px var(--brand-primary-soft);
+}
+
+/* 驳回 / 不予受理：红点 + 红光圈 */
+.tl-item.is-fail::after {
+  background: var(--state-danger);
+  box-shadow: 0 0 0 4px var(--state-danger-soft);
+}
+
+.tl-item.is-fail::before {
+  background: var(--border-outline);
+}
+
+.tl-item__title {
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.tl-item:not(.is-done):not(.is-active):not(.is-fail) .tl-item__title {
+  color: var(--text-muted);
+  font-weight: var(--fw-regular);
+}
+
+.tl-item__meta {
+  margin-block-start: 3px;
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.tl-item.is-active .tl-item__meta {
+  color: var(--brand-primary-pressed);
+}
+
+.tl-item.is-fail .tl-item__meta {
+  color: var(--state-danger);
+}
+
+/* 边界说明块：写清「这一步不由平台决定」，用于法院环节 */
+.tl-item__boundary {
+  margin-block-start: var(--sp-sm);
+  padding: var(--sp-sm) var(--sp-md);
+  border-radius: var(--r-xs);
+  background: var(--bg-canvas);
+  font-size: var(--fs-caption);
+  color: var(--text-secondary);
+  line-height: var(--lh-relaxed);
+}
+
+/* ==========================================================================
+   30. 状态药丸（第 14 批从 29-orders 的 .order-state 提到这里，53 复用）
+   ==========================================================================
+   结构：<span class="state-pill state-pill--success">审理中</span>
+
+   五个语义档，订单和案件共用同一套：
+     --brand     待办 / 在等别人（待支付、待补材料、审核中）
+     --success   正常推进或已完成（进行中、已受理、审理中）
+     --warning   卡住但没失败（退款中、待补正材料）
+     --muted     结束且无需处理（已完成、已取消、已结案）
+     --danger    失败 / 终止（不予受理、已驳回）
+
+   ★ 颜色只表达「现在该不该管」，不表达业务分类。
+     订单和案件的状态名完全不同，但用户应该看到同一套视觉语言：
+     蓝 = 还等着处理，绿 = 在正常推进，黄 = 卡住了，灰 = 结束了，红 = 不行了。
+
+   ★ 「已完成」和「已取消」同用 muted 是 29 定下的规则：对用户来说
+     两者都意味着「这单不用管了」。53 的「已结案」沿用同一条。
+
+   ★ 底色全部来自令牌，其中 --danger 的浅底是第 14 批新补的
+     color.state.dangerSoft（16 原来写裸值 #FDECEE，已收回）。
+   ========================================================================== */
+.state-pill {
+  flex: 0 0 auto;
+  padding: 2px 7px;
+  border-radius: var(--r-xs);
+  font-size: var(--fs-micro);
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.state-pill--brand {
+  background: var(--brand-primary-soft);
+  color: var(--brand-primary-pressed);
+}
+
+.state-pill--success {
+  background: var(--state-success-soft);
+  color: var(--state-success);
+}
+
+.state-pill--warning {
+  background: var(--state-warning-soft);
+  color: var(--state-warning-deep);
+}
+
+.state-pill--muted {
+  background: var(--bg-input);
+  color: var(--text-secondary);
+}
+
+.state-pill--danger {
+  background: var(--state-danger-soft);
+  color: var(--state-danger);
+}

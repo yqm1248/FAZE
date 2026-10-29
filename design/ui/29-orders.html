@@ -156,42 +156,10 @@ body {
   margin-block-start: var(--sp-md);
 }
 
-/* ---------- 状态标签 ----------
-   颜色只区分「要不要你动手」，不区分「好事还是坏事」：
-     待支付 = 需要你动手 → 主色
-     进行中 = 在推进，等你配合 → 青（success）
-     退款中 = 在推进 → 警示色，因为有不确定性
-     已完成 = 结束了 → 灰
-     已取消 = 结束了 → 灰
-   已完成和已取消同色是故意的：对用户来说两者都意味着「这单不用管了」。 */
-.order-state {
-  flex: 0 0 auto;
-  padding: 2px 7px;
-  border-radius: var(--r-xs);
-  font-size: var(--fs-micro);
-  line-height: 1.5;
-  white-space: nowrap;
-}
-
-.order-state--wait {
-  background: var(--brand-primary-soft);
-  color: var(--brand-primary-pressed);
-}
-
-.order-state--doing {
-  background: var(--state-success-soft);
-  color: var(--state-success);
-}
-
-.order-state--refund {
-  background: var(--state-warning-soft);
-  color: var(--state-warning-deep);
-}
-
-.order-state--closed {
-  background: var(--bg-input);
-  color: var(--text-secondary);
-}
+/* ---------- 状态标签 ---------- */
+/* .state-pill 已提到 components.css 第 30 段（第 14 批：29 的 .order-state 与
+   53 的案件状态同构，第二处就该收，别等第三处）。
+   原来这段的配色说明也一并搬进了第 30 段的注释里。 */
 
 /* ---------- 空态 / 错误态 ---------- */
 .state-wrap {
@@ -253,7 +221,7 @@ body {
         <a class="order-card__link" href="30-order-detail.html">
           <div class="order-card__head">
             <span class="order-card__name">法律咨询 · 30 分钟</span>
-            <span class="order-state order-state--wait">待支付</span>
+            <span class="state-pill state-pill--brand">待支付</span>
           </div>
           <p class="order-card__who">王建国律师 · 新疆天山律师事务所</p>
           <div class="order-card__foot">
@@ -270,7 +238,7 @@ body {
         <a class="order-card__link" href="30-order-detail.html">
           <div class="order-card__head">
             <span class="order-card__name">合同审查 · 采购合同</span>
-            <span class="order-state order-state--refund">退款中</span>
+            <span class="state-pill state-pill--warning">退款中</span>
           </div>
           <p class="order-card__who">张伟律师 · 伊犁河谷律师事务所</p>
           <div class="order-card__foot">
@@ -284,7 +252,7 @@ body {
         <a class="order-card__link" href="30-order-detail.html">
           <div class="order-card__head">
             <span class="order-card__name">案件委托 · 民间借贷纠纷</span>
-            <span class="order-state order-state--doing">进行中</span>
+            <span class="state-pill state-pill--success">进行中</span>
           </div>
           <p class="order-card__who">李静律师 · 伊宁正大律师事务所</p>
           <div class="order-card__foot">
@@ -298,7 +266,7 @@ body {
         <a class="order-card__link" href="30-order-detail.html">
           <div class="order-card__head">
             <span class="order-card__name">文书生成 · 民事起诉状</span>
-            <span class="order-state order-state--closed">已完成</span>
+            <span class="state-pill state-pill--muted">已完成</span>
           </div>
           <p class="order-card__who">平台生成 · 已交付 PDF</p>
           <div class="order-card__foot">
@@ -312,7 +280,7 @@ body {
         <a class="order-card__link" href="30-order-detail.html">
           <div class="order-card__head">
             <span class="order-card__name">法律咨询 · 30 分钟</span>
-            <span class="order-state order-state--closed">已取消</span>
+            <span class="state-pill state-pill--muted">已取消</span>
           </div>
           <p class="order-card__who">赵敏律师 · 奎屯律师事务所</p>
           <div class="order-card__foot">

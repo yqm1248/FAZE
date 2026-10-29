@@ -52,6 +52,7 @@ MAP = {
     "state-warning-soft": "color.state.warningSoft.value",
     "state-warning-deep": "color.state.warningDeep.value",
     "state-danger": "color.state.danger.value",
+    "state-danger-soft": "color.state.dangerSoft.value",
     "icon-doc": "color.icon.doc.value",
     "icon-lawyer": "color.icon.lawyer.value",
     "icon-progress": "color.icon.progress.value",
