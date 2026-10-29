@@ -11,8 +11,8 @@
 
 | 想知道 | 看哪里 |
 |---|---|
-| 9 段怎么切、现在第几段 | [docs/architecture/法泽FAZE_分期交付计划_v1.0.md](docs/architecture/法泽FAZE_分期交付计划_v1.0.md) |
-| **第 0 段具体怎么做**（单线，从第一行读到最后一行） | [docs/architecture/法泽FAZE_第0段执行计划_v3.0.md](docs/architecture/法泽FAZE_第0段执行计划_v3.0.md) |
+| 9 段怎么切、现在第几段、每段怎么算做完 | [docs/architecture/法泽FAZE_开发计划总纲_v1.0.md](docs/architecture/法泽FAZE_开发计划总纲_v1.0.md) |
+| **第 0 段具体怎么做**（单线，从第一行读到最后一行） | `docs/architecture/法泽FAZE_第0段工作流_v1.0.md`（**待产出**；未产出前按总纲 §5.1 + §11.3 施工） |
 | 哪些文档是现行版 | [docs/BASELINE.md](docs/BASELINE.md) |
 
 ---
@@ -21,10 +21,10 @@
 
 `apps/mobile-app/` 里目前是**旧原型**——12 个页面的纯 UI 复刻，数据是本地假数据，只有简体中文。
 
-**它会在第 0 段的 T0-02 被整体删除重建**（代码留在 git 历史里，可查）。在这个前提下：
+**它会在第 0 段的第一个任务（仓库骨架）被整体删除重建**（代码留在 git 历史里，可查）。在这个前提下：
 
 - 不要以 `apps/mobile-app/` 现有代码为工程范本——它的目录结构、假数据层、单语言假设都会消失；
-- 不要相信任何文档里的「已完成」字样，除非第 0 段的 13 条验收清单已全绿。
+- 不要相信任何文档里的「已完成」字样，除非总纲 §5.1 的 8 条验收锚点已全绿。
 
 工程规范以 [AGENTS.md](AGENTS.md) 为准，不以现有代码为准。
 
@@ -60,7 +60,7 @@ scripts/            静态检查与验证脚本
 tools/              取证、字体检查等工具脚本
 ```
 
-> 除 `apps/`、`design/`、`docs/` 外，其余目录在第 0 段逐步建立（见执行计划 T0-11）。
+> 除 `apps/`、`design/`、`docs/` 外，其余目录在第 0 段逐步建立（见《第 0 段工作流》）。
 
 ---
 
@@ -72,7 +72,7 @@ tools/              取证、字体检查等工具脚本
 | **文档基线（哪些文档现行有效、指纹）** | [docs/BASELINE.md](docs/BASELINE.md) |
 | 68 个页面清单与跳转关系 | [docs/design/法泽APP_页面导航树_v1.4.md](docs/design/法泽APP_页面导航树_v1.4.md)（文件名 v1.4，内容 v1.5） |
 | APP 设计稿本体（71 个 HTML） | [design/ui/](design/ui/) —— 从 `01-home.html` 起看 |
-| 设计顺序与每屏依据 | [docs/design/法泽APP_UI设计顺序_v1.0.md](docs/design/法泽APP_UI设计顺序_v1.0.md)（内容 V2.8） |
+| 设计顺序与每屏依据 | [docs/design/法泽APP_UI设计顺序_v1.0.md](docs/design/法泽APP_UI设计顺序_v1.0.md)（内容 V3.0） |
 | 设计令牌取值依据 | [docs/design/设计令牌.md](docs/design/设计令牌.md) |
 | 工程规范 | [docs/standards/](docs/standards/) |
 | 协作与 agent 规则 | [AGENTS.md](AGENTS.md) |
