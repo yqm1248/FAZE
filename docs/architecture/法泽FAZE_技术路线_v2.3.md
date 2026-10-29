@@ -576,7 +576,11 @@ Converter（Entity ↔ DTO ↔ BO）
 
 依赖方向：`controller → service → mapper / infra`，禁止反向依赖、禁止跨域直接访问 mapper。
 
-## 4.4 接口规范
+## 4.4 接口规范（⚠️ 本节已被取代）
+
+> **2026-10-30 变更：本节已被《[法泽FAZE_接口规范_v1.0.md](法泽FAZE_接口规范_v1.0.md)》取代。**
+> 下表只是「风格速查」——它缺字段级契约、缺请求头规范、缺越权/幂等/限流的具体条款、缺分页的三种场景、缺废弃策略。
+> **设计接口时以《接口规范》为准**；下表保留作历史与速查，**不要再从下表推导新接口的写法**。
 
 | 项 | 规范 |
 |---|---|
@@ -603,6 +607,8 @@ public class R<T> implements Serializable {
     private int code;
     private String msg;
     private T data;
+    /** 链路 id，与响应头 X-Trace-Id 同值。**V2.3 原文缺此字段**，依《接口规范》§5.1 补 */
+    private String traceId;
 
     public static <T> R<T> ok() { return restResult(null, SUCCESS, "操作成功"); }
     public static <T> R<T> ok(T data) { return restResult(data, SUCCESS, "操作成功"); }
@@ -614,6 +620,7 @@ public class R<T> implements Serializable {
         r.setCode(code);
         r.setData(data);
         r.setMsg(msg);
+        r.setTraceId(MDC.get("traceId"));   // 链路追踪自动注入，见《接口规范》§5.1
         return r;
     }
 }
@@ -685,6 +692,10 @@ public class R<T> implements Serializable {
 
 ### 4.8.1 路径与鉴权约定
 
+> **2026-10-30 补充**：段 0 的三个探针接口原写作 `/api/v1/ping`、`/api/v1/ops/probe/ai`、`/api/v1/ops/probe/law`，
+> **`ops` 不属下表四类前缀、裸路径也不属**。按《接口规范》§3.1 裁决，三者改为 `pub` 前缀且仅在非生产 profile 注册：
+> `/api/v1/pub/ping`、`/api/v1/pub/probe/ai`、`/api/v1/pub/probe/law`。
+
 | 前缀 | 鉴权 | 说明 |
 |---|---|---|
 | `/api/v1/pub/**` | 无 | 公开：验证码、协议文本、版本检查 |
@@ -730,7 +741,7 @@ public class R<T> implements Serializable {
 | | `GET /app/orders` · `GET /app/orders/{id}` | 订单 |
 | | `POST /app/orders` | 下单（扣余额或拉起充值） |
 | | `POST /app/orders/{id}/pay` · `/cancel` · `/refund` | 意图接口 |
-| | `POST /app/orders/{id}/confirm` | 律师接单/拒单/完成 |
+| | `POST /app/orders/{id}/accept` · `/reject` · `/complete` | 律师接单 / 拒单 / 完成。**2026-10-30 拆分**：原写作 `/confirm` 一个路径承载三种语义，后端无法路由、前端无法区分。裁决见《接口规范》§3.3 裁决 2 |
 | | `POST /app/orders/{id}/review` | 评价 |
 | | `POST /app/withdrawals` · `GET /app/withdrawals` | 提现申请与记录 |
 | | `GET /admin/orders` · `POST /admin/refunds/{id}/audit` | 后台审核 |
@@ -761,7 +772,13 @@ public class R<T> implements Serializable {
 | **infra** | `POST /app/upload/token` | 获取 OSS 直传凭证 |
 | | `GET /app/upload/url?key=` | 获取私有资源签名 URL |
 
-### 4.8.3 错误码统一（V2.2 修正）
+### 4.8.3 错误码统一（⚠️ 本节示例与域位说明已作废）
+
+> **2026-10-30 变更：错误码的唯一准据是《[法泽FAZE_错误码规范_v1.0.md](法泽FAZE_错误码规范_v1.0.md)》（78 个码已冻结）。**
+> 下文的三处内容**已作废**：①「第二段标识业务域（1 位）」——冻结方案是 **DD 两位**，因为新增了 `content` 域后 10 个域装不进 1 位；
+> ②四个示例 `400401`/`500501`/`500502`/`800801`——**全部重编**为 `402001`/`405001`/`405003`/`508001`；
+> ③「成功一律 200，仅网关级错误使用 HTTP 错误码」——**部分作废**，鉴权失败（401/403）要按 HTTP 状态返回，原因见《错误码规范》§2.2。
+> `R` 的结构（code/msg/data/traceId）保留不变。
 
 V2.1 存在三套口径（HTTP 语义 / `1xxxx` 模块分段 / `R` 只有 200-500）。**V2.2 统一为一套**：
 
@@ -2383,13 +2400,16 @@ doubao:
 
 **错误示例：**
 
+> **2026-10-30 修正**：原示例的 `"code": 40301` 是 **5 位**码，与《错误码规范》冻结的 6 位 `[C][DD][NNN]` 冲突。
+> 改为 `404002`（4=客户端错误，04=会话域，002=无权访问该会话），与 REST 侧共用同一套码。
+
 ```json
 {
   "type": "chat.error",
   "id": "1730000002000-0",
   "timestamp": "2026-10-27T10:00:02.000+08:00",
   "data": {
-    "code": 40301,
+    "code": 404002,
     "msg": "您不是该会话成员",
     "clientMsgId": "c-abc123"
   }
