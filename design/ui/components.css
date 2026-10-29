@@ -711,8 +711,8 @@
    ========================================================================== */
 .filter {
   display: flex;
-  gap: 10px;
-  padding: var(--sp-lg) var(--sp-xl) var(--sp-md);
+  gap: var(--sp-sm);
+  padding: var(--sp-md) var(--sp-xl);
   overflow-x: auto;
   scrollbar-width: none;
 }
@@ -721,23 +721,32 @@
   display: none;
 }
 
+/* ★ 视觉药丸 34 高，元素本身仍是 44 高。
+   44 是 iOS HIG / WCAG 2.5.5 的最低点击区，分类条是高频点击元素，
+   目标用户里还有中老年人，不能为了好看把热区压到 34。
+   做法：5px 透明边框撑出热区，background-clip: padding-box 让背景只画在
+   34 高的 padding box 里 —— 文案和药丸都变小了，手指能点到的地方还是 44。 */
 .filter__chip {
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   height: 44px;
-  padding: 0 var(--sp-xxl);
+  padding: 0 var(--sp-lg);
+  border: 5px solid transparent;
   border-radius: var(--r-pill);
   background: var(--bg-input);
+  background-clip: padding-box;
   color: var(--text-body);
-  font-size: var(--fs-lg);
+  font-size: var(--fs-sm);
   text-decoration: none;
   white-space: nowrap;
 }
 
 .filter__chip--active {
+  /* 注意：background 简写会重置 background-clip，这里必须再写一次 */
   background: var(--brand-primary);
+  background-clip: padding-box;
   color: var(--text-on-brand);
   font-weight: var(--fw-medium);
 }
@@ -756,7 +765,18 @@
 }
 
 /* ==========================================================================
-   14. 浮层开关（app.js 只切这个）
+   14. 分类条容器与下方列表的分界线
+   ==========================================================================
+   白底顶栏 #FFFFFF 和列表底 #F7F8FA 只差 3 个色阶，色差几乎为零。
+   不画这条线，第一张卡片会像「粘」在分类条上，两层容器糊成一片
+   （项目负责人第 3 批走查时直接指出「两条线合在一起了」）。
+   ========================================================================== */
+.topbar {
+  border-block-end: 1px solid var(--border-outline);
+}
+
+/* ==========================================================================
+   15. 浮层开关（app.js 只切这个）
    ========================================================================== */
 [hidden] {
   display: none !important;

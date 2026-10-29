@@ -44,7 +44,9 @@ body {
   padding: var(--sp-md) var(--sp-xl) calc(var(--safe-bottom) + var(--sp-xl));
   display: flex;
   flex-direction: column;
-  gap: var(--sp-md);
+  /* 12px 对带阴影的白卡太挤，卡片会「粘」在一起（项目负责人指出过）。
+     用 15px 让每张卡的关系清晰：同一块内容 vs 不同块内容 */
+  gap: var(--sp-lg);
   background: var(--bg-canvas);
 }
 .screen::-webkit-scrollbar {

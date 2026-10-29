@@ -59,7 +59,8 @@ body {
 }
 
 .list {
-  padding: 0 var(--sp-xl);
+  /* 顶部留 12px：分类条加了分割线，第一张卡片再贴上去会显得挤 */
+  padding: var(--sp-md) var(--sp-xl) 0;
   display: flex;
   flex-direction: column;
   gap: var(--sp-md);
@@ -397,6 +398,116 @@ body {
                 stroke-linejoin="round"/>
           <path d="m8 14.4 2 2 4.4-4.2" stroke="currentColor" stroke-width="1.9"
                 stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+    </a>
+
+    <a class="card article-card" href="13-article.html">
+      <div class="article-card__body">
+        <h2 class="article-card__title">租房押金不退怎么办？房东最常用的三个借口</h2>
+        <p class="article-card__meta">
+          <span class="tag tag--brand">合同纠纷</span>
+          <span>2026年2月11日</span>
+          <i class="article-card__dot"></i>
+          <span class="article-card__views">624</span>
+          <span>阅读</span>
+        </p>
+      </div>
+      <div class="article-card__cover cover--contract" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none">
+          <path d="M6.4 3.4h7.4l5 5v12.2a1.6 1.6 0 0 1-1.6 1.6H6.4a1.6 1.6 0 0 1-1.6-1.6V5a1.6 1.6 0 0 1 1.6-1.6Z"
+                stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+          <path d="M13.6 3.6v5.2h5" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+          <path d="M8.2 13.4h7.6M8.2 16.8h4.8" stroke="currentColor" stroke-width="1.8"
+                stroke-linecap="round"/>
+        </svg>
+      </div>
+    </a>
+
+    <a class="card article-card" href="13-article.html">
+      <div class="article-card__body">
+        <h2 class="article-card__title">交通事故责任认定书不服，可以复核吗？</h2>
+        <p class="article-card__meta">
+          <span class="tag tag--brand">民事诉讼</span>
+          <span>2026年2月13日</span>
+          <i class="article-card__dot"></i>
+          <span class="article-card__views">1.1k</span>
+          <span>阅读</span>
+        </p>
+      </div>
+      <div class="article-card__cover cover--civil" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none">
+          <path d="M12 3.4v16.2M6.8 20.6h10.4" stroke="currentColor" stroke-width="1.8"
+                stroke-linecap="round"/>
+          <path d="M3.6 8.2h16.8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          <path d="M3.6 8.2 1.4 13.6a3 3 0 0 0 4.4 0L3.6 8.2Z" stroke="currentColor"
+                stroke-width="1.8" stroke-linejoin="round"/>
+          <path d="M20.4 8.2l-2.2 5.4a3 3 0 0 0 4.4 0l-2.2-5.4Z" stroke="currentColor"
+                stroke-width="1.8" stroke-linejoin="round"/>
+        </svg>
+      </div>
+    </a>
+
+    <a class="card article-card" href="13-article.html">
+      <div class="article-card__body">
+        <h2 class="article-card__title">签了竞业协议还能跳槽吗？关键看这三条</h2>
+        <p class="article-card__meta">
+          <span class="tag tag--brand">劳动纠纷</span>
+          <span>2026年2月15日</span>
+          <i class="article-card__dot"></i>
+          <span class="article-card__views">945</span>
+          <span>阅读</span>
+        </p>
+      </div>
+      <div class="article-card__cover cover--labor" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none">
+          <rect x="3.2" y="7.6" width="17.6" height="12.4" rx="2" stroke="currentColor"
+                stroke-width="1.8"/>
+          <path d="M8.6 7.6V5.8a1.6 1.6 0 0 1 1.6-1.6h3.6a1.6 1.6 0 0 1 1.6 1.6v1.8"
+                stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+          <path d="M3.2 13.2h17.6" stroke="currentColor" stroke-width="1.8"/>
+        </svg>
+      </div>
+    </a>
+
+    <a class="card article-card" href="13-article.html">
+      <div class="article-card__body">
+        <h2 class="article-card__title">老人的遗嘱怎么写才有效？打印遗嘱的四个要件</h2>
+        <p class="article-card__meta">
+          <span class="tag tag--brand">婚姻家事</span>
+          <span>2026年2月17日</span>
+          <i class="article-card__dot"></i>
+          <span class="article-card__views">2.3k</span>
+          <span>阅读</span>
+        </p>
+      </div>
+      <div class="article-card__cover cover--marriage" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none">
+          <rect x="4.4" y="3.4" width="15.2" height="17.2" rx="1.8" stroke="currentColor"
+                stroke-width="1.8"/>
+          <path d="M8 8.2h8M8 12h8M8 15.8h4.6" stroke="currentColor" stroke-width="1.8"
+                stroke-linecap="round"/>
+        </svg>
+      </div>
+    </a>
+
+    <a class="card article-card" href="13-article.html">
+      <div class="article-card__body">
+        <h2 class="article-card__title">被网贷催收骚扰，哪些行为已经违法？</h2>
+        <p class="article-card__meta">
+          <span class="tag tag--brand">刑事普法</span>
+          <span>2026年2月19日</span>
+          <i class="article-card__dot"></i>
+          <span class="article-card__views">1.5k</span>
+          <span>阅读</span>
+        </p>
+      </div>
+      <div class="article-card__cover cover--loan" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none">
+          <path d="M12 2.8 4.6 5.8v6.4c0 4.6 3.1 8.2 7.4 9.4 4.3-1.2 7.4-4.8 7.4-9.4V5.8L12 2.8Z"
+                stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+          <path d="M12 8.6v5.2M12 16.6v.2" stroke="currentColor" stroke-width="1.9"
+                stroke-linecap="round"/>
         </svg>
       </div>
     </a>
