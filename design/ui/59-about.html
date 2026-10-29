@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390, initial-scale=1">
+<meta name="dsh-design" content="app">
+<title>关于我们</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   关于我们页（第 15 批 · 延展，无参考图）
+   ==========================================================================
+   职责：交代平台是谁做的、提供什么、不提供什么；放协议入口与联系方式。
+   入口：41-settings「关于我们」
+   数据来源：静态（版本号读构建号；备案号上线前必须替换为真实值）
+
+   ★ 关于页在用户心里是一张「信任凭证」，不是宣传页。
+     用户点进来通常只想知道三件事：这平台是谁做的、靠谱吗、出问题找谁。
+     所以第一屏给主品牌和版本，第二屏给主体与「是什么 / 不是什么」，
+     第三屏才是协议和联系方式。招商话术、愿景使命一律不放。
+
+   ★「平台不是律师事务所」必须写在介绍里，不能只藏在用户协议第十条。
+     用户会默认「法泽」= 律所，于是问平台「你们律师怎么不接电话」、
+     「你们什么时候开庭」。这类误解从第一通电话起就在消耗客服。
+     写清楚之后，用户知道该找具体律师，而不是找平台。
+
+   ★ 备案号是占位值，源码里明确标了「示例占位」。
+     这个位置很容易被后来的人当成真号直接上线 —— 备案号造假是行政处罚项，
+     所以注释和页面文案里都要拦住。上线前必须替换为真实备案号。
+   ========================================================================== */
+
+body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-canvas);
+}
+
+.navbar {
+  background: var(--bg-surface);
+}
+
+.screen {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding: 0 var(--sp-xl) var(--sp-xxl);
+}
+.screen::-webkit-scrollbar {
+  display: none;
+}
+
+/* ---------- 品牌区 ---------- */
+.brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-block: var(--sp-xxl) var(--sp-lg);
+}
+
+.brand__mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 76px;
+  height: 76px;
+  border-radius: 20px;
+  background: var(--brand-primary);
+  color: var(--text-on-brand);
+  box-shadow: var(--shadow-raised);
+}
+
+.brand__mark svg {
+  width: 44px;
+  height: 44px;
+}
+
+.brand__name {
+  margin-block-start: var(--sp-md);
+  font-size: var(--fs-h1);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  letter-spacing: 2px;
+  line-height: 1.3;
+}
+
+.brand__slogan {
+  margin-block-start: 4px;
+  font-size: var(--fs-md);
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.brand__version {
+  margin-block-start: var(--sp-sm);
+  padding: 3px 10px;
+  border-radius: var(--r-pill);
+  background: var(--bg-input);
+  font-family: var(--font-num);
+  font-size: var(--fs-caption);
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* ---------- 介绍卡 ---------- */
+.intro {
+  padding: var(--sp-lg);
+  border-radius: var(--r-md);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.intro p {
+  font-size: var(--fs-md);
+  color: var(--text-secondary);
+  line-height: 1.85;
+}
+
+.intro p + p {
+  margin-block-start: var(--sp-sm);
+}
+
+.intro b {
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+}
+
+/* 「不是什么」单独一块，浅底，与正文拉开 */
+.intro__boundary {
+  margin-block-start: var(--sp-md);
+  padding: var(--sp-md);
+  border-radius: var(--r-sm);
+  background: var(--bg-canvas);
+  font-size: var(--fs-caption);
+  color: var(--text-secondary);
+  line-height: 1.8;
+}
+
+.intro__boundary b {
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+}
+
+/* ---------- 协议入口 ---------- */
+.legal-list {
+  margin-block-start: var(--sp-md);
+}
+
+/* ---------- 联系方式 ---------- */
+.contact-list {
+  margin-block-start: var(--sp-md);
+}
+
+.contact-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-md);
+  min-height: 52px;
+  padding: 12px var(--sp-lg);
+  border-block-end: 1px solid var(--border-divider);
+  text-decoration: none;
+  color: inherit;
+}
+
+.contact-row:last-child {
+  border-block-end: 0;
+}
+
+.contact-row__key {
+  flex: 0 0 auto;
+  font-size: var(--fs-lg);
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.contact-row__val {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--font-num);
+  font-size: var(--fs-md);
+  color: var(--text-muted);
+  text-align: end;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------- 页脚 ---------- */
+.footer {
+  margin-block-start: var(--sp-xl);
+  padding: 0 2px;
+  text-align: center;
+}
+
+.footer p {
+  font-size: var(--fs-micro);
+  color: var(--text-muted);
+  line-height: 1.9;
+}
+
+.footer b {
+  font-weight: var(--fw-medium);
+  color: var(--text-secondary);
+}
+</style>
+</head>
+<body>
+
+<header class="statusbar">
+  <span>9:41</span>
+  <span class="statusbar__icons">
+    <svg width="17" height="11" viewBox="0 0 17 11" fill="none" aria-hidden="true">
+      <rect x="0" y="7" width="3" height="4" rx="1" fill="currentColor"/>
+      <rect x="4.5" y="5" width="3" height="6" rx="1" fill="currentColor"/>
+      <rect x="9" y="2.5" width="3" height="8.5" rx="1" fill="currentColor"/>
+      <rect x="13.5" y="0" width="3" height="11" rx="1" fill="currentColor"/>
+    </svg>
+    <svg width="16" height="11" viewBox="0 0 16 11" fill="none" aria-hidden="true">
+      <path d="M1 3.2A10.5 10.5 0 0 1 15 3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M3.6 5.9a7 7 0 0 1 8.8 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M6.2 8.6a3.4 3.4 0 0 1 3.6 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden="true">
+      <rect x="0.6" y="0.6" width="21" height="10.8" rx="3" stroke="currentColor" stroke-opacity="0.4" stroke-width="1.2"/>
+      <rect x="2.2" y="2.2" width="15" height="7.6" rx="1.8" fill="currentColor"/>
+      <path d="M23.4 4.2v3.6" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+  </span>
+</header>
+
+<div class="navbar">
+  <a class="navbar__back" href="41-settings.html" aria-label="返回设置">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M15.2 4.6 7.8 12l7.4 7.4" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </a>
+  <h1 class="navbar__title">关于我们</h1>
+</div>
+
+<main class="screen">
+
+  <section class="brand">
+    <span class="brand__mark">
+      <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
+        <path d="M32 6v44M20 54h24M32 12 13 18M32 12l19 6" stroke="currentColor"
+              stroke-width="2.6" stroke-linecap="round"/>
+        <path d="M13 18 5.5 31.5a7.5 7.5 0 0 0 15 0L13 18ZM51 18l-7.5 13.5a7.5 7.5 0 0 0 15 0L51 18Z"
+              stroke="currentColor" stroke-width="2.6" stroke-linejoin="round"/>
+      </svg>
+    </span>
+    <h1 class="brand__name">法泽</h1>
+    <p class="brand__slogan">法泽万物 · 法护民生</p>
+    <span class="brand__version">v1.0.0（2026.10）</span>
+  </section>
+
+  <section class="intro">
+    <p>
+      法泽是面向<b>新疆伊犁地区</b>的普惠型法律服务平台，依托<b>伊犁师范大学法学专业实验基地</b>。平台把法律知识、AI 问答、律师资源和文书工具放到一个地方，让不懂法、请不起律师的人也能把一件事问清楚、办下去。
+    </p>
+    <p>
+      合作律师来自伊犁及乌鲁木齐的执业律所，服务明码标价，不满意可申请退款。
+    </p>
+
+    <p class="intro__boundary">
+      <b>需要说清楚的是：法泽是技术平台，不是律师事务所。</b><br>
+      平台提供法律知识、AI 问答、律师对接和文书排版工具；具体的法律服务由入驻律师以其所属律师事务所的名义提供，平台不直接出具法律意见、不代理诉讼、不代收诉讼费。<br>
+      诉讼费用由人民法院依法收取，平台不经手、也不代缴。
+    </p>
+  </section>
+
+  <h2 class="set-group__title">协议与说明</h2>
+  <div class="set-list legal-list">
+    <a class="set-row" href="10-agreement.html">
+      <span class="set-row__label">用户服务协议</span>
+      <svg class="set-row__chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="m9.2 4.6 7.4 7.4-7.4 7.4" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </a>
+    <a class="set-row" href="11-privacy.html">
+      <span class="set-row__label">隐私政策</span>
+      <svg class="set-row__chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="m9.2 4.6 7.4 7.4-7.4 7.4" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </a>
+    <a class="set-row" href="11-privacy.html">
+      <span class="set-row__label">实名认证信息处理说明</span>
+      <svg class="set-row__chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="m9.2 4.6 7.4 7.4-7.4 7.4" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </a>
+  </div>
+
+  <h2 class="set-group__title">联系我们</h2>
+  <div class="set-list contact-list">
+    <a class="contact-row" href="tel:09998123456">
+      <span class="contact-row__key">客服热线</span>
+      <span class="contact-row__val">0999-812 3456</span>
+    </a>
+    <a class="contact-row" href="mailto:service@faze.example">
+      <span class="contact-row__key">客服邮箱</span>
+      <span class="contact-row__val">service@faze.example</span>
+    </a>
+    <a class="contact-row" href="55-support.html">
+      <span class="contact-row__key">在线客服</span>
+      <span class="contact-row__val">9:00–20:00</span>
+    </a>
+  </div>
+
+  <div class="footer">
+    <p>
+      伊犁师范大学法学专业实验基地 · 法泽项目组<br>
+      <!-- ★ 占位：主体注册完成后必须替换为真实备案号，页面文案也要同步改，
+           不能带着「示例占位」四个字上线，更不能编一个看起来像真的号。 -->
+      新 ICP 备 2026000000 号-1A　<b>（示例占位，主体登记后替换）</b><br>
+      © 2026 法泽 FAZE　保留所有权利
+    </p>
+  </div>
+
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

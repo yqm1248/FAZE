@@ -2565,4 +2565,56 @@
       });
     }
   );
+
+  /* ==========================================================================
+     38. 第 15 批：常见问题 / 投诉 / 意见反馈
+     ========================================================================== */
+
+  /* ---------- 56 常见问题手风琴 ----------
+     ★ 一次只展开一条。多条同时展开会把列表撑得很长，
+       用户滚着滚着就找不到刚才点的是哪条了。
+     ★ 点已展开的那条会收起（wasOpen 判断），不是「点了没反应」——
+       手风琴必须能关上，否则用户只能靠点别的条来关它。 */
+  var faqButtons = document.querySelectorAll("[data-faq]");
+
+  Array.prototype.forEach.call(faqButtons, function (btn) {
+    btn.addEventListener("click", function () {
+      var item = btn.closest(".faq");
+      var wasOpen = item.classList.contains("is-open");
+
+      Array.prototype.forEach.call(faqButtons, function (other) {
+        var otherItem = other.closest(".faq");
+        if (!otherItem) return;
+        otherItem.classList.remove("is-open");
+        other.setAttribute("aria-expanded", "false");
+      });
+
+      if (!wasOpen) {
+        item.classList.add("is-open");
+        btn.setAttribute("aria-expanded", "true");
+      }
+    });
+  });
+
+  /* 页面加载时把已展开那条的 aria-expanded 同步好（56 默认展开第一条） */
+  Array.prototype.forEach.call(faqButtons, function (btn) {
+    var item = btn.closest(".faq");
+    btn.setAttribute(
+      "aria-expanded",
+      item && item.classList.contains("is-open") ? "true" : "false"
+    );
+  });
+
+  /* ---------- 57 / 58 提交与选择器 ---------- */
+  [
+    ["[data-pick-order]", "打开订单选择器（演示）"],
+    ["[data-submit-complaint]", "投诉已提交，3 个工作日内给你回复"],
+    ["[data-submit-feedback]", "感谢反馈，我们会看"]
+  ].forEach(function (pair) {
+    var el = document.querySelector(pair[0]);
+    if (!el) return;
+    el.addEventListener("click", function () {
+      showToast(pair[1]);
+    });
+  });
 })();

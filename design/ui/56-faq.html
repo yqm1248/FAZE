@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390, initial-scale=1">
+<meta name="dsh-design" content="app">
+<title>常见问题</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   常见问题页（第 15 批 · 延展，无参考图）
+   ==========================================================================
+   职责：按分类折叠展示常见问题，点开看答案；底部引导到人工客服。
+   入口：05-profile「常见问题」/ 55-support 三个入口
+   数据来源：FAQ 接口（按分类分组，组内按点击量排序）
+
+   ★ 手风琴用「点击问题行」展开，不用二级页面。
+     一条答案通常两三句话，跳一页再返回是两次页面切换换一段文字，
+     而且用户看完往往还想看下一条 —— 折叠列表能连续读。
+
+   ★ 一次只展开一条。多条同时展开会把列表撑得很长，
+     用户滚着滚着就找不到自己刚才点的是哪条了。
+
+   ★ 展开态默认放在第一条（退款到账时间）。这不是随意选的：
+     它在客服工单里是最高频的问题，默认展开等于替多数用户省一次点击。
+
+   ★ 答案里只写平台能确定的事实（时限、入口路径、规则），
+     不写「我们会尽快处理」这种话 —— 用户来 FAQ 就是要一个确定答案，
+     模糊表述等于没回答，他还是会去排队问客服。
+   ========================================================================== */
+
+body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-canvas);
+}
+
+.navbar {
+  background: var(--bg-surface);
+}
+
+.screen {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding: 0 0 var(--sp-xl);
+}
+.screen::-webkit-scrollbar {
+  display: none;
+}
+
+/* ---------- 问题列表 ---------- */
+.faq-list {
+  padding: var(--sp-sm) var(--sp-xl) 0;
+}
+
+.faq {
+  margin-block-end: 10px;
+  border-radius: var(--r-md);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+
+/* 问题行：整行可点，热区 52 */
+.faq__q {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-md);
+  width: 100%;
+  min-height: 52px;
+  padding: 14px var(--sp-lg);
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.faq__text {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+
+/* 展开时问题变主色，提示「这条是打开的」 */
+.faq.is-open .faq__text {
+  color: var(--brand-primary-pressed);
+}
+
+.faq__arrow {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  margin-block-start: 3px;
+  color: var(--text-muted);
+  transition: transform 180ms ease;
+}
+
+.faq.is-open .faq__arrow {
+  transform: rotate(180deg);
+  color: var(--brand-primary);
+}
+
+/* 答案：默认收起 */
+.faq__a {
+  display: none;
+  padding: 0 var(--sp-lg) var(--sp-md);
+}
+
+.faq.is-open .faq__a {
+  display: block;
+}
+
+.faq__a p {
+  padding-block-start: var(--sp-sm);
+  border-block-start: 1px solid var(--border-divider);
+  font-size: var(--fs-md);
+  color: var(--text-secondary);
+  line-height: 1.85;
+}
+
+.faq__a b {
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+}
+
+/* 答案里的行内链接（跳到对应功能页） */
+.faq__a a {
+  color: var(--brand-primary-pressed);
+  font-weight: var(--fw-medium);
+  text-decoration: none;
+}
+
+/* ---------- 底部引导 ---------- */
+.help-foot {
+  margin-block-start: var(--sp-lg);
+  padding-inline: var(--sp-xl);
+}
+
+.help-foot__title {
+  padding-block: var(--sp-md) var(--sp-sm);
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.help-foot__card {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-md);
+  padding: var(--sp-md) var(--sp-lg);
+  border-radius: var(--r-md);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+  text-decoration: none;
+  color: inherit;
+}
+
+.help-foot__icon {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--state-success-soft);
+  color: var(--state-success);
+}
+
+.help-foot__icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.help-foot__body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.help-foot__name {
+  display: block;
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.help-foot__desc {
+  display: block;
+  margin-block-start: 2px;
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.help-foot__chevron {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  color: var(--text-muted);
+}
+</style>
+</head>
+<body>
+
+<header class="statusbar">
+  <span>9:41</span>
+  <span class="statusbar__icons">
+    <svg width="17" height="11" viewBox="0 0 17 11" fill="none" aria-hidden="true">
+      <rect x="0" y="7" width="3" height="4" rx="1" fill="currentColor"/>
+      <rect x="4.5" y="5" width="3" height="6" rx="1" fill="currentColor"/>
+      <rect x="9" y="2.5" width="3" height="8.5" rx="1" fill="currentColor"/>
+      <rect x="13.5" y="0" width="3" height="11" rx="1" fill="currentColor"/>
+    </svg>
+    <svg width="16" height="11" viewBox="0 0 16 11" fill="none" aria-hidden="true">
+      <path d="M1 3.2A10.5 10.5 0 0 1 15 3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M3.6 5.9a7 7 0 0 1 8.8 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M6.2 8.6a3.4 3.4 0 0 1 3.6 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden="true">
+      <rect x="0.6" y="0.6" width="21" height="10.8" rx="3" stroke="currentColor" stroke-opacity="0.4" stroke-width="1.2"/>
+      <rect x="2.2" y="2.2" width="15" height="7.6" rx="1.8" fill="currentColor"/>
+      <path d="M23.4 4.2v3.6" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+  </span>
+</header>
+
+<div class="navbar">
+  <a class="navbar__back" href="55-support.html" aria-label="返回客服中心">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M15.2 4.6 7.8 12l7.4 7.4" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </a>
+  <h1 class="navbar__title">常见问题</h1>
+</div>
+
+<main class="screen">
+
+  <div class="filter" data-drag-scroll>
+    <a class="filter__chip filter__chip--active" href="56-faq.html">全部</a>
+    <a class="filter__chip" href="56-faq.html">账号登录</a>
+    <a class="filter__chip" href="56-faq.html">支付退款</a>
+    <a class="filter__chip" href="56-faq.html">律师服务</a>
+    <a class="filter__chip" href="56-faq.html">案件立案</a>
+    <a class="filter__chip" href="56-faq.html">文书签章</a>
+  </div>
+
+  <div class="faq-list">
+
+    <div class="faq is-open">
+      <button class="faq__q" type="button" data-faq>
+        <span class="faq__text">申请退款后多久能到账？</span>
+        <svg class="faq__arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="m5.5 9.5 6.5 6.5 6.5-6.5" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+      <div class="faq__a">
+        <p>提交退款申请后，平台在 <b>1 个工作日内</b>审核。审核通过后退回<b>账户余额</b>，可以继续用于后续消费。按平台规则，账户余额不支持提现。<br>
+        如果原路退款，微信、支付宝一般 1 至 3 个工作日到账，银行卡 3 至 7 个工作日 —— 具体以支付渠道为准，平台无法加速。</p>
+      </div>
+    </div>
+
+    <div class="faq">
+      <button class="faq__q" type="button" data-faq>
+        <span class="faq__text">律师一直没回复怎么办？</span>
+        <svg class="faq__arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="m5.5 9.5 6.5 6.5 6.5-6.5" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+      <div class="faq__a">
+        <p>回复时限看服务类型：<b>文字咨询 24 小时内</b>、加急咨询 2 小时内、电话咨询按预约时段。<br>
+        超过时限仍未回复的，可以在<a href="30-order-detail.html">订单详情</a>里申请退款，或联系客服介入处理。注意：律师已实际开始服务（如已出具意见、已代写文书）的订单，按服务完成部分结算。</p>
+      </div>
+    </div>
+
+    <div class="faq">
+      <button class="faq__q" type="button" data-faq>
+        <span class="faq__text">立案材料提交后多久有结果？</span>
+        <svg class="faq__arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="m5.5 9.5 6.5 6.5 6.5-6.5" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+      <div class="faq__a">
+        <p>平台在 <b>1 个工作日内</b>把材料转交有管辖权的人民法院。法院收到后，<b>7 日内</b>决定是否立案 —— 这一步由法院决定，平台不能催办，也看不到法院内部流程。<br>
+        结果会通过消息通知你，也可以随时在<a href="53-my-cases.html">我的案件</a>里看进度。法院要求补正材料的，会在那里提示补正期限。</p>
+      </div>
+    </div>
+
+    <div class="faq">
+      <button class="faq__q" type="button" data-faq>
+        <span class="faq__text">支付密码忘了怎么重置？</span>
+        <svg class="faq__arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="m5.5 9.5 6.5 6.5 6.5-6.5" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+      <div class="faq__a">
+        <p>进入<a href="42-account-security.html">账号与安全</a> → 支付密码 → 忘记密码，用<b>手机短信验证码</b>重置。重置后 6 位密码立即生效，旧密码作废。<br>
+        连续输错 5 次会锁定 30 分钟，锁定期间不能付款，但不影响浏览、咨询和查看订单。</p>
+      </div>
+    </div>
+
+    <div class="faq">
+      <button class="faq__q" type="button" data-faq>
+        <span class="faq__text">怎么开发票？能不能开企业抬头？</span>
+        <svg class="faq__arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="m5.5 9.5 6.5 6.5 6.5-6.5" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+      <div class="faq__a">
+        <p>订单完成后可在<a href="30-order-detail.html">订单详情</a>申请电子发票，开好后发送到你的手机或邮箱。<br>
+        开<b>企业抬头</b>需要先完成<a href="49-verify-company.html">企业认证</a>，发票抬头会直接取认证过的企业名称和税号，不用每次手填。</p>
+      </div>
+    </div>
+
+    <div class="faq">
+      <button class="faq__q" type="button" data-faq>
+        <span class="faq__text">实名认证一定要做吗？</span>
+        <svg class="faq__arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="m5.5 9.5 6.5 6.5 6.5-6.5" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+      <div class="faq__a">
+        <p>不一定。浏览文章和案例、问 AI、咨询律师、下单付费都<b>不需要实名</b>。<br>
+        需要实名的只有三种：<a href="20-filing.html">提交立案材料</a>、<a href="28-doc-seal.html">签署电子文书</a>、以本人名义委托律师。原因是这三种场景要求材料上的签名与真实身份对应，法院只认实名过的当事人。</p>
+      </div>
+    </div>
+
+    <div class="faq">
+      <button class="faq__q" type="button" data-faq>
+        <span class="faq__text">我的聊天内容和身份信息会被谁看到？</span>
+        <svg class="faq__arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="m5.5 9.5 6.5 6.5 6.5-6.5" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+      <div class="faq__a">
+        <p>聊天内容<b>只有你和对话的律师可见</b>，平台不读取、不用于训练模型。实名信息加密存储，除办案律师与受理法院外不对第三方展示。<br>
+        你在<a href="50-edit-profile.html">个人资料</a>里填的昵称和简介是公开的，律师和客服能看到 —— 所以不要在那里写身份证号、手机号和详细住址。</p>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="help-foot">
+    <h2 class="help-foot__title">没找到答案？</h2>
+    <a class="help-foot__card" href="17-chat.html">
+      <span class="help-foot__icon">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M20.4 12.2c0 4-3.8 7.2-8.4 7.2-1 0-2-.15-2.9-.42L4.1 20.4l1.3-3.5a7 7 0 0 1-1.9-4.7c0-4 3.8-7.2 8.5-7.2s8.4 3.2 8.4 7.2Z"
+                stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/>
+        </svg>
+      </span>
+      <span class="help-foot__body">
+        <span class="help-foot__name">联系在线客服</span>
+        <span class="help-foot__desc">人工客服 9:00–20:00，非工作时间可留言</span>
+      </span>
+      <svg class="help-foot__chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="m9.5 5.5 6.5 6.5-6.5 6.5" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </a>
+  </div>
+
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>
