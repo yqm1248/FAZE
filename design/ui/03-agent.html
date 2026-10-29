@@ -6,6 +6,7 @@
 <meta name="dsh-design" content="app">
 <title>AI 对话</title>
 <link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
 <style>
 /* ==========================================================================
    AI 对话页（Tab 3）—— 复刻原项目 pages/ai-agent/ai-agent.vue
@@ -149,7 +150,7 @@ body {
 <div class="appbar">
   <h1 class="appbar__title">法泽智能体</h1>
   <div class="appbar__actions">
-    <button class="icon-btn" type="button" aria-label="对话历史">
+    <a class="icon-btn" href="18-ai-history.html" aria-label="对话历史">
       <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <path d="M3.4 12a8.6 8.6 0 1 0 2.7-6.2" stroke="currentColor" stroke-width="1.9"
               stroke-linecap="round"/>
@@ -158,8 +159,8 @@ body {
         <path d="M12 8.2V12l2.9 1.8" stroke="currentColor" stroke-width="1.9"
               stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
-    </button>
-    <button class="icon-btn" type="button" aria-label="清空当前对话">
+    </a>
+    <button class="icon-btn" type="button" aria-label="清空当前对话" data-clear-open>
       <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <path d="M4.6 6.8h14.8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
         <path d="M9.2 6.8V5a1.6 1.6 0 0 1 1.6-1.6h2.4A1.6 1.6 0 0 1 14.8 5v1.8"
@@ -247,6 +248,33 @@ body {
   </a>
   <i class="tabbar__home-indicator"></i>
 </nav>
+
+<!-- ========================================================================
+     浮层：清空当前对话二次确认（第 5 批交付的页内浮层）
+     ==========================================================================
+     计划 §3.2 把这条排在「AI 对话 · 清空当前对话（二次确认）」。
+     用 components.css 的 .mask / .dialog，和「退出登录」同一个组件。
+
+     文案上做了一件事：告诉用户「其实不用清空」。
+     清空是不可撤销的，但用户点这个按钮往往只是嫌上下文乱了 ——
+     真正该做的是一次「新对话」，不是销毁。所以 hint 里给了替代路径。
+     ======================================================================== -->
+<div class="mask" data-clear-mask hidden></div>
+
+<div class="dialog" data-clear-dialog hidden role="alertdialog" aria-modal="true"
+     aria-labelledby="clear-title" aria-describedby="clear-desc">
+  <h2 class="dialog__title" id="clear-title">清空当前对话？</h2>
+  <p class="dialog__body" id="clear-desc">
+    这一轮对话的内容会被清空，也不会保留在「对话历史」里。
+  </p>
+  <p class="dialog__hint">
+    如果只是想换个问题，其实不用清空 —— 直接问就行，带着上下文回答会更准。
+  </p>
+  <div class="dialog__actions">
+    <button class="dialog__btn" type="button" data-clear-close>取消</button>
+    <button class="dialog__btn dialog__btn--danger" type="button" data-clear-confirm>清空</button>
+  </div>
+</div>
 
 <script src="app.js"></script>
 </body>

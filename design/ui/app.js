@@ -122,7 +122,8 @@
     "14-lawyer-detail.html",
     "15-lawyer-join.html",
     "16-join-status.html",
-    "17-chat.html"
+    "17-chat.html",
+    "18-ai-history.html"
   ];
 
   /* ---------- 轻提示 ---------- */
@@ -1003,4 +1004,64 @@
   if (chatHash === "open-image") setImagePreview(true);
   if (chatHash === "open-menu") setMsgMenu(true);
   if (chatHash === "open-attach") setAttach(true);
+
+  /* ==========================================================================
+     20. 清空当前对话（AI 对话页）
+     ==========================================================================
+     不可撤销操作先问一次，和退出登录用同一个 .dialog 组件。
+     ========================================================================== */
+  var clearOpen = document.querySelector("[data-clear-open]");
+  var clearClosers = document.querySelectorAll("[data-clear-close]");
+  var clearConfirm = document.querySelector("[data-clear-confirm]");
+  var clearMask = document.querySelector("[data-clear-mask]");
+  var clearDialog = document.querySelector("[data-clear-dialog]");
+
+  function setClearDialog(open) {
+    toggleLayer(clearMask, open);
+    toggleLayer(clearDialog, open);
+  }
+
+  if (clearOpen) {
+    clearOpen.addEventListener("click", function () {
+      setClearDialog(true);
+    });
+
+    Array.prototype.forEach.call(clearClosers, function (btn) {
+      btn.addEventListener("click", function () {
+        setClearDialog(false);
+      });
+    });
+
+    if (clearMask) {
+      clearMask.addEventListener("click", function () {
+        setClearDialog(false);
+      });
+    }
+
+    if (clearConfirm) {
+      clearConfirm.addEventListener("click", function () {
+        setClearDialog(false);
+        showToast("当前对话已清空");
+      });
+    }
+
+    /* 走查开关必须放在这里，不能放在前面那段 walkHash 里：
+       函数声明会提升，但 clearMask / clearDialog 是 var，前面调用时还没赋值。 */
+    if (walkHash === "open-clear") setClearDialog(true);
+  }
+
+  /* ==========================================================================
+     21. 对话历史 · 左滑删除
+     ==========================================================================
+     每行是可横向拖动的容器（data-drag-scroll 复用律师分类条那套拖拽），
+     左滑 88px 露出红色删除块。点删除就移除这一行。
+     ========================================================================== */
+  Array.prototype.forEach.call(document.querySelectorAll("[data-del]"), function (btn) {
+    btn.addEventListener("click", function (e) {
+      e.preventDefault();
+      var row = btn.closest(".hist");
+      if (row && row.parentNode) row.parentNode.removeChild(row);
+      showToast("已删除这条记录");
+    });
+  });
 })();

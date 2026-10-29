@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390, initial-scale=1">
+<meta name="dsh-design" content="app">
+<title>对话历史</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   对话历史列表（第 5 批 · 延展，无参考图）
+   ==========================================================================
+   职责：AI 对话的历史会话列表。入口在 AI 对话页顶部「对话历史」图标。
+   母版：列表页母版（§九），但去掉了搜索框和分类 chips ——
+         对话历史按时间分组就够定位，加搜索是过度设计（历史对话一般 10~30 条）
+   数据来源：会话列表接口，按最后更新时间倒序，服务端按日期分组
+
+   ★ 左滑删除（导航树明确要求）
+     不是画一个删除按钮摆着，是**真实的横向滚动**：每行是一个可横向拖动的容器，
+     左滑 88px 露出红色删除块。用 overflow-x + scroll-snap 实现，
+     配合 app.js 的 data-drag-scroll 拖拽（律师分类条那套逻辑复用）。
+
+   四态：normal / loading / empty / error（计划 §6.1）
+
+   为什么这屏重要：AI 对话是本产品使用频率最高的功能之一，
+   历史对话是「上次那个问题问过什么」的唯一入口。找不到就等于白问一次。
+   ========================================================================== */
+
+body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-canvas);
+}
+
+.navbar {
+  background: var(--bg-surface);
+}
+
+.screen {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding: var(--sp-sm) 0 calc(var(--safe-bottom) + var(--sp-xl));
+  background: var(--bg-canvas);
+}
+.screen::-webkit-scrollbar {
+  display: none;
+}
+
+/* ---------- 日期分组 ---------- */
+.group {
+  margin-block-start: var(--sp-md);
+}
+
+.group:first-child {
+  margin-block-start: 0;
+}
+
+.group__title {
+  padding: var(--sp-md) var(--sp-xl) var(--sp-xs);
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-medium);
+  color: var(--text-muted);
+  line-height: 1.3;
+}
+
+/* ---------- 历史条目 ---------- */
+.hist-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  background: var(--bg-surface);
+}
+
+.hist {
+  border-block-end: 1px solid var(--border-divider);
+}
+
+.hist:last-child {
+  border-block-end: 0;
+}
+
+/* 左滑容器：宽度只占一行，内部横向滚动。拖拽滚动由 app.js 的
+   data-drag-scroll 提供，和分类 chips 共用同一套逻辑。 */
+.hist__swipe {
+  display: flex;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  /* 松手后吸附到「收起」或「完全展开删除」两个位置 */
+  scroll-snap-type: x mandatory;
+  overscroll-behavior-x: contain;
+}
+.hist__swipe::-webkit-scrollbar {
+  display: none;
+}
+
+.hist__main {
+  flex: 0 0 100%;
+  width: 100%;
+  display: block;
+  padding: var(--sp-lg) var(--sp-lg) var(--sp-lg) var(--sp-xl);
+  text-decoration: none;
+  color: inherit;
+  scroll-snap-align: start;
+  background: var(--bg-surface);
+}
+
+.hist__main:active {
+  background: var(--bg-canvas);
+}
+
+.hist__row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-sm);
+}
+
+.hist__title {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hist__time {
+  flex: 0 0 auto;
+  font-family: var(--font-num);
+  font-size: var(--fs-micro);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.hist__desc {
+  display: block;
+  margin-block-start: 4px;
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  line-height: 1.5;
+  /* 摘要一行就够，多了反而抢标题的注意力 */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 删除块：藏在右侧 88px，左滑出来 */
+.hist__del {
+  flex: 0 0 88px;
+  width: 88px;
+  border: 0;
+  background: var(--state-danger);
+  color: var(--text-on-brand);
+  font-family: inherit;
+  font-size: var(--fs-md);
+  font-weight: var(--fw-medium);
+  cursor: pointer;
+  scroll-snap-align: end;
+}
+
+.hist__del:active {
+  background: #C8081D;
+}
+
+/* -------------------- 骨架 -------------------- */
+.sk-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-sm);
+  padding: var(--sp-lg) var(--sp-xl);
+  background: var(--bg-surface);
+  border-block-end: 1px solid var(--border-divider);
+}
+
+.sk-line {
+  height: 15px;
+}
+
+.sk-line--w60 {
+  width: 60%;
+}
+
+.sk-line--sm {
+  height: 12px;
+}
+
+.sk-line--w85 {
+  width: 85%;
+}
+
+/* 分组标题也占位一下，避免加载完跳版 */
+.sk-group {
+  height: 12px;
+  width: 48px;
+  margin: var(--sp-md) var(--sp-xl) var(--sp-xs);
+}
+</style>
+</head>
+<body>
+
+<header class="statusbar">
+  <span>9:41</span>
+  <span class="statusbar__icons">
+    <svg width="17" height="11" viewBox="0 0 17 11" fill="none" aria-hidden="true">
+      <rect x="0" y="7" width="3" height="4" rx="1" fill="currentColor"/>
+      <rect x="4.5" y="5" width="3" height="6" rx="1" fill="currentColor"/>
+      <rect x="9" y="2.5" width="3" height="8.5" rx="1" fill="currentColor"/>
+      <rect x="13.5" y="0" width="3" height="11" rx="1" fill="currentColor"/>
+    </svg>
+    <svg width="16" height="11" viewBox="0 0 16 11" fill="none" aria-hidden="true">
+      <path d="M1 3.2A10.5 10.5 0 0 1 15 3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M3.6 5.9a7 7 0 0 1 8.8 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M6.2 8.6a3.4 3.4 0 0 1 3.6 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden="true">
+      <rect x="0.6" y="0.6" width="21" height="10.8" rx="3" stroke="currentColor" stroke-opacity="0.4" stroke-width="1.2"/>
+      <rect x="2.2" y="2.2" width="15" height="7.6" rx="1.8" fill="currentColor"/>
+      <path d="M23.4 4.2v3.6" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+  </span>
+</header>
+
+<div class="navbar">
+  <a class="navbar__back" href="03-agent.html" aria-label="返回智能体">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M15.2 4.6 7.8 12l7.4 7.4" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </a>
+  <h1 class="navbar__title">对话历史</h1>
+</div>
+
+<main class="screen">
+
+  <!-- ======================================================================
+       正常态
+       ====================================================================== -->
+  <div data-state="normal">
+
+    <section class="group">
+      <h2 class="group__title">今天</h2>
+      <ul class="hist-list">
+
+        <li class="hist">
+          <div class="hist__swipe" data-drag-scroll>
+            <a class="hist__main" href="03-agent.html">
+              <span class="hist__row">
+                <span class="hist__title">借款没写借条，能要回来吗</span>
+                <span class="hist__time">11:08</span>
+              </span>
+              <span class="hist__desc">转账记录能证明给过钱，但证明不了是借款……</span>
+            </a>
+            <button class="hist__del" type="button" data-del>删除</button>
+          </div>
+        </li>
+
+        <li class="hist">
+          <div class="hist__swipe" data-drag-scroll>
+            <a class="hist__main" href="03-agent.html">
+              <span class="hist__row">
+                <span class="hist__title">被公司辞退，补偿怎么算</span>
+                <span class="hist__time">09:42</span>
+              </span>
+              <span class="hist__desc">工作满三年，公司说效益不好要裁员，只给一个月工资……</span>
+            </a>
+            <button class="hist__del" type="button" data-del>删除</button>
+          </div>
+        </li>
+
+        <li class="hist">
+          <div class="hist__swipe" data-drag-scroll>
+            <a class="hist__main" href="03-agent.html">
+              <span class="hist__row">
+                <span class="hist__title">楼上漏水把我家天花板泡了</span>
+                <span class="hist__time">08:15</span>
+              </span>
+              <span class="hist__desc">物业说不管，邻居也不肯赔，这种情况该找谁……</span>
+            </a>
+            <button class="hist__del" type="button" data-del>删除</button>
+          </div>
+        </li>
+
+      </ul>
+    </section>
+
+    <section class="group">
+      <h2 class="group__title">昨天</h2>
+      <ul class="hist-list">
+
+        <li class="hist">
+          <div class="hist__swipe" data-drag-scroll>
+            <a class="hist__main" href="03-agent.html">
+              <span class="hist__row">
+                <span class="hist__title">离婚后孩子抚养权怎么判</span>
+                <span class="hist__time">20:31</span>
+              </span>
+              <span class="hist__desc">孩子五岁，一直是我在带，对方收入比我高……</span>
+            </a>
+            <button class="hist__del" type="button" data-del>删除</button>
+          </div>
+        </li>
+
+        <li class="hist">
+          <div class="hist__swipe" data-drag-scroll>
+            <a class="hist__main" href="03-agent.html">
+              <span class="hist__row">
+                <span class="hist__title">电动车撞人算交通事故吗</span>
+                <span class="hist__time">16:07</span>
+              </span>
+              <span class="hist__desc">对方骑电动车撞了我母亲，交警说不管，让我们私了……</span>
+            </a>
+            <button class="hist__del" type="button" data-del>删除</button>
+          </div>
+        </li>
+
+      </ul>
+    </section>
+
+    <section class="group">
+      <h2 class="group__title">更早</h2>
+      <ul class="hist-list">
+
+        <li class="hist">
+          <div class="hist__swipe" data-drag-scroll>
+            <a class="hist__main" href="03-agent.html">
+              <span class="hist__row">
+                <span class="hist__title">租房押金房东不退</span>
+                <span class="hist__time">2月17日</span>
+              </span>
+              <span class="hist__desc">退租时房东说墙纸旧了要扣钱，但墙纸本来就旧……</span>
+            </a>
+            <button class="hist__del" type="button" data-del>删除</button>
+          </div>
+        </li>
+
+        <li class="hist">
+          <div class="hist__swipe" data-drag-scroll>
+            <a class="hist__main" href="03-agent.html">
+              <span class="hist__row">
+                <span class="hist__title">起诉状要写哪些内容</span>
+                <span class="hist__time">2月15日</span>
+              </span>
+              <span class="hist__desc">要自己写起诉状，不知道格式，法院会不会因为格式不对退……</span>
+            </a>
+            <button class="hist__del" type="button" data-del>删除</button>
+          </div>
+        </li>
+
+        <li class="hist">
+          <div class="hist__swipe" data-drag-scroll>
+            <a class="hist__main" href="03-agent.html">
+              <span class="hist__row">
+                <span class="hist__title">农民工工资被拖欠半年</span>
+                <span class="hist__time">2月12日</span>
+              </span>
+              <span class="hist__desc">包工头一直说月底结，已经拖了半年，没签劳动合同……</span>
+            </a>
+            <button class="hist__del" type="button" data-del>删除</button>
+          </div>
+        </li>
+
+        <li class="hist">
+          <div class="hist__swipe" data-drag-scroll>
+            <a class="hist__main" href="03-agent.html">
+              <span class="hist__row">
+                <span class="hist__title">老人遗嘱怎么写才有效</span>
+                <span class="hist__time">2月9日</span>
+              </span>
+              <span class="hist__desc">父亲想立遗嘱把房子留给小儿子，自己手写一份行不行……</span>
+            </a>
+            <button class="hist__del" type="button" data-del>删除</button>
+          </div>
+        </li>
+
+      </ul>
+    </section>
+
+  </div>
+
+  <!-- ======================================================================
+       加载态
+       ====================================================================== -->
+  <div data-state="loading" hidden>
+    <div class="skeleton sk-group"></div>
+    <div class="sk-row">
+      <div class="skeleton sk-line sk-line--w60"></div>
+      <div class="skeleton sk-line sk-line--sm sk-line--w85"></div>
+    </div>
+    <div class="sk-row">
+      <div class="skeleton sk-line sk-line--w60"></div>
+      <div class="skeleton sk-line sk-line--sm sk-line--w85"></div>
+    </div>
+    <div class="sk-row">
+      <div class="skeleton sk-line sk-line--w60"></div>
+      <div class="skeleton sk-line sk-line--sm sk-line--w85"></div>
+    </div>
+  </div>
+
+  <!-- ======================================================================
+       空态
+       ====================================================================== -->
+  <div data-state="empty" hidden>
+    <div class="empty">
+      <svg class="empty__art" viewBox="0 0 96 96" fill="none" aria-hidden="true">
+        <path d="M78.8 46.4c0 15.4-14.6 27.8-32.4 27.8-3.9 0-7.7-.6-11.2-1.6L15.4 79l5-12.3A25.4 25.4 0 0 1 13.6 46.4c0-15.4 14.7-27.8 32.8-27.8s32.4 12.4 32.4 27.8Z"
+              stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"/>
+        <path d="M34 40.4h20M34 50h13" stroke="currentColor" stroke-width="2.4"
+              stroke-linecap="round"/>
+      </svg>
+      <p class="empty__title">还没有对话记录</p>
+      <p class="empty__desc">向智能体提问后，这里会留下记录，方便你随时找回来继续问。</p>
+      <a class="btn-primary empty__action" href="03-agent.html">去问一个问题</a>
+    </div>
+  </div>
+
+  <!-- ======================================================================
+       错误态
+       ====================================================================== -->
+  <div data-state="error" hidden>
+    <div class="errorbox">
+      <svg class="errorbox__art" viewBox="0 0 96 96" fill="none" aria-hidden="true">
+        <circle cx="48" cy="48" r="30" stroke="currentColor" stroke-width="2.4"/>
+        <path d="M48 32v20" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
+        <circle cx="48" cy="62" r="2.4" fill="currentColor"/>
+      </svg>
+      <p class="errorbox__title">对话记录没有加载出来</p>
+      <p class="errorbox__desc">网络不稳定或者服务器维护中。稍等一下再试试。</p>
+      <button class="errorbox__retry" type="button" data-retry>
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M20.2 12a8.2 8.2 0 1 1-2.4-5.8" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round"/>
+          <path d="M20.4 3.6v4.6h-4.6" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        重新加载
+      </button>
+    </div>
+  </div>
+
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>
