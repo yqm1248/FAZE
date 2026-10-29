@@ -1948,12 +1948,49 @@
     }
   );
 
-  Array.prototype.forEach.call(
-    document.querySelectorAll("[data-pwd-forget]"),
-    function (btn) {
-      btn.addEventListener("click", function () {
-        showToast("先发短信验证码，验证通过后重设");
+  /* ==========================================================================
+     41. 消息中心（第 10 批：38-messages）
+     ==========================================================================
+     分类筛选 + 一键全部已读。
+     ★ 「全部已读」不加二次确认：损失可承受（误点只是再翻一遍），
+       而消息列表是高频页面，每次都弹一个框会变成烦人事。
+       红点靠 .msg--unread 一个类控制，摘掉类红点自动消失（见 38 的 CSS）。
+     ========================================================================== */
+  var msgChips = document.querySelectorAll("[data-msg-filter]");
+  var msgItems = document.querySelectorAll(".msg[data-msg-type]");
+
+  Array.prototype.forEach.call(msgChips, function (chip) {
+    chip.addEventListener("click", function () {
+      var key = chip.getAttribute("data-msg-filter");
+
+      Array.prototype.forEach.call(msgChips, function (other) {
+        if (other === chip) other.classList.add("filter__chip--active");
+        else other.classList.remove("filter__chip--active");
       });
-    }
-  );
+
+      Array.prototype.forEach.call(msgItems, function (item) {
+        var hit = key === "all" || item.getAttribute("data-msg-type") === key;
+        if (hit) item.removeAttribute("hidden");
+        else item.setAttribute("hidden", "");
+      });
+    });
+  });
+
+  var readAllBtn = document.querySelector("[data-read-all]");
+  if (readAllBtn) {
+    readAllBtn.addEventListener("click", function () {
+      var unread = document.querySelectorAll(".msg--unread");
+
+      if (!unread.length) {
+        showToast("没有未读消息");
+        return;
+      }
+
+      Array.prototype.forEach.call(unread, function (item) {
+        item.classList.remove("msg--unread");
+      });
+
+      showToast("已全部标为已读");
+    });
+  }
 })();

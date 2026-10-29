@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390, initial-scale=1">
+<meta name="dsh-design" content="app">
+<title>消息详情</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   消息详情页（第 10 批 · 延展，无参考图）
+   ==========================================================================
+   职责：看一条通知的完整内容，从它跳到关联的业务页面（案件 / 订单 / 律师）。
+   入口：38-messages 里点通知类消息（会话类消息直接进对应页面，不经过这里）
+   母版：**结果页母版**的变体（同 21-filing-done / 32-pay-result：
+         头卡 + 正文 + 关联卡 + 底部动作栏），但这里正文更长
+   数据来源：消息详情接口（类型 / 标题 / 正文 / 时间 / 关联业务 id 与类型 / 是否系统发送）
+
+   ★ 这一屏只服务「通知类」消息（系统通知 / 案件进度 / 订单 / 合规提醒）。
+     律师回复和客服消息不进这里 —— 它们是持续会话，用户要的是接着聊，
+     不是读一份通知。理由与分流规则写在 38-messages 顶部。
+
+   ★ 为什么把「平台只是转达方」写在正文里，而不是只放在页脚小字：
+     法院的受理、开庭、判决是司法行为，平台只是把法院给的信息送到用户手上。
+     用户如果以为「平台受理了我的案子」，第二天就会问平台「什么时候开庭」，
+     而这是平台答不了的问题。这条边界必须出现在正文里，不能缩成免责小字。
+
+   ★ 案号是**法院案号**，和平台单号不是一回事：
+     平台单号是 `FAZE-` 开头的 13 位，法院案号是「(年份) 法院代字 案件类型 序号 号」。
+     这里出现法院案号是对的（它本来就是法院给的），但实现时必须来自法院回传，
+     前端不得自己拼一个 —— 拼出来就是伪造司法文书信息。
+
+   这屏不做四态：消息内容在打开时就定了，不存在加载失败后重试的场景。
+   真正会失败的是打开前的那次请求，失败应该留在 38 做行内重试，不要跳到空白页。
+   ========================================================================== */
+
+body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-canvas);
+}
+
+.navbar {
+  background: var(--bg-surface);
+}
+
+.screen {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding: 0 var(--sp-xl) var(--sp-xl);
+}
+.screen::-webkit-scrollbar {
+  display: none;
+}
+
+.screen > section + section {
+  margin-block-start: var(--sp-md);
+}
+
+/* ---------- 消息头 ---------- */
+.msg-head {
+  padding: var(--sp-lg) 0 var(--sp-md);
+}
+
+.msg-head__type {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: var(--r-xs);
+  background: var(--state-warning-soft);
+  color: var(--state-warning-deep);
+  font-size: var(--fs-caption);
+  line-height: 1.6;
+}
+
+.msg-head__title {
+  margin-block-start: var(--sp-sm);
+  font-size: var(--fs-h1);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  line-height: 1.35;
+}
+
+.msg-head__time {
+  margin-block-start: var(--sp-xs);
+  font-family: var(--font-num);
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.5;
+}
+
+/* ---------- 正文 ---------- */
+.body-card {
+  padding: var(--sp-lg);
+  border-radius: var(--r-md);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.body-text {
+  font-size: var(--fs-lg);
+  color: var(--text-body);
+  line-height: 1.8;
+}
+
+.body-text + .body-text {
+  margin-block-start: var(--sp-md);
+}
+
+/* 关键字段用定义列表：受理时间 / 承办庭室 / 案号这类「标签 + 值」，
+   用表格会太重，用段落会糊在一起 */
+.body-fields {
+  margin-block-start: var(--sp-md);
+  padding-block-start: var(--sp-md);
+  border-block-start: 1px solid var(--border-divider);
+}
+
+.body-field {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-md);
+  padding-block: 5px;
+  font-size: var(--fs-md);
+  line-height: 1.5;
+}
+
+.body-field__label {
+  flex: 0 0 84px;
+  color: var(--text-muted);
+}
+
+.body-field__value {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--text-body);
+  word-break: break-all;
+}
+
+.body-field__value--code {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+/* 平台边界说明：单独一块，跟上文的法院信息分开 */
+.boundary {
+  margin-block-start: var(--sp-md);
+  padding: var(--sp-md) var(--sp-lg);
+  border-radius: var(--r-sm);
+  background: var(--state-warning-soft);
+}
+
+.boundary__text {
+  font-size: var(--fs-caption);
+  color: var(--state-warning-deep);
+  line-height: 1.8;
+}
+
+/* ---------- 关联业务 ---------- */
+.rel-title {
+  padding-block: var(--sp-xs) var(--sp-sm);
+  font-size: var(--fs-md);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+
+.rel-card {
+  display: block;
+  padding: var(--sp-md) var(--sp-lg);
+  border-radius: var(--r-md);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+  text-decoration: none;
+  color: inherit;
+}
+
+.rel-card + .rel-card {
+  margin-block-start: var(--sp-sm);
+}
+
+.rel-card:active {
+  background: var(--bg-canvas);
+}
+
+.rel-card__top {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+}
+
+.rel-card__name {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rel-card__state {
+  flex: 0 0 auto;
+  padding: 1px 7px;
+  border-radius: var(--r-xs);
+  background: var(--state-success-soft);
+  color: var(--state-success);
+  font-size: var(--fs-micro);
+  line-height: 1.6;
+}
+
+.rel-card__meta {
+  display: block;
+  margin-block-start: 3px;
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rel-card__meta--code {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- 页脚 ---------- */
+.foot-note {
+  margin-block-start: var(--sp-lg);
+  text-align: center;
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.7;
+}
+</style>
+</head>
+<body>
+
+<header class="statusbar">
+  <span>9:41</span>
+  <span class="statusbar__icons">
+    <svg width="17" height="11" viewBox="0 0 17 11" fill="none" aria-hidden="true">
+      <rect x="0" y="7" width="3" height="4" rx="1" fill="currentColor"/>
+      <rect x="4.5" y="5" width="3" height="6" rx="1" fill="currentColor"/>
+      <rect x="9" y="2.5" width="3" height="8.5" rx="1" fill="currentColor"/>
+      <rect x="13.5" y="0" width="3" height="11" rx="1" fill="currentColor"/>
+    </svg>
+    <svg width="16" height="11" viewBox="0 0 16 11" fill="none" aria-hidden="true">
+      <path d="M1 3.2A10.5 10.5 0 0 1 15 3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M3.6 5.9a7 7 0 0 1 8.8 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M6.2 8.6a3.4 3.4 0 0 1 3.6 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden="true">
+      <rect x="0.6" y="0.6" width="21" height="10.8" rx="3" stroke="currentColor" stroke-opacity="0.4" stroke-width="1.2"/>
+      <rect x="2.2" y="2.2" width="15" height="7.6" rx="1.8" fill="currentColor"/>
+      <path d="M23.4 4.2v3.6" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+  </span>
+</header>
+
+<div class="navbar">
+  <a class="navbar__back" href="38-messages.html" aria-label="返回消息中心">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M15.2 4.6 7.8 12l7.4 7.4" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </a>
+  <h1 class="navbar__title">消息详情</h1>
+</div>
+
+<main class="screen">
+
+  <section class="msg-head">
+    <span class="msg-head__type">案件进度</span>
+    <h2 class="msg-head__title">你的案件已被人民法院受理</h2>
+    <p class="msg-head__time">2026-10-29 10:30</p>
+  </section>
+
+  <section class="body-card">
+    <p class="body-text">你委托的民间借贷纠纷一案，已由伊宁市人民法院立案受理。受理后案件进入审理流程，后续的开庭时间、举证期限等由人民法院安排。</p>
+    <p class="body-text">下面是人民法院回传的受理信息，供你核对。</p>
+
+    <div class="body-fields">
+      <div class="body-field">
+        <span class="body-field__label">受理时间</span>
+        <span class="body-field__value body-field__value--code">2026-10-29 10:30</span>
+      </div>
+      <div class="body-field">
+        <span class="body-field__label">受理法院</span>
+        <span class="body-field__value">伊宁市人民法院</span>
+      </div>
+      <div class="body-field">
+        <span class="body-field__label">承办庭室</span>
+        <span class="body-field__value">民事审判第一庭</span>
+      </div>
+      <div class="body-field">
+        <span class="body-field__label">案号</span>
+        <span class="body-field__value body-field__value--code">(2026) 新 4002 民初 1234 号</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="boundary">
+    <p class="boundary__text">本消息由人民法院通过本平台转达。立案受理是人民法院的司法行为，平台不参与审理、不解释审理结果、也不能查询案件进度以外的情况。对案件有疑问，请直接联系你的代理律师或人民法院。</p>
+  </section>
+
+  <section>
+    <p class="rel-title">相关</p>
+
+    <a class="rel-card" href="54-case-progress.html">
+      <span class="rel-card__top">
+        <span class="rel-card__name">民间借贷纠纷</span>
+        <span class="rel-card__state">已受理</span>
+      </span>
+      <span class="rel-card__meta rel-card__meta--code">(2026) 新 4002 民初 1234 号</span>
+      <span class="rel-card__meta">查看案件进度与时间轴</span>
+    </a>
+
+    <a class="rel-card" href="17-chat.html">
+      <span class="rel-card__top">
+        <span class="rel-card__name">王建国律师</span>
+        <span class="rel-card__state">代理律师</span>
+      </span>
+      <span class="rel-card__meta">新疆天山律师事务所 · 进入对话</span>
+    </a>
+  </section>
+
+  <p class="foot-note">此消息由系统自动发送，不需要回复。</p>
+
+</main>
+
+<div class="actionbar">
+  <a class="btn-ghost" href="17-chat.html">联系律师</a>
+  <a class="btn-primary actionbar__cta" href="54-case-progress.html">查看案件进度</a>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
