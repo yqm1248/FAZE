@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390, initial-scale=1">
+<meta name="dsh-design" content="app">
+<title>入驻审核状态</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   入驻审核状态页（第 4 批 · 延展，无参考图）
+   ==========================================================================
+   职责：律师入驻提交后的状态页。逛入口在「我的 - 资质审核状态」和提交成功后的跳转。
+   母版：时间轴（§九：照案件进度 —— 节点 + 激活态）+ 结果页的「一屏说清当前状态」
+   数据来源：入驻申请状态接口（待审核 / 已通过 / 已驳回 + 驳回原因 + 时间线）
+
+   两种状态：
+     normal   审核中（默认）
+     rejected 已驳回（hash #state-rejected 切换，走查见 _walkthrough/）
+   审核通过是第三种（passed），结构同 rejected，只是文案与图标不同 ——
+   它不需要单独验证布局，所以只在源码里用 data-state="passed" 留了结构。
+
+   为什么这屏值得单独做：律师入驻是全平台唯一需要人工审核的流程，
+   审核期间用户会反复进来查看。状态说不清楚就会变成客服工单。
+   所以这屏的核心不是设计感，是**一眼看懂「现在到哪一步、还要等多久、我该做什么」**。
+   ========================================================================== */
+
+body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.navbar {
+  background: transparent;
+}
+
+.screen {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding: var(--sp-md) var(--sp-xl) calc(var(--safe-bottom) + var(--sp-xl));
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-md);
+  background: var(--bg-canvas);
+}
+.screen::-webkit-scrollbar {
+  display: none;
+}
+
+/* ---------- 状态头卡 ----------
+   暖色系而不是红：审核中不是错误。驳回才转红。 */
+.status-hero {
+  padding: var(--sp-xxl) var(--sp-lg) var(--sp-xl);
+  text-align: center;
+}
+
+.status-hero__icon {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto;
+  color: var(--brand-primary);
+}
+
+.status-hero__icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.status-hero.is-rejected .status-hero__icon {
+  color: var(--state-danger);
+}
+
+.status-hero__title {
+  margin-block-start: var(--sp-md);
+  font-size: var(--fs-h1);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+.status-hero__desc {
+  margin-block-start: var(--sp-sm);
+  font-size: var(--fs-md);
+  color: var(--text-secondary);
+  line-height: var(--lh-relaxed);
+  max-width: 300px;
+  margin-inline: auto;
+}
+
+/* ---------- 时间轴 ---------- */
+.timeline {
+  margin-block-start: var(--sp-md);
+  padding-inline-start: 0;
+  list-style: none;
+  position: relative;
+}
+
+.tl-item {
+  position: relative;
+  padding-inline-start: 30px;
+  padding-block-end: var(--sp-xl);
+}
+
+.tl-item:last-child {
+  padding-block-end: 0;
+}
+
+/* 竖线：从本节点连到下一个，画在本节点左侧 */
+.tl-item::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: 5px;
+  inset-block-start: 20px;
+  inset-block-end: 0;
+  width: 2px;
+  background: var(--border-outline);
+}
+
+.tl-item:last-child::before {
+  content: none;
+}
+
+.tl-item.is-done::before {
+  background: var(--brand-primary);
+}
+
+/* 节点圆点 */
+.tl-item::after {
+  content: "";
+  position: absolute;
+  inset-inline-start: 0;
+  inset-block-start: 5px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--bg-surface);
+  box-shadow: inset 0 0 0 2px var(--border-outline);
+}
+
+.tl-item.is-done::after {
+  background: var(--brand-primary);
+  box-shadow: none;
+}
+
+.tl-item.is-active::after {
+  background: var(--brand-primary);
+  box-shadow: 0 0 0 4px var(--brand-primary-soft);
+}
+
+/* 驳回态：驳回节点用红色 */
+.tl-item.is-fail::after {
+  background: var(--state-danger);
+  box-shadow: 0 0 0 4px #FDECEE;
+}
+
+.tl-item.is-fail::before {
+  background: var(--border-outline);
+}
+
+.tl-item__title {
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.tl-item:not(.is-done):not(.is-active):not(.is-fail) .tl-item__title {
+  color: var(--text-muted);
+  font-weight: var(--fw-regular);
+}
+
+.tl-item__meta {
+  margin-block-start: 3px;
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.tl-item.is-active .tl-item__meta {
+  color: var(--brand-primary-pressed);
+}
+
+.tl-item.is-fail .tl-item__meta {
+  color: var(--state-danger);
+}
+
+/* ---------- 分区卡 ---------- */
+.card--pad {
+  padding: var(--sp-lg);
+}
+
+.section-title {
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+/* ---------- 驳回原因 ---------- */
+.reason {
+  margin-block-start: var(--sp-md);
+  padding: var(--sp-md);
+  border-radius: var(--r-sm);
+  background: #FDECEE;
+  color: #A1081A;
+  font-size: var(--fs-md);
+  line-height: var(--lh-relaxed);
+}
+
+/* ---------- 待办清单 ---------- */
+.tips {
+  margin-block-start: var(--sp-md);
+  padding-inline-start: 0;
+  list-style: none;
+}
+
+.tips li {
+  position: relative;
+  padding-inline-start: 20px;
+  margin-block-start: var(--sp-sm);
+  font-size: var(--fs-md);
+  color: var(--text-body);
+  line-height: var(--lh-relaxed);
+}
+
+.tips li::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: 4px;
+  inset-block-start: 9px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--brand-primary);
+}
+
+.tips a {
+  color: var(--brand-primary-pressed);
+  font-weight: var(--fw-medium);
+  text-decoration: underline;
+}
+
+/* ---------- 底部按钮 ---------- */
+.actions {
+  margin-block-start: var(--sp-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.btn-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--btn-h);
+  border: 1px solid var(--border-outline);
+  border-radius: var(--r-pill);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: var(--fs-h3);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.btn-outline:active {
+  background: var(--bg-input);
+}
+</style>
+</head>
+<body>
+
+<header class="statusbar">
+  <span>9:41</span>
+  <span class="statusbar__icons">
+    <svg width="17" height="11" viewBox="0 0 17 11" fill="none" aria-hidden="true">
+      <rect x="0" y="7" width="3" height="4" rx="1" fill="currentColor"/>
+      <rect x="4.5" y="5" width="3" height="6" rx="1" fill="currentColor"/>
+      <rect x="9" y="2.5" width="3" height="8.5" rx="1" fill="currentColor"/>
+      <rect x="13.5" y="0" width="3" height="11" rx="1" fill="currentColor"/>
+    </svg>
+    <svg width="16" height="11" viewBox="0 0 16 11" fill="none" aria-hidden="true">
+      <path d="M1 3.2A10.5 10.5 0 0 1 15 3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M3.6 5.9a7 7 0 0 1 8.8 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M6.2 8.6a3.4 3.4 0 0 1 3.6 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden="true">
+      <rect x="0.6" y="0.6" width="21" height="10.8" rx="3" stroke="currentColor" stroke-opacity="0.4" stroke-width="1.2"/>
+      <rect x="2.2" y="2.2" width="15" height="7.6" rx="1.8" fill="currentColor"/>
+      <path d="M23.4 4.2v3.6" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+  </span>
+</header>
+
+<div class="navbar">
+  <a class="navbar__back" href="05-profile.html" aria-label="返回我的">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M15.2 4.6 7.8 12l7.4 7.4" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </a>
+  <h1 class="navbar__title">入驻审核</h1>
+</div>
+
+<main class="screen">
+
+  <!-- ======================================================================
+       审核中（默认）
+       ====================================================================== -->
+  <div data-state="normal">
+
+    <section class="card status-hero">
+      <div class="status-hero__icon">
+        <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
+          <circle cx="32" cy="32" r="26" stroke="currentColor" stroke-width="3"/>
+          <path d="M32 18v15l10 6" stroke="currentColor" stroke-width="3"
+                stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <h2 class="status-hero__title">资料已提交，正在审核</h2>
+      <p class="status-hero__desc">
+        平台会在 1–2 个工作日内完成资质核验。结果会通过站内消息通知你，不用一直进来刷。
+      </p>
+    </section>
+
+    <section class="card card--pad">
+      <h2 class="section-title">审核进度</h2>
+      <ol class="timeline">
+        <li class="tl-item is-done">
+          <p class="tl-item__title">资料已提交</p>
+          <p class="tl-item__meta">2026年2月10日 10:23</p>
+        </li>
+        <li class="tl-item is-active">
+          <p class="tl-item__title">平台审核中</p>
+          <p class="tl-item__meta">预计 2月12日前出结果</p>
+        </li>
+        <li class="tl-item">
+          <p class="tl-item__title">审核通过，开通接单</p>
+          <p class="tl-item__meta">通过后你才会出现在律师列表里</p>
+        </li>
+      </ol>
+    </section>
+
+    <section class="card card--pad">
+      <h2 class="section-title">审核期间可以做什么</h2>
+      <ul class="tips">
+        <li>把个人简介写具体一点。当事人选律师时最先看这段，写「擅长各类案件」等于没写。</li>
+        <li>补齐资质材料能减少驳回概率，尤其执业证照片要能看清证件号。</li>
+        <li>先读一遍<a href="10-agreement.html">《用户服务协议》</a>，里面有服务费率和结算规则。</li>
+      </ul>
+    </section>
+
+    <div class="actions">
+      <a class="btn-primary" href="52-support.html">联系客服</a>
+      <a class="btn-outline" href="05-profile.html">返回我的</a>
+    </div>
+
+  </div>
+
+  <!-- ======================================================================
+       已驳回（hash #state-rejected 切换）
+       ====================================================================== -->
+  <div data-state="rejected" hidden>
+
+    <section class="card status-hero is-rejected">
+      <div class="status-hero__icon">
+        <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
+          <circle cx="32" cy="32" r="26" stroke="currentColor" stroke-width="3"/>
+          <path d="M32 19v17" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/>
+          <circle cx="32" cy="45" r="2.4" fill="currentColor"/>
+        </svg>
+      </div>
+      <h2 class="status-hero__title">资料未通过审核</h2>
+      <p class="status-hero__desc">
+        别担心，按下面指出的问题改一下，重新提交就行。资质材料可以反复提交，不计次数。
+      </p>
+    </section>
+
+    <section class="card card--pad">
+      <h2 class="section-title">驳回原因</h2>
+      <p class="reason">
+        律师执业证照片反光，证件号部分无法辨认。请在自然光下平铺拍摄，
+        确保四个角都在画面内、证件号清晰可读。
+      </p>
+      <ol class="timeline" style="margin-block-start:20px">
+        <li class="tl-item is-done">
+          <p class="tl-item__title">资料已提交</p>
+          <p class="tl-item__meta">2026年2月10日 10:23</p>
+        </li>
+        <li class="tl-item is-done">
+          <p class="tl-item__title">平台审核中</p>
+          <p class="tl-item__meta">2026年2月11日 09:40</p>
+        </li>
+        <li class="tl-item is-fail">
+          <p class="tl-item__title">审核未通过</p>
+          <p class="tl-item__meta">2026年2月11日 15:12</p>
+        </li>
+      </ol>
+    </section>
+
+    <div class="actions">
+      <a class="btn-primary" href="15-lawyer-join.html">重新提交资料</a>
+      <a class="btn-outline" href="52-support.html">联系客服</a>
+    </div>
+
+  </div>
+
+  <!-- ======================================================================
+       已通过（结构同上，不单独验证布局）
+       ====================================================================== -->
+  <div data-state="passed" hidden>
+    <section class="card status-hero">
+      <div class="status-hero__icon">
+        <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
+          <circle cx="32" cy="32" r="26" stroke="currentColor" stroke-width="3"/>
+          <path d="m21 33 7.6 7.6L43 25" stroke="currentColor" stroke-width="3.2"
+                stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <h2 class="status-hero__title">审核通过，已开通接单</h2>
+      <p class="status-hero__desc">
+        你现在会出现在律师列表里。有当事人下单时会通过站内消息通知你。
+      </p>
+    </section>
+    <div class="actions">
+      <a class="btn-primary" href="02-lawyer.html">去看看我的展示页</a>
+      <a class="btn-outline" href="05-profile.html">返回我的</a>
+    </div>
+  </div>
+
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

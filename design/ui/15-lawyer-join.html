@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390, initial-scale=1">
+<meta name="dsh-design" content="app">
+<title>律师入驻</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   律师入驻页（第 4 批 · 有参考图 12-join.png）
+   ==========================================================================
+   职责：律师 / 法学生申请入驻的四步表单。入口在「我的 - 律师/学生入驻」。
+   母版：**步骤表单母版**（§九：照忘记密码 —— 步骤条 + 单步表单 + 底部主按钮），
+         本屏把「底部主按钮」改成卡片内按钮，因为原图就是这样，且四步都要用到
+   数据来源：无（纯提交），提交成功跳 16-join-status.html
+
+   四步结构（导航树「四步流程，单页分步」）：
+     Step 1 基础信息：身份选择 + 真实姓名 / 联系电话 / 执业证号
+     Step 2 资质材料：律师执业证 / 身份证人像面 + 国徽面 / 律师资格证
+     Step 3 简介与专长：个人简介 / 专长领域多选 / 服务地区
+     Step 4 服务定价：图文咨询 / 电话咨询 / 文书代写
+
+   一个 HTML 装四步：用 data-step 标出，默认显示 step 1，app.js 靠 hash
+   （#step-2 / #step-3 / #step-4）切换。画布只看第一步，其余三步源码里存在。
+   集中走查见 _walkthrough/15-join-steps.html。
+
+   与原图的差异：
+     1. 原图学生/律师两个选项的图标是位图（绿色方块 + U 形），改成线性 SVG：
+        学生＝学士帽（青绿）、律师＝人像（蓝）。保留原项目青/蓝/橙三色体系
+     2. 原图没有步骤条，只有「下一步」。导航树明确是四步流程，不显示进度会让人
+        不知道还剩几步，所以补了 4 步步骤条
+     3. 新增「上一步」：原图第一步不需要，第二步起必须有回退
+     4. 表单校验提示（手机号格式、执业证号格式）按四态要求做成行内红字
+   ========================================================================== */
+
+body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  /* 顶部浅蓝渐变，420px 后转白 */
+  background: linear-gradient(to bottom, var(--banner-start) 0, #FFFFFF 430px);
+}
+
+.navbar {
+  background: transparent;
+}
+
+.screen {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding: 0 var(--sp-xl) calc(var(--safe-bottom) + var(--sp-xxl));
+}
+.screen::-webkit-scrollbar {
+  display: none;
+}
+
+/* ---------- 页面标题 ---------- */
+.page-title {
+  padding-block: var(--sp-md) var(--sp-xl);
+  font-size: var(--fs-h1);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+/* ---------- 步骤条 ----------
+   四步横向：圆点 + 连接线 + 下方文字。当前步实心主色，已完成打勾，未开始灰色。 */
+.steps {
+  display: flex;
+  align-items: flex-start;
+  margin-block-end: var(--sp-lg);
+}
+
+.step {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  position: relative;
+}
+
+/* 连接线：从上一个圆点连到这一个，画在本步左侧 */
+.step + .step::before {
+  content: "";
+  position: absolute;
+  inset-block-start: 12px;
+  inset-inline-end: 50%;
+  width: 100%;
+  height: 2px;
+  margin-inline-end: 14px;
+  background: var(--border-outline);
+  z-index: 0;
+}
+
+.step.is-done + .step::before,
+.step.is-active + .step::before {
+  background: var(--brand-primary);
+}
+
+.step__dot {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 25px;
+  height: 25px;
+  border-radius: 50%;
+  background: var(--bg-input);
+  color: var(--text-muted);
+  font-family: var(--font-num);
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-bold);
+  /* <i> 默认斜体，数字会歪 */
+  font-style: normal;
+  line-height: 1;
+}
+
+.step.is-active .step__dot {
+  background: var(--brand-primary);
+  color: var(--text-on-brand);
+}
+
+.step.is-done .step__dot {
+  background: var(--brand-primary);
+  color: var(--text-on-brand);
+}
+
+.step.is-done .step__dot svg {
+  width: 13px;
+  height: 13px;
+}
+
+.step__label {
+  font-size: var(--fs-micro);
+  color: var(--text-muted);
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.step.is-active .step__label {
+  color: var(--brand-primary);
+  font-weight: var(--fw-medium);
+}
+
+/* ---------- 表单卡 ---------- */
+.form-card {
+  padding: var(--sp-lg);
+}
+
+.form-card__title {
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+/* ---------- 身份选择 ---------- */
+.role-list {
+  margin-block-start: var(--sp-md);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.role {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-md);
+  width: 100%;
+  min-height: 62px;
+  padding-inline: var(--sp-md);
+  border: 1.5px solid transparent;
+  border-radius: var(--r-sm);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: var(--fs-lg);
+  text-align: start;
+  cursor: pointer;
+}
+
+.role svg {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+}
+
+/* 选中：浅主色底 + 主色描边 */
+.role.is-active {
+  border-color: var(--brand-primary);
+  background: var(--brand-primary-soft);
+}
+
+/* 未选中的图标用中性灰，不抢注意力；选中后各自恢复品牌色 */
+.role__icon--student svg {
+  color: var(--icon-doc);
+}
+
+.role__icon--lawyer svg {
+  color: var(--icon-lawyer);
+}
+
+/* ---------- 输入行 ---------- */
+.fields {
+  margin-block-start: var(--sp-lg);
+}
+
+.field-row {
+  padding-block: 4px;
+  border-block-end: 1px solid var(--border-divider);
+}
+
+.field-row:last-child {
+  border-block-end: 0;
+}
+
+.field-row__label {
+  display: block;
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.3;
+}
+
+/* 输入框本身必须 ≥44 高：这是真实的可点区域，靠外边距补不够 */
+.field-row input {
+  width: 100%;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: var(--fs-lg);
+  line-height: 1.5;
+  outline: none;
+}
+
+.field-row input::placeholder {
+  color: #A3A9AE;
+}
+
+/* 校验失败：整行转红 + 下面给一句原因 */
+.field-row.is-invalid input {
+  color: var(--state-danger);
+}
+
+.field-row__error {
+  display: none;
+  margin-block-start: 4px;
+  font-size: var(--fs-caption);
+  color: var(--state-danger);
+  line-height: 1.4;
+}
+
+.field-row.is-invalid .field-row__error {
+  display: block;
+}
+
+/* ---------- 材料上传位 ---------- */
+.upload-list {
+  margin-block-start: var(--sp-md);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.upload {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-md);
+  width: 100%;
+  min-height: 66px;
+  padding: var(--sp-md);
+  border: 1px dashed var(--border-outline);
+  border-radius: var(--r-sm);
+  background: var(--bg-canvas);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: var(--fs-md);
+  text-align: start;
+  cursor: pointer;
+}
+
+.upload svg {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  color: var(--text-muted);
+}
+
+.upload__text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.upload__hint {
+  display: block;
+  margin-block-start: 3px;
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+/* 已上传：实线边 + 主色，右侧显示「已上传」 */
+.upload.is-done {
+  border-style: solid;
+  border-color: var(--brand-primary);
+  background: var(--brand-primary-soft);
+  color: var(--brand-primary-pressed);
+}
+
+.upload.is-done svg {
+  color: var(--brand-primary-pressed);
+}
+
+/* ---------- 多选标签 ---------- */
+.pick-list {
+  margin-block-start: var(--sp-md);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-sm) 10px;
+}
+
+.pick {
+  height: 36px;
+  padding-inline: var(--sp-lg);
+  border: 1px solid var(--border-outline);
+  border-radius: var(--r-pill);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: var(--fs-md);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.pick.is-active {
+  border-color: var(--brand-primary);
+  background: var(--brand-primary-soft);
+  color: var(--brand-primary-pressed);
+  font-weight: var(--fw-medium);
+}
+
+/* ---------- 多行输入 ---------- */
+.textarea-row {
+  margin-block-start: var(--sp-md);
+  padding: var(--sp-md);
+  border-radius: var(--r-sm);
+  background: var(--bg-input);
+}
+
+.textarea-row textarea {
+  width: 100%;
+  min-height: 88px;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: var(--fs-md);
+  line-height: 1.7;
+  resize: none;
+  outline: none;
+}
+
+.textarea-row textarea::placeholder {
+  color: #A3A9AE;
+}
+
+/* ---------- 价格输入 ---------- */
+.price-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-md);
+  padding-block: var(--sp-md);
+  border-block-end: 1px solid var(--border-divider);
+}
+
+.price-row:last-child {
+  border-block-end: 0;
+}
+
+.price-row__label {
+  font-size: var(--fs-lg);
+  color: var(--text-body);
+  line-height: 1.4;
+}
+
+.price-row__sub {
+  display: block;
+  margin-block-start: 2px;
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+}
+
+.price-input {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  width: 108px;
+  height: 42px;
+  padding-inline: var(--sp-md);
+  border: 1px solid var(--border-outline);
+  border-radius: var(--r-sm);
+  background: var(--bg-surface);
+}
+
+.price-input span {
+  font-size: var(--fs-md);
+  color: var(--text-muted);
+}
+
+.price-input input {
+  width: 100%;
+  min-width: 0;
+  height: 40px;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: var(--font-num);
+  font-size: var(--fs-lg);
+  text-align: end;
+  outline: none;
+}
+
+/* ---------- 底部按钮 ---------- */
+.form-actions {
+  margin-block-start: var(--sp-xl);
+  display: flex;
+  gap: var(--sp-md);
+}
+
+.form-actions .btn-primary {
+  flex: 1 1 auto;
+}
+
+.form-actions .btn-ghost {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 96px;
+  height: var(--btn-h);
+  padding-inline: var(--sp-xl);
+  border: 1px solid var(--border-outline);
+  border-radius: var(--r-pill);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: var(--fs-h3);
+  cursor: pointer;
+}
+
+.form-actions .btn-ghost:active {
+  background: var(--bg-input);
+}
+
+/* 隐私说明 */
+.form-note {
+  margin-block-start: var(--sp-md);
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: var(--lh-relaxed);
+  text-align: center;
+}
+</style>
+</head>
+<body>
+
+<header class="statusbar">
+  <span>9:41</span>
+  <span class="statusbar__icons">
+    <svg width="17" height="11" viewBox="0 0 17 11" fill="none" aria-hidden="true">
+      <rect x="0" y="7" width="3" height="4" rx="1" fill="currentColor"/>
+      <rect x="4.5" y="5" width="3" height="6" rx="1" fill="currentColor"/>
+      <rect x="9" y="2.5" width="3" height="8.5" rx="1" fill="currentColor"/>
+      <rect x="13.5" y="0" width="3" height="11" rx="1" fill="currentColor"/>
+    </svg>
+    <svg width="16" height="11" viewBox="0 0 16 11" fill="none" aria-hidden="true">
+      <path d="M1 3.2A10.5 10.5 0 0 1 15 3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M3.6 5.9a7 7 0 0 1 8.8 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M6.2 8.6a3.4 3.4 0 0 1 3.6 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden="true">
+      <rect x="0.6" y="0.6" width="21" height="10.8" rx="3" stroke="currentColor" stroke-opacity="0.4" stroke-width="1.2"/>
+      <rect x="2.2" y="2.2" width="15" height="7.6" rx="1.8" fill="currentColor"/>
+      <path d="M23.4 4.2v3.6" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+  </span>
+</header>
+
+<div class="navbar">
+  <a class="navbar__back" href="05-profile.html" aria-label="返回我的">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M15.2 4.6 7.8 12l7.4 7.4" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </a>
+  <h1 class="navbar__title">律师入驻</h1>
+</div>
+
+<main class="screen">
+
+  <h2 class="page-title">欢迎加入法泽</h2>
+
+  <div class="steps" data-steps>
+    <div class="step is-active" data-step-dot="1">
+      <i class="step__dot">1</i>
+      <span class="step__label">基础信息</span>
+    </div>
+    <div class="step" data-step-dot="2">
+      <i class="step__dot">2</i>
+      <span class="step__label">资质材料</span>
+    </div>
+    <div class="step" data-step-dot="3">
+      <i class="step__dot">3</i>
+      <span class="step__label">简介专长</span>
+    </div>
+    <div class="step" data-step-dot="4">
+      <i class="step__dot">4</i>
+      <span class="step__label">服务定价</span>
+    </div>
+  </div>
+
+  <!-- ======================================================================
+       Step 1：基础信息（默认显示）
+       ====================================================================== -->
+  <section class="card form-card" data-step="1">
+    <p class="form-card__title">你的身份是？</p>
+
+    <div class="role-list" data-role-list>
+      <button class="role" type="button" data-role="student">
+        <span class="role__icon--student">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M12 4.2 2.6 8.6 12 13l9.4-4.4L12 4.2Z" stroke="currentColor"
+                  stroke-width="1.9" stroke-linejoin="round"/>
+            <path d="M6.4 10.6v4.6c0 1.6 2.5 2.8 5.6 2.8s5.6-1.2 5.6-2.8v-4.6"
+                  stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/>
+            <path d="M21.4 8.6v5.2" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+          </svg>
+        </span>
+        <span>法学生（实习、志愿咨询）</span>
+      </button>
+
+      <button class="role is-active" type="button" data-role="lawyer">
+        <span class="role__icon--lawyer">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="9.2" cy="8.4" r="3.3" stroke="currentColor" stroke-width="1.9"/>
+            <path d="M2.9 19.6c0-3.3 2.8-5.4 6.3-5.4s6.3 2.1 6.3 5.4" stroke="currentColor"
+                  stroke-width="1.9" stroke-linecap="round"/>
+            <circle cx="17.6" cy="9.4" r="2.3" stroke="currentColor" stroke-width="1.9"/>
+            <path d="M16.6 15.2c2.7.2 4.5 2 4.5 4.4" stroke="currentColor" stroke-width="1.9"
+                  stroke-linecap="round"/>
+          </svg>
+        </span>
+        <span>执业律师</span>
+      </button>
+    </div>
+
+    <div class="fields">
+      <div class="field-row">
+        <label class="field-row__label" for="join-name">真实姓名</label>
+        <input id="join-name" name="realName" type="text" placeholder="与执业证一致"
+               autocomplete="name">
+      </div>
+
+      <div class="field-row" data-field="phone">
+        <label class="field-row__label" for="join-phone">联系电话</label>
+        <input id="join-phone" name="phone" type="tel" inputmode="numeric"
+               placeholder="11 位手机号" autocomplete="tel" maxlength="11">
+        <p class="field-row__error">请填写 11 位手机号</p>
+      </div>
+
+      <div class="field-row" data-field="license">
+        <label class="field-row__label" for="join-license">执业证号</label>
+        <input id="join-license" name="licenseNo" type="text" placeholder="17 位执业证号">
+        <p class="field-row__error">执业证号应为 17 位</p>
+      </div>
+    </div>
+
+    <div class="form-actions">
+      <button class="btn-primary" type="button" data-step-next="2">下一步</button>
+    </div>
+
+    <p class="form-note">
+      提交的资料仅用于资质审核，不会对外公开。审核通过后你才会出现在律师列表里。
+    </p>
+  </section>
+
+  <!-- ======================================================================
+       Step 2：资质材料（默认隐藏）
+       ====================================================================== -->
+  <section class="card form-card" data-step="2" hidden>
+    <p class="form-card__title">上传资质材料</p>
+
+    <div class="upload-list">
+      <button class="upload" type="button" data-upload>
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <rect x="3.2" y="5.4" width="17.6" height="13.2" rx="2.2" stroke="currentColor" stroke-width="1.8"/>
+          <circle cx="8.8" cy="10.2" r="1.6" stroke="currentColor" stroke-width="1.6"/>
+          <path d="m4 16.6 4.4-4 3.1 2.8 3-2.6 4.5 4" stroke="currentColor" stroke-width="1.8"
+                stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span class="upload__text">
+          律师执业证
+          <span class="upload__hint">拍摄含证号页，四个角都要入框</span>
+        </span>
+      </button>
+
+      <button class="upload" type="button" data-upload>
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <rect x="3.4" y="5" width="17.2" height="14" rx="2.2" stroke="currentColor" stroke-width="1.8"/>
+          <circle cx="9" cy="10.6" r="2.2" stroke="currentColor" stroke-width="1.7"/>
+          <path d="M5.4 16.6c.4-1.9 1.8-3 3.6-3s3.2 1.1 3.6 3" stroke="currentColor"
+                stroke-width="1.7" stroke-linecap="round"/>
+          <path d="M15 10.2h3.2M15 13.4h3.2" stroke="currentColor" stroke-width="1.7"
+                stroke-linecap="round"/>
+        </svg>
+        <span class="upload__text">
+          身份证人像面 + 国徽面
+          <span class="upload__hint">两张都要传，正反面各一张</span>
+        </span>
+      </button>
+
+      <button class="upload is-done" type="button" data-upload>
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M5.6 3.4h8.2l5 5v11.2a1.8 1.8 0 0 1-1.8 1.8H5.6a1.8 1.8 0 0 1-1.8-1.8V5.2a1.8 1.8 0 0 1 1.8-1.8Z"
+                stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+          <path d="M13.6 3.6v5.2h5" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+          <path d="m8.4 14.4 2.2 2.2 4-4" stroke="currentColor" stroke-width="1.9"
+                stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span class="upload__text">
+          律师资格证
+          <span class="upload__hint">已上传，点一下可重新拍摄</span>
+        </span>
+      </button>
+    </div>
+
+    <div class="form-actions">
+      <button class="btn-ghost" type="button" data-step-prev="1">上一步</button>
+      <button class="btn-primary" type="button" data-step-next="3">下一步</button>
+    </div>
+  </section>
+
+  <!-- ======================================================================
+       Step 3：简介与专长（默认隐藏）
+       ====================================================================== -->
+  <section class="card form-card" data-step="3" hidden>
+    <p class="form-card__title">介绍一下你自己</p>
+
+    <div class="textarea-row">
+      <textarea placeholder="执业年限、主要处理哪类案件、有没有代表性的办案经历。写具体一点，当事人更容易判断你适不适合他的问题。"></textarea>
+    </div>
+
+    <p class="form-card__title" style="margin-block-start:20px">专长领域（可多选）</p>
+    <div class="pick-list" data-pick-list>
+      <button class="pick is-active" type="button" data-pick>民商事纠纷</button>
+      <button class="pick is-active" type="button" data-pick>合同审查</button>
+      <button class="pick" type="button" data-pick>刑事辩护</button>
+      <button class="pick" type="button" data-pick>婚姻家事</button>
+      <button class="pick" type="button" data-pick>劳动争议</button>
+      <button class="pick" type="button" data-pick>债权债务</button>
+      <button class="pick" type="button" data-pick>交通事故</button>
+    </div>
+
+    <div class="fields">
+      <div class="field-row">
+        <label class="field-row__label" for="join-area">服务地区</label>
+        <input id="join-area" name="area" type="text" placeholder="如：伊犁州伊宁市">
+      </div>
+    </div>
+
+    <div class="form-actions">
+      <button class="btn-ghost" type="button" data-step-prev="2">上一步</button>
+      <button class="btn-primary" type="button" data-step-next="4">下一步</button>
+    </div>
+  </section>
+
+  <!-- ======================================================================
+       Step 4：服务定价（默认隐藏）
+       ====================================================================== -->
+  <section class="card form-card" data-step="4" hidden>
+    <p class="form-card__title">设置服务价格</p>
+    <p class="form-note" style="text-align:start;margin-block-start:6px">
+      价格随时可以改，审核通过后才对外生效。平台按成交额收取服务费，费率见入驻协议。
+    </p>
+
+    <div class="fields">
+      <div class="price-row">
+        <span class="price-row__label">
+          图文咨询
+          <span class="price-row__sub">按次计费，含 5 轮追问</span>
+        </span>
+        <label class="price-input">
+          <span>¥</span>
+          <input type="text" inputmode="numeric" placeholder="0" aria-label="图文咨询价格">
+        </label>
+      </div>
+
+      <div class="price-row">
+        <span class="price-row__label">
+          电话咨询
+          <span class="price-row__sub">按次计费，单次 30 分钟</span>
+        </span>
+        <label class="price-input">
+          <span>¥</span>
+          <input type="text" inputmode="numeric" placeholder="0" aria-label="电话咨询价格">
+        </label>
+      </div>
+
+      <div class="price-row">
+        <span class="price-row__label">
+          文书代写
+          <span class="price-row__sub">按份计费，从模板起草</span>
+        </span>
+        <label class="price-input">
+          <span>¥</span>
+          <input type="text" inputmode="numeric" placeholder="0" aria-label="文书代写价格">
+        </label>
+      </div>
+    </div>
+
+    <div class="form-actions">
+      <button class="btn-ghost" type="button" data-step-prev="3">上一步</button>
+      <a class="btn-primary" href="16-join-status.html">提交审核</a>
+    </div>
+  </section>
+
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

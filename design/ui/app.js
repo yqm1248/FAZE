@@ -16,6 +16,90 @@
   "use strict";
 
   /* ==========================================================================
+     分享面板：按需注入
+     ==========================================================================
+     面板结构固定（遮罩 + 底部弹层 + 4 个渠道 + 取消）。第 3 批时它是写死在
+     13-article.html 里的。到第 4 批，律师名片、案例详情、海报都要用同一个面板，
+     每屏复制 40 行 HTML 必然分叉——改一个渠道要改 5 个文件。
+
+     所以改成：页面只要有 [data-share-open] 按钮、且没有静态面板，就自动注入一份。
+     样式仍在 components.css（.mask / .sheet / .share-grid），这里只注入结构。
+     ========================================================================== */
+  var SHARE_SHEET_HTML = [
+    '<div class="mask" data-share-mask hidden></div>',
+    '<div class="sheet" data-share-sheet hidden role="dialog" aria-modal="true" aria-label="分享">',
+    '  <div class="sheet__handle"></div>',
+    '  <div class="sheet__head">',
+    '    <h2 class="sheet__title">分享到</h2>',
+    '    <button class="sheet__close" type="button" data-share-close aria-label="关闭分享面板">',
+    '      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">',
+    '        <path d="m6.4 6.4 11.2 11.2M17.6 6.4 6.4 17.6" stroke="currentColor"',
+    '              stroke-width="2" stroke-linecap="round"/>',
+    '      </svg>',
+    '    </button>',
+    '  </div>',
+    '  <div class="share-grid">',
+    '    <button class="share-grid__item share-grid__item--wechat" type="button" data-share-to="微信">',
+    '      <span class="share-grid__icon">',
+    '        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">',
+    '          <path d="M9.4 4.2c-3.7 0-6.7 2.4-6.7 5.4 0 1.7 1 3.2 2.5 4.2l-.7 2.2 2.4-1.2c.8.2 1.6.4 2.5.4"',
+    '                stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>',
+    '          <path d="M15.4 9.2c-3.1 0-5.6 2-5.6 4.5s2.5 4.5 5.6 4.5c.7 0 1.4-.1 2-.3l2 1-.6-1.8c1.2-.8 2-2 2-3.4 0-2.5-2.5-4.5-5.4-4.5Z"',
+    '                stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>',
+    '        </svg>',
+    '      </span>',
+    '      <span class="share-grid__label">微信</span>',
+    '    </button>',
+    '    <button class="share-grid__item share-grid__item--moments" type="button" data-share-to="朋友圈">',
+    '      <span class="share-grid__icon">',
+    '        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">',
+    '          <circle cx="12" cy="12" r="8.6" stroke="currentColor" stroke-width="1.8"/>',
+    '          <circle cx="12" cy="12" r="3.4" stroke="currentColor" stroke-width="1.8"/>',
+    '          <circle cx="18.4" cy="5.6" r="1.6" fill="currentColor"/>',
+    '        </svg>',
+    '      </span>',
+    '      <span class="share-grid__label">朋友圈</span>',
+    '    </button>',
+    '    <button class="share-grid__item share-grid__item--link" type="button" data-share-to="链接">',
+    '      <span class="share-grid__icon">',
+    '        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">',
+    '          <path d="M10.2 13.8a3.6 3.6 0 0 0 5.1 0l2.6-2.6a3.6 3.6 0 0 0-5.1-5.1l-1.3 1.3"',
+    '                stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
+    '          <path d="M13.8 10.2a3.6 3.6 0 0 0-5.1 0l-2.6 2.6a3.6 3.6 0 0 0 5.1 5.1l1.3-1.3"',
+    '                stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
+    '        </svg>',
+    '      </span>',
+    '      <span class="share-grid__label">复制链接</span>',
+    '    </button>',
+    '    <button class="share-grid__item" type="button" data-share-to="海报">',
+    '      <span class="share-grid__icon">',
+    '        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">',
+    '          <rect x="3.6" y="4.6" width="16.8" height="14.8" rx="2" stroke="currentColor" stroke-width="1.8"/>',
+    '          <circle cx="8.8" cy="9.6" r="1.5" stroke="currentColor" stroke-width="1.6"/>',
+    '          <path d="m4.4 17 4.6-4.4 3.2 3 3-2.8 4.4 4.2" stroke="currentColor" stroke-width="1.8"',
+    '                stroke-linecap="round" stroke-linejoin="round"/>',
+    '        </svg>',
+    '      </span>',
+    '      <span class="share-grid__label">生成海报</span>',
+    '    </button>',
+    '  </div>',
+    '  <button class="sheet__cancel" type="button" data-share-close>取消</button>',
+    '</div>'
+  ].join("\n");
+
+  function ensureShareSheet() {
+    if (document.querySelector("[data-share-sheet]")) return;
+    if (!document.querySelector("[data-share-open]")) return;
+    var box = document.createElement("div");
+    box.innerHTML = SHARE_SHEET_HTML;
+    while (box.firstChild) {
+      document.body.appendChild(box.firstChild);
+    }
+  }
+
+  ensureShareSheet();
+
+  /* ==========================================================================
      已完成的屏。点到这里没有的链接时不跳转，改为提示，
      避免演示时点出一个白屏。每做完一批，往这个数组里加。
      ========================================================================== */
@@ -34,7 +118,11 @@
     "10-agreement.html",
     "11-privacy.html",
     "12-articles.html",
-    "13-article.html"
+    "13-article.html",
+    "14-lawyer-detail.html",
+    "15-lawyer-join.html",
+    "16-join-status.html",
+    "17-chat.html"
   ];
 
   /* ---------- 轻提示 ---------- */
@@ -313,7 +401,13 @@
   var stateNodes = document.querySelectorAll("[data-state]");
 
   function applyState(name) {
-    var known = ["normal", "loading", "empty", "error"];
+    /* 状态名不写死四个：入驻审核页有 normal / rejected / passed 三种，
+       各屏按自己的业务定义 data-state，这里只要保证「启用的只有一个」 */
+    var known = [];
+    Array.prototype.forEach.call(stateNodes, function (node) {
+      var value = node.getAttribute("data-state");
+      if (value && known.indexOf(value) === -1) known.push(value);
+    });
     if (known.indexOf(name) === -1) return;
 
     Array.prototype.forEach.call(stateNodes, function (node) {
@@ -387,11 +481,24 @@
   var favBtn = document.querySelector("[data-fav]");
 
   if (favBtn) {
+    /* 文章是「收藏」、律师是「关注」，两屏文案不同，
+       所以由页面用 data-fav-on / data-fav-off 指定 Toast，用 data-fav-text 指定按钮文字 */
+    var favTextEl = favBtn.querySelector("[data-fav-text]");
+    var favOnText = favBtn.getAttribute("data-fav-on") || "已收藏，可在「我的 - 我的收藏」查看";
+    var favOffText = favBtn.getAttribute("data-fav-off") || "已取消收藏";
+
     favBtn.addEventListener("click", function () {
       var on = favBtn.classList.toggle("is-on");
       favBtn.setAttribute("aria-pressed", on ? "true" : "false");
-      favBtn.setAttribute("aria-label", on ? "取消收藏" : "收藏文章");
-      showToast(on ? "已收藏，可在「我的 - 我的收藏」查看" : "已取消收藏");
+      favBtn.setAttribute("aria-label", on ? "取消关注" : "关注");
+
+      if (favTextEl) {
+        var textOn = favBtn.getAttribute("data-fav-text-on") || "已关注";
+        var textOff = favBtn.getAttribute("data-fav-text-off") || "关注";
+        favTextEl.textContent = on ? textOn : textOff;
+      }
+
+      showToast(on ? favOnText : favOffText);
     });
   }
 
@@ -583,4 +690,317 @@
     var walkLoading = document.querySelector("[data-loading]");
     if (walkLoading) walkLoading.removeAttribute("hidden");
   }
+  /* ==========================================================================
+     18. 四步表单（律师入驻页）
+     ==========================================================================
+     一个 HTML 装四步：<section data-step="1..4"> + 步骤条 <div data-step-dot="1..4">
+     切步只改 hidden 与 is-active / is-done，不重新渲染。
+     走查用 hash：#step-2 / #step-3 / #step-4 直接打开某一步。
+     ========================================================================== */
+  var stepPanels = document.querySelectorAll("[data-step]");
+  var stepDots = document.querySelectorAll("[data-step-dot]");
+  var pageScreen = document.querySelector(".screen");
+
+  function applyStep(value) {
+    if (!stepPanels.length) return;
+    var n = parseInt(value, 10);
+    if (!(n >= 1 && n <= stepPanels.length)) return;
+
+    Array.prototype.forEach.call(stepPanels, function (panel) {
+      if (parseInt(panel.getAttribute("data-step"), 10) === n) {
+        panel.removeAttribute("hidden");
+      } else {
+        panel.setAttribute("hidden", "");
+      }
+    });
+
+    Array.prototype.forEach.call(stepDots, function (dot) {
+      var index = parseInt(dot.getAttribute("data-step-dot"), 10);
+      dot.classList.remove("is-active", "is-done");
+      if (index === n) dot.classList.add("is-active");
+      else if (index < n) dot.classList.add("is-done");
+    });
+  }
+
+  function goStep(value) {
+    applyStep(value);
+    if (pageScreen) pageScreen.scrollTop = 0;
+  }
+
+  var stepNextBtns = document.querySelectorAll("[data-step-next]");
+  var stepPrevBtns = document.querySelectorAll("[data-step-prev]");
+
+  Array.prototype.forEach.call(stepNextBtns, function (btn) {
+    btn.addEventListener("click", function () {
+      goStep(btn.getAttribute("data-step-next"));
+    });
+  });
+
+  Array.prototype.forEach.call(stepPrevBtns, function (btn) {
+    btn.addEventListener("click", function () {
+      goStep(btn.getAttribute("data-step-prev"));
+    });
+  });
+
+  if (stepPanels.length) {
+    var stepHash = window.location.hash.replace(/^#/, "");
+    if (stepHash.indexOf("step-") === 0) {
+      applyStep(stepHash.slice(5));
+    }
+  }
+
+  /* 身份单选（学生 / 律师） */
+  var roleButtons = document.querySelectorAll("[data-role]");
+
+  Array.prototype.forEach.call(roleButtons, function (role) {
+    role.addEventListener("click", function () {
+      Array.prototype.forEach.call(roleButtons, function (other) {
+        if (other === role) other.classList.add("is-active");
+        else other.classList.remove("is-active");
+      });
+    });
+  });
+
+  /* 专长多选 */
+  var pickButtons = document.querySelectorAll("[data-pick]");
+
+  Array.prototype.forEach.call(pickButtons, function (pick) {
+    pick.addEventListener("click", function () {
+      pick.classList.toggle("is-active");
+    });
+  });
+
+  /* 材料上传位：演示用，点一下切换「已上传 / 待上传」 */
+  var uploadButtons = document.querySelectorAll("[data-upload]");
+
+  Array.prototype.forEach.call(uploadButtons, function (up) {
+    up.addEventListener("click", function () {
+      up.classList.toggle("is-done");
+      showToast(up.classList.contains("is-done") ? "已选择照片（演示）" : "已移除");
+    });
+  });
+
+  /* ==========================================================================
+     19. IM 聊天页
+     ==========================================================================
+     四个交互：图片预览、消息长按菜单、附件+权限说明面板、发消息。
+     全部只操作 DOM 与 class，不涉及任何真实通讯。
+     ========================================================================== */
+  function toggleLayer(node, open) {
+    if (!node) return;
+    if (open) node.removeAttribute("hidden");
+    else node.setAttribute("hidden", "");
+  }
+
+  /* --- 图片预览 --- */
+  var imgPreview = document.querySelector("[data-img-preview]");
+  var imgMask = document.querySelector("[data-img-mask]");
+  var imgOpeners = document.querySelectorAll("[data-img-open]");
+  var imgClosers = document.querySelectorAll("[data-img-close]");
+  var imgSave = document.querySelector("[data-img-save]");
+
+  function setImagePreview(open) {
+    toggleLayer(imgMask, open);
+    toggleLayer(imgPreview, open);
+  }
+
+  if (imgPreview) {
+    Array.prototype.forEach.call(imgOpeners, function (btn) {
+      btn.addEventListener("click", function () {
+        setImagePreview(true);
+      });
+    });
+    Array.prototype.forEach.call(imgClosers, function (btn) {
+      btn.addEventListener("click", function () {
+        setImagePreview(false);
+      });
+    });
+    if (imgMask) {
+      imgMask.addEventListener("click", function () {
+        setImagePreview(false);
+      });
+    }
+    if (imgSave) {
+      imgSave.addEventListener("click", function () {
+        showToast("已保存到相册（演示）");
+      });
+    }
+  }
+
+  /* --- 消息长按菜单 --- */
+  var msgMenu = document.querySelector("[data-msg-menu]");
+  var menuMask = document.querySelector("[data-menu-mask]");
+
+  function setMsgMenu(open) {
+    toggleLayer(menuMask, open);
+    toggleLayer(msgMenu, open);
+  }
+
+  function bindMsgBubble(bubble) {
+    if (!bubble) return;
+    bubble.addEventListener("click", function () {
+      setMsgMenu(true);
+    });
+  }
+
+  if (msgMenu) {
+    Array.prototype.forEach.call(document.querySelectorAll("[data-msg]"), bindMsgBubble);
+
+    if (menuMask) {
+      menuMask.addEventListener("click", function () {
+        setMsgMenu(false);
+      });
+    }
+
+    var menuCopy = document.querySelector("[data-menu-copy]");
+    var menuRecall = document.querySelector("[data-menu-recall]");
+    var menuDelete = document.querySelector("[data-menu-delete]");
+
+    if (menuCopy) {
+      menuCopy.addEventListener("click", function () {
+        setMsgMenu(false);
+        showToast("已复制");
+      });
+    }
+    if (menuRecall) {
+      menuRecall.addEventListener("click", function () {
+        setMsgMenu(false);
+        showToast("已撤回（演示）");
+      });
+    }
+    if (menuDelete) {
+      menuDelete.addEventListener("click", function () {
+        setMsgMenu(false);
+        showToast("已删除（演示）");
+      });
+    }
+  }
+
+  /* --- 附件面板（含权限说明） --- */
+  var attachSheet = document.querySelector("[data-attach-sheet]");
+  var attachMask = document.querySelector("[data-attach-mask]");
+
+  function setAttach(open) {
+    toggleLayer(attachMask, open);
+    toggleLayer(attachSheet, open);
+  }
+
+  if (attachSheet) {
+    Array.prototype.forEach.call(document.querySelectorAll("[data-attach-open]"), function (btn) {
+      btn.addEventListener("click", function () {
+        setAttach(true);
+      });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll("[data-attach-close]"), function (btn) {
+      btn.addEventListener("click", function () {
+        setAttach(false);
+      });
+    });
+    if (attachMask) {
+      attachMask.addEventListener("click", function () {
+        setAttach(false);
+      });
+    }
+
+    var needCamera = document.querySelector("[data-need-camera]");
+    var needGallery = document.querySelector("[data-need-gallery]");
+    var attachFile = document.querySelector("[data-attach-file]");
+
+    if (needCamera) {
+      needCamera.addEventListener("click", function () {
+        setAttach(false);
+        showToast("演示环境不会真的申请相机权限");
+      });
+    }
+    if (needGallery) {
+      needGallery.addEventListener("click", function () {
+        setAttach(false);
+        showToast("演示环境不会真的申请相册权限");
+      });
+    }
+    if (attachFile) {
+      attachFile.addEventListener("click", function () {
+        setAttach(false);
+        showToast("文件选择器（演示）");
+      });
+    }
+  }
+
+  /* --- 发消息 --- */
+  var chatBody = document.querySelector("[data-chat]");
+  var chatInput = document.querySelector("[data-chat-input]");
+  var chatSend = document.querySelector("[data-chat-send]");
+
+  function currentTime() {
+    var d = new Date();
+    var h = d.getHours();
+    var m = d.getMinutes();
+    return (h < 10 ? "0" : "") + h + ":" + (m < 10 ? "0" : "") + m;
+  }
+
+  function sendMessage(text) {
+    if (!chatBody || !text) return;
+
+    var row = document.createElement("div");
+    row.className = "msg msg--out";
+
+    var wrap = document.createElement("div");
+    wrap.className = "msg__wrap";
+
+    var bubble = document.createElement("div");
+    bubble.className = "msg__bubble";
+    bubble.setAttribute("data-msg", "");
+    /* 用 textContent 而不是 innerHTML：用户输入的内容不能当 HTML 解析 */
+    bubble.textContent = text;
+
+    var time = document.createElement("p");
+    time.className = "msg__time";
+    time.textContent = currentTime();
+
+    wrap.appendChild(bubble);
+    wrap.appendChild(time);
+    row.appendChild(wrap);
+
+    /* 插到快捷问题之前，快捷问题始终停在最后 */
+    var quick = chatBody.querySelector(".quick-ask");
+    if (quick) chatBody.insertBefore(row, quick);
+    else chatBody.appendChild(row);
+
+    bindMsgBubble(bubble);
+    chatBody.scrollTop = chatBody.scrollHeight;
+  }
+
+  if (chatSend) {
+    chatSend.addEventListener("click", function () {
+      if (!chatInput) return;
+      var text = chatInput.value.trim();
+      if (!text) {
+        showToast("说点什么再发送");
+        return;
+      }
+      sendMessage(text);
+      chatInput.value = "";
+    });
+  }
+
+  if (chatInput) {
+    chatInput.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        if (chatSend) chatSend.click();
+      }
+    });
+  }
+
+  Array.prototype.forEach.call(document.querySelectorAll("[data-quick]"), function (chip) {
+    chip.addEventListener("click", function () {
+      sendMessage((chip.textContent || "").trim());
+    });
+  });
+
+  /* 走查开关：hash 直接打开聊天页的三个浮层 */
+  var chatHash = window.location.hash.replace(/^#/, "");
+  if (chatHash === "open-image") setImagePreview(true);
+  if (chatHash === "open-menu") setMsgMenu(true);
+  if (chatHash === "open-attach") setAttach(true);
 })();
