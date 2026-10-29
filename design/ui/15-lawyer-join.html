@@ -325,27 +325,36 @@ body {
   margin-block-start: var(--sp-md);
   display: flex;
   flex-wrap: wrap;
-  gap: var(--sp-sm) 10px;
+  /* gap 用 0：药丸自带 5px 透明边框，两边一夹就是 10px 视觉间距 */
+  gap: 0;
 }
 
+/* ★ 视觉药丸 34 高，元素本身 44 高（WCAG 2.5.5），做法同 .filter__chip：
+   5px 透明边框撑出热区，background-clip 让背景只画在 34 高的 padding box 里。
+   第 6 批补的 —— 本屏这组标签在 step 3（默认 hidden），第 4 批走查量不到。 */
 .pick {
-  height: 36px;
-  padding-inline: var(--sp-lg);
-  border: 1px solid var(--border-outline);
+  position: relative;
+  height: 44px;
+  padding: 0 var(--sp-lg);
+  border: 5px solid transparent;
   border-radius: var(--r-pill);
   background: var(--bg-surface);
+  background-clip: padding-box;
   color: var(--text-secondary);
   font-family: inherit;
   font-size: var(--fs-md);
   cursor: pointer;
   white-space: nowrap;
+  /* 未选中态的描边同样用 inset 阴影（边框已经是透明的热区了） */
+  box-shadow: inset 0 0 0 1px var(--border-outline);
 }
 
 .pick.is-active {
-  border-color: var(--brand-primary);
   background: var(--brand-primary-soft);
+  background-clip: padding-box;
   color: var(--brand-primary-pressed);
   font-weight: var(--fw-medium);
+  box-shadow: inset 0 0 0 1px var(--brand-primary);
 }
 
 /* ---------- 多行输入 ---------- */
