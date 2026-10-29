@@ -43,7 +43,7 @@
 
 ```html
 <meta charset="utf-8">
-<meta name="dsh-design" content="web">
+<meta name="dsh-design" content="web 1440x900">
 <title>页面中文名 · 法泽管理后台</title>
 <link rel="stylesheet" href="tokens.css">
 <link rel="stylesheet" href="components.css">
@@ -53,6 +53,8 @@
 ```
 
 `<title>` 由 shell.js 覆盖成「当前页 · 法泽管理后台」，但仍要写对。
+
+**`content` 里的 `1440x900` 不能省。** 设计工作台的 web 类型默认按 1280×800 建画布，只写 `content="web"` 时，骨架 `.shell` 的 `overflow:hidden` 会把页面右侧 160px、下方 100px 直接裁掉，而且不出现滚动条——表现为「所有页面右边显示不完整」。2026-10-30 26 屏全部因此重写过一次 meta。
 
 ### 2.3 body 结构固定，不要自己写侧边栏 / 顶栏 / 标签页
 
