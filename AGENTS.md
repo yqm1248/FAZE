@@ -146,20 +146,25 @@ services/faze-api/src/main/java/com/faze/
 
 | 文档 | 位置 |
 | --- | --- |
-| **分期交付计划（段与段之间的顺序以此为准，9 段串行）** | `docs/architecture/法泽FAZE_分期交付计划_v1.0.md` |
+| **分期交付计划（段与段之间的顺序以此为准，9 段串行）** | `docs/architecture/法泽FAZE_分期交付计划_v1.0.md`（文件名叫 v1.0，内容实为 **v1.1**） |
 | **第 0 段怎么落地（单线，从第一行读到最后一行为止）** | `docs/architecture/法泽FAZE_第0段执行计划_v3.0.md` |
 | 技术路线（最新） | `docs/architecture/法泽FAZE_技术路线_v2.3.md` |
-| 页面导航树 | `docs/design/法泽APP_页面导航树_v1.4.md` |
+| 页面导航树 | `docs/design/法泽APP_页面导航树_v1.4.md`（文件名叫 v1.4，内容实为 **v1.5**，**68 页**） |
+| **APP UI 设计顺序（68 屏怎么分批画完的、每屏的设计依据）** | `docs/design/法泽APP_UI设计顺序_v1.0.md`（内容 **V2.8**） |
+| **设计稿本体（71 个 HTML，不是文档）** | `design/ui/` —— 打开 `01-home.html` 起看；组件在 `components.css`、令牌在 `tokens.css` |
 | 变更日志（每次推送必看） | `docs/CHANGELOG.md` |
 | 工程规范 | `docs/standards/` |
 | 设计依据 | `docs/design/` |
 | 决策记录 | `docs/analysis/` |
+| **文档基线（哪些文档现行有效、指纹、已删清单）** | `docs/BASELINE.md` |
 
 > 技术路线 v2.3 的 §23「实施计划」已整体废弃（按技术层横切、按周排期）。
 >
 > **实施顺序 = 段间看《分期交付计划_v1.0》（9 段串行），段内看该段执行文档（第 0 段看《第0段执行计划_v3.0》）。**
 >
 > 「不要多阶段并行」约束的是**第 0~8 段之间**；段内不必人为切碎成逐任务闸门。
+>
+> **新增或修改文档后，按 `docs/BASELINE.md` §4 的规则办**：新增文档做四件事（落款 / 登记指纹 / `docs/README.md` 加索引 / `CHANGELOG.md` 说明），修改基线内文档要重算指纹并出新基线版本。**只做一件等于没做。**
 
 
 ---
