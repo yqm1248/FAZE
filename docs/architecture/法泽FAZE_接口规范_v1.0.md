@@ -116,6 +116,24 @@ api/openapi/                      ← 仓库根，不是 services/ 下
 - 每个 schema 必须给 `example`（前端 mock 直接用它）
 - 金额字段 `type: integer, format: int64`，`description` 必须写「单位：分」
 
+### 2.3.1 一条原则：**API 文档宁缺勿造**（抄 jxyd200 的 `docs/api/README.md:3`）
+
+jxyd200 的原话：
+
+> 「当前 API 的可执行权威来源是 Java Controller、DTO/VO 与 Playwright 回归……仓库尚无独立导出的 OpenAPI 文件，因此本目录先固定 API 文档入口，**不复制或伪造接口定义**。」
+
+**理由**：**第二份过期事实源比没有文档更坏**——它会让人按过期的字段名写代码，而且出错时没人知道该信哪一份。
+
+**法泽的口径**：
+
+| 内容 | 唯一事实源 | 说明 |
+|---|---|---|
+| 5 组 L1 契约 | `api/openapi/*.yaml`（手写冻结） | 见 §2.2 |
+| 其余 L2/L3 接口 | `/v3/api-docs`（springdoc 从代码生成） | 见 §2.5 |
+| `docs/` 里的接口文档 | **只放两样**：①怎么访问 Swagger 的一句话；②L1 的 YAML 说明 | **不手抄第二份字段表** |
+
+**禁止**：在 `docs/` 里维护一份「和技术路线 §4.8 一样的接口清单」——技术路线 §4.8 管「有哪些接口」，Swagger 管「接口长什么样」，**再抄一份必然过期**。
+
 ## 2.4 L2 契约的表格格式
 
 L2 也要写清，只是不写 YAML。统一用这张表：
@@ -526,6 +544,33 @@ public class TableDataInfo<T> {
 | 失效 | 登出/改密/注销 → 旧 token 进 Redis 黑名单，TTL = 剩余有效期 |
 | 401 处理 | `402002`（过期，可刷）→ 触发刷新；`402003`（无效）→ 直接登出。**两者必须区分**，否则无限刷新循环（《错误码规范》§4.2 第 3 条） |
 | 禁止 | token 放 URL query、放 Cookie（App 端无 Cookie 语义）、写进日志 |
+
+### 6.1.1 客户端实现的两条细节（抄 jxyd200 的实战踩坑）
+
+**① 401 只清「被拒的那个 token」**
+
+并发场景：用户点了刷新/重新登录，新 token 已存好；此时**旧请求的 401 迟到**。如果收到 401 就无条件清 token，会把**刚登录的新会话清掉**，用户表现为「刚登录就被踢」。
+
+```ts
+/** 只有当被拒的 token 就是当前存的 token 时才清；否则说明已经换过了，忽略这个迟到 401。 */
+export async function expireStoredSession(rejectedToken: string): Promise<boolean> {
+  const current = await getStoredToken();
+  if (!current || current !== rejectedToken) return false;   // ← 关键这一行
+  await clearToken();
+  return true;
+}
+```
+
+**② 401 判定必须「双通道」**
+
+不能只看 HTTP 状态码，要同时看 body 的 `code`——因为**管理端按 §6.2 裁决 9 返回的是 `HTTP 200 + code=401`**。只看 HTTP 状态的话，PC 端永远触发不了登出。
+
+| 通道 | 判什么 |
+|---|---|
+| C 端 | `HTTP 401` **且** body `code ∈ {402002, 402003}` |
+| PC 端 | `HTTP 200` **且** body `code === 401`（RuoYi 契约，见 §6.2 裁决 9） |
+
+**并且只对「显式带了 `Authorization` 头」的请求做登出判定**——登录失败、验证码错误这类「还没拿到 token」的请求返回 401 时不能清会话，否则用户连登录页都进不去。
 
 ## 6.2 鉴权：PC 端（`admin`）
 
