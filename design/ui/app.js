@@ -2608,8 +2608,8 @@
   /* ---------- 57 / 58 提交与选择器 ---------- */
   [
     ["[data-pick-order]", "打开订单选择器（演示）"],
-    ["[data-submit-complaint]", "投诉已提交，3 个工作日内给你回复"],
-    ["[data-submit-feedback]", "感谢反馈，我们会看"]
+    ["[data-submit-complaint]", "投诉已提交，平台将于 3 个工作日内答复你"],
+    ["[data-submit-feedback]", "反馈已提交，平台将核实处理"]
   ].forEach(function (pair) {
     var el = document.querySelector(pair[0]);
     if (!el) return;
