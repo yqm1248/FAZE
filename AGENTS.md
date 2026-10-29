@@ -152,9 +152,9 @@ services/faze-api/src/main/java/com/faze/
 | 页面导航树 | `docs/design/法泽APP_页面导航树_v1.4.md`（文件名叫 v1.4，内容实为 **v1.5**，**68 页**） |
 | **APP UI 设计顺序（68 屏怎么分批画完的、每屏的设计依据）** | `docs/design/法泽APP_UI设计顺序_v1.0.md`（内容 **V3.0**） |
 | **设计稿本体（APP 71 个 HTML，不是文档）** | `design/ui/` —— 打开 `01-home.html` 起看；组件在 `components.css`、令牌在 `tokens.css` |
-| **PC 后台开发计划（26 页分 7 个阶段怎么开发）** | `docs/architecture/法泽FAZE_PC后台开发计划_v1.0.md` |
-| **PC 后台设计稿（26 屏，已完成）** | `design/admin/` —— 打开 `00-login.html` 起看；令牌在 `tokens.css`（颜色继承 APP、尺寸另立 PC 刻度） |
-| **PC 后台 26 屏为什么这么画（设计系统、7 类页面范式、逐屏依据）** | `docs/design/法泽PC后台UI设计说明_v1.0.md` |
+| **PC 后台开发计划（28 页分 7 个阶段怎么开发）** | `docs/architecture/法泽FAZE_PC后台开发计划_v1.0.md` |
+| **PC 后台设计稿（28 屏，已完成）** | `design/admin/` —— 打开 `00-login.html` 起看；令牌在 `tokens.css`（颜色继承 APP、尺寸另立 PC 刻度） |
+| **PC 后台 28 屏为什么这么画（设计系统、7 类页面范式、逐屏依据）** | `docs/design/法泽PC后台UI设计说明_v1.0.md` |
 | **PC 后台的未决问题（admin 接口只 4 个、DDL 冲突、待定值）** | `docs/design/未完成需备注.md` |
 | 变更日志（每次推送必看） | `docs/CHANGELOG.md` |
 | 工程规范 | `docs/standards/` |
