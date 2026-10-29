@@ -2617,4 +2617,28 @@
       showToast(pair[1]);
     });
   });
+
+  /* ==========================================================================
+     39. 第 16 批：版本更新弹窗
+     ==========================================================================
+     41b 是独立浮层屏，两态（optional / force）各有一组按钮。
+     用 querySelectorAll，因为「立即更新」在两种形态里各出现一次。
+     ========================================================================== */
+  Array.prototype.forEach.call(
+    document.querySelectorAll("[data-later]"),
+    function (btn) {
+      btn.addEventListener("click", function () {
+        showToast("已记为稍后，下次启动时再提示");
+      });
+    }
+  );
+
+  Array.prototype.forEach.call(
+    document.querySelectorAll("[data-update]"),
+    function (btn) {
+      btn.addEventListener("click", function () {
+        showToast("开始下载更新包（演示）");
+      });
+    }
+  );
 })();

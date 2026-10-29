@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>法泽 · 版本更新 / 语言 —— 非主态走查</title>
+<style>
+/* ==========================================================================
+   走查页：第 16 批（41b / 60）的非主态
+   ==========================================================================
+   用途：画布一屏只显示主态，其余状态集中在这里看。
+   注意：
+     1. 不是交付屏，放在 _walkthrough/，不上画布、不计入交付页数
+     2. 41b 的强制态靠 data-state 切换（#state-force）
+     3. 必须用 HTTP 打开（端口 8123），file:// 下 iframe 的 hash 不生效
+   核对要点：
+     force ——强制更新的两个理由必须写具体：「安全漏洞」+「旧接口已停止响应」。
+              写「请更新到最新版本」等于没说为什么不能稍后，用户会反复点关闭。
+              同时给「更新不会丢数据」和「失败会再提示」，堵住两个最常见的顾虑。
+   ========================================================================== */
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 28px;
+  background: #EDEFF3;
+  font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  color: #1A1A1A;
+}
+
+.walk {
+  display: grid;
+  grid-template-columns: repeat(2, 390px);
+  gap: 24px 28px;
+  justify-content: center;
+}
+
+.walk__item {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.walk__head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.walk__name {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.walk__tag {
+  font-size: 11px;
+  font-weight: 500;
+  color: #4A66EE;
+  background: #EEF2FF;
+  padding: 2px 7px;
+  border-radius: 4px;
+  line-height: 1.5;
+}
+
+.walk__note {
+  margin: 0;
+  font-size: 12px;
+  color: #63696E;
+  line-height: 1.6;
+  max-width: 390px;
+}
+
+iframe {
+  width: 390px;
+  height: 844px;
+  border: 0;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.1);
+}
+</style>
+</head>
+<body>
+
+<div class="walk">
+
+  <section class="walk__item">
+    <div class="walk__head">
+      <h2 class="walk__name">版本更新 · 可以稍后</h2>
+      <span class="walk__tag">optional</span>
+    </div>
+    <p class="walk__note">
+      默认形态，也是 41b 的主屏。更新说明只写用户能感知的变化，一条新增、一条修复、一条优化 —— 把 commit 铺上去用户只会觉得更新麻烦。
+    </p>
+    <iframe src="../41b-version-update.html" title="版本更新 · 可稍后"></iframe>
+  </section>
+
+  <section class="walk__item">
+    <div class="walk__head">
+      <h2 class="walk__name">版本更新 · 必须更新</h2>
+      <span class="walk__tag">force</span>
+    </div>
+    <p class="walk__note">
+      强制更新只给一个按钮，但必须写清为什么不能稍后：「修复支付安全漏洞」+「旧版本接口已停止响应，继续用会出现付款成功但订单不更新」。只写「请更新到最新版本」，用户会反复点关闭并去打电话投诉。底部两条小字堵住两个顾虑：更新不丢数据、更新失败会再提示。
+    </p>
+    <iframe src="../41b-version-update.html#state-force" title="版本更新 · 强制"></iframe>
+  </section>
+
+</div>
+
+</body>
+</html>
