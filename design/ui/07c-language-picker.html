@@ -6,6 +6,7 @@
 <meta name="dsh-design" content="app">
 <title>语言选择</title>
 <link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
 <style>
 /* ==========================================================================
    首启语言选择浮层 —— 原项目无参考图，按导航树延展
@@ -15,6 +16,9 @@
    ========================================================================== */
 
 body {
+  width: var(--screen-w);
+  height: var(--screen-h);
+  overflow: hidden;
   background: linear-gradient(180deg, #5266EC 0%, #4053D0 100%);
   color: var(--text-on-brand);
   display: flex;
@@ -23,6 +27,9 @@ body {
 
 .splash-bg {
   flex: 1 1 auto;
+  /* ★ flex item 默认 min-height: auto，内容会把它撑到"装得下"为止，
+     结果是底部弹层被顶出屏幕。显式设 0 才允许它收缩。 */
+  min-height: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -107,60 +114,7 @@ body {
 }
 
 /* ---------- 语言列表 ---------- */
-.lang-list {
-  margin-block-start: 16px;
-}
-
-.lang {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: var(--sp-md);
-  min-height: 56px;
-  padding: 0 var(--sp-md);
-  border: 0;
-  border-radius: var(--r-sm);
-  background: none;
-  font-family: inherit;
-  cursor: pointer;
-  text-align: start;
-}
-
-.lang + .lang {
-  border-block-start: 1px solid var(--border-divider);
-  border-radius: 0;
-}
-
-.lang.is-active {
-  background: var(--brand-primary-soft);
-  border-block-start-color: transparent;
-}
-
-.lang__native {
-  flex: 0 0 auto;
-  font-size: var(--fs-h3);
-  color: var(--text-primary);
-  line-height: 1.3;
-}
-
-.lang__cn {
-  flex: 1 1 auto;
-  min-width: 0;
-  font-size: var(--fs-caption);
-  color: var(--text-muted);
-}
-
-.lang__check {
-  width: 18px;
-  height: 18px;
-  flex-shrink: 0;
-  color: var(--brand-primary);
-  opacity: 0;
-}
-
-.lang.is-active .lang__check {
-  opacity: 1;
-}
+/* .lang-list / .lang 已提到 components.css 第 31 段（第 16 批：07c / 60 两处用） */
 
 /* ---------- 确定 ---------- */
 .sheet__confirm {

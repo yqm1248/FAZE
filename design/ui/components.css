@@ -658,6 +658,36 @@
   background: var(--bg-input);
 }
 
+/* ---------- 弹窗图标（第 16 批从 07b 收到这里，41b 复用） ----------
+   52 圆形浅底 + 27 图标。收进来的直接原因：41b 用了 .dialog 却没有 .dialog__icon
+   的定义（那一套原本只在 07b 的 <style> 里），图标按 SVG 默认尺寸撑满了整个弹窗。
+   组件族的类要成套，缺一个就是这种塌法。 */
+.dialog__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  margin: 0 auto;
+  border-radius: 50%;
+  background: var(--brand-primary-soft);
+}
+
+.dialog__icon svg {
+  width: 27px;
+  height: 27px;
+  color: var(--brand-primary);
+}
+
+/* 强制 / 警示类弹窗用暖色，与「可以稍后」的弹窗区分开 */
+.dialog__icon--warn {
+  background: var(--state-warning-soft);
+}
+
+.dialog__icon--warn svg {
+  color: var(--state-warning-deep);
+}
+
 /* ==========================================================================
    11. 遮罩式 Loading
    ==========================================================================
@@ -2077,4 +2107,95 @@
 .state-pill--danger {
   background: var(--state-danger-soft);
   color: var(--state-danger);
+}
+
+/* ==========================================================================
+   31. 语言行（第 16 批从 07c-language-picker 提到这里，60-language 复用）
+   ==========================================================================
+   结构：
+     <div class="lang-list">
+       <button class="lang is-active" type="button" data-lang="zh-Hans">
+         <span class="lang__native">简体中文</span>
+         <span class="lang__cn">中文</span>
+         <svg class="lang__check">…</svg>
+       </button>
+       …
+     </div>
+
+   ★ 语言名用它自己的文字写（བོད་ཡིག / ئۇيغۇرچە / قازاقشا），右侧跟一行中文对照。
+     这是语言选择器唯一的硬要求：看不懂当前界面语言的用户，
+     必须能从字形认出自己那一行。全用中文写「藏文 / 维吾尔文」的列表，
+     恰恰是这批用户最认不出来的 —— 他们多数不认汉字。
+
+   ★ 每行文字的 dir 跟着语言本身走，不跟界面走。
+     藏文是从左往右（ltr），维吾尔文和哈萨克文是从右往左（rtl）。
+     给 rtl 的 span 指定 dir，否则阿拉伯系会被按 LTR 排，
+     连写的字母顺序看起来是反的。
+
+   ★ 阿拉伯系必须命中自托管字体（--font-arabic），靠系统 fallback 的后果是
+     不同机型观感不一致、低端机上连写断裂。这里用 [dir="rtl"] 属性选择器
+     统一挂字体，比给每个 span 手写 style 干净，也保证漏写不了。
+   ========================================================================== */
+.lang-list {
+  margin-block-start: var(--sp-md);
+  border-radius: var(--r-md);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+
+.lang {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-md);
+  width: 100%;
+  min-height: 56px;
+  padding: 0 var(--sp-md);
+  border: 0;
+  background: none;
+  font-family: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.lang + .lang {
+  border-block-start: 1px solid var(--border-divider);
+}
+
+.lang.is-active {
+  background: var(--brand-primary-soft);
+  border-block-start-color: transparent;
+}
+
+.lang__native {
+  flex: 0 0 auto;
+  font-size: var(--fs-h3);
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+/* 阿拉伯系语言：自托管字体。藏文与中文走系统栈即可 */
+.lang__native[dir="rtl"] {
+  font-family: var(--font-arabic);
+  font-size: 19px;
+  line-height: 1.5;
+}
+
+.lang__cn {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+}
+
+.lang__check {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  color: var(--brand-primary);
+  opacity: 0;
+}
+
+.lang.is-active .lang__check {
+  opacity: 1;
 }
