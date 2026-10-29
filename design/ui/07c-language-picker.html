@@ -26,15 +26,19 @@ body {
 }
 
 .splash-bg {
-  flex: 1 1 auto;
-  /* ★ flex item 默认 min-height: auto，内容会把它撑到"装得下"为止，
-     结果是底部弹层被顶出屏幕。显式设 0 才允许它收缩。 */
+  /* ★ 品牌区只吃「弹层之上」的剩余空间：flex-basis 设 0 而不是 auto，
+     基础尺寸不参与分配，弹层占多少它就让多少。
+     原来这里用 padding-block-end: 150px 把内容从整屏中心往上顶，
+     那是在「弹层绝对定位、不占流」的前提下凑出来的位置 ——
+     一旦弹层高度变化（语言从 2 个加到 4 个），内容重心就落进弹层覆盖区，
+     品牌语被切掉半行。现在改成由 flex 真正分配高度，不再靠魔数回避。 */
+  flex: 1 1 0;
+  /* flex item 默认 min-height: auto，内容会把它撑到"装得下"为止 */
   min-height: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding-block-end: 150px;
 }
 
 .logo {
@@ -76,11 +80,16 @@ body {
 }
 
 /* ---------- 底部弹层 ---------- */
+/* ★ 弹层参与 body 的纵向 flex，不再用 absolute 贴底。
+   绝对定位的弹层不占流，父容器按「内容」算高度，两者各自为政：
+   弹层贴的是容器底边，不是屏幕底边，容器一被撑高，弹层就跟着掉出屏幕。
+   进流之后 body 高度 844 被「品牌区 + 弹层」精确瓜分，没有溢出空间。
+   .mask 仍是 absolute（遮罩本来就该盖满全屏、不参与分配），
+   弹层靠 position: relative + 更高的 z-index 压在遮罩之上。 */
 .sheet {
-  position: absolute;
-  inset-inline: 0;
-  inset-block-end: 0;
+  position: relative;
   z-index: 50;
+  flex: 0 0 auto;
   background: var(--bg-surface);
   border-start-start-radius: 20px;
   border-start-end-radius: 20px;
