@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>法泽 · 律师工作台入口两态走查</title>
+<style>
+/* ==========================================================================
+   走查页：第 17 批律师工作台的入口两态
+   ==========================================================================
+   用途：同一张首页 / 同一张「我的」页，认证前和认证后长什么样。
+   注意：
+     1. 不是交付屏，放在 _walkthrough/，不上画布、不计入交付页数
+     2. 用 data-state 切换（#state-lawyer）
+     3. 必须用 HTTP 打开（端口 8123），file:// 下 iframe 的 hash 不生效
+   核对要点：
+     guest  ——「律师 / 学生入驻」是引导语气（暖色徽章图标），
+               目的是让想入驻的人看得见
+     lawyer ——同一位置换成「进入律师工作台」，并且**首页右上角多一个图标**
+               做快捷入口。两处入口做两个是因为场景不同：右上角是
+               「回来看看有没有新活」，入口条是「我今天要干活」。
+               认证完成后如果这条入口「消失」，律师会以为功能没了。
+   ========================================================================== */
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 28px;
+  background: #EDEFF3;
+  font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  color: #1A1A1A;
+}
+
+.walk {
+  display: grid;
+  grid-template-columns: repeat(2, 390px);
+  gap: 24px 28px;
+  justify-content: center;
+}
+
+.walk__item {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.walk__head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.walk__name {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.walk__tag {
+  font-size: 11px;
+  font-weight: 500;
+  color: #4A66EE;
+  background: #EEF2FF;
+  padding: 2px 7px;
+  border-radius: 4px;
+  line-height: 1.5;
+}
+
+.walk__note {
+  margin: 0;
+  font-size: 12px;
+  color: #63696E;
+  line-height: 1.6;
+  max-width: 390px;
+}
+
+iframe {
+  width: 390px;
+  height: 844px;
+  border: 0;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.1);
+}
+</style>
+</head>
+<body>
+
+<div class="walk">
+
+  <section class="walk__item">
+    <div class="walk__head">
+      <h2 class="walk__name">首页 · 未认证</h2>
+      <span class="walk__tag">guest</span>
+    </div>
+    <p class="walk__note">
+      主屏形态。「律师 / 学生入驻」在快捷宫格下方，暖色徽章图标 —— 引导语气，不是功能入口。右上角没有任何工作台痕迹，未认证的人不该看到进不去的东西。
+    </p>
+    <iframe src="../01-home.html" title="首页 · 未认证"></iframe>
+  </section>
+
+  <section class="walk__item">
+    <div class="walk__head">
+      <h2 class="walk__name">首页 · 已认证律师</h2>
+      <span class="walk__tag">lawyer</span>
+    </div>
+    <p class="walk__note">
+      同一位置换成「进入律师工作台」（主色公文包），并且右上角多一个工作台快捷图标 —— 两处入口分工不同：右上角是「回来看有没有新活」，入口条是「今天要干活」。入口条带三个数字（新咨询 / 待接单 / 本月收入），不用点进去就知道今天忙不忙。
+    </p>
+    <iframe src="../01-home.html#state-lawyer" title="首页 · 已认证"></iframe>
+  </section>
+
+  <section class="walk__item">
+    <div class="walk__head">
+      <h2 class="walk__name">我的 · 未认证</h2>
+      <span class="walk__tag">guest</span>
+    </div>
+    <p class="walk__note">
+      菜单里的入驻入口保持原样。它是「我的」页里的一条，位置和文案都不变。
+    </p>
+    <iframe src="../05-profile.html" title="我的 · 未认证"></iframe>
+  </section>
+
+  <section class="walk__item">
+    <div class="walk__head">
+      <h2 class="walk__name">我的 · 已认证律师</h2>
+      <span class="walk__tag">lawyer</span>
+    </div>
+    <p class="walk__note">
+      同一行换成「律师工作台」。认证前后位置不变，律师不会去想「原来那行去哪了」。
+    </p>
+    <iframe src="../05-profile.html#state-lawyer" title="我的 · 已认证"></iframe>
+  </section>
+
+</div>
+
+</body>
+</html>

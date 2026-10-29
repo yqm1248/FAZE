@@ -532,13 +532,29 @@
           <path d="m9.5 5.5 6.5 6.5-6.5 6.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </a>
-      <a class="menu__row" href="15-lawyer-join.html">
+      <!-- 角色入口：未认证 → 入驻申请；已认证 → 律师工作台（#state-lawyer 走查）
+           ★ 同一行同一个位置，只换文案和图标。认证完成后这一行如果「消失」，
+             律师会以为功能没了；如果是「多出来一行」，他会去找原来那行去哪了。 -->
+      <a class="menu__row" href="15-lawyer-join.html" data-state="guest">
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <circle cx="12" cy="8.2" r="3.6" fill="#8A2BE2" fill-opacity="0.14" stroke="#8A2BE2" stroke-width="1.9"/>
           <path d="M4.9 20.3c0-3.7 3.2-6.3 7.1-6.3s7.1 2.6 7.1 6.3" stroke="#8A2BE2"
                 stroke-width="1.9" stroke-linecap="round"/>
         </svg>
-        <span class="menu__label">律师/学生入驻</span>
+        <span class="menu__label">律师 / 学生入驻</span>
+        <svg class="menu__chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="m9.5 5.5 6.5 6.5-6.5 6.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </a>
+      <a class="menu__row" href="62-workbench.html" data-state="lawyer" hidden>
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <rect x="2.8" y="7.4" width="18.4" height="12.2" rx="2.2"
+                fill="#4A66EE" fill-opacity="0.14" stroke="#4A66EE" stroke-width="1.9"/>
+          <path d="M8.6 7.4V5.6a1.8 1.8 0 0 1 1.8-1.8h3.2a1.8 1.8 0 0 1 1.8 1.8v1.8"
+                stroke="#4A66EE" stroke-width="1.9" stroke-linejoin="round"/>
+          <path d="M2.8 12.6h18.4" stroke="#4A66EE" stroke-width="1.9"/>
+        </svg>
+        <span class="menu__label">律师工作台</span>
         <svg class="menu__chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path d="m9.5 5.5 6.5 6.5-6.5 6.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>

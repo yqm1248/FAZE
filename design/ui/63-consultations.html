@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390, initial-scale=1">
+<meta name="dsh-design" content="app">
+<title>客户咨询</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   律师客户咨询列表（第 17 批 · 延展，无参考图）
+   ==========================================================================
+   职责：律师侧的会话列表，按「要不要我回」排序。
+   入口：62-workbench 六宫格「我的客户」/ 待办 / 最近咨询「查看全部」
+   数据来源：律师会话列表接口（用户昵称 / 最后消息 / 未读数 / 最近时间 / 订单状态）
+
+   ★ 与用户侧的 38-messages 是两套东西，别混：
+     用户侧按「系统通知 / 律师回复 / 客服」分类，律师侧只有一类 —— 客户。
+     律师关心的是「谁在等我回」和「这单付没付钱」，不是消息类型。
+
+   ★ 排序按「未读优先，其次最近」而不是纯按时间。
+     律师一天开十次这个页面，每次只想看到「该我回的」。
+     纯按时间排，一条已读的旧会话会把三条未读压到下面去。
+
+   ★ 会话条目上带订单状态（已付款 / 未付款）。
+     没付钱的咨询，律师回了也可能白回 —— 这是律师侧独有的信息，
+     用户侧的会话列表里没有，也不该有。
+
+   ★ 聊天页复用 17-chat（用户视角），律师视角的差异（底部按钮、
+     顶部展示对象）留到代码层按角色切换。设计稿这一批不另开一屏，
+     避免同一套气泡组件分叉成两份。
+   ========================================================================== */
+
+body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-canvas);
+}
+
+.screen {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding: 0 0 var(--sp-xl);
+}
+.screen::-webkit-scrollbar {
+  display: none;
+}
+
+/* ---------- 排序说明 ---------- */
+.sort-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: var(--sp-sm) var(--sp-xl) 0;
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.sort-note svg {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+}
+
+/* ---------- 会话条目 ---------- */
+.chat-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: var(--sp-md) var(--sp-xl) 0;
+}
+
+.chat-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-md);
+  padding: var(--sp-md) var(--sp-lg);
+  border-radius: var(--r-md);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+  text-decoration: none;
+  color: inherit;
+}
+
+/* 未读的会话左侧一道主色竖条：整页扫下来先看到它 */
+.chat-item--unread {
+  box-shadow: var(--shadow-card), inset 3px 0 0 var(--brand-primary);
+}
+
+.chat-item__avatar {
+  flex: 0 0 auto;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: var(--bg-input);
+  color: var(--text-muted);
+}
+
+.chat-item__avatar svg {
+  width: 24px;
+  height: 24px;
+}
+
+.chat-item__badge {
+  position: absolute;
+  inset-block-start: -2px;
+  inset-inline-end: -2px;
+  min-width: 17px;
+  height: 17px;
+  padding-inline: 4px;
+  border-radius: var(--r-pill);
+  background: var(--state-danger);
+  color: var(--text-on-brand);
+  font-family: var(--font-num);
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-bold);
+  line-height: 17px;
+  text-align: center;
+}
+
+.chat-item__body {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.chat-item__top {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-sm);
+}
+
+.chat-item__name {
+  flex: 0 0 auto;
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+/* 订单状态：已付款用青、未付款用暖色。这一条是律师最先找的信息 */
+.chat-item__pay {
+  flex: 0 0 auto;
+  padding: 1px 6px;
+  border-radius: var(--r-xs);
+  font-size: var(--fs-micro);
+  line-height: 1.5;
+}
+
+.chat-item__pay--paid {
+  background: var(--state-success-soft);
+  color: var(--state-success);
+}
+
+.chat-item__pay--unpaid {
+  background: var(--state-warning-soft);
+  color: var(--state-warning-deep);
+}
+
+.chat-item__time {
+  flex: 0 0 auto;
+  margin-inline-start: auto;
+  font-family: var(--font-num);
+  font-size: var(--fs-micro);
+  color: var(--text-muted);
+}
+
+.chat-item__msg {
+  display: block;
+  margin-block-start: 4px;
+  font-size: var(--fs-caption);
+  color: var(--text-secondary);
+  line-height: 1.5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 未读消息的摘要加粗：视觉上也要和已读分开，不能只靠角标 */
+.chat-item--unread .chat-item__msg {
+  color: var(--text-body);
+  font-weight: var(--fw-medium);
+}
+
+/* ---------- 底部加载 ---------- */
+.loadmore {
+  margin-block-start: var(--sp-sm);
+}
+
+/* ---------- 空态 / 错误态 ---------- */
+.state-wrap {
+  padding-block: var(--sp-huge) var(--sp-xxxl);
+}
+</style>
+</head>
+<body>
+
+<header class="statusbar statusbar--light">
+  <span>9:41</span>
+  <span class="statusbar__icons">
+    <svg width="17" height="11" viewBox="0 0 17 11" fill="none" aria-hidden="true">
+      <rect x="0" y="7" width="3" height="4" rx="1" fill="currentColor"/>
+      <rect x="4.5" y="5" width="3" height="6" rx="1" fill="currentColor"/>
+      <rect x="9" y="2.5" width="3" height="8.5" rx="1" fill="currentColor"/>
+      <rect x="13.5" y="0" width="3" height="11" rx="1" fill="currentColor"/>
+    </svg>
+    <svg width="16" height="11" viewBox="0 0 16 11" fill="none" aria-hidden="true">
+      <path d="M1 3.2A10.5 10.5 0 0 1 15 3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M3.6 5.9a7 7 0 0 1 8.8 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M6.2 8.6a3.4 3.4 0 0 1 3.6 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden="true">
+      <rect x="0.6" y="0.6" width="21" height="10.8" rx="3" stroke="currentColor" stroke-opacity="0.4" stroke-width="1.2"/>
+      <rect x="2.2" y="2.2" width="15" height="7.6" rx="1.8" fill="currentColor"/>
+      <path d="M23.4 4.2v3.6" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+  </span>
+</header>
+
+<div class="navbar navbar--dark">
+  <a class="navbar__back" href="62-workbench.html" aria-label="返回工作台">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M15.2 4.6 7.8 12l7.4 7.4" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </a>
+  <h1 class="navbar__title">客户咨询</h1>
+</div>
+
+<main class="screen">
+
+  <p class="sort-note">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M5 7h14M7.5 12h9M10 17h4" stroke="currentColor" stroke-width="1.8"
+            stroke-linecap="round"/>
+    </svg>
+    未读优先，其余按最近消息排序
+  </p>
+
+  <div class="chat-list">
+
+    <a class="chat-item chat-item--unread" href="17-chat.html">
+      <span class="chat-item__avatar">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <circle cx="12" cy="9" r="3.7"/>
+          <path d="M4.6 21c0-4.1 3.3-6.9 7.4-6.9s7.4 2.8 7.4 6.9"/>
+        </svg>
+        <span class="chat-item__badge">2</span>
+      </span>
+      <span class="chat-item__body">
+        <span class="chat-item__top">
+          <span class="chat-item__name">马合木提·艾山</span>
+          <span class="chat-item__pay chat-item__pay--paid">已付款</span>
+          <span class="chat-item__time">2 分钟前</span>
+        </span>
+        <span class="chat-item__msg">律师您好，房东说押金抵了维修费，但我没有看到任何单据，这种情况能起诉吗</span>
+      </span>
+    </a>
+
+    <a class="chat-item chat-item--unread" href="17-chat.html">
+      <span class="chat-item__avatar">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <circle cx="12" cy="9" r="3.7"/>
+          <path d="M4.6 21c0-4.1 3.3-6.9 7.4-6.9s7.4 2.8 7.4 6.9"/>
+        </svg>
+        <span class="chat-item__badge">3</span>
+      </span>
+      <span class="chat-item__body">
+        <span class="chat-item__top">
+          <span class="chat-item__name">王建国</span>
+          <span class="chat-item__pay chat-item__pay--paid">已付款</span>
+          <span class="chat-item__time">1 小时前</span>
+        </span>
+        <span class="chat-item__msg">利息能不能超过银行同期利率的四倍？我手上有一张 2024 年写的借条</span>
+      </span>
+    </a>
+
+    <a class="chat-item chat-item--unread" href="17-chat.html">
+      <span class="chat-item__avatar">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <circle cx="12" cy="9" r="3.7"/>
+          <path d="M4.6 21c0-4.1 3.3-6.9 7.4-6.9s7.4 2.8 7.4 6.9"/>
+        </svg>
+        <span class="chat-item__badge">1</span>
+      </span>
+      <span class="chat-item__body">
+        <span class="chat-item__top">
+          <span class="chat-item__name">李强</span>
+          <span class="chat-item__pay chat-item__pay--unpaid">未付款</span>
+          <span class="chat-item__time">3 小时前</span>
+        </span>
+        <span class="chat-item__msg">在吗？想问下加班费怎么算，我们公司一直按最低工资标准发</span>
+      </span>
+    </a>
+
+    <a class="chat-item" href="17-chat.html">
+      <span class="chat-item__avatar">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <circle cx="12" cy="9" r="3.7"/>
+          <path d="M4.6 21c0-4.1 3.3-6.9 7.4-6.9s7.4 2.8 7.4 6.9"/>
+        </svg>
+      </span>
+      <span class="chat-item__body">
+        <span class="chat-item__top">
+          <span class="chat-item__name">阿依古丽</span>
+          <span class="chat-item__pay chat-item__pay--paid">已付款</span>
+          <span class="chat-item__time">昨天</span>
+        </span>
+        <span class="chat-item__msg">好的，我明天把材料整理好发您</span>
+      </span>
+    </a>
+
+    <a class="chat-item" href="17-chat.html">
+      <span class="chat-item__avatar">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <circle cx="12" cy="9" r="3.7"/>
+          <path d="M4.6 21c0-4.1 3.3-6.9 7.4-6.9s7.4 2.8 7.4 6.9"/>
+        </svg>
+      </span>
+      <span class="chat-item__body">
+        <span class="chat-item__top">
+          <span class="chat-item__name">张晓燕</span>
+          <span class="chat-item__pay chat-item__pay--paid">已付款</span>
+          <span class="chat-item__time">2 天前</span>
+        </span>
+        <span class="chat-item__msg">谢谢律师，合同我看过了，第二页那条我有点疑问</span>
+      </span>
+    </a>
+
+  </div>
+
+  <div class="loadmore loadmore--end">没有更多了</div>
+
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390, initial-scale=1">
+<meta name="dsh-design" content="app">
+<title>服务设置</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   律师服务设置（第 17 批 · 延展，无参考图）
+   ==========================================================================
+   职责：上架 / 下架三类服务、改价格、设服务地区、开关自动接单。
+   入口：62-workbench 六宫格「服务设置」
+   数据来源：律师服务配置接口（服务项 / 价格 / 地区 / 自动接单）
+
+   ★ 「下架」和「删除」不是一回事，页面上必须写清：
+     下架 = 不再展示给新用户，已付款的订单照常履约。
+     不写这句，律师会在接单中途关掉服务，然后发现手上还有没做完的单，
+     以为平台把单弄丢了。
+
+   ★ 价格用「改价」而不是行内直接编辑。价格是报价单，
+     手滑少打个零就变成 9.9 元咨询 —— 必须有确认步骤。
+     这一页不给行内输入框，点开改价面板再确认。
+
+   ★ 自动接单默认关闭。默认开着的后果是律师没看消息就被派了单，
+     响应不及时被差评，最后关掉自动接单再也不开。
+     默认关、需要的人自己打开，是这类「替你做决定」的功能的通用做法。
+
+   ★ 服务地区只写「伊犁州」这一级，不做全国选。
+     本产品服务半径就是伊犁地区，让律师填「全国」等于承诺他飞过去开庭。
+   ========================================================================== */
+
+body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-canvas);
+}
+
+.screen {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding: 0 var(--sp-xl) var(--sp-xxl);
+}
+.screen::-webkit-scrollbar {
+  display: none;
+}
+
+/* ---------- 服务条目 ---------- */
+.svc {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-md);
+  padding: 14px var(--sp-lg);
+  border-block-end: 1px solid var(--border-divider);
+}
+
+.svc:last-child {
+  border-block-end: 0;
+}
+
+.svc__body {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.svc__name {
+  display: block;
+  font-size: var(--fs-lg);
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+/* 价格是一行可点的文字，点开改价面板 */
+.svc__desc {
+  display: block;
+  margin-block-start: 3px;
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.svc__price {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-block-start: 3px;
+  min-height: 44px;
+  border: 0;
+  background: transparent;
+  color: var(--brand-primary-pressed);
+  font-family: inherit;
+  font-size: var(--fs-caption);
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.svc__price svg {
+  width: 13px;
+  height: 13px;
+}
+
+/* 已下架的服务整条变淡：它还在配置里，只是不展示给用户 */
+.svc--off .svc__name,
+.svc--off .svc__price {
+  color: var(--text-muted);
+}
+
+/* ---------- 页尾说明 ---------- */
+.page-note {
+  margin-block-start: var(--sp-md);
+  padding-inline: 2px;
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.8;
+}
+
+.page-note b {
+  font-weight: var(--fw-medium);
+  color: var(--text-secondary);
+}
+
+/* ---------- 改价面板 ---------- */
+.price-field {
+  margin-inline: var(--sp-xl);
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin: var(--sp-md) 0 var(--sp-xs);
+  padding-block-end: var(--sp-sm);
+  border-block-end: 1px solid var(--border-divider);
+}
+
+.price-field__sym {
+  font-family: var(--font-num);
+  font-size: var(--fs-h1);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+}
+
+.price-field input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 44px;
+  border: 0;
+  background: transparent;
+  font-family: var(--font-num);
+  font-size: var(--fs-h1);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  outline: none;
+}
+
+.price-tip {
+  margin-inline: var(--sp-xl);
+  margin-block-start: var(--sp-sm);
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.7;
+}
+
+.price-confirm {
+  width: calc(100% - 2 * var(--sp-xl));
+  margin-inline: var(--sp-xl);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--btn-h);
+  margin-block-start: var(--sp-lg);
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--brand-primary);
+  color: var(--text-on-brand);
+  font-family: inherit;
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-bold);
+  cursor: pointer;
+}
+</style>
+</head>
+<body>
+
+<header class="statusbar statusbar--light">
+  <span>9:41</span>
+  <span class="statusbar__icons">
+    <svg width="17" height="11" viewBox="0 0 17 11" fill="none" aria-hidden="true">
+      <rect x="0" y="7" width="3" height="4" rx="1" fill="currentColor"/>
+      <rect x="4.5" y="5" width="3" height="6" rx="1" fill="currentColor"/>
+      <rect x="9" y="2.5" width="3" height="8.5" rx="1" fill="currentColor"/>
+      <rect x="13.5" y="0" width="3" height="11" rx="1" fill="currentColor"/>
+    </svg>
+    <svg width="16" height="11" viewBox="0 0 16 11" fill="none" aria-hidden="true">
+      <path d="M1 3.2A10.5 10.5 0 0 1 15 3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M3.6 5.9a7 7 0 0 1 8.8 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M6.2 8.6a3.4 3.4 0 0 1 3.6 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden="true">
+      <rect x="0.6" y="0.6" width="21" height="10.8" rx="3" stroke="currentColor" stroke-opacity="0.4" stroke-width="1.2"/>
+      <rect x="2.2" y="2.2" width="15" height="7.6" rx="1.8" fill="currentColor"/>
+      <path d="M23.4 4.2v3.6" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+  </span>
+</header>
+
+<div class="navbar navbar--dark">
+  <a class="navbar__back" href="62-workbench.html" aria-label="返回工作台">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M15.2 4.6 7.8 12l7.4 7.4" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </a>
+  <h1 class="navbar__title">服务设置</h1>
+</div>
+
+<main class="screen">
+
+  <h2 class="set-group__title">我提供的服务</h2>
+  <div class="set-list">
+
+    <div class="svc">
+      <div class="svc__body">
+        <span class="svc__name">图文咨询</span>
+        <button class="svc__price" type="button" data-edit-price="图文咨询">
+          ¥60.00 / 24 小时内回复
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="m4.6 19.4.8-3.8L15.6 5.4a1.8 1.8 0 0 1 2.5 0l.5.5a1.8 1.8 0 0 1 0 2.5L8.4 18.6l-3.8.8Z"
+                  stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </div>
+      <button class="switch is-on" type="button" role="switch" aria-checked="true"
+              data-switch aria-label="上架图文咨询"></button>
+    </div>
+
+    <div class="svc">
+      <div class="svc__body">
+        <span class="svc__name">电话咨询</span>
+        <button class="svc__price" type="button" data-edit-price="电话咨询">
+          ¥99.00 / 30 分钟
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="m4.6 19.4.8-3.8L15.6 5.4a1.8 1.8 0 0 1 2.5 0l.5.5a1.8 1.8 0 0 1 0 2.5L8.4 18.6l-3.8.8Z"
+                  stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </div>
+      <button class="switch is-on" type="button" role="switch" aria-checked="true"
+              data-switch aria-label="上架电话咨询"></button>
+    </div>
+
+    <div class="svc svc--off">
+      <div class="svc__body">
+        <span class="svc__name">文书代写</span>
+        <button class="svc__price" type="button" data-edit-price="文书代写">
+          ¥200.00 / 份
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="m4.6 19.4.8-3.8L15.6 5.4a1.8 1.8 0 0 1 2.5 0l.5.5a1.8 1.8 0 0 1 0 2.5L8.4 18.6l-3.8.8Z"
+                  stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </div>
+      <button class="switch" type="button" role="switch" aria-checked="false"
+              data-switch aria-label="上架文书代写"></button>
+    </div>
+
+  </div>
+
+  <p class="page-note">
+    <b>下架不等于删除。</b>下架后新用户看不到这项服务，但已经付款的订单照常履约，不影响你的评分与结算。
+  </p>
+
+  <h2 class="set-group__title">接单设置</h2>
+  <div class="set-list">
+
+    <div class="svc">
+      <div class="svc__body">
+        <span class="svc__name">自动接单</span>
+        <span class="svc__desc">开启后符合你服务范围的订单会直接派给你，不再需要手动接</span>
+      </div>
+      <button class="switch" type="button" role="switch" aria-checked="false"
+              data-switch aria-label="自动接单"></button>
+    </div>
+
+    <button class="set-row" type="button" data-pick-region>
+      <span class="set-row__label">服务地区</span>
+      <span class="set-row__value">伊犁州 · 伊宁市</span>
+      <svg class="set-row__chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="m9.2 4.6 7.4 7.4-7.4 7.4" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+
+  </div>
+
+  <p class="page-note">
+    服务地区决定你会收到哪个区域的订单。<b>本平台目前只覆盖伊犁州</b>，暂不支持跨地区接单 —— 跨地区开庭的时间成本由你承担，不建议开启。
+  </p>
+
+</main>
+
+<!-- ======================================================================
+     改价面板（#open-price 走查）
+     ====================================================================== -->
+<div class="mask" data-price-mask hidden></div>
+<div class="sheet" data-price-sheet hidden role="dialog" aria-modal="true" aria-label="修改价格">
+  <div class="sheet__handle"></div>
+  <div class="sheet__head">
+    <h2 class="sheet__title">修改价格 · 图文咨询</h2>
+    <button class="sheet__close" type="button" data-price-close aria-label="关闭">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="m6.4 6.4 11.2 11.2M17.6 6.4 6.4 17.6" stroke="currentColor"
+              stroke-width="2" stroke-linecap="round"/>
+      </svg>
+    </button>
+  </div>
+
+  <div class="price-field">
+    <span class="price-field__sym">¥</span>
+    <input type="text" inputmode="decimal" value="60.00" aria-label="服务价格" data-price-input>
+  </div>
+
+  <p class="price-tip">
+    改价<b>只影响新订单</b>，已下的订单按下单时的价格结算。价格区间 20 至 2,000 元，调价后立即生效。
+  </p>
+
+  <button class="price-confirm" type="button" data-price-confirm>保存价格</button>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

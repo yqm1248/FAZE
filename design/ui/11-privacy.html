@@ -13,6 +13,14 @@
    排版与《用户服务协议》完全一致，只换内容
    ========================================================================== */
 
+/* ★ 本页没引 components.css（第 1 批页面自带全部样式），所以 [hidden] 的
+   全局规则也不在。HTML 的 hidden 属性只是 UA 样式里的 display: none，
+   优先级最低 —— 只要页面里写了 .某个类 { display: flex }，hidden 就失效。
+   01-home 的角色入口条正是这么同时冒出两条来的。这条必须补。 */
+[hidden] {
+  display: none !important;
+}
+
 body {
   background: var(--bg-surface);
   display: flex;

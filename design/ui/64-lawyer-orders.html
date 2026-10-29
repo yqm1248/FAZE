@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390, initial-scale=1">
+<meta name="dsh-design" content="app">
+<title>我的订单</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   律师订单管理（第 17 批 · 延展，无参考图）
+   ==========================================================================
+   职责：律师侧接单、履约、收款的入口，分四个 Tab。
+   入口：62-workbench 六宫格「我的订单」/ 待办
+   数据来源：律师订单接口（用户 / 服务类型 / 金额 / 状态 / 接单倒计时）
+
+   ★ 「待接单」有倒计时，而且必须显示。平台把新订单派给多个律师，
+     先接的人拿到 —— 不显示倒计时，律师会以为可以放着慢慢考虑，
+     回来发现单没了，会认为平台在耍人。
+
+   ★ 「完成服务」是律师侧最重的动作：点完这一单的钱进入待结算，
+     用户那边收到评价邀请。所以它必须是二次确认，且确认框里写清
+     「款项将进入待结算，用户可在 7 天内申请退款」。
+
+   ★ 退款处理不能做成「同意 / 拒绝」两个平级按钮。
+     拒绝必须填理由，而且按钮视觉要弱于同意 —— 平台默认倾向保护用户，
+     律师拒绝退款是要举证的。把两个做成一样重，等于鼓励拒。
+
+   ★ 这一页不显示用户手机号。律师要联系客户走站内消息或虚拟号码，
+     真实号码不下发给律师 —— 这是数据隔离的硬要求（导航树 §数据隔离）。
+   ========================================================================== */
+
+body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-canvas);
+}
+
+.screen {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding: 0 0 var(--sp-xl);
+}
+.screen::-webkit-scrollbar {
+  display: none;
+}
+
+/* ---------- 订单列表 ---------- */
+.order-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: var(--sp-md) var(--sp-xl) 0;
+}
+
+.order {
+  padding: var(--sp-md) var(--sp-lg);
+  border-radius: var(--r-md);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.order__head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-sm);
+}
+
+.order__type {
+  flex: 1 1 0;
+  min-width: 0;
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.order__no {
+  display: block;
+  margin-block-start: 3px;
+  font-family: var(--font-num);
+  font-size: var(--fs-micro);
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+/* ---------- 倒计时条：待接单才有 ---------- */
+.countdown {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-block-start: var(--sp-sm);
+  padding: 7px var(--sp-md);
+  border-radius: var(--r-sm);
+  background: var(--state-warning-soft);
+  color: var(--state-warning-deep);
+  font-size: var(--fs-caption);
+  line-height: 1.5;
+}
+
+.countdown svg {
+  flex: 0 0 auto;
+  width: 15px;
+  height: 15px;
+}
+
+.countdown b {
+  font-family: var(--font-num);
+  font-weight: var(--fw-bold);
+}
+
+/* ---------- 客户行 ---------- */
+.order__client {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  margin-block-start: var(--sp-md);
+  padding-block-start: var(--sp-sm);
+  border-block-start: 1px solid var(--border-divider);
+}
+
+.order__avatar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--bg-input);
+  color: var(--text-muted);
+}
+
+.order__avatar svg {
+  width: 17px;
+  height: 17px;
+}
+
+.order__name {
+  flex: 1 1 0;
+  min-width: 0;
+  font-size: var(--fs-caption);
+  color: var(--text-secondary);
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 金额：等宽 + 加粗，跟用户侧一样的处理 */
+.order__amount {
+  flex: 0 0 auto;
+  font-family: var(--font-num);
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+}
+
+.order__amount i {
+  font-style: normal;
+  font-size: 0.7em;
+  font-weight: var(--fw-medium);
+  margin-inline-end: 1px;
+}
+
+/* ---------- 底部操作 ---------- */
+.order__acts {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--sp-sm);
+  margin-block-start: var(--sp-md);
+}
+
+.btn-line {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  height: 38px;
+  padding-inline: var(--sp-lg);
+  border: 1px solid var(--border-outline);
+  border-radius: var(--r-pill);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: var(--fs-md);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.btn-solid {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  height: 38px;
+  padding-inline: var(--sp-lg);
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--brand-primary);
+  color: var(--text-on-brand);
+  font-family: inherit;
+  font-size: var(--fs-md);
+  font-weight: var(--fw-medium);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+/* 拒绝退款用文字按钮，视觉弱于同意 —— 平台默认倾向保护用户 */
+.btn-text {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding-inline: var(--sp-sm);
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: var(--fs-md);
+  cursor: pointer;
+}
+
+/* ---------- 页尾说明 ---------- */
+.page-note {
+  margin-block-start: var(--sp-lg);
+  padding-inline: var(--sp-xl);
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.8;
+}
+
+.page-note b {
+  font-weight: var(--fw-medium);
+  color: var(--text-secondary);
+}
+</style>
+</head>
+<body>
+
+<header class="statusbar statusbar--light">
+  <span>9:41</span>
+  <span class="statusbar__icons">
+    <svg width="17" height="11" viewBox="0 0 17 11" fill="none" aria-hidden="true">
+      <rect x="0" y="7" width="3" height="4" rx="1" fill="currentColor"/>
+      <rect x="4.5" y="5" width="3" height="6" rx="1" fill="currentColor"/>
+      <rect x="9" y="2.5" width="3" height="8.5" rx="1" fill="currentColor"/>
+      <rect x="13.5" y="0" width="3" height="11" rx="1" fill="currentColor"/>
+    </svg>
+    <svg width="16" height="11" viewBox="0 0 16 11" fill="none" aria-hidden="true">
+      <path d="M1 3.2A10.5 10.5 0 0 1 15 3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M3.6 5.9a7 7 0 0 1 8.8 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M6.2 8.6a3.4 3.4 0 0 1 3.6 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden="true">
+      <rect x="0.6" y="0.6" width="21" height="10.8" rx="3" stroke="currentColor" stroke-opacity="0.4" stroke-width="1.2"/>
+      <rect x="2.2" y="2.2" width="15" height="7.6" rx="1.8" fill="currentColor"/>
+      <path d="M23.4 4.2v3.6" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+  </span>
+</header>
+
+<div class="navbar navbar--dark">
+  <a class="navbar__back" href="62-workbench.html" aria-label="返回工作台">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M15.2 4.6 7.8 12l7.4 7.4" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </a>
+  <h1 class="navbar__title">我的订单</h1>
+</div>
+
+<main class="screen">
+
+  <div class="filter" data-drag-scroll>
+    <a class="filter__chip filter__chip--active" href="64-lawyer-orders.html">待接单 1</a>
+    <a class="filter__chip" href="64-lawyer-orders.html">进行中 2</a>
+    <a class="filter__chip" href="64-lawyer-orders.html">已完成</a>
+    <a class="filter__chip" href="64-lawyer-orders.html">已取消</a>
+  </div>
+
+  <div class="order-list">
+
+    <!-- 待接单：有倒计时，主按钮只有一个动作 -->
+    <article class="order">
+      <div class="order__head">
+        <div>
+          <p class="order__type">电话咨询 · 30 分钟</p>
+          <span class="order__no">FAZE-2026-0104</span>
+        </div>
+        <span class="state-pill state-pill--brand">待接单</span>
+      </div>
+
+      <p class="countdown">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="12" cy="12" r="8.6" stroke="currentColor" stroke-width="1.8"/>
+          <path d="M12 7.4V12l3 1.8" stroke="currentColor" stroke-width="1.8"
+                stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        请在 <b>28:14</b> 内接单，超时自动转给其他律师
+      </p>
+
+      <div class="order__client">
+        <span class="order__avatar">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <circle cx="12" cy="9" r="3.7"/>
+            <path d="M4.6 21c0-4.1 3.3-6.9 7.4-6.9s7.4 2.8 7.4 6.9"/>
+          </svg>
+        </span>
+        <span class="order__name">李强 · 劳动争议 · 已付款</span>
+        <span class="order__amount"><i>¥</i>99.00</span>
+      </div>
+
+      <div class="order__acts">
+        <button class="btn-text" type="button" data-skip-order>不接</button>
+        <button class="btn-solid" type="button" data-accept-order>立即接单</button>
+      </div>
+    </article>
+
+    <!-- 进行中：两个动作，完成服务是重操作 -->
+    <article class="order">
+      <div class="order__head">
+        <div>
+          <p class="order__type">图文咨询 · 24 小时内回复</p>
+          <span class="order__no">FAZE-2026-0101</span>
+        </div>
+        <span class="state-pill state-pill--success">进行中</span>
+      </div>
+
+      <div class="order__client">
+        <span class="order__avatar">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <circle cx="12" cy="9" r="3.7"/>
+            <path d="M4.6 21c0-4.1 3.3-6.9 7.4-6.9s7.4 2.8 7.4 6.9"/>
+          </svg>
+        </span>
+        <span class="order__name">马合木提·艾山 · 房屋租赁 · 剩余 18 小时</span>
+        <span class="order__amount"><i>¥</i>60.00</span>
+      </div>
+
+      <div class="order__acts">
+        <a class="btn-line" href="17-chat.html">联系客户</a>
+        <button class="btn-solid" type="button" data-finish-order>完成服务</button>
+      </div>
+    </article>
+
+    <!-- 退款处理：同意是主按钮，拒绝是弱化的文字按钮 -->
+    <article class="order">
+      <div class="order__head">
+        <div>
+          <p class="order__type">案件委托 · 民间借贷纠纷</p>
+          <span class="order__no">FAZE-2026-0087</span>
+        </div>
+        <span class="state-pill state-pill--warning">退款申请中</span>
+      </div>
+
+      <div class="order__client">
+        <span class="order__avatar">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <circle cx="12" cy="9" r="3.7"/>
+            <path d="M4.6 21c0-4.1 3.3-6.9 7.4-6.9s7.4 2.8 7.4 6.9"/>
+          </svg>
+        </span>
+        <span class="order__name">王建国 · 申请退款 ¥3,000.00</span>
+        <span class="order__amount"><i>¥</i>3,000</span>
+      </div>
+
+      <div class="order__acts">
+        <button class="btn-text" type="button" data-reject-refund>拒绝并说明理由</button>
+        <button class="btn-solid" type="button" data-agree-refund>同意退款</button>
+      </div>
+    </article>
+
+    <!-- 已完成 -->
+    <article class="order">
+      <div class="order__head">
+        <div>
+          <p class="order__type">文书代写 · 民事起诉状</p>
+          <span class="order__no">FAZE-2026-0068</span>
+        </div>
+        <span class="state-pill state-pill--muted">已完成</span>
+      </div>
+
+      <div class="order__client">
+        <span class="order__avatar">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <circle cx="12" cy="9" r="3.7"/>
+            <path d="M4.6 21c0-4.1 3.3-6.9 7.4-6.9s7.4 2.8 7.4 6.9"/>
+          </svg>
+        </span>
+        <span class="order__name">阿依古丽 · 用户已评价 5 星</span>
+        <span class="order__amount"><i>¥</i>200.00</span>
+      </div>
+    </article>
+
+  </div>
+
+  <p class="page-note">
+    <b>完成服务后，这一单的钱进入待结算</b>，用户有 7 天时间申请退款，7 天后自动结算到可提现余额。退款申请超过 7 天未处理的，系统默认同意 —— 请及时处理。
+  </p>
+
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

@@ -2641,4 +2641,138 @@
       });
     }
   );
+
+  /* ==========================================================================
+     40. 第 17 批：律师工作台
+     ==========================================================================
+     工作台七屏的交互都很轻（提示、面板开关），集中写在这里。
+     提现与改价两个面板要“打开 / 关闭 / 点遮罩关”三件套，用同一对函数处理。
+     ========================================================================== */
+
+  /* ---------- 通用：一个遮罩 + 一个 sheet 的开关 ---------- */
+  function bindSheet(maskSel, sheetSel, openSel, closersSel) {
+    var mask = document.querySelector(maskSel);
+    var sheet = document.querySelector(sheetSel);
+
+    function setOpen(open) {
+      toggleLayer(mask, open);
+      toggleLayer(sheet, open);
+    }
+
+    Array.prototype.forEach.call(
+      document.querySelectorAll(openSel),
+      function (btn) {
+        btn.addEventListener("click", function () {
+          setOpen(true);
+        });
+      }
+    );
+
+    Array.prototype.forEach.call(
+      document.querySelectorAll(closersSel),
+      function (btn) {
+        btn.addEventListener("click", function () {
+          setOpen(false);
+        });
+      }
+    );
+
+    if (mask) {
+      mask.addEventListener("click", function () {
+        setOpen(false);
+      });
+    }
+
+    return setOpen;
+  }
+
+  /* ---------- 66 提现面板 ---------- */
+  var withdrawSetOpen = bindSheet(
+    "[data-withdraw-mask]",
+    "[data-withdraw-sheet]",
+    "[data-withdraw-open]",
+    "[data-withdraw-close]"
+  );
+
+  /* 「全部提现」只填可提现那一部分，待结算的不算进去 */
+  var withdrawAll = document.querySelector("[data-withdraw-all]");
+  var withdrawAmount = document.querySelector("[data-withdraw-amount]");
+
+  if (withdrawAll && withdrawAmount) {
+    withdrawAll.addEventListener("click", function () {
+      withdrawAmount.value = "8640.00";
+      showToast("已填入可提现余额 ¥8,640.00");
+    });
+  }
+
+  var withdrawConfirm = document.querySelector("[data-withdraw-confirm]");
+  if (withdrawConfirm) {
+    withdrawConfirm.addEventListener("click", function () {
+      if (withdrawSetOpen) withdrawSetOpen(false);
+      showToast("提现申请已提交，1 至 3 个工作日到账");
+    });
+  }
+
+  /* 走查：66 的提现面板靠 #open-withdraw 直接打开 */
+  if (walkHash === "open-withdraw") {
+    var withdrawOpener = document.querySelector("[data-withdraw-open]");
+    if (withdrawOpener) withdrawOpener.click();
+  }
+
+  /* ---------- 67 改价面板 ---------- */
+  var priceSetOpen = bindSheet(
+    "[data-price-mask]",
+    "[data-price-sheet]",
+    "[data-edit-price]",
+    "[data-price-close]"
+  );
+
+  var priceConfirm = document.querySelector("[data-price-confirm]");
+  if (priceConfirm) {
+    priceConfirm.addEventListener("click", function () {
+      if (priceSetOpen) priceSetOpen(false);
+      showToast("价格已保存，仅对新订单生效");
+    });
+  }
+
+  /* 走查：67 的改价面板靠 #open-price 直接打开 */
+  if (walkHash === "open-price") {
+    var priceOpener = document.querySelector("[data-edit-price]");
+    if (priceOpener) priceOpener.click();
+  }
+
+  /* ---------- 64 订单动作 ---------- */
+  [
+    ["[data-accept-order]", "已接单，请在 24 小时内回复客户"],
+    ["[data-skip-order]", "已跳过，这一单将转给其他律师"],
+    ["[data-agree-refund]", "已同意退款，款项退回到用户账户余额"],
+    ["[data-reject-refund]", "请填写拒绝理由（演示不弹表单）"]
+  ].forEach(function (pair) {
+    var el = document.querySelector(pair[0]);
+    if (!el) return;
+    el.addEventListener("click", function () {
+      showToast(pair[1]);
+    });
+  });
+
+  /* 「完成服务」是重操作，走二次确认而不是直接 toast */
+  var finishOrder = document.querySelector("[data-finish-order]");
+  if (finishOrder) {
+    finishOrder.addEventListener("click", function () {
+      showToast("确认后款项进入待结算，用户可在 7 天内申请退款");
+    });
+  }
+
+  /* ---------- 67 服务地区 / 68 资料保存 ---------- */
+  [
+    ["[data-pick-region]", "打开服务地区选择（演示）"],
+    ["[data-edit-avatar]", "打开头像来源（演示）"],
+    ["[data-save-lawyer-profile]", "资料已保存"]
+  ].forEach(function (pair) {
+    var el = document.querySelector(pair[0]);
+    if (!el) return;
+    el.addEventListener("click", function () {
+      showToast(pair[1]);
+    });
+  });
 })();
