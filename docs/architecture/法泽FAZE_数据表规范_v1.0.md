@@ -600,5 +600,21 @@ COMMENT='订单主表；状态枚举：created/paid/accepted/completed/cancelled
 
 ---
 
+# 附录 D：三份新规范提出的表结构追加（2026-10-30 新增）
+
+《i18n 规范》《审计与日志规范》落地时需要这几处补充。**建表时一并加上**，不要等做到那个功能才发现缺字段、再返工迁移。
+
+| # | 表 | 追加什么 | 依据 |
+|---|---|---|---|
+| 1 | `app_user` | **增加 `preferred_lang VARCHAR(16)`**，默认 `zh-Hans` | 《i18n 规范》§10.2：服务端发通知/推送要知道用哪种语言 |
+| 2 | `notify_template` | **唯一键改为 `(scene, lang)`**（原为 `scene`） | 《i18n 规范》§10.2：一个场景四种语言各一行 |
+| 3 | `task_queue` | **增加 `trace_id VARCHAR(64)`** | 《审计与日志规范》§4.5：异步任务失败时要知道它来自哪次用户请求 |
+| 4 | `sys_config` | 增加四个留存配置键：`audit.login-log-days`、`audit.operation-log-days`、`audit.finance-log-days`、`log.retention-days` | 《审计与日志规范》§5.2：留存期可配，不写死在代码里 |
+| 5 | `operation_log` | **授权变更**：应用账号只有 `INSERT` / `SELECT`，无 `UPDATE` / `DELETE` | 《审计与日志规范》§3.4：不可篡改的工程保证 |
+
+> 第 5 条不是表结构变更而是**数据库授权变更**，登记在这里是因为它和数据表一起在段 0 的 `deploy/start-services.ps1` 里做。
+
+---
+
 > **【文档基线 v1.13】** 本文件属于「法泽 FAZE 文档基线 v1.13」（2026-10-30 纳入）。
 > **后续一切文档从这里开始。** 基线清单与文件指纹见 `docs/BASELINE.md`。

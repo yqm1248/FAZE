@@ -57,7 +57,20 @@
 | **B. faze-api 自签** | PC 业务页另建 axios 实例（`src/api/biz/request.js`，不改框架层），登录调 faze-api `/api/v1/admin/auth/login` | 两端彻底解耦，faze-api 不依赖 RuoYi | **双登录**：RuoYi 自带页要 RuoYi token，业务页要 faze token，用户要登两次或做静默换取 | 体验差；换取接口又要维护一套映射表 |
 | **C. 网关统一** | 加一层反代/网关，按路径分流，token 统一在校验 | 最干净 | 多一个部署单元；段 0 的成本上去了 | 与「段 0 不做业务、只做底座」冲突 |
 
-> **本文件按方案 A 写后续条款**（PC 侧鉴权按「faze-api 能校验 RuoYi 签发的 token」描述），但**该决策仍待负责人拍板**（见 §八 待决事项 P-1）。若改方案 B，§5.2 与附录 C 要重写。
+> **✅ 已拍板（2026-10-30）：采用方案 A**——项目负责人选定「共享 `token.secret` + 共享 Redis」。本文件后续条款按 A 写；若日后改 B，§6.2 与附录 C 要重写。
+
+### 1.3.1 方案 A 的实施要点（2026-10-30 拍板后补）
+
+| # | 事项 | 要点 |
+|---|---|---|
+| 1 | **`token.secret` 必须完全一致** | 两端从**同一个环境变量**注入（`FAZE_TOKEN_SECRET`），不各写一份 yml 值——写两份一定漂移 |
+| 2 | **同一个 Redis 库，但 key 前缀隔离** | RuoYi 用 `login_tokens:`；faze-api 的业务缓存放 `faze:` 前缀。否则清业务缓存会误伤登录态 |
+| 3 | **复刻 `JwtAuthenticationTokenFilter` 的校验链** | 解 JWT → 取 `login_user_key`（UUID）→ 查 `login_tokens:<uuid>` → 反序列化出 userId / username / permissions → 放进 SecurityContext |
+| 4 | **只取必要字段** | faze-api 不需要完整的 `SysUser`。解析时**只读 userId、username、permissions**，其余忽略——降低对 RuoYi 版本的耦合 |
+| 5 | **⚠️ 待实测：`LoginUser` 在 Redis 里怎么序列化** | 若用 `FastJson2JsonRedisSerializer`（RuoYi-Vue3 常见默认），faze-api 用 Jackson 或 Fastjson2 都能读；**若用 JDK 序列化**，faze-api 必须能加载同一个类才能读出来。**开段 1 的 PC 部分前必须先验这一条** |
+| 6 | **登记耦合点** | 在 `docs/analysis/ruoyi-patches.md` 记一条：faze-api 依赖 RuoYi 的 `login_tokens:<uuid>` 结构与 `LoginUser` 字段。RuoYi 升级时要回归 |
+
+**失败时的退路**：若第 5 条实测不通（序列化不兼容），**降级为方案 B**——faze-api 自签管理端 token，PC 侧新建独立 axios 实例（不改 RuoYi 框架层）。会变成双登录，但不至于卡死段 1。
 
 ---
 
@@ -764,7 +777,7 @@ if (o == null) throw new BusinessException(TRADE_ORDER_NOT_FOUND);
 
 | # | 事项 | 影响 | 不拍板的处理 |
 |---|---|---|---|
-| **P-1** | **PC 端 token 互认方案**（§1.3 的 A/B/C） | 段 1 的 PC 7 页全部无法联调 | 本文件按 A 写；开段 1 的 PC 部分前**必须**拍板 |
+| **P-1** | ~~PC 端 token 互认方案~~（§1.3 的 A/B/C） | 段 1 的 PC 7 页联调 | **✅ 已拍板 2026-10-30：方案 A（共享 `token.secret` + 共享 Redis）**。实施要点与「序列化待实测」见 §1.3.1 |
 | P-2 | 管理端鉴权失败返回 `code=401`（裁决 9）是否接受 | 若不接受，必须新建独立 axios 实例（方案 B 的一部分） | 按裁决 9 执行 |
 | P-3 | 幂等重复请求「返回首次结果」（裁决 10） | 影响所有资金接口 | 按裁决 10 执行 |
 | P-4 | 限流阈值（短信 1/分钟、AI 50 轮/天）是否合适 | 影响运营策略，不是技术问题 | 先用本表值，写进 `sys_config` 可调 |
