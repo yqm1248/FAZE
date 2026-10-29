@@ -775,13 +775,28 @@
     });
   });
 
-  /* 材料上传位：演示用，点一下切换「已上传 / 待上传」 */
+  /* 材料上传位：演示用，点一下切换「已上传 / 待上传」
+     ★ 去掉 is-missing（第 13 批加的「必填未传」红虚线态）：
+       只加 is-done 的话两个类会同时存在，红边压住蓝底，看起来像没上传成功。
+     ★ hint 若带 data-upload-hint，同时切换文案 —— 否则会出现
+       「框已经变蓝了，下面还写着『必填，还未上传』」的自相矛盾。 */
   var uploadButtons = document.querySelectorAll("[data-upload]");
 
   Array.prototype.forEach.call(uploadButtons, function (up) {
+    var hint = up.querySelector("[data-upload-hint]");
+
     up.addEventListener("click", function () {
-      up.classList.toggle("is-done");
-      showToast(up.classList.contains("is-done") ? "已选择照片（演示）" : "已移除");
+      var done = !up.classList.contains("is-done");
+
+      up.classList.toggle("is-done", done);
+      up.classList.remove("is-missing");
+
+      if (hint) {
+        var text = hint.getAttribute(done ? "data-done" : "data-idle");
+        if (text) hint.textContent = text;
+      }
+
+      showToast(done ? "已选择照片（演示）" : "已移除");
     });
   });
 
@@ -2370,5 +2385,171 @@
     if (walkHash !== pair[0]) return;
     var opener = document.querySelector(pair[1]);
     if (opener) opener.click();
+  });
+  /* ==========================================================================
+     37. 第 13 批：收藏 / 关注 / 编辑资料 / 实名 / 企业认证
+     ==========================================================================
+     这一批的交互分散在 5 屏，共同点是都只有「视图切换」和「提示」，
+     没有需要跨屏保持的状态，所以集中写在这里，不建新文件。
+     ========================================================================== */
+
+  /* ---------- 51 分段 Tab（第 13 批新增，见 components.css 第 27 段） ----------
+     与登录页的 [data-login-tab] 分开写：那套是「密码登录 / 验证码登录」两种方式，
+     这套是「文章 / 律师 / 案例」三类内容，将来落到 RN 是两种不同组件
+     （一个 TabView、一个 SegmentedControl），没必要现在强行统一。 */
+  var segItems = document.querySelectorAll("[data-seg]");
+  var segPanes = document.querySelectorAll("[data-seg-pane]");
+
+  function showSeg(name) {
+    var hit = false;
+
+    Array.prototype.forEach.call(segItems, function (item) {
+      var on = item.getAttribute("data-seg") === name;
+      item.classList.toggle("is-active", on);
+      item.setAttribute("aria-selected", on ? "true" : "false");
+      if (on) hit = true;
+    });
+
+    /* 名字对不上就什么都不做 —— 免得 hash 写错时把三个 pane 全隐藏掉 */
+    if (!hit) return;
+
+    Array.prototype.forEach.call(segPanes, function (pane) {
+      if (pane.getAttribute("data-seg-pane") === name) pane.removeAttribute("hidden");
+      else pane.setAttribute("hidden", "");
+    });
+  }
+
+  if (segItems.length && segPanes.length) {
+    Array.prototype.forEach.call(segItems, function (item) {
+      item.addEventListener("click", function () {
+        showSeg(item.getAttribute("data-seg"));
+      });
+    });
+
+    /* 走查：51 的另外两个 Tab 靠 #seg-lawyer / #seg-case 直接打开 */
+    if (walkHash.indexOf("seg-") === 0) showSeg(walkHash.slice(4));
+  }
+
+  /* ---------- 51 / 52 取消收藏、取消关注 ----------
+     演示里真把卡片移掉，而不是只弹个提示：
+     取消收藏如果看起来「什么也没发生」，走查时无法判断交互对不对。
+     移除用淡出而不是直接 hidden，否则会像页面闪了一下。 */
+  function fadeOutCard(node, delay) {
+    if (!node) return;
+
+    node.style.transition = "opacity 180ms ease";
+    node.style.opacity = "0";
+
+    window.setTimeout(function () {
+      node.setAttribute("hidden", "");
+    }, delay || 180);
+  }
+
+  Array.prototype.forEach.call(
+    document.querySelectorAll("[data-unfav]"),
+    function (btn) {
+      btn.addEventListener("click", function () {
+        fadeOutCard(btn.closest(".swipe"));
+        showToast("已取消收藏");
+      });
+    }
+  );
+
+  Array.prototype.forEach.call(
+    document.querySelectorAll("[data-unfollow]"),
+    function (btn) {
+      btn.addEventListener("click", function () {
+        fadeOutCard(btn.closest(".follow-card"));
+        showToast("已取消关注");
+      });
+    }
+  );
+
+  /* 走查：51 的左滑态靠 #swipe 直接把第一张卡展开。
+     主屏不静态展开它 —— 内容左移会把标题左边裁掉，看着像排版坏了。 */
+  if (walkHash === "swipe") {
+    var firstSwipe = document.querySelector(".swipe");
+    if (firstSwipe) firstSwipe.classList.add("is-open");
+  }
+
+  /* ---------- 50 头像来源面板 ---------- */
+  var avatarSheet = document.querySelector("[data-avatar-sheet]");
+  var avatarMask = document.querySelector("[data-avatar-mask]");
+
+  function setAvatarSheet(open) {
+    toggleLayer(avatarMask, open);
+    toggleLayer(avatarSheet, open);
+  }
+
+  var avatarOpen = document.querySelector("[data-avatar-open]");
+
+  if (avatarOpen) {
+    avatarOpen.addEventListener("click", function () {
+      setAvatarSheet(true);
+    });
+  }
+
+  Array.prototype.forEach.call(
+    document.querySelectorAll("[data-avatar-close]"),
+    function (el) {
+      el.addEventListener("click", function () {
+        setAvatarSheet(false);
+      });
+    }
+  );
+
+  if (avatarMask) {
+    avatarMask.addEventListener("click", function () {
+      setAvatarSheet(false);
+    });
+  }
+
+  Array.prototype.forEach.call(
+    document.querySelectorAll("[data-avatar-pick]"),
+    function (el) {
+      el.addEventListener("click", function () {
+        setAvatarSheet(false);
+        showToast(
+          el.getAttribute("data-avatar-pick") === "camera"
+            ? "打开相机（演示）"
+            : "打开相册（演示）"
+        );
+      });
+    }
+  );
+
+  /* 走查：50 的头像面板靠 #open-avatar 直接打开，截图不用再点一次 */
+  if (walkHash === "open-avatar" && avatarOpen) avatarOpen.click();
+
+  /* ---------- 50 生日 / 地区选择器 ----------
+     设计稿不实现真实选择器（日期滚轮 / 省市区三级联动），
+     但点击必须给反馈，否则会被当成「点不动」。 */
+  Array.prototype.forEach.call(
+    document.querySelectorAll("[data-open-picker]"),
+    function (row) {
+      row.addEventListener("click", function () {
+        showToast(
+          row.getAttribute("data-open-picker") === "birthday"
+            ? "打开日期选择器（演示）"
+            : "打开地区选择器（演示）"
+        );
+      });
+    }
+  );
+
+  /* ---------- 50 保存 / 48 49 提交 ---------- */
+  [
+    ["[data-save-profile]", "资料已保存"],
+    ["[data-submit-verify]", "已提交，审核结果会通过消息通知你"],
+    ["[data-reverify]", "请重新拍摄国徽面后提交"],
+    ["[data-submit-company]", "已提交，审核结果会通过消息通知你"],
+    ["[data-resubmit-company]", "请重新拍摄营业执照后提交"],
+    ["[data-scan-license]", "打开营业执照识别（演示）"]
+  ].forEach(function (pair) {
+    var el = document.querySelector(pair[0]);
+    if (!el) return;
+    el.addEventListener("click", function () {
+      showToast(pair[1]);
+    });
   });
 })();

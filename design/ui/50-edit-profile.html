@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390, initial-scale=1">
+<meta name="dsh-design" content="app">
+<title>编辑资料</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   个人资料编辑页（第 13 批 · 延展，无参考图）
+   ==========================================================================
+   职责：改头像、昵称、性别、生日、地区、个人简介。
+   入口：05-profile 用户卡片（点头像区）/ 41-settings 无入口，从 05 进
+   数据来源：用户资料接口（昵称 / 头像 OSS 地址 / 性别 / 出生日期 / 地区码 / 简介）
+
+   ★ 这一页只放「别人看得到的资料」。手机号、实名信息不在这里 ——
+     那些是账号属性，不是资料。混进来的后果是用户改个昵称要穿过一堆
+     不敢动的字段，最后干脆不改了。
+
+   ★ 昵称和简介下面都写了一句「会展示给谁」。这是必须的：
+     用户以为这是私人信息，随手把「我家住文化路 12 号」写进简介，
+     律师看到了、聊天截图传出去了，责任在平台没有提前说明。
+
+   ★ 生日、性别、地区都不是必填。做身份核验用不到这些，
+     硬性要求填只会让注册转化率下降；留空时按不展示处理。
+   ========================================================================== */
+
+body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-canvas);
+}
+
+.navbar {
+  background: var(--bg-surface);
+}
+
+.screen {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding: 0 var(--sp-xl) var(--sp-xxl);
+}
+.screen::-webkit-scrollbar {
+  display: none;
+}
+
+/* ---------- 头像区 ---------- */
+.avatar-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-block: var(--sp-xl) var(--sp-md);
+}
+
+.avatar-big {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  background: var(--brand-primary-soft);
+  color: var(--brand-primary-pressed);
+  overflow: hidden;
+}
+
+.avatar-big svg {
+  width: 46px;
+  height: 46px;
+}
+
+/* 「更换头像」是文字按钮，视觉小、热区 44 */
+.avatar-change {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  margin-block-start: var(--sp-xxs);
+  padding-inline: var(--sp-md);
+  border: 0;
+  background: transparent;
+  color: var(--brand-primary);
+  font-family: inherit;
+  font-size: var(--fs-md);
+  cursor: pointer;
+}
+
+/* ---------- 卡片 ---------- */
+.card-block {
+  margin-block-start: var(--sp-md);
+  padding: var(--sp-md) var(--sp-lg);
+  border-radius: var(--r-md);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.block-title {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-sm);
+  padding-block: var(--sp-xs) var(--sp-sm);
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+}
+
+.block-title__note {
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-regular);
+  color: var(--text-muted);
+}
+
+/* ---------- 字段行 ---------- */
+.field-line {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  min-height: 54px;
+  border-block-end: 1px solid var(--border-divider);
+}
+
+.field-line:last-of-type {
+  border-block-end: 0;
+}
+
+.field-line__label {
+  flex: 0 0 72px;
+  font-size: var(--fs-md);
+  color: var(--text-secondary);
+}
+
+.field-line input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 54px;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: var(--fs-lg);
+  outline: none;
+}
+
+.field-line input::placeholder {
+  color: #A3A9AE;
+}
+
+/* 字数计数：用 num 字体，避免 20 → 19 时数字宽度变化让整行抖 */
+.field-line__count {
+  flex: 0 0 auto;
+  font-family: var(--font-num);
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+}
+
+/* ---------- 多行简介 ---------- */
+.bio-wrap {
+  position: relative;
+  padding-block: var(--sp-sm) var(--sp-xs);
+}
+
+.bio-input {
+  display: block;
+  width: 100%;
+  min-height: 88px;
+  padding: var(--sp-md);
+  border: 0;
+  border-radius: var(--r-sm);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: var(--fs-md);
+  line-height: 1.7;
+  resize: none;
+  outline: none;
+}
+
+.bio-input::placeholder {
+  color: #A3A9AE;
+}
+
+.bio-count {
+  position: absolute;
+  inset-block-end: var(--sp-sm);
+  inset-inline-end: var(--sp-md);
+  font-family: var(--font-num);
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+/* ---------- 说明小字 ---------- */
+.field-tip {
+  padding: var(--sp-sm) 0 var(--sp-xs);
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.7;
+}
+
+.field-tip b {
+  font-weight: var(--fw-medium);
+  color: var(--text-secondary);
+}
+
+/* ---------- 头像选择面板里的选项行 ---------- */
+.avatar-sheet__opt {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 56px;
+  border: 0;
+  border-block-end: 1px solid var(--border-divider);
+  background: transparent;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: var(--fs-lg);
+  cursor: pointer;
+}
+
+.avatar-sheet__opt:last-of-type {
+  border-block-end: 0;
+}
+
+.avatar-sheet__opt--cancel {
+  margin-block-start: var(--sp-sm);
+  border-block-end: 0;
+  border-radius: var(--r-sm);
+  background: var(--bg-input);
+  color: var(--text-secondary);
+}
+</style>
+</head>
+<body>
+
+<header class="statusbar">
+  <span>9:41</span>
+  <span class="statusbar__icons">
+    <svg width="17" height="11" viewBox="0 0 17 11" fill="none" aria-hidden="true">
+      <rect x="0" y="7" width="3" height="4" rx="1" fill="currentColor"/>
+      <rect x="4.5" y="5" width="3" height="6" rx="1" fill="currentColor"/>
+      <rect x="9" y="2.5" width="3" height="8.5" rx="1" fill="currentColor"/>
+      <rect x="13.5" y="0" width="3" height="11" rx="1" fill="currentColor"/>
+    </svg>
+    <svg width="16" height="11" viewBox="0 0 16 11" fill="none" aria-hidden="true">
+      <path d="M1 3.2A10.5 10.5 0 0 1 15 3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M3.6 5.9a7 7 0 0 1 8.8 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M6.2 8.6a3.4 3.4 0 0 1 3.6 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden="true">
+      <rect x="0.6" y="0.6" width="21" height="10.8" rx="3" stroke="currentColor" stroke-opacity="0.4" stroke-width="1.2"/>
+      <rect x="2.2" y="2.2" width="15" height="7.6" rx="1.8" fill="currentColor"/>
+      <path d="M23.4 4.2v3.6" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+  </span>
+</header>
+
+<div class="navbar">
+  <a class="navbar__back" href="05-profile.html" aria-label="返回我的">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M15.2 4.6 7.8 12l7.4 7.4" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </a>
+  <h1 class="navbar__title">编辑资料</h1>
+</div>
+
+<main class="screen">
+
+  <section class="avatar-block">
+    <div class="avatar-big" aria-label="当前头像">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <circle cx="12" cy="9" r="3.7" fill="currentColor"/>
+        <path d="M4.6 21c0-4.1 3.3-6.9 7.4-6.9s7.4 2.8 7.4 6.9" fill="currentColor"/>
+      </svg>
+    </div>
+    <button class="avatar-change" type="button" data-avatar-open>更换头像</button>
+  </section>
+
+  <section class="card-block">
+    <h2 class="block-title">基本资料</h2>
+
+    <div class="field-line">
+      <span class="field-line__label">昵称</span>
+      <input type="text" maxlength="20" value="马合木提" aria-label="昵称" data-field="nickname">
+      <span class="field-line__count">4 / 20</span>
+    </div>
+
+    <div class="field-line">
+      <span class="field-line__label">性别</span>
+      <div class="pick-list" style="margin: 0; flex: 1 1 auto; justify-content: flex-end;">
+        <button class="pick is-active" type="button" data-pick-one="gender">男</button>
+        <button class="pick" type="button" data-pick-one="gender">女</button>
+        <button class="pick" type="button" data-pick-one="gender">不展示</button>
+      </div>
+    </div>
+
+    <p class="field-tip">
+      <b>昵称会展示给咨询的律师和客服</b>，用于在对话里认出你。用真名、化名都可以，但不要在这里写身份证号或手机号。
+    </p>
+  </section>
+
+  <h2 class="set-group__title">更多信息</h2>
+  <div class="set-list">
+    <button class="set-row" type="button" data-open-picker="birthday">
+      <span class="set-row__label">生日</span>
+      <span class="set-row__value set-row__value--num">1985-04-12</span>
+      <svg class="set-row__chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="m9.2 4.6 7.4 7.4-7.4 7.4" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+    <button class="set-row" type="button" data-open-picker="region">
+      <span class="set-row__label">所在地区</span>
+      <span class="set-row__value">新疆 伊犁 · 伊宁市</span>
+      <svg class="set-row__chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="m9.2 4.6 7.4 7.4-7.4 7.4" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+  </div>
+
+  <p class="field-tip">
+    都不填也能正常使用。<b>地区只用来把你附近的律师排在前面</b>，生日只用来核对是否成年，两项都不会完整展示给其他用户。
+  </p>
+
+  <section class="card-block">
+    <h2 class="block-title">
+      个人简介
+      <span class="block-title__note">选填</span>
+    </h2>
+    <div class="bio-wrap">
+      <textarea class="bio-input" maxlength="60" aria-label="个人简介"
+                placeholder="说一句让律师更快了解你情况的话，比如纠纷类型和大致经过"
+                data-field="bio">因房屋租赁押金纠纷需要咨询，合同签了一年，到期后房东不退押金。</textarea>
+      <span class="bio-count">33 / 60</span>
+    </div>
+    <p class="field-tip">
+      <b>简介律师和客服都能看到。</b>不要写身份证号、手机号、详细住址、银行卡号 —— 案件细节留到和律师对话时再说，那里是加密的。
+    </p>
+  </section>
+
+</main>
+
+<div class="actionbar">
+  <button class="btn-primary actionbar__cta" type="button" data-save-profile>保存</button>
+</div>
+
+<!-- ======================================================================
+     头像来源面板（.mask / .sheet 见 components.css 第 8 段）
+     ====================================================================== -->
+<div class="mask" data-avatar-mask hidden></div>
+<div class="sheet" data-avatar-sheet hidden role="dialog" aria-modal="true" aria-label="更换头像">
+  <div class="sheet__handle"></div>
+  <div class="sheet__head">
+    <h2 class="sheet__title">更换头像</h2>
+    <button class="sheet__close" type="button" data-avatar-close aria-label="关闭">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="m6.4 6.4 11.2 11.2M17.6 6.4 6.4 17.6" stroke="currentColor"
+              stroke-width="2" stroke-linecap="round"/>
+      </svg>
+    </button>
+  </div>
+
+  <button class="avatar-sheet__opt" type="button" data-avatar-pick="camera">拍照</button>
+  <button class="avatar-sheet__opt" type="button" data-avatar-pick="album">从相册选择</button>
+  <button class="avatar-sheet__opt avatar-sheet__opt--cancel" type="button" data-avatar-close>取消</button>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

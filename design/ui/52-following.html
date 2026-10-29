@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390, initial-scale=1">
+<meta name="dsh-design" content="app">
+<title>关注律师</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   关注律师列表（第 13 批 · 延展，无参考图）
+   ==========================================================================
+   职责：列出用户关注过的律师，带在线状态与最新动态，支持取消关注。
+   入口：05-profile「关注律师」
+   数据来源：关注关系接口（律师 id / 在线状态 / 最近活跃时间 / 最新动态）
+   整页两态：list（默认）/ empty，用 URL hash 切换 #state-empty
+
+   ★ 这一页的主体不是「律师名片」，是「最新动态」。
+     关注一个律师的动机是「我想第一时间知道他在说什么」，不是
+     「我想再看一遍他的执业年限」—— 那些信息在律师详情页里有。
+     所以每张卡里动态占的位置比头衔大，且排在姓名下面第一眼能读到的地方。
+
+   ★ 排序按「最近活跃」而不是「关注时间」。关注时间是用户的记忆锚点，
+     但对「谁值得我先看」没有帮助；一个三年前关注的律师如果昨天才上线，
+     他才是现在最该出现在第一条的人。排序规则写在页面上，避免用户
+     以为列表乱了。
+
+   ★ 取消关注做成弱化的文字按钮，放在卡片左下角。
+     它不是高频操作，做成主按钮会误触（尤其卡片整体可点时）；
+     但也不能藏进二级菜单 —— 用户想取关时找不到，会以为被强行绑定了。
+   ========================================================================== */
+
+body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-canvas);
+}
+
+.navbar {
+  background: var(--bg-surface);
+}
+
+.screen {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding: 0 var(--sp-xl) var(--sp-xl);
+}
+.screen::-webkit-scrollbar {
+  display: none;
+}
+
+/* ---------- 排序说明 ---------- */
+.sort-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-block-start: var(--sp-md);
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.sort-note svg {
+  flex: 0 0 auto;
+  width: 15px;
+  height: 15px;
+}
+
+/* ---------- 律师卡 ---------- */
+.follow-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-block-start: var(--sp-sm);
+}
+
+.follow-card {
+  padding: var(--sp-md) var(--sp-lg) var(--sp-sm);
+  border-radius: var(--r-md);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.follow-card__head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-md);
+}
+
+.follow-card__avatar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--brand-primary-soft);
+  color: var(--brand-primary-pressed);
+}
+
+.follow-card__avatar svg {
+  width: 28px;
+  height: 28px;
+}
+
+.follow-card__info {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.follow-card__name-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-sm);
+}
+
+.follow-card__name {
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.follow-card__years {
+  font-family: var(--font-num);
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.follow-card__firm {
+  margin-block-start: 3px;
+  font-size: var(--fs-caption);
+  color: var(--text-secondary);
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 在线状态：绿点 + 文字（不只靠颜色） */
+.online {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--fs-caption);
+  color: var(--state-success);
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.online::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* 离线用灰点，与在线同一形态，靠颜色和文字区分 */
+.online--off {
+  color: var(--text-muted);
+}
+
+/* ---------- 专长标签 ---------- */
+.follow-card__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-block-start: var(--sp-sm);
+}
+
+/* ---------- 最新动态 ---------- */
+.feed {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-sm);
+  margin-block-start: var(--sp-md);
+  padding: var(--sp-sm) var(--sp-md);
+  border-radius: var(--r-sm);
+  background: var(--bg-canvas);
+}
+
+.feed__icon {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  margin-block-start: 2px;
+  color: var(--brand-primary);
+}
+
+.feed__main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.feed__text {
+  font-size: var(--fs-caption);
+  color: var(--text-secondary);
+  line-height: 1.6;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* 动态里的标题单独提出来，允许点进去 */
+.feed__text b {
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+}
+
+.feed__time {
+  margin-block-start: 3px;
+  font-family: var(--font-num);
+  font-size: var(--fs-micro);
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+/* 没有动态时的兜底：写「还没有发布内容」而不是留白 */
+.feed--none .feed__text {
+  color: var(--text-muted);
+}
+
+/* ---------- 底部操作 ---------- */
+.follow-card__actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-md);
+  margin-block-start: var(--sp-md);
+  padding-block-start: var(--sp-sm);
+  border-block-start: 1px solid var(--border-divider);
+}
+
+/* 取消关注：弱化的文字按钮，热区 44 */
+.unfollow {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin-inline-start: -2px;
+  padding-inline: 2px;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: var(--fs-md);
+  cursor: pointer;
+}
+
+.unfollow:active {
+  color: var(--state-danger);
+}
+
+/* 发消息：主按钮，小一号 */
+.follow-card__cta {
+  flex: 0 0 auto;
+}
+
+/* ---------- 页面底部说明 ---------- */
+.page-note {
+  margin-block-start: var(--sp-lg);
+  padding-inline: 2px;
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.8;
+}
+
+.page-note b {
+  font-weight: var(--fw-medium);
+  color: var(--text-secondary);
+}
+</style>
+</head>
+<body>
+
+<header class="statusbar">
+  <span>9:41</span>
+  <span class="statusbar__icons">
+    <svg width="17" height="11" viewBox="0 0 17 11" fill="none" aria-hidden="true">
+      <rect x="0" y="7" width="3" height="4" rx="1" fill="currentColor"/>
+      <rect x="4.5" y="5" width="3" height="6" rx="1" fill="currentColor"/>
+      <rect x="9" y="2.5" width="3" height="8.5" rx="1" fill="currentColor"/>
+      <rect x="13.5" y="0" width="3" height="11" rx="1" fill="currentColor"/>
+    </svg>
+    <svg width="16" height="11" viewBox="0 0 16 11" fill="none" aria-hidden="true">
+      <path d="M1 3.2A10.5 10.5 0 0 1 15 3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M3.6 5.9a7 7 0 0 1 8.8 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M6.2 8.6a3.4 3.4 0 0 1 3.6 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden="true">
+      <rect x="0.6" y="0.6" width="21" height="10.8" rx="3" stroke="currentColor" stroke-opacity="0.4" stroke-width="1.2"/>
+      <rect x="2.2" y="2.2" width="15" height="7.6" rx="1.8" fill="currentColor"/>
+      <path d="M23.4 4.2v3.6" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+  </span>
+</header>
+
+<div class="navbar">
+  <a class="navbar__back" href="05-profile.html" aria-label="返回我的">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M15.2 4.6 7.8 12l7.4 7.4" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </a>
+  <h1 class="navbar__title">关注律师</h1>
+</div>
+
+<main class="screen">
+
+  <!-- ====================================================================
+       状态 list：有关注（默认）
+       ==================================================================== -->
+  <section data-state="list">
+
+    <p class="sort-note">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M5 7h14M7.5 12h9M10 17h4" stroke="currentColor" stroke-width="1.8"
+              stroke-linecap="round"/>
+      </svg>
+      按最近活跃排序，最近有动态的排在前面
+    </p>
+
+    <div class="follow-list">
+
+      <!-- 在线 + 有新动态 -->
+      <article class="follow-card">
+        <div class="follow-card__head">
+          <div class="follow-card__avatar" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <circle cx="12" cy="9" r="3.7"/>
+              <path d="M4.6 21c0-4.1 3.3-6.9 7.4-6.9s7.4 2.8 7.4 6.9"/>
+            </svg>
+          </div>
+          <div class="follow-card__info">
+            <div class="follow-card__name-row">
+              <span class="follow-card__name">张领律师</span>
+              <span class="follow-card__years">执业 15 年</span>
+            </div>
+            <p class="follow-card__firm">法泽律师事务所</p>
+          </div>
+          <span class="online">在线</span>
+        </div>
+
+        <div class="follow-card__tags">
+          <span class="tag">民事纠纷</span>
+          <span class="tag">合同纠纷</span>
+        </div>
+
+        <div class="feed">
+          <svg class="feed__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M5.4 3.6h13.2v16.8l-3.3-2.1-3.3 2.1-3.3-2.1-3.3 2.1V3.6Z"
+                  stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+            <path d="M8.6 8.2h6.8M8.6 11.8h4.4" stroke="currentColor" stroke-width="1.7"
+                  stroke-linecap="round"/>
+          </svg>
+          <div class="feed__main">
+            <p class="feed__text">发布了文章 <b>《房屋租赁押金不退，该怎么办》</b></p>
+            <p class="feed__time">2 天前</p>
+          </div>
+        </div>
+
+        <div class="follow-card__actions">
+          <button class="unfollow" type="button" data-unfollow>取消关注</button>
+          <a class="btn-pill-sm follow-card__cta" href="17-chat.html">发消息</a>
+        </div>
+      </article>
+
+      <!-- 离线 + 回复过咨询 -->
+      <article class="follow-card">
+        <div class="follow-card__head">
+          <div class="follow-card__avatar" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <circle cx="12" cy="9" r="3.7"/>
+              <path d="M4.6 21c0-4.1 3.3-6.9 7.4-6.9s7.4 2.8 7.4 6.9"/>
+            </svg>
+          </div>
+          <div class="follow-card__info">
+            <div class="follow-card__name-row">
+              <span class="follow-card__name">李建华律师</span>
+              <span class="follow-card__years">执业 12 年</span>
+            </div>
+            <p class="follow-card__firm">盈科律师事务所</p>
+          </div>
+          <span class="online online--off">3 天前在线</span>
+        </div>
+
+        <div class="follow-card__tags">
+          <span class="tag">婚姻家事</span>
+          <span class="tag">继承</span>
+        </div>
+
+        <div class="feed">
+          <svg class="feed__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M4.4 5.2h15.2v10.4H8.6L4.4 19V5.2Z" stroke="currentColor"
+                  stroke-width="1.7" stroke-linejoin="round"/>
+            <path d="M8.4 9h7.2M8.4 12h4.6" stroke="currentColor" stroke-width="1.7"
+                  stroke-linecap="round"/>
+          </svg>
+          <div class="feed__main">
+            <p class="feed__text">回复了 1 条婚姻家事咨询，内容已做隐私处理，<b>你有相似的经历吗</b></p>
+            <p class="feed__time">3 天前</p>
+          </div>
+        </div>
+
+        <div class="follow-card__actions">
+          <button class="unfollow" type="button" data-unfollow>取消关注</button>
+          <a class="btn-pill-sm follow-card__cta" href="17-chat.html">发消息</a>
+        </div>
+      </article>
+
+      <!-- 长期未活跃：明确写出来，让用户自己决定要不要继续关注 -->
+      <article class="follow-card">
+        <div class="follow-card__head">
+          <div class="follow-card__avatar" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <circle cx="12" cy="9" r="3.7"/>
+              <path d="M4.6 21c0-4.1 3.3-6.9 7.4-6.9s7.4 2.8 7.4 6.9"/>
+            </svg>
+          </div>
+          <div class="follow-card__info">
+            <div class="follow-card__name-row">
+              <span class="follow-card__name">古丽娜尔律师</span>
+              <span class="follow-card__years">执业 8 年</span>
+            </div>
+            <p class="follow-card__firm">伊犁天正律师事务所</p>
+          </div>
+          <span class="online online--off">2 个月前在线</span>
+        </div>
+
+        <div class="follow-card__tags">
+          <span class="tag">劳动争议</span>
+        </div>
+
+        <div class="feed feed--none">
+          <svg class="feed__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="12" cy="12" r="8.6" stroke="currentColor" stroke-width="1.7"/>
+            <path d="M12 7.6v5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+            <circle cx="12" cy="15.8" r="1.1" fill="currentColor"/>
+          </svg>
+          <div class="feed__main">
+            <p class="feed__text">近 30 天没有发布内容，也没有上线</p>
+            <p class="feed__time">最后活跃于 2026-08-28</p>
+          </div>
+        </div>
+
+        <div class="follow-card__actions">
+          <button class="unfollow" type="button" data-unfollow>取消关注</button>
+          <a class="btn-pill-sm follow-card__cta" href="17-chat.html">发消息</a>
+        </div>
+      </article>
+
+    </div>
+
+    <div class="loadmore loadmore--end">没有更多了</div>
+
+    <p class="page-note">
+      关注的律师有新动态或回复咨询时，你会收到通知。<b>不想收可以在「消息通知」里关掉「律师回复」开关</b>，那里只影响推送，不会解除关注关系。
+    </p>
+
+  </section>
+
+  <!-- ====================================================================
+       状态 empty：还没关注任何人
+       ==================================================================== -->
+  <section data-state="empty" hidden>
+    <div class="empty">
+      <svg class="empty__art" viewBox="0 0 96 96" fill="none" aria-hidden="true">
+        <circle cx="48" cy="36" r="15" stroke="currentColor" stroke-width="3"/>
+        <path d="M19 80c0-16 13-27.4 29-27.4S77 64 77 80" stroke="currentColor"
+              stroke-width="3" stroke-linecap="round"/>
+      </svg>
+      <p class="empty__title">还没有关注律师</p>
+      <p class="empty__desc">关注之后，律师发新文章、回复咨询时你会收到提醒，也能在这里快速找到他发起对话。</p>
+      <a class="btn-primary empty__action" href="02-lawyer.html">去找律师</a>
+    </div>
+  </section>
+
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

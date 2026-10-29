@@ -1547,6 +1547,12 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* 值列需要提醒时用暖色（如「未认证」）。
+   不用 danger 红：没实名不是错误，是「还没做」，标红会让人以为账号出了问题。 */
+.set-row__value--warn {
+  color: var(--state-warning-deep);
+}
+
 .set-row__chevron {
   flex: 0 0 auto;
   width: 16px;
@@ -1665,4 +1671,209 @@
   font-size: var(--fs-caption);
   color: var(--text-muted);
   line-height: 1.5;
+}
+
+/* ==========================================================================
+   26. 材料上传位（第 13 批从 15-lawyer-join 收到这里，48 / 49 复用）
+   ==========================================================================
+   结构：
+     <div class="upload-list">
+       <button class="upload" type="button" data-upload>
+         <svg>…图标…</svg>
+         <span class="upload__text">身份证人像面
+           <span class="upload__hint">四角完整入框，别反光</span></span>
+       </button>
+     </div>
+
+   ★ 虚线边框是关键。实线看起来像输入框，虚线才像「等你把东西放进来」。
+     这是证件上传位与普通输入框唯一能一眼区分开的信号，不要为了「整齐」改成实线。
+
+   ★ 已上传态不隐藏、不置灰，改成主色实线 + 「已上传，点击可重拍」。
+     证件照拍糊了是最高频的驳回原因，用户必须能自己发现并重拍；
+     如果把上传位变成一张缩略图，他就不敢点了 —— 怕再点会删掉。
+   ========================================================================== */
+.upload-list {
+  margin-block-start: var(--sp-md);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.upload {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-md);
+  width: 100%;
+  min-height: 66px;
+  padding: var(--sp-md);
+  border: 1px dashed var(--border-outline);
+  border-radius: var(--r-sm);
+  background: var(--bg-canvas);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: var(--fs-md);
+  text-align: start;
+  cursor: pointer;
+}
+
+.upload svg {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  color: var(--text-muted);
+}
+
+.upload__text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.upload__hint {
+  display: block;
+  margin-block-start: 3px;
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+/* 已上传：实线边 + 主色 */
+.upload.is-done {
+  border-style: solid;
+  border-color: var(--brand-primary);
+  background: var(--brand-primary-soft);
+  color: var(--brand-primary-pressed);
+}
+
+.upload.is-done svg {
+  color: var(--brand-primary-pressed);
+}
+
+/* 必填但还没传：虚线变红 + 文案说清缺什么。
+   不用禁用提交按钮来替代它 —— 按钮禁用不解释原因，这一条能。 */
+.upload.is-missing {
+  border-color: var(--state-danger);
+  background: var(--bg-surface);
+  color: var(--state-danger);
+}
+
+.upload.is-missing svg {
+  color: var(--state-danger);
+}
+
+.upload.is-missing .upload__hint {
+  color: var(--state-danger);
+}
+
+/* ==========================================================================
+   27. 分段 Tab（第 13 批新增，51-favorites 立）
+   ==========================================================================
+   结构：
+     <div class="seg" role="tablist">
+       <button class="seg__item is-active" data-seg="article" role="tab">
+         文章 <span class="seg__count">12</span>
+       </button>
+       …
+     </div>
+
+   与 .filter__chip 的分工：
+     - chips 是「筛选」—— 可横向滚动、可多选、不带数量、点完列表还在这屏
+     - seg 是「看哪一类」—— 互斥、等宽均分、带条数
+
+   ★ 为什么带条数：收藏页的用户常是来找「我之前存的那篇」，如果不知道
+     文章只有 8 条、案例有 21 条，他会三个 Tab 都翻一遍。数字先告诉他该去哪个。
+     条数为 0 的 Tab 也要显示，否则用户会以为这个类别没做，而不是没收藏过。
+   ========================================================================== */
+.seg {
+  display: flex;
+  gap: 4px;
+  margin-block-start: var(--sp-md);
+  padding: 4px;
+  border-radius: var(--r-md);
+  background: var(--bg-input);
+}
+
+.seg__item {
+  flex: 1 1 0;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 44px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: var(--fs-md);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.seg__item.is-active {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-weight: var(--fw-medium);
+  box-shadow: var(--shadow-card);
+}
+
+.seg__count {
+  font-family: var(--font-num);
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+}
+
+.seg__item.is-active .seg__count {
+  color: var(--text-secondary);
+}
+
+/* ==========================================================================
+   28. 左滑操作（第 13 批新增，51-favorites 立）
+   ==========================================================================
+   结构：
+     <div class="swipe">
+       <div class="swipe__body">…条目内容…</div>
+       <button class="swipe__action" type="button">取消收藏</button>
+     </div>
+     容器加 .is-open 即滑开（演示态静态标记，真实 App 是手势）
+
+   ★ 操作按钮必须同时在条目上留一个可见入口，不能只靠手势：
+     左滑是 iOS 老用户的本能，但 Android 用户、中老年用户不会去试。
+     51 的每条收藏右侧还留了「取消收藏」的入口（见页内说明），
+     手势是捷径，不是唯一入口 —— 这是无障碍与可用性的底线。
+   ========================================================================== */
+.swipe {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--r-md);
+}
+
+.swipe__body {
+  position: relative;
+  z-index: 1;
+  background: var(--bg-surface);
+  transition: transform 200ms ease;
+}
+
+/* 定位用 inset-inline-end：RTL 下自动换到左边 */
+.swipe.is-open .swipe__body {
+  transform: translateX(-84px);
+}
+
+/* RTL：滑开方向镜像。设计稿只做 LTR，这里先留好，落地时由 RN 的 I18nManager 处理 */
+[dir="rtl"] .swipe.is-open .swipe__body {
+  transform: translateX(84px);
+}
+
+.swipe__action {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: 0;
+  width: 84px;
+  border: 0;
+  background: var(--state-danger);
+  color: var(--text-on-brand);
+  font-family: inherit;
+  font-size: var(--fs-md);
+  cursor: pointer;
 }

@@ -186,61 +186,7 @@ body {
 }
 
 /* ---------- 材料上传位 ---------- */
-.upload-list {
-  margin-block-start: var(--sp-md);
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.upload {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-md);
-  width: 100%;
-  min-height: 66px;
-  padding: var(--sp-md);
-  border: 1px dashed var(--border-outline);
-  border-radius: var(--r-sm);
-  background: var(--bg-canvas);
-  color: var(--text-secondary);
-  font-family: inherit;
-  font-size: var(--fs-md);
-  text-align: start;
-  cursor: pointer;
-}
-
-.upload svg {
-  flex: 0 0 auto;
-  width: 26px;
-  height: 26px;
-  color: var(--text-muted);
-}
-
-.upload__text {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-.upload__hint {
-  display: block;
-  margin-block-start: 3px;
-  font-size: var(--fs-caption);
-  color: var(--text-muted);
-  line-height: 1.4;
-}
-
-/* 已上传：实线边 + 主色，右侧显示「已上传」 */
-.upload.is-done {
-  border-style: solid;
-  border-color: var(--brand-primary);
-  background: var(--brand-primary-soft);
-  color: var(--brand-primary-pressed);
-}
-
-.upload.is-done svg {
-  color: var(--brand-primary-pressed);
-}
+/* .upload-list / .upload 已提到 components.css 第 26 段（第 13 批：15 / 48 / 49 三处用） */
 
 /* ---------- 多选标签 ---------- */
 /* .pick-list / .pick 已提到 components.css 第 18 段（15 / 20 / 25 三处都用） */
