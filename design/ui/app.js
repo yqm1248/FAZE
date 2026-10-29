@@ -1484,4 +1484,381 @@
       showToast("查看签章详情（演示）");
     });
   }
+
+  /* ==========================================================================
+     31. 订单列表筛选（第 9 批：29-orders）
+     ==========================================================================
+     做法同 27-doc-mine 的文书筛选（§29），但订单比文书多一个坑：
+     data-order-state 有 5 个值（wait / doing / refund / done / closed），
+     Tab 只有 5 个（all / wait / doing / done / closed），
+     里面没有「退款中」这一档。
+
+     所以点「进行中」时必须把 refund 一起收进来 —— 退款审核期间订单还在走，
+     只是标签换了。不收的后果是用户点「进行中」看不到那单，以为它消失了。
+     ========================================================================== */
+  var orderChips = document.querySelectorAll("[data-order-filter]");
+  var orderItems = document.querySelectorAll(".order-card[data-order-state]");
+
+  var ORDER_FILTER_MAP = { doing: ["doing", "refund"] };
+
+  Array.prototype.forEach.call(orderChips, function (chip) {
+    chip.addEventListener("click", function () {
+      var key = chip.getAttribute("data-order-filter");
+      var wanted = ORDER_FILTER_MAP[key] || [key];
+
+      Array.prototype.forEach.call(orderChips, function (other) {
+        if (other === chip) other.classList.add("filter__chip--active");
+        else other.classList.remove("filter__chip--active");
+      });
+
+      Array.prototype.forEach.call(orderItems, function (item) {
+        var state = item.getAttribute("data-order-state");
+        var hit = key === "all" || wanted.indexOf(state) >= 0;
+        if (hit) item.removeAttribute("hidden");
+        else item.setAttribute("hidden", "");
+      });
+    });
+  });
+
+  /* ==========================================================================
+     32. 取消订单二次确认（第 9 批：30-order-detail）
+     ==========================================================================
+     不可逆动作先问一次。「再想想」是默认出口，危险按钮放右边、用红。
+     ========================================================================== */
+  var cancelOpen = document.querySelector("[data-cancel-order]");
+  var cancelMask = document.querySelector("[data-cancel-mask]");
+  var cancelDialog = document.querySelector("[data-cancel-dialog]");
+
+  function setCancelDialog(open) {
+    toggleLayer(cancelMask, open);
+    toggleLayer(cancelDialog, open);
+  }
+
+  if (cancelOpen) {
+    cancelOpen.addEventListener("click", function () {
+      setCancelDialog(true);
+    });
+
+    if (cancelMask) {
+      cancelMask.addEventListener("click", function () {
+        setCancelDialog(false);
+      });
+    }
+
+    Array.prototype.forEach.call(
+      document.querySelectorAll("[data-cancel-dismiss]"),
+      function (btn) {
+        btn.addEventListener("click", function () {
+          setCancelDialog(false);
+        });
+      }
+    );
+
+    var cancelConfirm = document.querySelector("[data-cancel-confirm]");
+    if (cancelConfirm) {
+      cancelConfirm.addEventListener("click", function () {
+        setCancelDialog(false);
+        showToast("订单已取消");
+      });
+    }
+  }
+
+  /* ==========================================================================
+     33. 支付二次确认（第 9 批：31-pay）
+     ==========================================================================
+     余额支付没有外部收银台的输密码环节，点下去就直接扣，所以必须再确认一次。
+     ========================================================================== */
+  var payConfirmOpen = document.querySelector("[data-open-confirm]");
+  var payConfirmMask = document.querySelector("[data-confirm-mask]");
+  var payConfirmDialog = document.querySelector("[data-confirm-dialog]");
+
+  function setPayConfirm(open) {
+    toggleLayer(payConfirmMask, open);
+    toggleLayer(payConfirmDialog, open);
+  }
+
+  if (payConfirmOpen) {
+    payConfirmOpen.addEventListener("click", function () {
+      setPayConfirm(true);
+    });
+
+    if (payConfirmMask) {
+      payConfirmMask.addEventListener("click", function () {
+        setPayConfirm(false);
+      });
+    }
+
+    Array.prototype.forEach.call(
+      document.querySelectorAll("[data-confirm-dismiss]"),
+      function (btn) {
+        btn.addEventListener("click", function () {
+          setPayConfirm(false);
+        });
+      }
+    );
+  }
+
+  /* ==========================================================================
+     34. 充值面板（第 9 批：31-pay）
+     ==========================================================================
+     预设 6 档，最后一档「其他」清空选中让用户自己填。选了自定义金额后，
+     预设档位要全部取消选中，否则界面上会同时亮着两个金额。
+     按钮文案跟着金额走，免得用户选了 500 却看着「确认充值 ¥200」。
+     ========================================================================== */
+  var rechargeOpen = document.querySelector("[data-open-recharge]");
+  var rechargeMask = document.querySelector("[data-recharge-mask]");
+  var rechargeSheet = document.querySelector("[data-recharge-sheet]");
+  var rechargeChips = document.querySelectorAll("[data-recharge]");
+  var rechargeSubmit = document.querySelector("[data-recharge-submit]");
+  var rechargeInput = document.querySelector(".recharge-custom input");
+  var rechargeAmount = 200;
+
+  /* 元转千分位两位小数。设计稿这里只做展示；实现层金额全程用整数分，
+     格式化之前不做任何浮点加减。 */
+  function fmtYuan(value) {
+    return Number(value).toLocaleString("zh-CN", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
+  }
+
+  function refreshRechargeSubmit() {
+    if (!rechargeSubmit) return;
+    rechargeSubmit.textContent = "确认充值 ¥" + fmtYuan(rechargeAmount);
+  }
+
+  function setRechargeSheet(open) {
+    toggleLayer(rechargeMask, open);
+    toggleLayer(rechargeSheet, open);
+    if (open) refreshRechargeSubmit();
+  }
+
+  if (rechargeOpen) {
+    rechargeOpen.addEventListener("click", function () {
+      setRechargeSheet(true);
+    });
+
+    if (rechargeMask) {
+      rechargeMask.addEventListener("click", function () {
+        setRechargeSheet(false);
+      });
+    }
+
+    Array.prototype.forEach.call(
+      document.querySelectorAll("[data-close-recharge]"),
+      function (btn) {
+        btn.addEventListener("click", function () {
+          setRechargeSheet(false);
+        });
+      }
+    );
+
+    Array.prototype.forEach.call(rechargeChips, function (chip) {
+      chip.addEventListener("click", function () {
+        var value = Number(chip.getAttribute("data-recharge"));
+
+        Array.prototype.forEach.call(rechargeChips, function (other) {
+          if (other === chip) other.classList.add("is-active");
+          else other.classList.remove("is-active");
+        });
+
+        if (value === 0) {
+          /* 「其他」：清掉选中，把焦点给输入框 */
+          chip.classList.remove("is-active");
+          if (rechargeInput) {
+            rechargeInput.value = "";
+            rechargeInput.focus();
+          }
+          rechargeAmount = 0;
+        } else {
+          rechargeAmount = value;
+          if (rechargeInput) rechargeInput.value = "";
+        }
+
+        refreshRechargeSubmit();
+      });
+    });
+
+    if (rechargeInput) {
+      rechargeInput.addEventListener("input", function () {
+        var raw = parseFloat(rechargeInput.value.replace(/[^\d.]/g, ""));
+        rechargeAmount = isNaN(raw) ? 0 : raw;
+
+        Array.prototype.forEach.call(rechargeChips, function (chip) {
+          chip.classList.remove("is-active");
+        });
+
+        refreshRechargeSubmit();
+      });
+    }
+
+    /* 充值渠道：单选，作用域限定在面板内 */
+    var rechargeChannels = document.querySelectorAll("[data-recharge-channel]");
+    Array.prototype.forEach.call(rechargeChannels, function (row) {
+      row.addEventListener("click", function () {
+        Array.prototype.forEach.call(rechargeChannels, function (other) {
+          if (other === row) other.classList.add("is-active");
+          else other.classList.remove("is-active");
+        });
+      });
+    });
+
+    if (rechargeSubmit) {
+      rechargeSubmit.addEventListener("click", function () {
+        if (rechargeAmount <= 0) {
+          showToast("请先选择或输入充值金额");
+          return;
+        }
+        setRechargeSheet(false);
+        showToast("充值 ¥" + fmtYuan(rechargeAmount) + " 成功，余额已到账");
+      });
+    }
+  }
+
+  /* ==========================================================================
+     35. 退款申请确认（第 9 批：33-refund）
+     ==========================================================================
+     另外两件小事在这里一起处理：
+       1. 选「其他原因」时把输入框的 placeholder 换成必填提示并聚焦
+       2. 文本域右上角的字数计数（0/200）
+     ========================================================================== */
+  var refundOpen = document.querySelector("[data-open-refund]");
+  var refundMask = document.querySelector("[data-refund-mask]");
+  var refundDialog = document.querySelector("[data-refund-dialog]");
+
+  function setRefundDialog(open) {
+    toggleLayer(refundMask, open);
+    toggleLayer(refundDialog, open);
+  }
+
+  if (refundOpen) {
+    refundOpen.addEventListener("click", function () {
+      setRefundDialog(true);
+    });
+
+    if (refundMask) {
+      refundMask.addEventListener("click", function () {
+        setRefundDialog(false);
+      });
+    }
+
+    Array.prototype.forEach.call(
+      document.querySelectorAll("[data-refund-dismiss]"),
+      function (btn) {
+        btn.addEventListener("click", function () {
+          setRefundDialog(false);
+        });
+      }
+    );
+  }
+
+  var reasonBox = document.querySelector(".remark-box");
+  var reasonOther = document.querySelector("[data-reason-other]");
+
+  if (reasonOther && reasonBox) {
+    var reasonItems = document.querySelectorAll(".reason-list [data-choice]");
+    Array.prototype.forEach.call(reasonItems, function (item) {
+      item.addEventListener("click", function () {
+        var isOther = item === reasonOther;
+        reasonBox.setAttribute(
+          "placeholder",
+          isOther
+            ? "请写清具体情况，审核会按你写的内容判断（必填）"
+            : "补充说明（选填，写清情况方便审核）"
+        );
+        if (isOther) reasonBox.focus();
+      });
+    });
+  }
+
+  /* ==========================================================================
+     36. 评价页（第 9 批：34-review）
+     ==========================================================================
+     星级：点第 n 颗，1~n 全亮。只亮不灭是故意的 ——
+     评过分的人想改成更低分时，点到低分自然就把后面的灭了，不用先清空。
+     标签：多选，点第二下取消。
+     匿名开关：角色是 switch，用 aria-checked 同步，读屏能读出开关状态。
+     ========================================================================== */
+  var stars = document.querySelectorAll("[data-star]");
+  var starLabel = document.querySelector("[data-star-label]");
+  var STAR_TEXT = ["", "很不满意", "不太满意", "一般", "满意", "非常满意"];
+
+  Array.prototype.forEach.call(stars, function (star) {
+    star.addEventListener("click", function () {
+      var score = parseInt(star.getAttribute("data-star"), 10);
+
+      Array.prototype.forEach.call(stars, function (other) {
+        var value = parseInt(other.getAttribute("data-star"), 10);
+        if (value <= score) other.classList.add("is-on");
+        else other.classList.remove("is-on");
+      });
+
+      if (starLabel) starLabel.textContent = STAR_TEXT[score] || "";
+    });
+  });
+
+  Array.prototype.forEach.call(
+    document.querySelectorAll("[data-tag]"),
+    function (tag) {
+      tag.addEventListener("click", function () {
+        tag.classList.toggle("is-active");
+      });
+    }
+  );
+
+  Array.prototype.forEach.call(
+    document.querySelectorAll("[data-switch]"),
+    function (sw) {
+      sw.addEventListener("click", function () {
+        var on = sw.classList.toggle("is-on");
+        sw.setAttribute("aria-checked", on ? "true" : "false");
+      });
+    }
+  );
+
+  var submitReview = document.querySelector("[data-submit-review]");
+  if (submitReview) {
+    submitReview.addEventListener("click", function () {
+      var lit = document.querySelectorAll("[data-star].is-on").length;
+      if (!lit) {
+        showToast("先给个星级再发布");
+        return;
+      }
+      showToast("评价已发布，谢谢你");
+    });
+  }
+
+  /* ==========================================================================
+     37. 字数计数（第 9 批：33-refund / 34-review）
+     ==========================================================================
+     只给带 maxlength 的文本域计数，maxlength 就是上限，不另配属性 ——
+     两处各写一份长度上限，早晚会有一处忘记改。
+     ========================================================================== */
+  Array.prototype.forEach.call(
+    document.querySelectorAll(".remark-box, .review-text"),
+    function (box) {
+      var counter = box.parentNode.querySelector(".remark-count, .review-count");
+      if (!counter) return;
+
+      var max = parseInt(box.getAttribute("maxlength"), 10) || 0;
+
+      function refreshCount() {
+        counter.textContent = (box.value || "").length + "/" + max;
+      }
+
+      box.addEventListener("input", refreshCount);
+      refreshCount();
+    }
+  );
+
+  /* ==========================================================================
+     38. 走查开关（第 9 批：29~34）
+     ==========================================================================
+     _walkthrough/29-34-orders.html 靠 iframe 带 hash 并排看四态与四个浮层。
+     四态用 §9 的通用 #state-X，浮层在这里单独接。
+     ========================================================================== */
+  if (walkHash === "open-cancel") setCancelDialog(true);
+  if (walkHash === "open-confirm") setPayConfirm(true);
+  if (walkHash === "open-recharge") setRechargeSheet(true);
+  if (walkHash === "open-refund") setRefundDialog(true);
 })();

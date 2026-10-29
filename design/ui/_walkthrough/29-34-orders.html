@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>走查 · 订单与支付的三态与四个浮层</title>
+<style>
+/* ==========================================================================
+   走查页：第 9 批（29~34）的非主态与非主浮层
+   ==========================================================================
+   用途：画布一屏只显示主态，其余状态和浮层集中在这里看。
+
+   注意：
+     1. 不是交付屏，放在 _walkthrough/，不上画布、不计入 68 屏
+     2. 三态靠 data-state 切换（#state-doing / #state-done / #state-low / #state-fail）
+     3. 四个浮层靠 #open-cancel / #open-confirm / #open-recharge / #open-refund
+     4. 必须用 HTTP 打开（端口 8123），file:// 下 iframe 的 hash 不生效
+
+   核对要点：
+     doing —— 底部动作从「立即支付」换成「联系律师」，不再出现取消订单
+     done  —— 主动作是「评价服务」，退款降为次要按钮
+     low   —— 余额差 49 元时按钮变「去充值」，且整块不标红
+     fail  —— 第一句先说「钱没扣」，再说原因
+     open-cancel —— 说清取消的后果（档期释放、价格不保留）
+     open-confirm —— 一句话里给齐金额、方式、扣完余额
+     open-recharge —— 六个金额档 + 自定义 + 两个渠道
+     open-refund —— 退款金额与去向，以及「审核期间不能重复提交」
+   ========================================================================== */
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 28px;
+  background: #EDEFF3;
+  font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  color: #1A1A1A;
+}
+
+.walk {
+  display: grid;
+  grid-template-columns: repeat(2, 390px);
+  gap: 24px 28px;
+  justify-content: center;
+}
+
+.walk__item {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.walk__head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.walk__name {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.walk__tag {
+  font-size: 11px;
+  font-weight: 500;
+  color: #4A66EE;
+  background: #EEF2FF;
+  padding: 2px 7px;
+  border-radius: 4px;
+  line-height: 1.5;
+}
+
+.walk__note {
+  font-size: 12px;
+  color: #63696E;
+  line-height: 1.6;
+  max-width: 390px;
+}
+
+iframe {
+  width: 390px;
+  height: 844px;
+  border: 0;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.1);
+}
+</style>
+</head>
+<body>
+
+<div class="walk">
+
+  <section class="walk__item">
+    <div class="walk__head">
+      <h2 class="walk__name">订单详情 · 进行中</h2>
+      <span class="walk__tag">doing</span>
+    </div>
+    <p class="walk__note">
+      付完款、律师已接单。底部主按钮换成「联系律师」，取消订单消失 —— 已经付过钱的单不该还给「取消」这个入口。
+    </p>
+    <iframe src="../30-order-detail.html#state-doing" title="订单详情 · 进行中"></iframe>
+  </section>
+
+  <section class="walk__item">
+    <div class="walk__head">
+      <h2 class="walk__name">订单详情 · 已完成</h2>
+      <span class="walk__tag">done</span>
+    </div>
+    <p class="walk__note">
+      服务结束。主按钮是「评价服务」，退款降为次要按钮 —— 评价对平台的用处大于退款，但退款不能不给人留口。
+    </p>
+    <iframe src="../30-order-detail.html#state-done" title="订单详情 · 已完成"></iframe>
+  </section>
+
+  <section class="walk__item">
+    <div class="walk__head">
+      <h2 class="walk__name">确认支付 · 余额不足</h2>
+      <span class="walk__tag">low</span>
+    </div>
+    <p class="walk__note">
+      余额制平台最常遇到的一态。边框走警示色但不标红（差一点不是失败），按钮从「确认支付」变成「去充值」，直接把用户送到充值面板。
+    </p>
+    <iframe src="../31-pay.html#state-low" title="确认支付 · 余额不足"></iframe>
+  </section>
+
+  <section class="walk__item">
+    <div class="walk__head">
+      <h2 class="walk__name">支付结果 · 失败</h2>
+      <span class="walk__tag">fail</span>
+    </div>
+    <p class="walk__note">
+      第一句必须是「钱没被扣」——看到红叉的人第一个念头是钱去哪了。原因用警示色不用红色，失败多半是余额或网络，不是平台出错。
+    </p>
+    <iframe src="../32-pay-result.html#state-fail" title="支付结果 · 失败"></iframe>
+  </section>
+
+  <section class="walk__item">
+    <div class="walk__head">
+      <h2 class="walk__name">订单详情 · 取消订单</h2>
+      <span class="walk__tag">open-cancel</span>
+    </div>
+    <p class="walk__note">
+      不说清后果的「确定取消吗」等于没问。这里写明：律师档期会被释放、这个价格保留不了、要咨询得重新下单。
+    </p>
+    <iframe src="../30-order-detail.html#open-cancel" title="订单详情 · 取消确认"></iframe>
+  </section>
+
+  <section class="walk__item">
+    <div class="walk__head">
+      <h2 class="walk__name">确认支付 · 二次确认</h2>
+      <span class="walk__tag">open-confirm</span>
+    </div>
+    <p class="walk__note">
+      余额支付没有外部收银台的输密码环节，点下去就直接扣。框里给齐三个数：扣多少、从哪扣、扣完剩多少。
+    </p>
+    <iframe src="../31-pay.html#open-confirm" title="确认支付 · 二次确认"></iframe>
+  </section>
+
+  <section class="walk__item">
+    <div class="walk__head">
+      <h2 class="walk__name">确认支付 · 充值面板</h2>
+      <span class="walk__tag">open-recharge</span>
+    </div>
+    <p class="walk__note">
+      六档预设 + 自定义金额，渠道只有微信与支付宝。按钮文案跟着金额变，选了 500 就不会还看着「确认充值 ¥200」。
+    </p>
+    <iframe src="../31-pay.html#open-recharge" title="确认支付 · 充值面板"></iframe>
+  </section>
+
+  <section class="walk__item">
+    <div class="walk__head">
+      <h2 class="walk__name">申请退款 · 提交确认</h2>
+      <span class="walk__tag">open-refund</span>
+    </div>
+    <p class="walk__note">
+      再说一遍金额和去向，并交代「审核期间不能再提交一次」—— 不说的话用户会反复点，然后变成重复申请。
+    </p>
+    <iframe src="../33-refund.html#open-refund" title="申请退款 · 提交确认"></iframe>
+  </section>
+
+</div>
+
+</body>
+</html>

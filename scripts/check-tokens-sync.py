@@ -61,6 +61,7 @@ MAP = {
     "profile-end": "gradient.profileHeader.value[1]",
     "login-btn-start": "gradient.loginButton.value[0]",
     "login-btn-end": "gradient.loginButton.value[1]",
+    "fs-display": "fontSize.display.value",
     "fs-h1": "fontSize.h1.value",
     "fs-h2": "fontSize.h2.value",
     "fs-h3": "fontSize.h3.value",

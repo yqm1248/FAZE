@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390, initial-scale=1">
+<meta name="dsh-design" content="app">
+<title>评价服务</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   评价页（第 9 批 · 延展，无参考图 / 导航树要求含星级）
+   ==========================================================================
+   职责：对已完成的订单给律师打分与写评价。分数和文字会展示在律师主页。
+   入口：30-order-detail.html 已完成态「评价」；29-orders.html 已完成卡
+   母版：**表单页母版**（星级 + 多选标签 + 文字 + 开关 + 底部提交栏）
+   数据来源：订单详情（律师信息）；提交后写评价表（评分 / 标签 / 正文 / 是否匿名）
+
+   ★ 星级初始是 0，不预填 5 星：
+     预填高分等于用界面替用户表态，评分的意义就没了。
+     设计稿画的是「用户已点 4 星」的样子，用于展示选中视觉，不是默认值。
+     未打分时底部按钮置灰不可点。
+
+   ★ 标签多选、文字选填，只有星级必填：
+     让评价门槛尽量低。要求写满多少字，大多数人直接关掉 —— 
+     宁可拿到三百条「只有星级」的评价，也不要三十条长文。
+
+   ★ 为什么写「发布后不能修改」：
+     评价会影响律师的接单和排名，允许反复改，就等于允许事后改口施压。
+     这条在提交前说清楚，比事后在规则里藏着强。
+
+   ★ 为什么不放「匿名」以外的隐私选项：
+     匿名已经回答了用户唯一真正在意的问题（会不会被律师认出来找我）。
+     再拆成「隐藏头像」「隐藏昵称」，用户要读三个开关才敢发，反而不敢发了。
+
+   ★ 合规红线：不出现任何「好评返现」「评价得积分」类引导。
+     有对价的评价不是评价，是交易。
+   ========================================================================== */
+
+body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-canvas);
+}
+
+.navbar {
+  background: transparent;
+}
+
+.screen {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding: 0 var(--sp-xl) var(--sp-xl);
+  background: linear-gradient(to bottom, var(--banner-start) 0, var(--bg-canvas) 220px);
+}
+.screen::-webkit-scrollbar {
+  display: none;
+}
+
+.screen > section + section {
+  margin-block-start: var(--sp-md);
+}
+
+/* ---------- 顶部：律师 + 订单 ---------- */
+.review-hero {
+  padding-block: var(--sp-sm) var(--sp-lg);
+  text-align: center;
+}
+
+.review-hero__avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  margin-inline: auto;
+  border-radius: 50%;
+  background: var(--brand-primary-soft);
+  color: var(--brand-primary-pressed);
+  font-size: var(--fs-h1);
+  font-weight: var(--fw-medium);
+}
+
+.review-hero__name {
+  margin-block-start: var(--sp-sm);
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.review-hero__meta {
+  margin-block-start: 2px;
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+/* ---------- 星级 ----------
+   44 的点击区、32 的星形：手指点得到，眼睛不觉得小。
+   星与星之间留 6，太挤会点错相邻的一颗。 */
+.stars {
+  display: flex;
+  justify-content: center;
+  gap: var(--sp-sm);
+  margin-block-start: var(--sp-lg);
+}
+
+.star {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--border-outline);
+  cursor: pointer;
+}
+
+.star svg {
+  width: 32px;
+  height: 32px;
+  fill: transparent;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linejoin: round;
+}
+
+.star.is-on {
+  color: var(--state-warning);
+}
+
+.star.is-on svg {
+  fill: currentColor;
+}
+
+.stars__label {
+  margin-block-start: var(--sp-xs);
+  text-align: center;
+  font-size: var(--fs-md);
+  color: var(--text-secondary);
+  line-height: 1.5;
+  min-height: 21px;
+}
+
+/* ---------- 卡片 ---------- */
+.card-block {
+  padding: var(--sp-md) var(--sp-lg) var(--sp-lg);
+  border-radius: var(--r-md);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.block-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-sm);
+  padding-block: var(--sp-xs) var(--sp-xs);
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.block-title__note {
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-regular);
+  color: var(--text-muted);
+}
+
+/* 标签多选用 .pick（components.css §18），这里只调间距 */
+.card-block .pick-list {
+  margin-block-start: var(--sp-xs);
+}
+
+/* ---------- 文字评价 ---------- */
+.review-text {
+  display: block;
+  width: 100%;
+  min-height: 104px;
+  margin-block-start: var(--sp-sm);
+  padding: var(--sp-md);
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: var(--fs-md);
+  line-height: 1.7;
+  resize: none;
+  outline: none;
+}
+
+.review-text::placeholder {
+  color: #A3A9AE;
+}
+
+.review-text:focus {
+  border-color: var(--brand-primary);
+  background: var(--bg-surface);
+}
+
+.review-count {
+  display: block;
+  margin-block-start: var(--sp-xs);
+  text-align: end;
+  font-family: var(--font-num);
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- 匿名开关行 ---------- */
+.switch-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-md);
+  min-height: 56px;
+  padding-block: var(--sp-sm);
+}
+
+.switch-row__main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.switch-row__name {
+  display: block;
+  font-size: var(--fs-lg);
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.switch-row__desc {
+  display: block;
+  margin-block-start: 2px;
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+/* 开关：元素本身 48×44，胶囊与滑块都用伪元素画。
+   不把 28 高的胶囊当元素、再拿 ::before 补热区 —— 那样量出来还是 28，
+   而且伪元素一旦被别的样式覆盖，热区就没了。元素尺寸直接给 44，最稳。 */
+.switch {
+  position: relative;
+  flex: 0 0 auto;
+  width: 48px;
+  height: 44px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+/* 胶囊底：垂直居中在 44 里，视觉仍是 28 高 */
+.switch::before {
+  content: "";
+  position: absolute;
+  inset-block-start: 8px;
+  inset-inline: 0;
+  height: 28px;
+  border-radius: var(--r-pill);
+  background: var(--bg-input);
+  transition: background-color 160ms ease;
+}
+
+.switch::after {
+  content: "";
+  position: absolute;
+  inset-block-start: 10px;
+  /* 用逻辑属性定位，RTL 下「关」的位置自动镜像到另一边 */
+  inset-inline-start: 2px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--bg-surface);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.16);
+  transition: inset-inline-start 160ms ease;
+}
+
+.switch.is-on::before {
+  background: var(--brand-primary);
+}
+
+.switch.is-on::after {
+  inset-inline-start: calc(100% - 26px);
+}
+
+/* ---------- 提示 ---------- */
+.review-tip {
+  margin-block-start: var(--sp-md);
+  padding: var(--sp-md) var(--sp-lg);
+  border-radius: var(--r-sm);
+  background: var(--bg-surface);
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.8;
+}
+
+.review-tip b {
+  font-weight: var(--fw-medium);
+  color: var(--text-secondary);
+}
+</style>
+</head>
+<body>
+
+<header class="statusbar">
+  <span>9:41</span>
+  <span class="statusbar__icons">
+    <svg width="17" height="11" viewBox="0 0 17 11" fill="none" aria-hidden="true">
+      <rect x="0" y="7" width="3" height="4" rx="1" fill="currentColor"/>
+      <rect x="4.5" y="5" width="3" height="6" rx="1" fill="currentColor"/>
+      <rect x="9" y="2.5" width="3" height="8.5" rx="1" fill="currentColor"/>
+      <rect x="13.5" y="0" width="3" height="11" rx="1" fill="currentColor"/>
+    </svg>
+    <svg width="16" height="11" viewBox="0 0 16 11" fill="none" aria-hidden="true">
+      <path d="M1 3.2A10.5 10.5 0 0 1 15 3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M3.6 5.9a7 7 0 0 1 8.8 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M6.2 8.6a3.4 3.4 0 0 1 3.6 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden="true">
+      <rect x="0.6" y="0.6" width="21" height="10.8" rx="3" stroke="currentColor" stroke-opacity="0.4" stroke-width="1.2"/>
+      <rect x="2.2" y="2.2" width="15" height="7.6" rx="1.8" fill="currentColor"/>
+      <path d="M23.4 4.2v3.6" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+  </span>
+</header>
+
+<div class="navbar">
+  <a class="navbar__back" href="30-order-detail.html" aria-label="返回订单详情">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M15.2 4.6 7.8 12l7.4 7.4" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </a>
+  <h1 class="navbar__title">评价服务</h1>
+</div>
+
+<main class="screen">
+
+  <section class="review-hero">
+    <span class="review-hero__avatar">王</span>
+    <p class="review-hero__name">王建国律师</p>
+    <p class="review-hero__meta">法律咨询 · 30 分钟 · 2026-10-29 完成</p>
+  </section>
+
+  <section class="card-block">
+    <h3 class="block-title">
+      服务评分
+      <span class="block-title__note">必选</span>
+    </h3>
+    <div class="stars" data-stars>
+      <button class="star is-on" type="button" data-star="1" aria-label="1 星，很不满意">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 3.4 14.7 9l6.1.9-4.4 4.3 1 6.1L12 17.4l-5.4 2.9 1-6.1L3.2 9.9 9.3 9Z"/>
+        </svg>
+      </button>
+      <button class="star is-on" type="button" data-star="2" aria-label="2 星，不太满意">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 3.4 14.7 9l6.1.9-4.4 4.3 1 6.1L12 17.4l-5.4 2.9 1-6.1L3.2 9.9 9.3 9Z"/>
+        </svg>
+      </button>
+      <button class="star is-on" type="button" data-star="3" aria-label="3 星，一般">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 3.4 14.7 9l6.1.9-4.4 4.3 1 6.1L12 17.4l-5.4 2.9 1-6.1L3.2 9.9 9.3 9Z"/>
+        </svg>
+      </button>
+      <button class="star is-on" type="button" data-star="4" aria-label="4 星，满意">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 3.4 14.7 9l6.1.9-4.4 4.3 1 6.1L12 17.4l-5.4 2.9 1-6.1L3.2 9.9 9.3 9Z"/>
+        </svg>
+      </button>
+      <button class="star" type="button" data-star="5" aria-label="5 星，非常满意">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 3.4 14.7 9l6.1.9-4.4 4.3 1 6.1L12 17.4l-5.4 2.9 1-6.1L3.2 9.9 9.3 9Z"/>
+        </svg>
+      </button>
+    </div>
+    <p class="stars__label" data-star-label>满意</p>
+  </section>
+
+  <section class="card-block">
+    <h3 class="block-title">
+      律师哪些地方做得好
+      <span class="block-title__note">可多选，也可以不选</span>
+    </h3>
+    <div class="pick-list" data-tag-group>
+      <button class="pick is-active" type="button" data-tag>专业能力强</button>
+      <button class="pick is-active" type="button" data-tag>回复及时</button>
+      <button class="pick is-active" type="button" data-tag>态度耐心</button>
+      <button class="pick" type="button" data-tag>讲解清楚</button>
+      <button class="pick" type="button" data-tag>收费透明</button>
+      <button class="pick" type="button" data-tag>建议实用</button>
+    </div>
+  </section>
+
+  <section class="card-block">
+    <h3 class="block-title">
+      写点具体的
+      <span class="block-title__note">选填</span>
+    </h3>
+    <textarea class="review-text" rows="4" maxlength="200"
+              placeholder="说说律师帮到了你什么，对其他正在找律师的人更有参考价值"
+              aria-label="文字评价"></textarea>
+    <span class="review-count">0/200</span>
+  </section>
+
+  <section class="card-block">
+    <div class="switch-row">
+      <span class="switch-row__main">
+        <span class="switch-row__name">匿名评价</span>
+        <span class="switch-row__desc">其他用户看不到你的头像和昵称，律师仍能看到评价内容</span>
+      </span>
+      <button class="switch is-on" type="button" role="switch" aria-checked="true" data-switch></button>
+    </div>
+  </section>
+
+  <p class="review-tip">
+    <b>评价发布后不能修改，也不能删除。</b>请你如实填写，不要包含身份证号、手机号、住址这类个人信息，也不要写与本次服务无关的内容。律师可以回复你的评价。
+  </p>
+
+</main>
+
+<div class="actionbar">
+  <button class="btn-primary actionbar__cta" type="button" data-submit-review>发布评价</button>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
