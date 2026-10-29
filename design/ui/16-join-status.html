@@ -44,10 +44,27 @@ body {
   padding: var(--sp-md) var(--sp-xl) calc(var(--safe-bottom) + var(--sp-xl));
   display: flex;
   flex-direction: column;
-  /* 12px 对带阴影的白卡太挤，卡片会「粘」在一起（项目负责人指出过）。
-     用 15px 让每张卡的关系清晰：同一块内容 vs 不同块内容 */
-  gap: var(--sp-lg);
+  /* ★ 卡片间距必须够大。12px 时项目负责人指出两张白卡「视觉上堆叠」；
+     15px 仍不够 —— 两张白卡之间只夹 15px 灰缝，加上卡片自带 15px 内边距，
+     眼睛会把上方文字的末行和下方文字的标题读成同一块内容。
+     20px 让灰缝成为独立的「间隔带」，而不是两张卡之间的接缝。
+     这个值后续所有「多卡片堆叠」的屏都照用。 */
+  gap: var(--sp-xl);
   background: var(--bg-canvas);
+}
+
+/* ★ 卡片真正的父容器是 <div data-state="...">，不是 .screen —— 之前把 gap 加在
+   .screen 上完全没生效（它只有一个子元素，gap 无从作用）。
+   卡片的间距必须加在这里。
+   另外把 section 的浏览器默认 margin 清零，避免和 gap 叠加出不可控的间距。 */
+.screen > [data-state] {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-xl);
+}
+
+.screen > [data-state] > section {
+  margin: 0;
 }
 .screen::-webkit-scrollbar {
   display: none;

@@ -56,7 +56,20 @@ body {
   padding: var(--sp-xxxl) var(--sp-xl) var(--sp-md);
   display: flex;
   flex-direction: column;
-  gap: var(--sp-md);
+  gap: var(--sp-xl);
+}
+
+/* ★ 卡片的父容器是 <div data-state="...">，不是 .screen。
+   把 gap 加在 .screen 上不会生效 —— 它只有一个子元素。
+   间距必须加在真正包住卡片的那一层。 */
+.screen > [data-state] {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-xl);
+}
+
+.screen > [data-state] > section {
+  margin: 0;
 }
 .screen::-webkit-scrollbar {
   display: none;
