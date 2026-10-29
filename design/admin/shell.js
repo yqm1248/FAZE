@@ -86,6 +86,7 @@
         { id: "15-case-library", label: "案例库" },
         { id: "16-translation", label: "多语言翻译" },
         { id: "17-doc-template", label: "文书模板" },
+        { id: "26-law-library", label: "法条库" },
       ],
     },
     {
@@ -120,6 +121,7 @@
         { id: "07-sys-config", label: "系统参数" },
         { id: "24-sensitive-word", label: "敏感词管理" },
         { id: "25-logs", label: "日志中心" },
+        { id: "27-ai-retrieval", label: "AI 对话检索" },
       ],
     },
     {
@@ -183,6 +185,8 @@
     "23-notify-template": { group: "message", crumb: ["消息管理", "通知模板"] },
     "24-sensitive-word": { group: "system", crumb: ["系统设置", "敏感词管理"] },
     "25-logs": { group: "system", crumb: ["系统设置", "日志中心"] },
+    "26-law-library": { group: "content", crumb: ["内容管理", "法条库"] },
+    "27-ai-retrieval": { group: "system", crumb: ["系统设置", "AI 对话检索"] },
   };
 
   /* 当前页不在菜单里时，菜单用哪个 id 高亮（列表页） */

@@ -3,7 +3,7 @@
 > 本目录是法泽 FAZE 项目的文档唯一入口。所有文档使用简体中文，术语与代码中的标识符保持一致。
 >
 > **项目定位**：面向新疆伊犁地区的普惠型法律服务平台，**真实上线运营**（不是原型、不是演示）。
-> 平台范围：移动端 APP（Android 优先）+ 服务端 API + PC 管理后台（**UI 设计进行中**）；4 种语言；APP **68 个页面** + PC 后台 **26 个页面**。
+> 平台范围：移动端 APP（Android 优先）+ 服务端 API + PC 管理后台（**UI 设计进行中**）；4 种语言；APP **68 个页面** + PC 后台 **28 个页面**。
 
 ---
 
@@ -17,8 +17,8 @@
 | **③** | [architecture/法泽FAZE_技术路线_v2.3.md](architecture/法泽FAZE_技术路线_v2.3.md) | 做什么、怎么做（技术栈、12 个域、51 张表、接口清单、状态机） |
 | **④** | [design/法泽APP_页面导航树_v1.4.md](design/法泽APP_页面导航树_v1.4.md) | **68 个页面**分别是什么、怎么跳转、返回逻辑（文件名叫 v1.4，内容为 **v1.5**） |
 | **⑤** | [design/法泽APP_UI设计顺序_v1.0.md](design/法泽APP_UI设计顺序_v1.0.md) | **这 68 屏是怎么分批画出来的、每一屏的设计依据是什么、哪些地方是占位**（内容 **V3.0**） |
-| **⑥** | [architecture/法泽FAZE_PC后台开发计划_v1.0.md](architecture/法泽FAZE_PC后台开发计划_v1.0.md) | **PC 后台 26 页分别是什么、分 7 个阶段怎么开发、每阶段怎么验收、哪些接口还缺** |
-| **⑦** | [design/法泽PC后台UI设计说明_v1.0.md](design/法泽PC后台UI设计说明_v1.0.md) | **PC 后台 26 屏为什么这么画**：设计系统、7 类页面范式、逐屏依据、已知局限 |
+| **⑥** | [architecture/法泽FAZE_PC后台开发计划_v1.0.md](architecture/法泽FAZE_PC后台开发计划_v1.0.md) | **PC 后台 28 页分别是什么、分 7 个阶段怎么开发、每阶段怎么验收、哪些接口还缺** |
+| **⑦** | [design/法泽PC后台UI设计说明_v1.0.md](design/法泽PC后台UI设计说明_v1.0.md) | **PC 后台 28 屏为什么这么画**：设计系统、7 类页面范式、逐屏依据、已知局限 |
 | **⑧** | [standards/](standards/) | 代码怎么写、合并前检查什么 |
 
 > **一句话规则**：
@@ -48,9 +48,9 @@
 | **有哪 68 个页面、怎么跳转** | [design/法泽APP_页面导航树_v1.4.md](design/法泽APP_页面导航树_v1.4.md)（内容 v1.5） |
 | **APP 设计稿长什么样、怎么看** | 打开 `design/ui/01-home.html` 起，同目录 71 个 HTML 并排看；组件在 `design/ui/components.css`、令牌在 `design/ui/tokens.css` |
 | **每屏的设计依据、分了多少批、哪些是占位** | [design/法泽APP_UI设计顺序_v1.0.md](design/法泽APP_UI设计顺序_v1.0.md)（内容 V3.0） |
-| **PC 后台有哪 26 页、先做哪几页、每段怎么验收** | [architecture/法泽FAZE_PC后台开发计划_v1.0.md](architecture/法泽FAZE_PC后台开发计划_v1.0.md) —— 26 页清单 + 7 个开发阶段 |
+| **PC 后台有哪 28 页、先做哪几页、每段怎么验收** | [architecture/法泽FAZE_PC后台开发计划_v1.0.md](architecture/法泽FAZE_PC后台开发计划_v1.0.md) —— 28 页清单 + 7 个开发阶段 |
 | **PC 后台设计稿长什么样、怎么看** | 打开 `design/admin/00-login.html` 起，同目录 HTML 并排看；令牌在 `design/admin/tokens.css`、组件在 `design/admin/components.css` |
-| **PC 后台 26 屏的设计依据、设计系统怎么定的** | [design/法泽PC后台UI设计说明_v1.0.md](design/法泽PC后台UI设计说明_v1.0.md) —— 设计系统 + 7 类范式 + 逐屏说明 |
+| **PC 后台 28 屏的设计依据、设计系统怎么定的** | [design/法泽PC后台UI设计说明_v1.0.md](design/法泽PC后台UI设计说明_v1.0.md) —— 设计系统 + 7 类范式 + 逐屏说明 |
 | **PC 后台现在还有哪些坑没填** | [design/未完成需备注.md](design/未完成需备注.md) —— 接口缺口 23 页、双份 DDL、待定值、RuoYi 框架层边界 |
 | 某个页面在原项目里长什么样 | [design/页面清单与信息架构.md](design/页面清单与信息架构.md) —— 含 12 个核心页面的**视觉结构速查**与配色统一映射 |
 | 颜色/字号/间距取什么值、为什么 | [design/设计令牌.md](design/设计令牌.md) |
@@ -74,7 +74,7 @@ docs/
   architecture/                          ★ 只留现行版，历史版本在 git 里
     法泽FAZE_分期交付计划_v1.0.md          ★ 起点：九段切分、每段验收标准、并行轨道（内容 v1.1，68 页口径）
     法泽FAZE_第0段执行计划_v3.0.md          ★ 第 0 段唯一施工文档（单线：24 任务 / 6 组 / 13 条验收）
-    法泽FAZE_PC后台开发计划_v1.0.md         ★ PC 后台 26 页清单 + 7 个开发阶段 + 接口缺口
+    法泽FAZE_PC后台开发计划_v1.0.md         ★ PC 后台 28 页清单 + 7 个开发阶段 + 接口缺口
     法泽FAZE_技术路线_v2.3.md              ★ 现行技术路线（一～二十五章 + 附录）
     法泽FAZE_V1基线表结构_v1.0.md           ★ V1 只建 app_user + law_item，完整 DDL
     法泽FAZE_错误码规范_v1.0.md              ★ 78 个错误码 + HTTP 状态码规则

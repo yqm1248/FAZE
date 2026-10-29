@@ -14,7 +14,7 @@
    依据：《PC 后台开发计划_v1.0》§2.1 A-03；技术路线 §15.1「用户管理」
    接口：**缺**。见《未完成需备注》§1
    说明：
-     ★★ 这一屏是部部 27 页里 19 个列表页的母版 ★★
+     ★★ 这一屏是全部 28 页里 15 个列表页的母版 ★★
         结构固定为：页头 → 查询栏 → 工具栏 → 表格 → 分页。
         后面所有列表页（律师、订单、提现、文章、工单、日志…）照这个结构套，
         只换查询条件、列和操作。改这一屏的间距＝改 19 屏。
@@ -84,7 +84,7 @@
         <div class="field-inline">
           <label class="field-inline__label" for="q-verify">实名认证</label>
           <select class="select" id="q-verify">
-            <option>部部</option>
+            <option>全部</option>
             <option>已认证</option>
             <option>审核中</option>
             <option>未认证</option>
@@ -94,7 +94,7 @@
         <div class="field-inline">
           <label class="field-inline__label" for="q-state">账号状态</label>
           <select class="select" id="q-state">
-            <option>部部</option>
+            <option>全部</option>
             <option>正常</option>
             <option>已封禁</option>
             <option>注销中</option>
@@ -160,7 +160,7 @@
           </colgroup>
           <thead>
             <tr>
-              <th><input class="check" type="checkbox" aria-label="部选"></th>
+              <th><input class="check" type="checkbox" aria-label="全选"></th>
               <th>用户 ID</th>
               <th>用户</th>
               <th>实名认证</th>
