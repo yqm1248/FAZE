@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="dsh-design" content="web">
+<title>多语言翻译 · 法泽管理后台</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   A-17 多语言翻译管理
+   --------------------------------------------------------------------------
+   职责：文章译文的「待翻译 / 机翻待校对 / 已完成」队列、机翻辅助入口、
+         术语表（i18n_glossary）维护。
+   依据：《PC 后台开发计划_v1.0》§2.5 A-17；数据表 law_article_translation、
+         i18n_glossary
+   接口：**缺**。见《未完成需备注》§1
+   说明：
+     1. 布局用左右分栏：左边是「待办译文」（宽，要读标题），右边是「术语表」
+        （窄，380，只是查表用）。所以覆盖公共 .split 的列宽 ——
+        公共值是「左窄右宽」，这一页反过来。
+     2. ★ 设计约束：本稿里**不写任何藏文 / 维吾尔文 / 哈萨克文的真实文字**。
+        译文是译者与语料库的事，设计稿编一段假字出来，开发照抄会变成假数据。
+        所以右栏术语表写「藏文：待填 · 维吾尔文：待填」，状态用列表达。
+     3. 这一页只有一个 primary（批量机翻）。「机翻」是批量动作，
+        但机翻结果必须人工校对才能发布 —— 提示条把这条规则写在最上面。
+     4. 高度预算（内容区 776）：
+        页头 41 + 提示条 29 + 下间距 16 → 分栏占 690（flex 自适应，不滚整页）
+        左面板 = 头部 46 + chips 52 + 表体 520（表头 40 + 10 行 × 48）+ 分页 52 = 670 < 690
+        右面板 = 头部 52 + 5 条术语 + 说明 + 底部 42，内部滚动
+    ========================================================================== */
+
+/* 本页左主区要宽，覆盖公共 .split 的 380px 左列 */
+.split {
+  grid-template-columns: minmax(0, 1fr) 380px;
+}
+
+/* 让内容区撑满：页头与提示条固定，分栏吃掉剩余高度（同 03 实名审核页的办法） */
+.trans-page {
+  display: flex;
+  flex-direction: column;
+}
+
+.trans-page .page-head {
+  flex: 0 0 auto;
+}
+
+.trans-page .alert {
+  flex: 0 0 auto;
+}
+
+.trans {
+  flex: 1 1 0;
+  min-height: 0;
+  height: auto;
+}
+
+/* 提示条：单行，压掉通用 .alert 的上下 padding（8 → 4） */
+.trans__notice {
+  padding: var(--sp-1) var(--sp-4);
+  margin-bottom: var(--sp-4);
+}
+
+/* chips 条：贴在面板头部下面，与表格共用左右 16 */
+.trans__chips {
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--border-divider);
+}
+
+/* 左右两块面板的头 / 尾高度对齐：
+   右侧头部放了一个 28px 的「新增」按钮、左侧没有；左侧底部是 28px 的页码控件、
+   右侧只有一行字。不统一的话两条分隔线会错位 6~7px，看起来像没对齐的表格。 */
+.trans .panel__head {
+  min-height: 52px;
+}
+
+.trans .panel__foot {
+  display: flex;
+  align-items: center;
+  min-height: 53px;
+}
+
+/* 左栏底部是分页控件（页数在左、页码在右），要撑满面板底条 */
+.trans .panel__foot .pagination {
+  flex: 1 1 auto;
+}
+
+/* 列宽：计划书给的五个比例合计 84%（没含复选框/编号列），
+   本页没有勾选列，把差出来的 16 分给「源文本」（要放文章标题）和「更新时间」
+   （要放完整日期时间）。目标语言列要放得下「哈萨克文」4 字标签，
+   实测需 12%；状态列要放得下「机翻待校对」5 字标签，给 14%。 */
+.trans-table col.c-src { width: 44%; }
+.trans-table col.c-lang { width: 12%; }
+.trans-table col.c-state { width: 14%; }
+.trans-table col.c-upd { width: 18%; }
+.trans-table col.c-ops { width: 12%; }
+
+/* 源文本列两行：标题 + 来源文章编号 */
+.trans-table .src-sub {
+  font-family: var(--font-num);
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+
+/* 更新时间等宽 */
+.trans-table .mono-time {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+
+/* 右栏术语记录：这条只有两行字，上下 12 就够（16 会让 5 条 + 说明 + 规则
+   超出面板高度、面板内部出现滚动条） */
+.trans__terms .rec {
+  padding: var(--sp-3) var(--sp-4);
+}
+
+/* 术语使用次数：右对齐小字，不抢术语本身 */
+.trans__use {
+  flex: 0 0 auto;
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+/* 术语表说明块：放在列表下面，解释「改了术语之后已发布译文不会自动重写」 */
+.trans__note {
+  margin: var(--sp-3) var(--sp-4);
+  padding: var(--sp-3);
+  border-radius: var(--r-md);
+  background: var(--bg-surface-2);
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+  line-height: var(--lh-relaxed);
+}
+
+/* 术语匹配规则：三条键值，填住右栏下半部分的空白（运营真的会问这三条） */
+.trans__rules {
+  margin: 0 var(--sp-4) var(--sp-3);
+  padding: 0 var(--sp-3);
+  border-top: 1px solid var(--border-divider);
+}
+
+.trans__rules .kv__v {
+  font-family: var(--font-sans);
+  color: var(--text-secondary);
+  text-align: right;
+}
+</style>
+</head>
+<body class="shell" data-page="16-translation">
+
+<aside class="sidebar" id="sidebar"></aside>
+
+<div class="main">
+  <header class="navbar" id="navbar"></header>
+  <div class="tags-view" id="tags-view"></div>
+
+  <main class="app-container scroll-y trans-page">
+
+    <!-- ==================== 页头 ==================== -->
+    <div class="page-head">
+      <div>
+        <h1 class="page-head__title">多语言翻译</h1>
+      </div>
+      <div class="page-head__actions">
+        <button class="btn" type="button">术语表</button>
+        <button class="btn btn--primary" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"
+               style="width:14px;height:14px">
+            <path d="M4.6 6.4h9.2M9.2 4.2v2.2"/>
+            <path d="M11.4 6.4c-.6 3.6-2.8 6.4-6 8"/>
+            <path d="M6.4 10.2c1 2.4 2.8 4.2 5.2 5.4"/>
+            <path d="M13.4 19.4l3-7.4 3 7.4"/><path d="M14.6 16.8h3.6"/>
+          </svg>
+          批量机翻
+        </button>
+      </div>
+    </div>
+
+    <!-- ==================== 提示条 ==================== -->
+    <div class="alert alert--warning trans__notice">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="8.6"/>
+        <path d="M12 11v5.4"/><path d="M12 7.8v.2"/>
+      </svg>
+      <span>机翻结果必须人工校对后才能发布；命中术语表的词强制使用术语表译文</span>
+    </div>
+
+    <!-- ==================== 分栏：左译文 / 右术语表 ==================== -->
+    <div class="split trans">
+
+      <!-- ---------- 左：译文队列 ---------- -->
+      <section class="panel">
+        <div class="panel__head">
+          <h2 class="panel__title">译文队列</h2>
+          <span class="text-xs text-muted">共 985 条 · 按更新时间倒序</span>
+        </div>
+
+        <div class="trans__chips">
+          <div class="chips">
+            <a class="chip chip--active" href="#">待翻译 <span class="chip__count">32</span></a>
+            <a class="chip" href="#">机翻待校对 <span class="chip__count">11</span></a>
+            <a class="chip" href="#">已完成 <span class="chip__count">942</span></a>
+          </div>
+        </div>
+
+        <div class="panel__body">
+          <div class="table-wrap">
+            <table class="table trans-table">
+              <colgroup>
+                <col class="c-src">
+                <col class="c-lang">
+                <col class="c-state">
+                <col class="c-upd">
+                <col class="c-ops">
+              </colgroup>
+              <thead>
+                <tr>
+                  <th>源文本</th>
+                  <th>目标语言</th>
+                  <th>状态</th>
+                  <th>更新时间</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>
+                    <div class="cell-stack">
+                      <span class="cell-strong">劳务合同与劳动合同的区别</span>
+                      <span class="src-sub">文章 #A-1413</span>
+                    </div>
+                  </td>
+                  <td><span class="tag tag--outline">维吾尔文</span></td>
+                  <td><span class="tag tag--dot tag--warning">待翻译</span></td>
+                  <td><span class="mono-time">2026-10-29 20:10</span></td>
+                  <td>
+                    <div class="table__ops">
+                      <button class="btn btn--text" type="button">翻译</button>
+                    </div>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td>
+                    <div class="cell-stack">
+                      <span class="cell-strong">离婚时房产如何分割</span>
+                      <span class="src-sub">文章 #A-1408</span>
+                    </div>
+                  </td>
+                  <td><span class="tag tag--outline">藏文</span></td>
+                  <td><span class="tag tag--dot tag--primary">机翻待校对</span></td>
+                  <td><span class="mono-time">2026-10-29 18:32</span></td>
+                  <td>
+                    <div class="table__ops">
+                      <button class="btn btn--text" type="button">校对</button>
+                    </div>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td>
+                    <div class="cell-stack">
+                      <span class="cell-strong">交通事故后如何申请伤残鉴定</span>
+                      <span class="src-sub">文章 #A-1402</span>
+                    </div>
+                  </td>
+                  <td><span class="tag tag--outline">哈萨克文</span></td>
+                  <td><span class="tag tag--dot tag--primary">机翻待校对</span></td>
+                  <td><span class="mono-time">2026-10-29 17:05</span></td>
+                  <td>
+                    <div class="table__ops">
+                      <button class="btn btn--text" type="button">校对</button>
+                    </div>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td>
+                    <div class="cell-stack">
+                      <span class="cell-strong">工伤认定的申请时限</span>
+                      <span class="src-sub">文章 #A-1399</span>
+                    </div>
+                  </td>
+                  <td><span class="tag tag--outline">维吾尔文</span></td>
+                  <td><span class="tag tag--dot tag--success">已完成</span></td>
+                  <td><span class="mono-time">2026-10-29 16:41</span></td>
+                  <td>
+                    <div class="table__ops">
+                      <button class="btn btn--text" type="button">查看</button>
+                    </div>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td>
+                    <div class="cell-stack">
+                      <span class="cell-strong">子女抚养费的标准与变更</span>
+                      <span class="src-sub">文章 #A-1394</span>
+                    </div>
+                  </td>
+                  <td><span class="tag tag--outline">藏文</span></td>
+                  <td><span class="tag tag--dot tag--warning">待翻译</span></td>
+                  <td><span class="mono-time">2026-10-29 15:20</span></td>
+                  <td>
+                    <div class="table__ops">
+                      <button class="btn btn--text" type="button">翻译</button>
+                    </div>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td>
+                    <div class="cell-stack">
+                      <span class="cell-strong">民间借贷利息的法律上限</span>
+                      <span class="src-sub">文章 #A-1390</span>
+                    </div>
+                  </td>
+                  <td><span class="tag tag--outline">维吾尔文</span></td>
+                  <td><span class="tag tag--dot tag--success">已完成</span></td>
+                  <td><span class="mono-time">2026-10-29 14:02</span></td>
+                  <td>
+                    <div class="table__ops">
+                      <button class="btn btn--text" type="button">查看</button>
+                    </div>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td>
+                    <div class="cell-stack">
+                      <span class="cell-strong">被拖欠工资后如何维权</span>
+                      <span class="src-sub">文章 #A-1385</span>
+                    </div>
+                  </td>
+                  <td><span class="tag tag--outline">哈萨克文</span></td>
+                  <td><span class="tag tag--dot tag--warning">待翻译</span></td>
+                  <td><span class="mono-time">2026-10-29 11:38</span></td>
+                  <td>
+                    <div class="table__ops">
+                      <button class="btn btn--text" type="button">翻译</button>
+                    </div>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td>
+                    <div class="cell-stack">
+                      <span class="cell-strong">老年人再婚的财产约定</span>
+                      <span class="src-sub">文章 #A-1378</span>
+                    </div>
+                  </td>
+                  <td><span class="tag tag--outline">藏文</span></td>
+                  <td><span class="tag tag--dot tag--success">已完成</span></td>
+                  <td><span class="mono-time">2026-10-28 17:14</span></td>
+                  <td>
+                    <div class="table__ops">
+                      <button class="btn btn--text" type="button">查看</button>
+                    </div>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td>
+                    <div class="cell-stack">
+                      <span class="cell-strong">草原承包经营权的流转规则</span>
+                      <span class="src-sub">文章 #A-1371</span>
+                    </div>
+                  </td>
+                  <td><span class="tag tag--outline">维吾尔文</span></td>
+                  <td><span class="tag tag--dot tag--primary">机翻待校对</span></td>
+                  <td><span class="mono-time">2026-10-28 15:50</span></td>
+                  <td>
+                    <div class="table__ops">
+                      <button class="btn btn--text" type="button">校对</button>
+                    </div>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td>
+                    <div class="cell-stack">
+                      <span class="cell-strong">遭遇家庭暴力如何取证</span>
+                      <span class="src-sub">文章 #A-1366</span>
+                    </div>
+                  </td>
+                  <td><span class="tag tag--outline">哈萨克文</span></td>
+                  <td><span class="tag tag--dot tag--warning">待翻译</span></td>
+                  <td><span class="mono-time">2026-10-28 10:26</span></td>
+                  <td>
+                    <div class="table__ops">
+                      <button class="btn btn--text" type="button">翻译</button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="panel__foot">
+          <div class="pagination" style="padding:0">
+            <span class="pagination__total">共 <b>985</b> 条 · 第 <b>1</b> / 99 页</span>
+            <button class="page-btn page-btn--disabled" type="button" aria-label="上一页">‹</button>
+            <button class="page-btn page-btn--active" type="button">1</button>
+            <button class="page-btn" type="button">2</button>
+            <button class="page-btn" type="button">3</button>
+            <button class="page-btn" type="button" aria-label="下一页">›</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ---------- 右：术语表 ---------- -->
+      <section class="panel">
+        <div class="panel__head">
+          <h2 class="panel__title">术语表</h2>
+          <button class="btn btn--sm" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"
+                 style="width:12px;height:12px">
+              <path d="M12 5.2v13.6"/><path d="M5.2 12h13.6"/>
+            </svg>
+            新增
+          </button>
+        </div>
+
+        <div class="panel__body trans__terms">
+          <a class="rec" href="#">
+            <div class="rec__top">
+              <span class="rec__title">法律援助</span>
+              <span class="trans__use">使用 24 次</span>
+            </div>
+            <div class="rec__meta">藏文：待填 · 维吾尔文：待填</div>
+          </a>
+
+          <a class="rec" href="#">
+            <div class="rec__top">
+              <span class="rec__title">仲裁时效</span>
+              <span class="trans__use">使用 18 次</span>
+            </div>
+            <div class="rec__meta">藏文：待填 · 维吾尔文：待填</div>
+          </a>
+
+          <a class="rec" href="#">
+            <div class="rec__top">
+              <span class="rec__title">举证责任</span>
+              <span class="trans__use">使用 15 次</span>
+            </div>
+            <div class="rec__meta">藏文：待填 · 维吾尔文：待填</div>
+          </a>
+
+          <a class="rec" href="#">
+            <div class="rec__top">
+              <span class="rec__title">抚养权</span>
+              <span class="trans__use">使用 12 次</span>
+            </div>
+            <div class="rec__meta">藏文：待填 · 维吾尔文：待填</div>
+          </a>
+
+          <a class="rec" href="#">
+            <div class="rec__top">
+              <span class="rec__title">工伤认定</span>
+              <span class="trans__use">使用 9 次</span>
+            </div>
+            <div class="rec__meta">藏文：待填 · 维吾尔文：待填</div>
+          </a>
+
+          <p class="trans__note">
+            术语表共 18 条，此处显示最近使用的 5 条。修改术语后，已发布的译文不会自动重写，
+            需要在左列重新校对一次才生效。
+          </p>
+
+          <div class="trans__rules">
+            <div class="kv">
+              <span class="kv__k">匹配方式</span>
+              <span class="kv__v">完全匹配优先，不做词干还原</span>
+            </div>
+            <div class="kv">
+              <span class="kv__k">生效范围</span>
+              <span class="kv__v">机翻与新录入译文</span>
+            </div>
+            <div class="kv">
+              <span class="kv__k">维护人</span>
+              <span class="kv__v">内容运营 · 每周复核</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel__foot">
+          <span class="pagination__total" style="margin:0">共 18 条术语 · 第 1 / 4 页</span>
+        </div>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<script src="shell.js"></script>
+</body>
+</html>

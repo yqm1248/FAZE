@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="dsh-design" content="web">
+<title>敏感词管理 · 法泽管理后台</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   A-25 敏感词管理
+   --------------------------------------------------------------------------
+   职责：敏感词库增删改、三级分级、分语言、以及用户申诉复核。
+   依据：《PC 后台开发计划_v1.0》§2.7 A-25；技术路线 §15.1「系统设置」
+   接口：**缺**。见《未完成需备注》§1
+   说明：
+     1. 左词库 + 右申诉复核：申诉是被判词的用户喊冤，必须和词库并排放，
+        复核的人要一边看词的分级、一边决定这次是不是误判。
+     2. 分级用三级（阻断 / 送审 / 警示），不是「敏感 / 不敏感」二元 ——
+        真实场景里绝大多数命中是「需要人看一眼」，直接阻断会误伤正常对话。
+     3. 词条本身不改写、不脱敏：这是内部视图，改了就核对不了线上文本。
+   ========================================================================== */
+
+.sw-page { display: flex; flex-direction: column; }
+.sw-page .page-head { flex: 0 0 auto; }
+.sw-page .alert { flex: 0 0 auto; margin-bottom: var(--sp-4); }
+
+.sw { flex: 1 1 0; min-height: 0; height: auto; grid-template-columns: minmax(0, 1fr) 380px; }
+
+/* 词库面板内的搜索条 */
+.sw-search {
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--border-divider);
+}
+
+.sw-search .search-field { width: 100%; }
+.sw-search .input { width: 100%; }
+
+.sw-table col.c-word { width: 20%; }
+.sw-table col.c-level { width: 12%; }
+.sw-table col.c-lang { width: 12%; }
+.sw-table col.c-hits { width: 14%; }
+.sw-table col.c-last { width: 20%; }
+.sw-table col.c-state { width: 10%; }
+.sw-table col.c-ops { width: 12%; }
+
+.sw-table th { height: 36px; }
+.sw-table td { height: 44px; }
+
+.sw-table .mono-time {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+
+/* 词条本体：等宽、加粗，因为要逐字核对 */
+.sw-word {
+  font-family: var(--font-num);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+}
+
+/* 命中次数：0 次的用次级色，说明这个词还没真正生效过 */
+.sw-hits {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+.sw-hits--zero { color: var(--text-secondary); }
+
+/* 申诉条目 */
+.sw-appeal {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--border-divider);
+}
+
+.sw-appeal__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+}
+
+.sw-appeal__user {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+}
+
+.sw-appeal__reason {
+  font-size: var(--fs-xs);
+  line-height: var(--lh-relaxed);
+  color: var(--text-secondary);
+}
+
+.sw-appeal__ops {
+  display: flex;
+  gap: var(--sp-2);
+  margin-top: var(--sp-1);
+}
+</style>
+</head>
+<body class="shell" data-page="24-sensitive-word">
+
+<aside class="sidebar" id="sidebar"></aside>
+
+<div class="main">
+  <header class="navbar" id="navbar"></header>
+  <div class="tags-view" id="tags-view"></div>
+
+  <main class="app-container scroll-y sw-page">
+
+    <div class="page-head">
+      <div>
+        <h1 class="page-head__title">敏感词管理</h1>
+        <p class="page-head__desc">
+          词库改动 5 分钟内生效到全部通道。命中只做标注与拦截发送，不替换原文。
+        </p>
+      </div>
+      <div class="page-head__actions">
+        <button class="btn" type="button">导出词库</button>
+        <button class="btn btn--primary" type="button">批量导入</button>
+      </div>
+    </div>
+
+    <div class="alert">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="8.6"/>
+        <path d="M12 11v5.4"/><path d="M12 7.8v.2"/>
+      </svg>
+      <span>
+        分级含义：<b>阻断</b>＝直接拦截发送 · <b>送审</b>＝先发后进审核队列 ·
+        <b>警示</b>＝只标注不处理。请优先用「送审」，阻断只留给违法类词汇。
+      </span>
+    </div>
+
+    <div class="split sw">
+
+      <!-- ==================== 左：词库 ==================== -->
+      <section class="panel">
+        <div class="panel__head">
+          <h2 class="panel__title">词库</h2>
+          <span class="chip__count">共 486 个词</span>
+        </div>
+
+        <div class="chips" style="padding:12px 16px;border-bottom:1px solid var(--border-divider);flex-wrap:wrap">
+          <a class="chip chip--active" href="#">全部 <span class="chip__count">486</span></a>
+          <a class="chip" href="#">阻断 <span class="chip__count">128</span></a>
+          <a class="chip" href="#">送审 <span class="chip__count">246</span></a>
+          <a class="chip" href="#">警示 <span class="chip__count">112</span></a>
+        </div>
+
+        <div class="sw-search">
+          <div class="search-field">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                 stroke-linecap="round" aria-hidden="true">
+              <circle cx="11" cy="11" r="6.4"/><path d="m16 16 4 4"/>
+            </svg>
+            <input class="input" type="text" placeholder="搜索词条" aria-label="搜索词条">
+          </div>
+        </div>
+
+        <div class="panel__body">
+          <table class="table sw-table">
+            <colgroup>
+              <col class="c-word">
+              <col class="c-level">
+              <col class="c-lang">
+              <col class="c-hits">
+              <col class="c-last">
+              <col class="c-state">
+              <col class="c-ops">
+            </colgroup>
+            <thead>
+              <tr>
+                <th>词条</th>
+                <th>分级</th>
+                <th>语言</th>
+                <th style="text-align:right">命中</th>
+                <th>最近命中</th>
+                <th>状态</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="sw-word">包打赢</span></td>
+                <td><span class="tag tag--dot tag--warning">送审</span></td>
+                <td>全语言</td>
+                <td style="text-align:right"><span class="sw-hits">37</span></td>
+                <td><span class="mono-time">2026-10-29 21:36</span></td>
+                <td><span class="tag tag--dot tag--success">启用</span></td>
+                <td>
+                  <div class="table__ops">
+                    <button class="btn btn--text" type="button">编辑</button>
+                    <button class="btn btn--text is-danger" type="button">停用</button>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td><span class="sw-word">代办证件</span></td>
+                <td><span class="tag tag--dot tag--danger">阻断</span></td>
+                <td>简体中文</td>
+                <td style="text-align:right"><span class="sw-hits">14</span></td>
+                <td><span class="mono-time">2026-10-29 19:04</span></td>
+                <td><span class="tag tag--dot tag--success">启用</span></td>
+                <td>
+                  <div class="table__ops">
+                    <button class="btn btn--text" type="button">编辑</button>
+                    <button class="btn btn--text is-danger" type="button">停用</button>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td><span class="sw-word">走关系</span></td>
+                <td><span class="tag tag--dot tag--warning">送审</span></td>
+                <td>全语言</td>
+                <td style="text-align:right"><span class="sw-hits">22</span></td>
+                <td><span class="mono-time">2026-10-29 17:48</span></td>
+                <td><span class="tag tag--dot tag--success">启用</span></td>
+                <td>
+                  <div class="table__ops">
+                    <button class="btn btn--text" type="button">编辑</button>
+                    <button class="btn btn--text is-danger" type="button">停用</button>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td><span class="sw-word">高利贷</span></td>
+                <td><span class="tag tag--dot tag--warning">送审</span></td>
+                <td>全语言</td>
+                <td style="text-align:right"><span class="sw-hits">9</span></td>
+                <td><span class="mono-time">2026-10-29 15:02</span></td>
+                <td><span class="tag tag--dot tag--success">启用</span></td>
+                <td>
+                  <div class="table__ops">
+                    <button class="btn btn--text" type="button">编辑</button>
+                    <button class="btn btn--text is-danger" type="button">停用</button>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td><span class="sw-word">骗子</span></td>
+                <td><span class="tag tag--dot tag--gray">警示</span></td>
+                <td>简体中文</td>
+                <td style="text-align:right"><span class="sw-hits">61</span></td>
+                <td><span class="mono-time">2026-10-29 20:12</span></td>
+                <td><span class="tag tag--dot tag--success">启用</span></td>
+                <td>
+                  <div class="table__ops">
+                    <button class="btn btn--text" type="button">编辑</button>
+                    <button class="btn btn--text is-danger" type="button">停用</button>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td><span class="sw-word">坑人</span></td>
+                <td><span class="tag tag--dot tag--gray">警示</span></td>
+                <td>简体中文</td>
+                <td style="text-align:right"><span class="sw-hits">28</span></td>
+                <td><span class="mono-time">2026-10-29 16:20</span></td>
+                <td><span class="tag tag--dot tag--success">启用</span></td>
+                <td>
+                  <div class="table__ops">
+                    <button class="btn btn--text" type="button">编辑</button>
+                    <button class="btn btn--text is-danger" type="button">停用</button>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td><span class="sw-word">上访</span></td>
+                <td><span class="tag tag--dot tag--warning">送审</span></td>
+                <td>全语言</td>
+                <td style="text-align:right"><span class="sw-hits">6</span></td>
+                <td><span class="mono-time">2026-10-29 13:44</span></td>
+                <td><span class="tag tag--dot tag--success">启用</span></td>
+                <td>
+                  <div class="table__ops">
+                    <button class="btn btn--text" type="button">编辑</button>
+                    <button class="btn btn--text is-danger" type="button">停用</button>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td><span class="sw-word">假证件</span></td>
+                <td><span class="tag tag--dot tag--danger">阻断</span></td>
+                <td>全语言</td>
+                <td style="text-align:right"><span class="sw-hits sw-hits--zero">0</span></td>
+                <td><span class="mono-time">—</span></td>
+                <td><span class="tag tag--dot tag--gray">停用</span></td>
+                <td>
+                  <div class="table__ops">
+                    <button class="btn btn--text" type="button">编辑</button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="panel__foot" style="display:flex;align-items:center;justify-content:space-between">
+          <span class="pagination__total" style="margin:0">共 486 条 · 第 1 / 49 页</span>
+          <div class="row">
+            <button class="page-btn page-btn--disabled" type="button" aria-label="上一页">‹</button>
+            <button class="page-btn page-btn--active" type="button">1</button>
+            <button class="page-btn" type="button">2</button>
+            <button class="page-btn" type="button">3</button>
+            <button class="page-btn" type="button" aria-label="下一页">›</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== 右：申诉复核 ==================== -->
+      <section class="panel">
+        <div class="panel__head">
+          <h2 class="panel__title">申诉复核</h2>
+          <span class="tag tag--warning tag--dot">3 条待复核</span>
+        </div>
+
+        <div class="panel__body">
+          <div class="sw-appeal">
+            <div class="sw-appeal__top">
+              <span class="sw-appeal__user">阿依努尔·买买提</span>
+              <span class="tag tag--outline">IM 会话</span>
+            </div>
+            <div class="sw-appeal__reason">
+              被判词：<span class="sw-word">包打赢</span> · 2026-10-29 21:50 申诉
+            </div>
+            <div class="sw-appeal__reason">
+              「我是问律师能不能保证赢，不是说我能保证。这句被拦了，律师根本没收到。」
+            </div>
+            <div class="sw-appeal__ops">
+              <button class="btn btn--sm" type="button">通过申诉</button>
+              <button class="btn btn--sm btn--danger" type="button">维持原判</button>
+            </div>
+          </div>
+
+          <div class="sw-appeal">
+            <div class="sw-appeal__top">
+              <span class="sw-appeal__user">李伟</span>
+              <span class="tag tag--outline">用户评价</span>
+            </div>
+            <div class="sw-appeal__reason">
+              被判词：<span class="sw-word">骗子</span> · 2026-10-29 20:36 申诉
+            </div>
+            <div class="sw-appeal__reason">
+              「我评价里写的是『感觉像骗子』，是我自己的真实感受，没有辱骂。」
+            </div>
+            <div class="sw-appeal__ops">
+              <button class="btn btn--sm" type="button">通过申诉</button>
+              <button class="btn btn--sm btn--danger" type="button">维持原判</button>
+            </div>
+          </div>
+
+          <div class="sw-appeal">
+            <div class="sw-appeal__top">
+              <span class="sw-appeal__user">古丽娜尔·哈力克</span>
+              <span class="tag tag--outline">IM 会话</span>
+            </div>
+            <div class="sw-appeal__reason">
+              被判词：<span class="sw-word">高利贷</span> · 2026-10-29 15:28 申诉
+            </div>
+            <div class="sw-appeal__reason">
+              「我在描述我遇到的情况，对方放的就是高利贷，这是事实不是骂人。」
+            </div>
+            <div class="sw-appeal__ops">
+              <button class="btn btn--sm" type="button">通过申诉</button>
+              <button class="btn btn--sm btn--danger" type="button">维持原判</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel__foot">
+          <span class="text-xs text-muted">
+            通过申诉后，该条记录从审核队列移除，用户不被处置；词条本身不变。
+          </span>
+        </div>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<script src="shell.js"></script>
+</body>
+</html>

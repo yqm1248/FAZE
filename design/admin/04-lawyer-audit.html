@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="dsh-design" content="web">
+<title>律师入驻审核 · 法泽管理后台</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   A-05 律师入驻审核
+   --------------------------------------------------------------------------
+   职责：律师提交入驻申请后的资质审核。通过后该律师出现在 App 律师列表并可接单。
+   依据：《PC 后台开发计划_v1.0》§2.2 A-05；技术路线 §4.8.2（本页两组接口已定义）
+   接口：**有** —— GET /admin/lawyer-applications、POST /admin/lawyer-applications/{id}/audit
+   说明：
+     1. 与 A-04 实名认证审核同一套「左队列 + 右详情」骨架，但内容多一层资质材料
+        与四步流程，所以右栏用 subtabs 分成「资质材料 / 审核记录」。
+     2. 这是 22 页里唯一「接口已在技术路线定义」的审核页，页头标注出来，
+        开发排期时它应该是 P2 里第一个能真跑通的页面。
+   ========================================================================== */
+
+.audit-page { display: flex; flex-direction: column; }
+.audit-page .page-head { flex: 0 0 auto; }
+.audit { flex: 1 1 0; min-height: 0; height: auto; }
+
+.audit .chips {
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--border-divider);
+  flex-wrap: wrap;
+}
+
+.audit__user {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding-bottom: var(--sp-4);
+  border-bottom: 1px solid var(--border-divider);
+}
+
+.audit__user-main { flex: 1 1 auto; min-width: 0; }
+.audit__user-name {
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+}
+.audit__user-sub {
+  margin-top: 2px;
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+
+.audit__label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: var(--sp-5) 0 var(--sp-3);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--text-body);
+}
+.audit__label span {
+  font-weight: var(--fw-regular);
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+
+/* 执业证影像：竖向证件，两张并排 */
+.cert-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-3);
+}
+.cert-grid .img-cell { width: 100%; height: 96px; }
+
+/* 资质材料逐项核对的清单：每项带勾/叉，比一堆图更容易看出缺什么 */
+.check-list {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-md);
+  overflow: hidden;
+}
+.check-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  border-bottom: 1px solid var(--border-divider);
+  font-size: var(--fs-sm);
+  color: var(--text-body);
+}
+.check-item:last-child { border-bottom: 0; }
+.check-item__mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--state-success-soft);
+  color: var(--state-success);
+}
+.check-item__mark svg { width: 10px; height: 10px; }
+.check-item__mark--miss {
+  background: var(--state-danger-soft);
+  color: var(--state-danger-deep);
+}
+.check-item__note {
+  margin-left: auto;
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+</style>
+</head>
+<body class="shell" data-page="04-lawyer-audit">
+
+<aside class="sidebar" id="sidebar"></aside>
+
+<div class="main">
+  <header class="navbar" id="navbar"></header>
+  <div class="tags-view" id="tags-view"></div>
+
+  <main class="app-container scroll-y audit-page">
+
+    <div class="page-head">
+      <div>
+        <h1 class="page-head__title">律师入驻审核</h1>
+        <p class="page-head__desc">
+          核对执业资格证与律所证明。通过后律师可在 App 展示并接单；驳回需选择理由，用户可重新提交。
+        </p>
+      </div>
+      <div class="page-head__actions">
+        <span class="tag tag--success tag--dot">接口已定义</span>
+        <button class="btn" type="button">审核标准</button>
+      </div>
+    </div>
+
+    <div class="split audit">
+
+      <!-- ==================== 左：申请队列 ==================== -->
+      <section class="panel">
+        <div class="panel__head">
+          <h2 class="panel__title">入驻申请</h2>
+          <span class="tag tag--warning tag--dot">3 条待审</span>
+        </div>
+
+        <div class="chips">
+          <a class="chip chip--active" href="#">待审核 <span class="chip__count">3</span></a>
+          <a class="chip" href="#">已通过 <span class="chip__count">82</span></a>
+          <a class="chip" href="#">已驳回 <span class="chip__count">14</span></a>
+        </div>
+
+        <div class="panel__body">
+          <a class="rec rec--active" href="#">
+            <div class="rec__top">
+              <span class="rec__title">张建国</span>
+              <span class="tag tag--warning tag--dot">待审核</span>
+            </div>
+            <div class="rec__meta">新疆天和律师事务所 · 执业 12 年</div>
+            <div class="rec__meta">提交于 2026-10-29 20:36 · 等待 1 小时 42 分</div>
+          </a>
+
+          <a class="rec" href="#">
+            <div class="rec__top">
+              <span class="rec__title">阿不都热依木·艾山</span>
+              <span class="tag tag--warning tag--dot">待审核</span>
+            </div>
+            <div class="rec__meta">新疆伊犁河谷律师事务所 · 执业 8 年</div>
+            <div class="rec__meta">提交于 2026-10-29 21:08 · 等待 1 小时 10 分</div>
+          </a>
+
+          <a class="rec" href="#">
+            <div class="rec__top">
+              <span class="rec__title">李雪梅</span>
+              <span class="tag tag--warning tag--dot">待审核</span>
+            </div>
+            <div class="rec__meta">新疆奎屯正大律师事务所 · 执业 5 年</div>
+            <div class="rec__meta">提交于 2026-10-29 21:48 · 等待 30 分</div>
+          </a>
+
+          <a class="rec" href="#">
+            <div class="rec__top">
+              <span class="rec__title">古丽米拉·托合提</span>
+              <span class="tag tag--success tag--dot">已通过</span>
+            </div>
+            <div class="rec__meta">新疆天和律师事务所 · 执业 9 年</div>
+            <div class="rec__meta">审核于 2026-10-29 15:20 · 审核人 admin</div>
+          </a>
+
+          <a class="rec" href="#">
+            <div class="rec__top">
+              <span class="rec__title">王强</span>
+              <span class="tag tag--danger tag--dot">已驳回</span>
+            </div>
+            <div class="rec__meta">执业证影像模糊，无法核验</div>
+            <div class="rec__meta">审核于 2026-10-28 11:04 · 审核人 admin</div>
+          </a>
+
+          <a class="rec" href="#">
+            <div class="rec__top">
+              <span class="rec__title">赵明</span>
+              <span class="tag tag--success tag--dot">已通过</span>
+            </div>
+            <div class="rec__meta">新疆霍尔果斯律师事务所 · 执业 15 年</div>
+            <div class="rec__meta">审核于 2026-10-22 09:36 · 审核人 admin</div>
+          </a>
+        </div>
+
+        <div class="panel__foot">
+          <span class="pagination__total" style="margin:0">共 104 条 · 第 1 / 18 页</span>
+        </div>
+      </section>
+
+      <!-- ==================== 右：审核详情 ==================== -->
+      <section class="panel">
+        <div class="panel__head">
+          <h2 class="panel__title">申请详情</h2>
+          <button class="icon-btn" type="button" aria-label="关闭">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                 stroke-linecap="round" aria-hidden="true">
+              <path d="m6.4 6.4 11.2 11.2M12.6 6.4 6.4 12.6"/>
+            </svg>
+          </button>
+        </div>
+
+        <div class="panel__body" style="padding:20px 20px 0">
+
+          <div class="audit__user">
+            <span class="avatar avatar--lg">张</span>
+            <div class="audit__user-main">
+              <div class="audit__user-name">张建国</div>
+              <div class="audit__user-sub">
+                申请编号 LAW-2026-0104 · 手机 159****3308 · 申请于 2026-10-29 20:36
+              </div>
+            </div>
+            <span class="tag tag--warning tag--dot">待审核</span>
+          </div>
+
+          <!-- 页内 tab：资质材料 / 审核记录 -->
+          <div class="subtabs mt-4">
+            <button class="subtab subtab--active" type="button">资质材料</button>
+            <button class="subtab" type="button">审核记录</button>
+          </div>
+
+          <div class="tab-panel">
+            <div class="audit__label">基本信息</div>
+            <div class="desc-grid">
+              <div class="desc-item">
+                <span class="desc-label">执业证号</span>
+                <span class="desc-value mono">16550201910283421</span>
+              </div>
+              <div class="desc-item">
+                <span class="desc-label">执业年限</span>
+                <span class="desc-value">12 年</span>
+              </div>
+              <div class="desc-item">
+                <span class="desc-label">执业机构</span>
+                <span class="desc-value desc-value--strong">新疆天和律师事务所</span>
+              </div>
+              <div class="desc-item">
+                <span class="desc-label">所在地区</span>
+                <span class="desc-value">伊宁市</span>
+              </div>
+              <div class="desc-item">
+                <span class="desc-label">擅长领域</span>
+                <span class="desc-value">合同纠纷、劳动纠纷</span>
+              </div>
+              <div class="desc-item">
+                <span class="desc-label">联系电话</span>
+                <span class="desc-value mono">159****3308</span>
+              </div>
+            </div>
+
+            <div class="audit__label">证件与材料 <span>2 张</span></div>
+            <div class="cert-grid">
+              <div class="img-cell" role="img" aria-label="法律职业资格证书">
+                <svg viewBox="0 0 96 96" fill="none" aria-hidden="true">
+                  <rect x="14" y="8" width="68" height="80" rx="3" stroke="var(--border-strong)"/>
+                  <circle cx="48" cy="34" r="11" stroke="var(--border-strong)"/>
+                  <path d="M30 56h36M30 64h36M30 22h24" stroke="var(--border-subtle)"/>
+                </svg>
+                <span class="img-cell__tag">法律职业资格证</span>
+              </div>
+              <div class="img-cell" role="img" aria-label="律师执业证">
+                <svg viewBox="0 0 96 96" fill="none" aria-hidden="true">
+                  <rect x="18" y="6" width="60" height="84" rx="3" stroke="var(--border-strong)"/>
+                  <path d="M28 22h40M28 32h40" stroke="var(--border-subtle)"/>
+                  <circle cx="38" cy="54" r="8" stroke="var(--border-strong)"/>
+                  <path d="M52 48h18M52 58h18M28 24h40" stroke="var(--border-subtle)"/>
+                </svg>
+                <span class="img-cell__tag">律师执业证</span>
+              </div>
+            </div>
+
+            <div class="audit__label">材料核对 <span>3 项已核验 · 1 项缺失</span></div>
+            <div class="check-list">
+              <div class="check-item">
+                <span class="check-item__mark">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
+                       stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="m5 13 4.5 4.5L19 2"/>
+                  </svg>
+                </span>
+                法律职业资格证 · 律师执业证 · 律所证明
+                <span class="check-item__note">编号可查、在有效期内、已盖章</span>
+              </div>
+              <div class="check-item">
+                <span class="check-item__mark check-item__mark--miss">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
+                       stroke-linecap="round" aria-hidden="true">
+                    <path d="m6 6 12 12M18 6 6 18"/>
+                  </svg>
+                </span>
+                无犯罪记录证明
+                <span class="check-item__note">未上传，可要求补充</span>
+              </div>
+            </div>
+
+            <!-- 四步进度用一行文字交代，不再铺一条竖向时间线：
+                 右栏高度有限，竖向时间线会挤掉材料和证件。
+                 竖向时间线（.timeline）的完整形态见 11-order-detail.html。 -->
+            <p class="text-sm mt-4" style="color:var(--text-secondary);line-height:1.8">
+              申请进度：① 提交申请 20:36 → ② 资格初审 20:58（系统自动）→
+              <b style="color:var(--text-body)">③ 人工资质复核（当前）</b> → ④ 审核结果（未开始）
+            </p>
+
+            <!-- 设计说明：右栏用「资质材料 / 审核记录」两个页内 tab。
+                 本屏画的是「资质材料」tab；「审核记录」tab 里是四步流程的
+                 竖向时间线（.timeline / .tl-item），形态与 11-order-detail.html
+                 的状态流转完全同构，这里不重复画。
+                 本页两个接口已在技术路线定义：
+                   GET  /admin/lawyer-applications
+                   POST /admin/lawyer-applications/{id}/audit -->
+          </div>
+        </div>
+
+        <div class="panel__foot" style="display:flex;justify-content:flex-end;gap:8px">
+          <button class="btn" type="button">要求补充材料</button>
+          <button class="btn btn--danger" type="button">驳回</button>
+          <button class="btn btn--primary" type="button">通过入驻</button>
+        </div>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<script src="shell.js"></script>
+</body>
+</html>

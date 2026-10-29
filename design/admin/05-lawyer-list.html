@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="dsh-design" content="web">
+<title>律师列表 · 法泽管理后台</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   A-06 律师列表
+   --------------------------------------------------------------------------
+   职责：已入驻律师的查询、详情、违规处理（警告 / 限流 / 下架 / 清退）。
+   依据：《PC 后台开发计划_v1.0》§2.2 A-06；技术路线 §15.1「律师管理」
+   接口：**缺**（只有入驻审核的两个接口，列表与违规处理都没有）
+   说明：
+     1. 结构完全套 A-03 用户列表母版：页头 → 查询栏 → 工具栏 → 表格 → 分页。
+     2. 「违规处理」不是普通操作：四种处置的后果不同（警告不影响接单，
+        限流会降权，下架会从 App 消失，清退会解除入驻），所以单独一列表格，
+        用下拉而不是并排三个按钮，避免误点。
+     3. 评分列只放数字不画星星：后台里一列星星在表格里对比度差、也不便排序。
+   ========================================================================== */
+
+.lawyer-table col.c-id { width: 9%; }
+.lawyer-table col.c-person { width: 22%; }
+.lawyer-table col.c-field { width: 11%; }
+.lawyer-table col.c-score { width: 7%; }
+.lawyer-table col.c-orders { width: 7.5%; }
+.lawyer-table col.c-income { width: 11%; }
+.lawyer-table col.c-join { width: 14%; }
+.lawyer-table col.c-state { width: 9%; }
+.lawyer-table col.c-ops { width: 9.5%; }
+
+.lawyer-table .mono-time {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+
+/* 评分：数字为主，满分为参考值放小字 */
+.score {
+  font-family: var(--font-num);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+}
+.score small {
+  margin-left: 2px;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-regular);
+  color: var(--text-secondary);
+}
+
+/* 违规处理下拉：宽度比普通 select 窄，只放四个动作 */
+.treat-select {
+  width: 92px;
+  height: var(--ctrl-h-sm);
+  font-size: var(--fs-xs);
+  padding: 0 var(--sp-5) 0 var(--sp-2);
+  background-position: calc(100% - 13px) 12px, calc(100% - 8px) 12px;
+}
+</style>
+</head>
+<body class="shell" data-page="05-lawyer-list">
+
+<aside class="sidebar" id="sidebar"></aside>
+
+<div class="main">
+  <header class="navbar" id="navbar"></header>
+  <div class="tags-view" id="tags-view"></div>
+
+  <main class="app-container scroll-y">
+
+    <div class="page-head">
+      <div>
+        <h1 class="page-head__title">律师列表</h1>
+        <p class="page-head__desc">
+          已通过入驻审核的律师。下架会立即从 App 律师列表移除，清退会解除入驻关系且不可撤销。
+        </p>
+      </div>
+      <div class="page-head__actions">
+        <button class="btn" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"
+               style="width:14px;height:14px">
+            <path d="M12 3.8v11.4"/><path d="m7.6 11 4.4 4.4 4.4-4.4"/>
+            <path d="M4.4 18.6v1.2h15.2v-1.2"/>
+          </svg>
+          导出律师
+        </button>
+      </div>
+    </div>
+
+    <!-- 查询栏 -->
+    <div class="card">
+      <form class="query-bar" method="get">
+        <div class="field-inline">
+          <label class="field-inline__label" for="q-kw">律师</label>
+          <input class="input" id="q-kw" type="text" placeholder="姓名 / 手机号 / 律师 ID">
+        </div>
+        <div class="field-inline">
+          <label class="field-inline__label" for="q-field">执业领域</label>
+          <select class="select" id="q-field">
+            <option>全部</option>
+            <option>婚姻家事</option>
+            <option>劳动纠纷</option>
+            <option>合同纠纷</option>
+            <option>交通事故</option>
+            <option>刑事辩护</option>
+          </select>
+        </div>
+        <div class="field-inline">
+          <label class="field-inline__label" for="q-state">状态</label>
+          <select class="select" id="q-state">
+            <option>全部</option>
+            <option>已认证</option>
+            <option>已限流</option>
+            <option>已下架</option>
+          </select>
+        </div>
+        <div class="field-inline">
+          <label class="field-inline__label" for="q-area">所在地区</label>
+          <select class="select" id="q-area">
+            <option>全部</option>
+            <option>伊宁市</option>
+            <option>奎屯市</option>
+            <option>霍尔果斯市</option>
+            <option>察布查尔县</option>
+            <option>伊宁县</option>
+          </select>
+        </div>
+        <div class="query-bar__actions">
+          <button class="btn btn--primary" type="submit">查询</button>
+          <button class="btn" type="reset">重置</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- 表格 -->
+    <div class="card card--flush" style="margin-top:var(--sp-4)">
+      <div class="toolbar">
+        <div class="toolbar__left">
+          <button class="btn btn--sm" type="button">批量限流</button>
+          <span class="toolbar__count">共 <b>87</b> 位律师 · 其中 4 位被限流</span>
+        </div>
+        <div class="toolbar__right">
+          <button class="icon-btn" type="button" title="刷新" aria-label="刷新">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M20 12a8 8 0 1 1-2.4-5.7"/><path d="M20.2 4.6v4.2H16"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="table lawyer-table">
+          <colgroup>
+            <col class="c-id">
+            <col class="c-person">
+            <col class="c-field">
+            <col class="c-score">
+            <col class="c-orders">
+            <col class="c-income">
+            <col class="c-join">
+            <col class="c-state">
+            <col class="c-ops">
+          </colgroup>
+          <thead>
+            <tr>
+              <th>律师 ID</th>
+              <th>律师</th>
+              <th>执业领域</th>
+              <th style="text-align:right">评分</th>
+              <th style="text-align:right">接单</th>
+              <th style="text-align:right">累计收入</th>
+              <th>入驻时间</th>
+              <th>状态</th>
+              <th>违规处理</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="cell-id">L-1024</span></td>
+              <td>
+                <div class="cell-person">
+                  <span class="cell-person__avatar">张</span>
+                  <span class="cell-stack">
+                    <span class="cell-strong">张建国</span>
+                    <span class="cell-stack__sub">新疆天和律师事务所</span>
+                  </span>
+                </div>
+              </td>
+              <td>合同纠纷</td>
+              <td style="text-align:right"><span class="score">4.9<small>/5</small></span></td>
+              <td class="cell-num">128</td>
+              <td class="cell-num">¥ 38,400.00</td>
+              <td><span class="mono-time">2026-03-02 10:24</span></td>
+              <td><span class="tag tag--dot tag--success">已认证</span></td>
+              <td>
+                <select class="select treat-select" aria-label="对 张建国 执行违规处理">
+                  <option>处理…</option>
+                  <option>警告</option>
+                  <option>限流</option>
+                  <option>下架</option>
+                  <option>清退</option>
+                </select>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="cell-id">L-1023</span></td>
+              <td>
+                <div class="cell-person">
+                  <span class="cell-person__avatar">阿</span>
+                  <span class="cell-stack">
+                    <span class="cell-strong">阿不都热依木·艾山</span>
+                    <span class="cell-stack__sub">新疆伊犁河谷律师事务所</span>
+                  </span>
+                </div>
+              </td>
+              <td>婚姻家事</td>
+              <td style="text-align:right"><span class="score">4.8<small>/5</small></span></td>
+              <td class="cell-num">96</td>
+              <td class="cell-num">¥ 28,800.00</td>
+              <td><span class="mono-time">2026-03-11 15:08</span></td>
+              <td><span class="tag tag--dot tag--success">已认证</span></td>
+              <td>
+                <select class="select treat-select" aria-label="对 阿不都热依木·艾山 执行违规处理">
+                  <option>处理…</option>
+                  <option>警告</option>
+                  <option>限流</option>
+                  <option>下架</option>
+                  <option>清退</option>
+                </select>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="cell-id">L-1022</span></td>
+              <td>
+                <div class="cell-person">
+                  <span class="cell-person__avatar">李</span>
+                  <span class="cell-stack">
+                    <span class="cell-strong">李雪梅</span>
+                    <span class="cell-stack__sub">新疆奎屯正大律师事务所</span>
+                  </span>
+                </div>
+              </td>
+              <td>劳动纠纷</td>
+              <td style="text-align:right"><span class="score">4.9<small>/5</small></span></td>
+              <td class="cell-num">143</td>
+              <td class="cell-num">¥ 42,900.00</td>
+              <td><span class="mono-time">2026-03-18 09:36</span></td>
+              <td><span class="tag tag--dot tag--success">已认证</span></td>
+              <td>
+                <select class="select treat-select" aria-label="对 李雪梅 执行违规处理">
+                  <option>处理…</option>
+                  <option>警告</option>
+                  <option>限流</option>
+                  <option>下架</option>
+                  <option>清退</option>
+                </select>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="cell-id">L-1021</span></td>
+              <td>
+                <div class="cell-person">
+                  <span class="cell-person__avatar">古</span>
+                  <span class="cell-stack">
+                    <span class="cell-strong">古丽米拉·托合提</span>
+                    <span class="cell-stack__sub">新疆天和律师事务所</span>
+                  </span>
+                </div>
+              </td>
+              <td>交通事故</td>
+              <td style="text-align:right"><span class="score">4.6<small>/5</small></span></td>
+              <td class="cell-num">74</td>
+              <td class="cell-num">¥ 19,200.00</td>
+              <td><span class="mono-time">2026-04-07 11:52</span></td>
+              <td><span class="tag tag--dot tag--warning">已限流</span></td>
+              <td>
+                <select class="select treat-select" aria-label="对 古丽米拉·托合提 执行违规处理">
+                  <option>处理…</option>
+                  <option>解除限流</option>
+                  <option>下架</option>
+                  <option>清退</option>
+                </select>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="cell-id">L-1020</span></td>
+              <td>
+                <div class="cell-person">
+                  <span class="cell-person__avatar">赵</span>
+                  <span class="cell-stack">
+                    <span class="cell-strong">赵明</span>
+                    <span class="cell-stack__sub">新疆霍尔果斯律师事务所</span>
+                  </span>
+                </div>
+              </td>
+              <td>刑事辩护</td>
+              <td style="text-align:right"><span class="score">5.0<small>/5</small></span></td>
+              <td class="cell-num">61</td>
+              <td class="cell-num">¥ 61,000.00</td>
+              <td><span class="mono-time">2026-04-19 14:20</span></td>
+              <td><span class="tag tag--dot tag--success">已认证</span></td>
+              <td>
+                <select class="select treat-select" aria-label="对 赵明 执行违规处理">
+                  <option>处理…</option>
+                  <option>警告</option>
+                  <option>限流</option>
+                  <option>下架</option>
+                  <option>清退</option>
+                </select>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="cell-id">L-1019</span></td>
+              <td>
+                <div class="cell-person">
+                  <span class="cell-person__avatar">马</span>
+                  <span class="cell-stack">
+                    <span class="cell-strong">马丽娜</span>
+                    <span class="cell-stack__sub">新疆伊宁律师事务所</span>
+                  </span>
+                </div>
+              </td>
+              <td>婚姻家事</td>
+              <td style="text-align:right"><span class="score">4.7<small>/5</small></span></td>
+              <td class="cell-num">88</td>
+              <td class="cell-num">¥ 22,400.00</td>
+              <td><span class="mono-time">2026-05-06 10:14</span></td>
+              <td><span class="tag tag--dot tag--success">已认证</span></td>
+              <td>
+                <select class="select treat-select" aria-label="对 马丽娜 执行违规处理">
+                  <option>处理…</option>
+                  <option>警告</option>
+                  <option>限流</option>
+                  <option>下架</option>
+                  <option>清退</option>
+                </select>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="cell-id">L-1018</span></td>
+              <td>
+                <div class="cell-person">
+                  <span class="cell-person__avatar">艾</span>
+                  <span class="cell-stack">
+                    <span class="cell-strong">艾尼瓦尔·司马义</span>
+                    <span class="cell-stack__sub">新疆昭苏律师事务所</span>
+                  </span>
+                </div>
+              </td>
+              <td>合同纠纷</td>
+              <td style="text-align:right"><span class="score">4.5<small>/5</small></span></td>
+              <td class="cell-num">52</td>
+              <td class="cell-num">¥ 14,600.00</td>
+              <td><span class="mono-time">2026-05-22 16:40</span></td>
+              <td><span class="tag tag--dot tag--danger">已下架</span></td>
+              <td>
+                <select class="select treat-select" aria-label="对 艾尼瓦尔·司马义 执行违规处理">
+                  <option>处理…</option>
+                  <option>恢复上架</option>
+                  <option>清退</option>
+                </select>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="cell-id">L-1017</span></td>
+              <td>
+                <div class="cell-person">
+                  <span class="cell-person__avatar">周</span>
+                  <span class="cell-stack">
+                    <span class="cell-strong">周文静</span>
+                    <span class="cell-stack__sub">新疆特克斯律师事务所</span>
+                  </span>
+                </div>
+              </td>
+              <td>劳动纠纷</td>
+              <td style="text-align:right"><span class="score">4.7<small>/5</small></span></td>
+              <td class="cell-num">67</td>
+              <td class="cell-num">¥ 17,900.00</td>
+              <td><span class="mono-time">2026-06-03 09:08</span></td>
+              <td><span class="tag tag--dot tag--success">已认证</span></td>
+              <td>
+                <select class="select treat-select" aria-label="对 周文静 执行违规处理">
+                  <option>处理…</option>
+                  <option>警告</option>
+                  <option>限流</option>
+                  <option>下架</option>
+                  <option>清退</option>
+                </select>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="cell-id">L-1016</span></td>
+              <td>
+                <div class="cell-person">
+                  <span class="cell-person__avatar">吐</span>
+                  <span class="cell-stack">
+                    <span class="cell-strong">吐尔逊·亚森</span>
+                    <span class="cell-stack__sub">新疆新源律师事务所</span>
+                  </span>
+                </div>
+              </td>
+              <td>交通事故</td>
+              <td style="text-align:right"><span class="score">4.4<small>/5</small></span></td>
+              <td class="cell-num">39</td>
+              <td class="cell-num">¥ 11,700.00</td>
+              <td><span class="mono-time">2026-06-17 13:26</span></td>
+              <td><span class="tag tag--dot tag--success">已认证</span></td>
+              <td>
+                <select class="select treat-select" aria-label="对 吐尔逊·亚森 执行违规处理">
+                  <option>处理…</option>
+                  <option>警告</option>
+                  <option>限流</option>
+                  <option>下架</option>
+                  <option>清退</option>
+                </select>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="cell-id">L-1015</span></td>
+              <td>
+                <div class="cell-person">
+                  <span class="cell-person__avatar">陈</span>
+                  <span class="cell-stack">
+                    <span class="cell-strong">陈志强</span>
+                    <span class="cell-stack__sub">新疆霍城律师事务所</span>
+                  </span>
+                </div>
+              </td>
+              <td>刑事辩护</td>
+              <td style="text-align:right"><span class="score">4.8<small>/5</small></span></td>
+              <td class="cell-num">43</td>
+              <td class="cell-num">¥ 25,800.00</td>
+              <td><span class="mono-time">2026-07-01 10:52</span></td>
+              <td><span class="tag tag--dot tag--success">已认证</span></td>
+              <td>
+                <select class="select treat-select" aria-label="对 陈志强 执行违规处理">
+                  <option>处理…</option>
+                  <option>警告</option>
+                  <option>限流</option>
+                  <option>下架</option>
+                  <option>清退</option>
+                </select>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="pagination">
+        <span class="pagination__total">共 <b>87</b> 条 · 当前第 <b>1</b> / 9 页</span>
+        <button class="page-btn page-btn--disabled" type="button" aria-label="上一页">‹</button>
+        <button class="page-btn page-btn--active" type="button">1</button>
+        <button class="page-btn" type="button">2</button>
+        <button class="page-btn" type="button">3</button>
+        <button class="page-btn page-btn--disabled" type="button" aria-label="更多">…</button>
+        <button class="page-btn" type="button">9</button>
+        <button class="page-btn" type="button" aria-label="下一页">›</button>
+        <select class="pagination__size" aria-label="每页条数">
+          <option>10 条 / 页</option>
+          <option>20 条 / 页</option>
+          <option>50 条 / 页</option>
+        </select>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script src="shell.js"></script>
+</body>
+</html>

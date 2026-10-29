@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="dsh-design" content="web">
+<title>通知模板 · 法泽管理后台</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   A-24 通知模板
+   --------------------------------------------------------------------------
+   职责：站内信 / App 推送 / 短信模板的查询、编辑、测试发送。
+   依据：《PC 后台开发计划_v1.0》§2.7 A-24；技术路线 §15.1「消息管理」
+   接口：**缺**。见《未完成需备注》§1
+   说明：
+     1. 结构套 A-03 母版。模板页最关键的是「内容预览」列 —— 变量占位符
+        拼错会导致整条消息发不出去，所以在列表里就要能看见原样模板。
+     2. 变量占位符用等宽字体 + 品牌浅底标出来，不要用花括号硬塞在中文里
+        看不出边界。
+   ========================================================================== */
+
+/* 列宽：内容预览是这一页的主角，给到 30%（约 360px），
+   这样 12px 字号下两行能读完一条模板，不会把关键信息切掉 */
+.tpl-table col.c-code { width: 13%; }
+.tpl-table col.c-name { width: 16%; }
+.tpl-table col.c-ch { width: 9%; }
+.tpl-table col.c-preview { width: 30%; }
+.tpl-table col.c-vars { width: 6%; }
+.tpl-table col.c-state { width: 8%; }
+.tpl-table col.c-time { width: 10%; }
+.tpl-table col.c-ops { width: 8%; }
+
+.tpl-table .mono-time {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+
+/* 预览列会折成两行，行高必须自适应，否则文字会溢出单元格 */
+.tpl-table td {
+  height: auto;
+  padding-top: var(--sp-2);
+  padding-bottom: var(--sp-2);
+}
+
+/* 模板编码：等宽 + 小一号，弱于模板名 */
+.tpl-code {
+  font-family: var(--font-num);
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+  letter-spacing: -0.01em;
+}
+
+/* 变量占位符：{{xxx}} 用浅品牌底标出来。
+   用 inline 而不是 inline-block —— inline-block 不参与换行计算，
+   在表格单元格里会把整行撑出边界。 */
+.var {
+  padding: 0 2px;
+  border-radius: 2px;
+  background: var(--brand-primary-soft);
+  color: var(--brand-text);
+  font-family: var(--font-num);
+  font-size: var(--fs-xs);
+}
+
+/* 预览列：正常换行，最多两行。
+   注意必须显式写 white-space: normal —— .table td 为了单行省略设了
+   white-space: nowrap，会继承下来让预览文字撑出单元格。
+   也不能用 -webkit-line-clamp：内容里混着行内 span（变量占位符），
+   box 布局会把每个行内元素拆成独立行，反而错位。 */
+.tpl-preview {
+  white-space: normal;
+  font-size: var(--fs-xs);
+  line-height: var(--lh-relaxed);
+  color: var(--text-secondary);
+  word-break: break-word;
+}
+</style>
+</head>
+<body class="shell" data-page="23-notify-template">
+
+<aside class="sidebar" id="sidebar"></aside>
+
+<div class="main">
+  <header class="navbar" id="navbar"></header>
+  <div class="tags-view" id="tags-view"></div>
+
+  <main class="app-container scroll-y">
+
+    <div class="page-head">
+      <div>
+        <h1 class="page-head__title">通知模板</h1>
+        <p class="page-head__desc">
+          模板变量形如 <span class="var">{{变量名}}</span>，发送时由后端替换。变量名拼错会导致整条消息发送失败。
+        </p>
+      </div>
+      <div class="page-head__actions">
+        <button class="btn btn--primary" type="button">新建模板</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <form class="query-bar" method="get">
+        <div class="field-inline">
+          <label class="field-inline__label" for="q-kw">模板</label>
+          <input class="input input--wide" id="q-kw" type="text" placeholder="模板编码 / 名称">
+        </div>
+        <div class="field-inline">
+          <label class="field-inline__label" for="q-ch">渠道</label>
+          <select class="select" id="q-ch">
+            <option>全部</option>
+            <option>站内信</option>
+            <option>App 推送</option>
+            <option>短信</option>
+          </select>
+        </div>
+        <div class="field-inline">
+          <label class="field-inline__label" for="q-state">状态</label>
+          <select class="select" id="q-state">
+            <option>全部</option>
+            <option>启用</option>
+            <option>停用</option>
+          </select>
+        </div>
+        <div class="query-bar__actions">
+          <button class="btn btn--primary" type="submit">查询</button>
+          <button class="btn" type="reset">重置</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="card card--flush" style="margin-top:var(--sp-4)">
+      <div class="toolbar">
+        <div class="toolbar__left">
+          <span class="toolbar__count">共 <b>32</b> 个模板 · 启用 28 个</span>
+        </div>
+        <div class="toolbar__right">
+          <a class="btn btn--text" href="22-announcement.html">公告与推送</a>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="table tpl-table">
+          <colgroup>
+            <col class="c-code">
+            <col class="c-name">
+            <col class="c-ch">
+            <col class="c-preview">
+            <col class="c-vars">
+            <col class="c-state">
+            <col class="c-time">
+            <col class="c-ops">
+          </colgroup>
+          <thead>
+            <tr>
+              <th>模板编码</th>
+              <th>模板名称</th>
+              <th>渠道</th>
+              <th>内容预览</th>
+              <th style="text-align:right">变量</th>
+              <th>状态</th>
+              <th>更新时间</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="tpl-code">TPL_ORDER_PAID</span></td>
+              <td><span class="cell-strong">订单支付成功</span></td>
+              <td><span class="tag tag--outline">站内信</span></td>
+              <td>
+                <div class="tpl-preview">
+                  您的订单 <span class="var">{{orderNo}}</span> 已支付成功，金额
+                  <span class="var">{{amount}}</span> 元，律师将在 <span class="var">{{acceptHours}}</span> 小时内接单。
+                </div>
+              </td>
+              <td class="cell-num">3</td>
+              <td><span class="tag tag--dot tag--success">启用</span></td>
+              <td><span class="mono-time">2026-10-18 14:22</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">编辑</button>
+                  <button class="btn btn--text" type="button">测试</button>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="tpl-code">TPL_ORDER_ACCEPTED</span></td>
+              <td><span class="cell-strong">律师已接单</span></td>
+              <td><span class="tag tag--outline">App 推送</span></td>
+              <td>
+                <div class="tpl-preview">
+                  律师 <span class="var">{{lawyerName}}</span> 已接单，可在会话中与律师沟通具体时间。
+                </div>
+              </td>
+              <td class="cell-num">1</td>
+              <td><span class="tag tag--dot tag--success">启用</span></td>
+              <td><span class="mono-time">2026-10-18 14:20</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">编辑</button>
+                  <button class="btn btn--text" type="button">测试</button>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="tpl-code">TPL_REFUND_DONE</span></td>
+              <td><span class="cell-strong">退款到账通知</span></td>
+              <td><span class="tag tag--outline">站内信</span></td>
+              <td>
+                <div class="tpl-preview">
+                  订单 <span class="var">{{orderNo}}</span> 的退款 <span class="var">{{amount}}</span> 元已退回账户余额。
+                </div>
+              </td>
+              <td class="cell-num">2</td>
+              <td><span class="tag tag--dot tag--gray">停用</span></td>
+              <td><span class="mono-time">2026-10-15 09:36</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">编辑</button>
+                  <button class="btn btn--text" type="button">测试</button>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="tpl-code">TPL_VERIFY_PASSED</span></td>
+              <td><span class="cell-strong">实名认证通过</span></td>
+              <td><span class="tag tag--outline">站内信</span></td>
+              <td>
+                <div class="tpl-preview">
+                  <span class="var">{{nickname}}</span>，您的实名认证已通过，现在可以下单咨询了。
+                </div>
+              </td>
+              <td class="cell-num">1</td>
+              <td><span class="tag tag--dot tag--success">启用</span></td>
+              <td><span class="mono-time">2026-10-11 16:08</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">编辑</button>
+                  <button class="btn btn--text" type="button">测试</button>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="tpl-code">TPL_VERIFY_REJECTED</span></td>
+              <td><span class="cell-strong">实名认证驳回</span></td>
+              <td><span class="tag tag--outline">站内信</span></td>
+              <td>
+                <div class="tpl-preview">
+                  您的实名认证未通过，原因：<span class="var">{{rejectReason}}</span>，请重新提交。
+                </div>
+              </td>
+              <td class="cell-num">1</td>
+              <td><span class="tag tag--dot tag--success">启用</span></td>
+              <td><span class="mono-time">2026-10-11 16:06</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">编辑</button>
+                  <button class="btn btn--text" type="button">测试</button>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="tpl-code">TPL_TICKET_REPLY</span></td>
+              <td><span class="cell-strong">工单回复提醒</span></td>
+              <td><span class="tag tag--outline">App 推送</span></td>
+              <td>
+                <div class="tpl-preview">
+                  您的工单 <span class="var">{{ticketNo}}</span> 有新回复，点此查看。
+                </div>
+              </td>
+              <td class="cell-num">1</td>
+              <td><span class="tag tag--dot tag--success">启用</span></td>
+              <td><span class="mono-time">2026-10-09 11:44</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">编辑</button>
+                  <button class="btn btn--text" type="button">测试</button>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="tpl-code">TPL_WITHDRAW_PASSED</span></td>
+              <td><span class="cell-strong">提现审核通过</span></td>
+              <td><span class="tag tag--outline">短信</span></td>
+              <td>
+                <div class="tpl-preview">
+                  您的提现申请 <span class="var">{{withdrawNo}}</span> 已通过，金额
+                  <span class="var">{{amount}}</span> 元将在 1—3 个工作日到账。
+                </div>
+              </td>
+              <td class="cell-num">2</td>
+              <td><span class="tag tag--dot tag--success">启用</span></td>
+              <td><span class="mono-time">2026-10-06 15:12</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">编辑</button>
+                  <button class="btn btn--text" type="button">测试</button>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="tpl-code">TPL_LAWYER_JOIN_APPLY</span></td>
+              <td><span class="cell-strong">入驻申请已提交</span></td>
+              <td><span class="tag tag--outline">站内信</span></td>
+              <td>
+                <div class="tpl-preview">
+                  您的入驻申请已提交，预计 <span class="var">{{auditHours}}</span> 小时内完成审核。
+                </div>
+              </td>
+              <td class="cell-num">1</td>
+              <td><span class="tag tag--dot tag--success">启用</span></td>
+              <td><span class="mono-time">2026-10-03 10:28</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">编辑</button>
+                  <button class="btn btn--text" type="button">测试</button>
+                </div>
+              </td>
+            </tr>
+
+          </tbody>
+        </table>
+      </div>
+
+      <div class="pagination">
+        <span class="pagination__total">共 <b>32</b> 条 · 当前第 <b>1</b> / 4 页</span>
+        <button class="page-btn page-btn--disabled" type="button" aria-label="上一页">‹</button>
+        <button class="page-btn page-btn--active" type="button">1</button>
+        <button class="page-btn" type="button">2</button>
+        <button class="page-btn" type="button">3</button>
+        <button class="page-btn" type="button">4</button>
+        <button class="page-btn" type="button" aria-label="下一页">›</button>
+        <select class="pagination__size" aria-label="每页条数">
+          <option>10 条 / 页</option>
+          <option>20 条 / 页</option>
+        </select>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script src="shell.js"></script>
+</body>
+</html>

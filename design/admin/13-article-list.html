@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="dsh-design" content="web">
+<title>文章列表 · 法泽管理后台</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   A-14 文章列表
+   --------------------------------------------------------------------------
+   职责：每日学法文章的查询、分区筛选、上下架、置顶、进编辑页。
+   依据：《PC 后台开发计划_v1.0》§2.5 A-14；数据表 law_article
+   接口：**缺**。见《未完成需备注》§1
+   说明：
+     1. 结构照 02-user-list 母版：页头 → 查询栏 → 工具栏 → 表格 → 分页。
+        唯一变体是分类 chips：母版把它当「快速筛选」，这里 7 类分类切换频繁，
+        chips 放进工具栏左侧（48px 那行装得下 28px 的 chip），
+        不为它单独加一行 —— 单加一行 44px 会把 10 行数据顶出 776。
+     2. 封面用内联 SVG 画书页轮廓（56×38），不引外部图片：设计稿要能离线打开。
+     3. 语言列「4/4 语言」正常色、「2/4 语言」用 --state-warning-deep。
+        不用 --state-warning：橙色压白底只有 2.2:1，当文字不可读。
+     4. 高度预算（内容区 776）：页头 62 + 查询栏 64 + 间距 16
+        + 表格卡（工具栏 48 + 表头 40 + 10 行 480 + 分页 52）= 762，一屏放得下。
+   ========================================================================== */
+
+/* 列宽按计划 A-14 给的比例，合计 100% */
+.article-table col.c-cover { width: 8%; }
+.article-table col.c-title { width: 30%; }
+.article-table col.c-cat { width: 10%; }
+.article-table col.c-lang { width: 10%; }
+.article-table col.c-state { width: 8%; }
+.article-table col.c-time { width: 13%; }
+.article-table col.c-author { width: 9%; }
+.article-table col.c-ops { width: 12%; }
+
+/* 封面缩略图：.img-cell 默认 96×96（证件影像用），这里按计划改成 56×38 的横幅。
+   必须显式 inline-block：.img-cell 是 span，纯 inline 时宽高不生效，
+   里面的 SVG 会按 td 宽度撑开，把行高从 48 顶到 53。 */
+.article-table .img-cell {
+  display: inline-block;
+  width: 56px;
+  height: 38px;
+  border-radius: var(--r-sm);
+  color: var(--text-placeholder);
+}
+
+/* 标题行：置顶标记与标题同行，标题过长时省略而不是把行撑高 */
+.article__title-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  min-width: 0;
+}
+
+.article__title-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.article__title-row .tag {
+  flex: 0 0 auto;
+  height: 18px;
+  padding: 0 var(--sp-1);
+}
+
+/* 副行：阅读与点赞用等宽数字，竖排能对齐 */
+.article__stat {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+
+/* 语言完成度：缺语言的用深一档警告色（见文件头第 3 条） */
+.article__lang--short {
+  color: var(--state-warning-deep);
+}
+</style>
+</head>
+<body class="shell" data-page="13-article-list">
+
+<!-- 骨架由 shell.js 注入：侧边栏 / 顶栏 / 标签页 -->
+<aside class="sidebar" id="sidebar"></aside>
+
+<div class="main">
+  <header class="navbar" id="navbar"></header>
+  <div class="tags-view" id="tags-view"></div>
+
+  <main class="app-container scroll-y">
+
+    <!-- ==================== 页头 ==================== -->
+    <div class="page-head">
+      <div>
+        <h1 class="page-head__title">文章列表</h1>
+        <p class="page-head__desc">
+          每日学法文章。下架后 C 端不再展示；置顶最多 3 篇，超出时按更新时间顶替最早的一篇。
+        </p>
+      </div>
+      <div class="page-head__actions">
+        <a class="btn btn--primary" href="14-article-edit.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"
+               style="width:14px;height:14px">
+            <path d="M12 5.2v13.6"/><path d="M5.2 12h13.6"/>
+          </svg>
+          新建文章
+        </a>
+      </div>
+    </div>
+
+    <!-- ==================== 查询栏 ==================== -->
+    <div class="card">
+      <form class="query-bar" method="get">
+        <div class="field-inline">
+          <label class="field-inline__label" for="q-title">标题</label>
+          <input class="input input--wide" id="q-title" type="text" placeholder="文章标题关键词">
+        </div>
+
+        <div class="field-inline">
+          <label class="field-inline__label" for="q-state">发布状态</label>
+          <select class="select" id="q-state">
+            <option>全部</option>
+            <option>已发布</option>
+            <option>草稿</option>
+            <option>已下架</option>
+          </select>
+        </div>
+
+        <div class="field-inline">
+          <label class="field-inline__label" for="q-time">更新时间</label>
+          <select class="select" id="q-time">
+            <option>全部</option>
+            <option>近 7 天</option>
+            <option>近 30 天</option>
+            <option>近 90 天</option>
+          </select>
+        </div>
+
+        <div class="query-bar__actions">
+          <button class="btn" type="submit">查询</button>
+          <button class="btn" type="reset">重置</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- ==================== 表格 ==================== -->
+    <div class="card card--flush" style="margin-top:var(--sp-4)">
+      <div class="toolbar">
+        <div class="toolbar__left">
+          <div class="chips" aria-label="按分类筛选">
+            <a class="chip chip--active" href="#">全部</a>
+            <a class="chip" href="#">婚姻家事</a>
+            <a class="chip" href="#">劳动纠纷</a>
+            <a class="chip" href="#">合同</a>
+            <a class="chip" href="#">交通</a>
+            <a class="chip" href="#">刑事</a>
+            <a class="chip" href="#">民族政策</a>
+          </div>
+        </div>
+        <div class="toolbar__right">
+          <span class="toolbar__count">共 <b>128</b> 条 · 置顶 <b>2</b> 篇</span>
+          <button class="icon-btn" type="button" title="刷新" aria-label="刷新">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M20 12a8 8 0 1 1-2.4-5.7"/>
+              <path d="M20.2 4.6v4.2H16"/>
+            </svg>
+          </button>
+          <button class="icon-btn" type="button" title="列设置" aria-label="列设置">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="3.6" y="4.4" width="16.8" height="15.2" rx="2"/>
+              <path d="M9.4 4.4v15.2"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="table article-table">
+          <colgroup>
+            <col class="c-cover">
+            <col class="c-title">
+            <col class="c-cat">
+            <col class="c-lang">
+            <col class="c-state">
+            <col class="c-time">
+            <col class="c-author">
+            <col class="c-ops">
+          </colgroup>
+          <thead>
+            <tr>
+              <th>封面</th>
+              <th>标题</th>
+              <th>分类</th>
+              <th>语言</th>
+              <th>状态</th>
+              <th>更新时间</th>
+              <th>发布人</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- 1 · 已发布 · 置顶 -->
+            <tr>
+              <td>
+                <span class="img-cell">
+                  <svg viewBox="0 0 56 38" fill="none" stroke="currentColor" stroke-width="1.5"
+                       stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M7 5.5h25l7.5 7.5v19.5H7z"/>
+                    <path d="M32 5.5V13h7.5"/>
+                    <path d="M13.5 19h19"/><path d="M13.5 24.5h19"/><path d="M13.5 30h12"/>
+                  </svg>
+                </span>
+              </td>
+              <td>
+                <span class="cell-stack">
+                  <span class="article__title-row">
+                    <span class="tag tag--warning">顶</span>
+                    <span class="cell-strong article__title-text">劳务合同与劳动合同的区别</span>
+                  </span>
+                  <span class="article__stat">阅读 1,284 · 点赞 32</span>
+                </span>
+              </td>
+              <td><span class="tag tag--outline">劳动纠纷</span></td>
+              <td><span class="mono">4/4</span> 语言</td>
+              <td><span class="tag tag--dot tag--success">已发布</span></td>
+              <td><span class="mono article__stat">2026-10-29 18:40</span></td>
+              <td>admin</td>
+              <td>
+                <div class="table__ops">
+                  <a class="btn btn--text" href="14-article-edit.html">编辑</a>
+                  <button class="btn btn--text" type="button">置顶</button>
+                  <button class="btn btn--text is-danger" type="button">下架</button>
+                </div>
+              </td>
+            </tr>
+
+            <!-- 2 · 已发布 -->
+            <tr>
+              <td>
+                <span class="img-cell">
+                  <svg viewBox="0 0 56 38" fill="none" stroke="currentColor" stroke-width="1.5"
+                       stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M7 5.5h25l7.5 7.5v19.5H7z"/>
+                    <path d="M32 5.5V13h7.5"/>
+                    <path d="M13.5 19h19"/><path d="M13.5 24.5h19"/><path d="M13.5 30h12"/>
+                  </svg>
+                </span>
+              </td>
+              <td>
+                <span class="cell-stack">
+                  <span class="article__title-row">
+                    <span class="cell-strong article__title-text">彩礼返还纠纷的六个裁判要点</span>
+                  </span>
+                  <span class="article__stat">阅读 986 · 点赞 41</span>
+                </span>
+              </td>
+              <td><span class="tag tag--outline">婚姻家事</span></td>
+              <td><span class="mono">4/4</span> 语言</td>
+              <td><span class="tag tag--dot tag--success">已发布</span></td>
+              <td><span class="mono article__stat">2026-10-29 15:12</span></td>
+              <td>admin</td>
+              <td>
+                <div class="table__ops">
+                  <a class="btn btn--text" href="14-article-edit.html">编辑</a>
+                  <button class="btn btn--text" type="button">置顶</button>
+                  <button class="btn btn--text is-danger" type="button">下架</button>
+                </div>
+              </td>
+            </tr>
+
+            <!-- 3 · 已发布 · 语言缺 2 个 -->
+            <tr>
+              <td>
+                <span class="img-cell">
+                  <svg viewBox="0 0 56 38" fill="none" stroke="currentColor" stroke-width="1.5"
+                       stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M7 5.5h25l7.5 7.5v19.5H7z"/>
+                    <path d="M32 5.5V13h7.5"/>
+                    <path d="M13.5 19h19"/><path d="M13.5 24.5h19"/><path d="M13.5 30h12"/>
+                  </svg>
+                </span>
+              </td>
+              <td>
+                <span class="cell-stack">
+                  <span class="article__title-row">
+                    <span class="cell-strong article__title-text">工伤认定申请的时限与材料清单</span>
+                  </span>
+                  <span class="article__stat">阅读 742 · 点赞 18</span>
+                </span>
+              </td>
+              <td><span class="tag tag--outline">劳动纠纷</span></td>
+              <td><span class="mono article__lang--short">2/4</span> 语言</td>
+              <td><span class="tag tag--dot tag--success">已发布</span></td>
+              <td><span class="mono article__stat">2026-10-28 21:06</span></td>
+              <td>李梅</td>
+              <td>
+                <div class="table__ops">
+                  <a class="btn btn--text" href="14-article-edit.html">编辑</a>
+                  <button class="btn btn--text" type="button">置顶</button>
+                  <button class="btn btn--text is-danger" type="button">下架</button>
+                </div>
+              </td>
+            </tr>
+
+            <!-- 4 · 草稿 -->
+            <tr>
+              <td>
+                <span class="img-cell">
+                  <svg viewBox="0 0 56 38" fill="none" stroke="currentColor" stroke-width="1.5"
+                       stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M7 5.5h25l7.5 7.5v19.5H7z"/>
+                    <path d="M32 5.5V13h7.5"/>
+                    <path d="M13.5 19h19"/><path d="M13.5 24.5h19"/><path d="M13.5 30h12"/>
+                  </svg>
+                </span>
+              </td>
+              <td>
+                <span class="cell-stack">
+                  <span class="article__title-row">
+                    <span class="cell-strong article__title-text">民间借贷利率上限怎么算</span>
+                  </span>
+                  <span class="article__stat">阅读 0 · 点赞 0</span>
+                </span>
+              </td>
+              <td><span class="tag tag--outline">合同</span></td>
+              <td><span class="mono article__lang--short">3/4</span> 语言</td>
+              <td><span class="tag tag--dot tag--warning">草稿</span></td>
+              <td><span class="mono article__stat">2026-10-28 17:33</span></td>
+              <td>王海涛</td>
+              <td>
+                <div class="table__ops">
+                  <a class="btn btn--text" href="14-article-edit.html">编辑</a>
+                  <button class="btn btn--text" type="button">发布</button>
+                </div>
+              </td>
+            </tr>
+
+            <!-- 5 · 已发布 -->
+            <tr>
+              <td>
+                <span class="img-cell">
+                  <svg viewBox="0 0 56 38" fill="none" stroke="currentColor" stroke-width="1.5"
+                       stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M7 5.5h25l7.5 7.5v19.5H7z"/>
+                    <path d="M32 5.5V13h7.5"/>
+                    <path d="M13.5 19h19"/><path d="M13.5 24.5h19"/><path d="M13.5 30h12"/>
+                  </svg>
+                </span>
+              </td>
+              <td>
+                <span class="cell-stack">
+                  <span class="article__title-row">
+                    <span class="cell-strong article__title-text">交通事故责任认定的三类证据</span>
+                  </span>
+                  <span class="article__stat">阅读 1,530 · 点赞 66</span>
+                </span>
+              </td>
+              <td><span class="tag tag--outline">交通</span></td>
+              <td><span class="mono">4/4</span> 语言</td>
+              <td><span class="tag tag--dot tag--success">已发布</span></td>
+              <td><span class="mono article__stat">2026-10-27 20:18</span></td>
+              <td>admin</td>
+              <td>
+                <div class="table__ops">
+                  <a class="btn btn--text" href="14-article-edit.html">编辑</a>
+                  <button class="btn btn--text" type="button">置顶</button>
+                  <button class="btn btn--text is-danger" type="button">下架</button>
+                </div>
+              </td>
+            </tr>
+
+            <!-- 6 · 已下架 -->
+            <tr>
+              <td>
+                <span class="img-cell">
+                  <svg viewBox="0 0 56 38" fill="none" stroke="currentColor" stroke-width="1.5"
+                       stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M7 5.5h25l7.5 7.5v19.5H7z"/>
+                    <path d="M32 5.5V13h7.5"/>
+                    <path d="M13.5 19h19"/><path d="M13.5 24.5h19"/><path d="M13.5 30h12"/>
+                  </svg>
+                </span>
+              </td>
+              <td>
+                <span class="cell-stack">
+                  <span class="article__title-row">
+                    <span class="cell-strong article__title-text">取保候审的适用条件</span>
+                  </span>
+                  <span class="article__stat">阅读 320 · 点赞 7</span>
+                </span>
+              </td>
+              <td><span class="tag tag--outline">刑事</span></td>
+              <td><span class="mono article__lang--short">2/4</span> 语言</td>
+              <td><span class="tag tag--dot tag--danger">已下架</span></td>
+              <td><span class="mono article__stat">2026-10-26 11:47</span></td>
+              <td>李梅</td>
+              <td>
+                <div class="table__ops">
+                  <a class="btn btn--text" href="14-article-edit.html">编辑</a>
+                  <button class="btn btn--text" type="button">上架</button>
+                </div>
+              </td>
+            </tr>
+
+            <!-- 7 · 已发布 -->
+            <tr>
+              <td>
+                <span class="img-cell">
+                  <svg viewBox="0 0 56 38" fill="none" stroke="currentColor" stroke-width="1.5"
+                       stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M7 5.5h25l7.5 7.5v19.5H7z"/>
+                    <path d="M32 5.5V13h7.5"/>
+                    <path d="M13.5 19h19"/><path d="M13.5 24.5h19"/><path d="M13.5 30h12"/>
+                  </svg>
+                </span>
+              </td>
+              <td>
+                <span class="cell-stack">
+                  <span class="article__title-row">
+                    <span class="cell-strong article__title-text">民族区域自治地方的婚姻登记提示</span>
+                  </span>
+                  <span class="article__stat">阅读 2,104 · 点赞 95</span>
+                </span>
+              </td>
+              <td><span class="tag tag--outline">民族政策</span></td>
+              <td><span class="mono">4/4</span> 语言</td>
+              <td><span class="tag tag--dot tag--success">已发布</span></td>
+              <td><span class="mono article__stat">2026-10-25 09:32</span></td>
+              <td>admin</td>
+              <td>
+                <div class="table__ops">
+                  <a class="btn btn--text" href="14-article-edit.html">编辑</a>
+                  <button class="btn btn--text" type="button">置顶</button>
+                  <button class="btn btn--text is-danger" type="button">下架</button>
+                </div>
+              </td>
+            </tr>
+
+            <!-- 8 · 已发布 · 置顶 -->
+            <tr>
+              <td>
+                <span class="img-cell">
+                  <svg viewBox="0 0 56 38" fill="none" stroke="currentColor" stroke-width="1.5"
+                       stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M7 5.5h25l7.5 7.5v19.5H7z"/>
+                    <path d="M32 5.5V13h7.5"/>
+                    <path d="M13.5 19h19"/><path d="M13.5 24.5h19"/><path d="M13.5 30h12"/>
+                  </svg>
+                </span>
+              </td>
+              <td>
+                <span class="cell-stack">
+                  <span class="article__title-row">
+                    <span class="tag tag--warning">顶</span>
+                    <span class="cell-strong article__title-text">借条怎么写才有法律效力</span>
+                  </span>
+                  <span class="article__stat">阅读 3,412 · 点赞 158</span>
+                </span>
+              </td>
+              <td><span class="tag tag--outline">合同</span></td>
+              <td><span class="mono">4/4</span> 语言</td>
+              <td><span class="tag tag--dot tag--success">已发布</span></td>
+              <td><span class="mono article__stat">2026-10-24 16:05</span></td>
+              <td>admin</td>
+              <td>
+                <div class="table__ops">
+                  <a class="btn btn--text" href="14-article-edit.html">编辑</a>
+                  <button class="btn btn--text" type="button">取消置顶</button>
+                </div>
+              </td>
+            </tr>
+
+            <!-- 9 · 草稿 -->
+            <tr>
+              <td>
+                <span class="img-cell">
+                  <svg viewBox="0 0 56 38" fill="none" stroke="currentColor" stroke-width="1.5"
+                       stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M7 5.5h25l7.5 7.5v19.5H7z"/>
+                    <path d="M32 5.5V13h7.5"/>
+                    <path d="M13.5 19h19"/><path d="M13.5 24.5h19"/><path d="M13.5 30h12"/>
+                  </svg>
+                </span>
+              </td>
+              <td>
+                <span class="cell-stack">
+                  <span class="article__title-row">
+                    <span class="cell-strong article__title-text">离婚冷静期的三十天怎么算</span>
+                  </span>
+                  <span class="article__stat">阅读 0 · 点赞 0</span>
+                </span>
+              </td>
+              <td><span class="tag tag--outline">婚姻家事</span></td>
+              <td><span class="mono">4/4</span> 语言</td>
+              <td><span class="tag tag--dot tag--warning">草稿</span></td>
+              <td><span class="mono article__stat">2026-10-23 14:20</span></td>
+              <td>迪丽热巴</td>
+              <td>
+                <div class="table__ops">
+                  <a class="btn btn--text" href="14-article-edit.html">编辑</a>
+                  <button class="btn btn--text" type="button">发布</button>
+                </div>
+              </td>
+            </tr>
+
+            <!-- 10 · 已下架 -->
+            <tr>
+              <td>
+                <span class="img-cell">
+                  <svg viewBox="0 0 56 38" fill="none" stroke="currentColor" stroke-width="1.5"
+                       stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M7 5.5h25l7.5 7.5v19.5H7z"/>
+                    <path d="M32 5.5V13h7.5"/>
+                    <path d="M13.5 19h19"/><path d="M13.5 24.5h19"/><path d="M13.5 30h12"/>
+                  </svg>
+                </span>
+              </td>
+              <td>
+                <span class="cell-stack">
+                  <span class="article__title-row">
+                    <span class="cell-strong article__title-text">醉酒驾驶的刑事与行政处罚界限</span>
+                  </span>
+                  <span class="article__stat">阅读 0 · 点赞 0</span>
+                </span>
+              </td>
+              <td><span class="tag tag--outline">交通</span></td>
+              <td><span class="mono article__lang--short">1/4</span> 语言</td>
+              <td><span class="tag tag--dot tag--danger">已下架</span></td>
+              <td><span class="mono article__stat">2026-10-22 10:55</span></td>
+              <td>古丽娜尔</td>
+              <td>
+                <div class="table__ops">
+                  <a class="btn btn--text" href="14-article-edit.html">编辑</a>
+                  <button class="btn btn--text" type="button">上架</button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- 分页 -->
+      <div class="pagination">
+        <span class="pagination__total">共 <b>128</b> 条 · 当前第 <b>1</b> / 13 页</span>
+        <button class="page-btn page-btn--disabled" type="button" aria-label="上一页">‹</button>
+        <button class="page-btn page-btn--active" type="button">1</button>
+        <button class="page-btn" type="button">2</button>
+        <button class="page-btn" type="button">3</button>
+        <button class="page-btn" type="button">4</button>
+        <button class="page-btn page-btn--disabled" type="button" aria-label="更多">…</button>
+        <button class="page-btn" type="button">13</button>
+        <button class="page-btn" type="button" aria-label="下一页">›</button>
+        <select class="pagination__size" aria-label="每页条数">
+          <option>10 条 / 页</option>
+          <option>20 条 / 页</option>
+          <option>50 条 / 页</option>
+        </select>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script src="shell.js"></script>
+</body>
+</html>

@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="dsh-design" content="web">
+<title>工单详情 · 法泽管理后台</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   A-22 工单详情
+   --------------------------------------------------------------------------
+   职责：单条投诉工单的完整内容、处理记录、回复与关闭。
+   依据：《PC 后台开发计划_v1.0》§2.7 A-22；技术路线 §15.1「投诉工单」
+   接口：**缺**。见《未完成需备注》§1
+   说明：
+     1. 详情页不用抽屉：工单要一边看历史处理记录一边写回复，
+        抽屉太窄且会遮住列表。所以走独立页面。
+     2. 三栏信息优先级：工单正文（用户说了什么）> 处理记录（我们做过什么）
+        > 右侧属性（这单归谁、关联哪笔订单）。
+     3. 回复框放在处理记录下方而不是页面底部固定：回复是这条时间线的延续，
+        位置上要跟着记录走。
+   ========================================================================== */
+
+.ticket-page {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: var(--sp-4);
+  align-items: start;
+}
+
+.ticket-main { display: flex; flex-direction: column; gap: var(--sp-4); min-width: 0; }
+.ticket-side { display: flex; flex-direction: column; gap: var(--sp-4); }
+
+/* 工单正文 */
+/* 工单正文：限宽 44em（约 44 个汉字一行），
+   不靠缩小字号来解决「一行太长」——那样会牺牲可读性 */
+.ticket-body {
+  max-width: 44em;
+  font-size: var(--fs-md);
+  line-height: var(--lh-relaxed);
+  color: var(--text-body);
+}
+
+.ticket-body p + p { margin-top: var(--sp-3); }
+
+.ticket-head-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-4);
+  padding-bottom: var(--sp-3);
+  border-bottom: 1px solid var(--border-divider);
+}
+
+/* 附图：聊天截图占位 */
+.ticket-shots {
+  display: flex;
+  gap: var(--sp-3);
+  margin-top: var(--sp-4);
+}
+
+.ticket-shots .img-cell {
+  width: 120px;
+  height: 90px;
+}
+
+/* 回复框 */
+.reply-box textarea {
+  width: 100%;
+  min-height: 96px;
+}
+
+.reply-box__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: var(--sp-3);
+}
+
+.reply-hint {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+
+.reply-hint svg { width: 13px; height: 13px; }
+</style>
+</head>
+<body class="shell" data-page="21-ticket-detail">
+
+<aside class="sidebar" id="sidebar"></aside>
+
+<div class="main">
+  <header class="navbar" id="navbar"></header>
+  <div class="tags-view" id="tags-view"></div>
+
+  <main class="app-container scroll-y">
+
+    <div class="page-head">
+      <div>
+        <h1 class="page-head__title">
+          工单 #T-2026-0084
+          <span class="tag tag--dot tag--warning" style="vertical-align:middle;margin-left:8px">待受理</span>
+        </h1>
+        <p class="page-head__desc">
+          服务投诉 · 提交于 2026-10-28 09:12 · 已超时 26 小时未受理 · 当前处理人：未分配
+        </p>
+      </div>
+      <div class="page-head__actions">
+        <a class="btn" href="20-ticket-list.html">返回列表</a>
+      </div>
+    </div>
+
+    <div class="ticket-page">
+
+      <!-- ==================== 左：正文 + 记录 + 回复 ==================== -->
+      <div class="ticket-main">
+
+        <!-- 工单内容 -->
+        <div class="card">
+          <div class="card__head">
+            <h2 class="card__title">工单内容</h2>
+            <div class="card__extra">优先级：<span class="tag tag--dot tag--danger">高</span></div>
+          </div>
+          <div class="card__body">
+            <div class="ticket-head-meta">
+              <span class="avatar">阿</span>
+              <div class="grow">
+                <div class="cell-strong">阿依努尔·买买提</div>
+                <div class="cell-stack__sub">U-10284 · 138****6621 · 2026-10-28 09:12 提交</div>
+              </div>
+              <span class="tag tag--outline">服务投诉</span>
+            </div>
+
+            <div class="ticket-body">
+              <p>
+                10 月 27 号晚上我下单了一个婚姻家事的咨询，付了 300 块，
+                约定 28 号上午电话沟通。结果到现在律师一次都没联系我，
+                我在 App 里发消息也不回，订单状态还显示「进行中」。
+              </p>
+              <p>
+                我不要求退钱，但至少得有人告诉我怎么回事。
+                如果律师档期排不开，平台应该提前说一声，而不是收了钱就不管。
+              </p>
+            </div>
+
+            <div class="ticket-shots">
+              <div class="img-cell" role="img" aria-label="App 内会话截图，显示消息未读">
+                <svg viewBox="0 0 120 90" fill="none" aria-hidden="true">
+                  <rect x="12" y="14" width="70" height="18" rx="4"
+                        stroke="var(--border-strong)"/>
+                  <rect x="34" y="40" width="74" height="18" rx="4"
+                        stroke="var(--border-subtle)"/>
+                  <path d="M14 70h58" stroke="var(--border-subtle)"/>
+                  <path d="M14 78h40" stroke="var(--border-subtle)"/>
+                </svg>
+                <span class="img-cell__tag">会话截图</span>
+              </div>
+              <div class="img-cell" role="img" aria-label="订单详情截图，状态为进行中">
+                <svg viewBox="0 0 120 90" fill="none" aria-hidden="true">
+                  <rect x="18" y="12" width="84" height="66" rx="4"
+                        stroke="var(--border-strong)"/>
+                  <path d="M28 28h44M28 40h64M28 52h34M28 64h52"
+                        stroke="var(--border-subtle)"/>
+                </svg>
+                <span class="img-cell__tag">订单截图</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 处理记录 -->
+        <div class="card">
+          <div class="card__head">
+            <h2 class="card__title">处理记录</h2>
+            <div class="card__extra">共 2 条</div>
+          </div>
+          <div class="card__body">
+            <div class="timeline">
+              <div class="tl-item">
+                <div class="tl-item__title">用户提交工单</div>
+                <div class="tl-item__meta">2026-10-28 09:12 · 系统按「服务投诉」自动分级为高</div>
+              </div>
+              <div class="tl-item">
+                <div class="tl-item__title">系统自动通知承办律师</div>
+                <div class="tl-item__meta">2026-10-28 09:13 · 已通过站内信与推送通知张建国</div>
+                <div class="tl-item__note">
+                  律师未在 24 小时内回应，按规则升级为「超时未受理」，
+                  已在工单列表标红。
+                </div>
+              </div>
+              <div class="tl-item tl-item--active">
+                <div class="tl-item__title">待客服受理</div>
+                <div class="tl-item__meta">当前节点 · 等待分配处理人</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 回复 -->
+        <div class="card">
+          <div class="card__head">
+            <h2 class="card__title">回复用户</h2>
+          </div>
+          <div class="card__body reply-box">
+            <textarea class="textarea" aria-label="回复内容"
+                      placeholder="写给用户的回复，通过站内信与 App 推送送达"></textarea>
+            <div class="reply-box__foot">
+              <span class="reply-hint">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                     stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <circle cx="12" cy="12" r="8.6"/>
+                  <path d="M12 11v5.4"/><path d="M12 7.8v.2"/>
+                </svg>
+                回复会记入工单时间线，用户可查看但不可撤回
+              </span>
+              <div class="row">
+                <button class="btn" type="button">存为模板</button>
+                <button class="btn btn--primary" type="button">发送回复</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ==================== 右：属性与关联 ==================== -->
+      <div class="ticket-side">
+
+        <div class="card">
+          <div class="card__head">
+            <h2 class="card__title">提交人</h2>
+          </div>
+          <div class="card__body">
+            <div class="row" style="gap:12px">
+              <span class="avatar avatar--lg">阿</span>
+              <div class="grow">
+                <div class="cell-strong">阿依努尔·买买提</div>
+                <div class="cell-stack__sub">维吾尔族 · 伊宁市</div>
+              </div>
+            </div>
+            <div class="divider"></div>
+            <div class="kv"><span class="kv__k">用户 ID</span><span class="kv__v">U-10284</span></div>
+            <div class="kv"><span class="kv__k">手机号</span><span class="kv__v">138****6621</span></div>
+            <div class="kv"><span class="kv__k">注册时间</span><span class="kv__v">2026-03-14</span></div>
+            <div class="kv"><span class="kv__k">累计订单</span><span class="kv__v">6 笔</span></div>
+            <div class="kv"><span class="kv__k">实名认证</span><span class="kv__v">已认证</span></div>
+            <div class="kv"><span class="kv__k">历史工单</span><span class="kv__v">1 条（本条）</span></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card__head">
+            <h2 class="card__title">关联记录</h2>
+          </div>
+          <div class="card__body">
+            <div class="kv">
+              <span class="kv__k">订单号</span>
+              <a class="kv__v" href="11-order-detail.html">FAZE-2026-0084</a>
+            </div>
+            <div class="kv"><span class="kv__k">订单金额</span><span class="kv__v">¥ 300.00</span></div>
+            <div class="kv"><span class="kv__k">承办律师</span><span class="kv__v">张建国</span></div>
+            <div class="kv"><span class="kv__k">会话 ID</span><span class="kv__v">CV-2026-2214</span></div>
+            <div class="divider"></div>
+            <div class="row row--between">
+              <span class="text-xs text-muted">会话内容需在内容审核页查看</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card__head">
+            <h2 class="card__title">工单属性</h2>
+          </div>
+          <div class="card__body">
+            <div class="kv"><span class="kv__k">工单类型</span><span class="kv__v">服务投诉</span></div>
+            <div class="kv"><span class="kv__k">优先级</span><span class="kv__v">高</span></div>
+            <div class="kv"><span class="kv__k">来源</span><span class="kv__v">App 投诉入口</span></div>
+            <div class="kv"><span class="kv__k">受理时限</span><span class="kv__v">24 小时</span></div>
+            <div class="kv"><span class="kv__k">处理人</span><span class="kv__v">未分配</span></div>
+            <div class="divider"></div>
+            <button class="btn btn--danger btn--block" type="button">关闭工单</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script src="shell.js"></script>
+</body>
+</html>

@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="dsh-design" content="web">
+<title>内容审核队列 · 法泽管理后台</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   A-20 内容审核队列
+   --------------------------------------------------------------------------
+   职责：IM 会话、用户评价、文章评论里命中敏感词的记录，逐条人工复核。
+   依据：《PC 后台开发计划_v1.0》§2.6 A-20（技术路线 §15.1 未列此模块，本计划补）
+   接口：**缺**。见《未完成需备注》§1
+   说明：
+     ★★ 这一页最重要的一条规则：原文一个字都不能改。★★
+        V3.0 的设计口径与技术路线 §14 一致 —— 命中只做「标注 + 拦截发送」，
+        不改写、不替换、不裁剪。原因有两层：
+        ① 证据完整性：一旦改写，用户在申诉或举报时就没有原始记录了；
+        ② 误判可回溯：敏感词必然有误判（如「工伤假条」里的「伤」），
+           只有保留原文，复核的人才能判断是不是误伤。
+        所以这一屏的高亮只用「下划线 + 浅底」标注，不用删除线（会让人误以为被替换）。
+     2. 这一屏没有 primary 按钮：三个动作（忽略 / 警告 / 封禁）都不是建设性操作，
+        用 primary 会让「通过/放行」看起来像推荐动作。
+   ========================================================================== */
+
+.review-page { display: flex; flex-direction: column; }
+.review-page .page-head { flex: 0 0 auto; }
+.review-page .alert { flex: 0 0 auto; margin-bottom: var(--sp-4); }
+
+.review { flex: 1 1 0; min-height: 0; height: auto; }
+
+.review .chips {
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--border-divider);
+  flex-wrap: wrap;
+}
+
+/* 命中词：下划线 + 浅红底，不要删除线 */
+.review__hit {
+  padding: 0 2px;
+  border-radius: 2px;
+  background: var(--state-danger-soft);
+  box-shadow: inset 0 -1px 0 var(--state-danger);
+  color: var(--state-danger-deep);
+  font-weight: var(--fw-medium);
+}
+
+/* 会话双方信息 */
+.review__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding-bottom: var(--sp-3);
+  border-bottom: 1px solid var(--border-divider);
+}
+
+.review__meta-main { flex: 1 1 auto; min-width: 0; }
+.review__meta-title {
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+}
+.review__meta-sub {
+  margin-top: 2px;
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+
+/* 原文区：整块浅底，和页面其它区域分开，强调「这是证据原文」 */
+.review__thread {
+  margin-top: var(--sp-4);
+  padding: var(--sp-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-md);
+  background: var(--bg-surface-2);
+}
+
+.review__thread-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--sp-3);
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+
+/* 对话气泡：左用户右律师，命中消息整条加左侧红条 */
+.review__bubble {
+  display: flex;
+  margin-bottom: var(--sp-2);
+}
+
+.review__bubble--right {
+  justify-content: flex-end;
+}
+
+.review__bubble-body {
+  max-width: 76%;
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-md);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-relaxed);
+  color: var(--text-body);
+}
+
+.review__bubble--right .review__bubble-body {
+  background: var(--brand-primary-soft);
+  border-color: transparent;
+}
+
+/* 命中的那一条：左侧 3px 红条 + 头上一个「命中」标 */
+.review__bubble--hit .review__bubble-body {
+  border-color: color-mix(in srgb, var(--state-danger) 35%, var(--border-subtle));
+  box-shadow: inset 3px 0 0 var(--state-danger);
+}
+
+.review__bubble-time {
+  margin-top: 3px;
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+  text-align: right;
+}
+
+.review__bubble--right .review__bubble-time {
+  text-align: left;
+}
+
+/* 上下文：弱化到 60% 但不再降透明度（会掉对比度），改用更浅的底色 + 更小的字 */
+.review__ctx {
+  margin-top: var(--sp-3);
+  padding-top: var(--sp-3);
+  border-top: 1px dashed var(--border-strong);
+}
+.review__ctx .review__bubble-body {
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+}
+
+/* 处置建议：一条横条，给复核人「机器建议什么」 */
+.review__advice {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  margin-top: var(--sp-4);
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--r-md);
+  background: var(--state-warning-soft);
+  font-size: var(--fs-sm);
+  color: var(--state-warning-deep);
+}
+.review__advice b { font-weight: var(--fw-semibold); }
+
+/* 申诉：用户觉得被误判时提交的说明 */
+.review__appeal {
+  margin-top: var(--sp-4);
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-md);
+}
+.review__appeal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--sp-2);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--text-body);
+}
+.review__appeal-text {
+  font-size: var(--fs-sm);
+  line-height: var(--lh-relaxed);
+  color: var(--text-secondary);
+}
+</style>
+</head>
+<body class="shell" data-page="19-review-queue">
+
+<aside class="sidebar" id="sidebar"></aside>
+
+<div class="main">
+  <header class="navbar" id="navbar"></header>
+  <div class="tags-view" id="tags-view"></div>
+
+  <main class="app-container scroll-y review-page">
+
+    <div class="page-head">
+      <div>
+        <h1 class="page-head__title">内容审核队列</h1>
+        <p class="page-head__desc">
+          IM 会话、用户评价、文章评论命中敏感词后的复核队列。处置只改变用户状态，不改写原文。
+        </p>
+      </div>
+      <div class="page-head__actions">
+        <button class="btn" type="button">命中规则</button>
+      </div>
+    </div>
+
+    <div class="alert alert--warning">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M12 4.2 3.4 19.4h17.2z"/><path d="M12 9.6v4"/><path d="M12 16.2v.2"/>
+      </svg>
+      <span>
+        <b>命中记录只做标注，原文一个字都不替换。</b>
+        处置动作改变的是「是否放行 / 是否警告 / 是否封禁」，消息内容保持原样，供申诉与复查使用。
+      </span>
+    </div>
+
+    <div class="split review">
+
+      <!-- ==================== 左：命中记录 ==================== -->
+      <section class="panel">
+        <div class="panel__head">
+          <h2 class="panel__title">命中记录</h2>
+          <span class="tag tag--warning tag--dot">8 条待处理</span>
+        </div>
+
+        <div class="chips">
+          <a class="chip chip--active" href="#">待处理 <span class="chip__count">8</span></a>
+          <a class="chip" href="#">已处理 <span class="chip__count">42</span></a>
+        </div>
+
+        <div class="panel__body">
+          <a class="rec rec--active" href="#">
+            <div class="rec__top">
+              <span class="rec__title">阿依努尔·买买提</span>
+              <span class="tag tag--outline">IM 会话</span>
+            </div>
+            <div class="rec__text">
+              命中「<span class="review__hit">包打赢</span>」· 分级：送审
+            </div>
+            <div class="rec__meta">2026-10-29 21:36</div>
+          </a>
+
+          <a class="rec" href="#">
+            <div class="rec__top">
+              <span class="rec__title">李伟</span>
+              <span class="tag tag--outline">用户评价</span>
+            </div>
+            <div class="rec__text">
+              命中「<span class="review__hit">骗子</span>」· 分级：警示
+            </div>
+            <div class="rec__meta">2026-10-29 20:12</div>
+          </a>
+
+          <a class="rec" href="#">
+            <div class="rec__top">
+              <span class="rec__title">匿名用户</span>
+              <span class="tag tag--outline">文章评论</span>
+            </div>
+            <div class="rec__text">
+              命中「<span class="review__hit">代办证件</span>」· 分级：阻断
+            </div>
+            <div class="rec__meta">2026-10-29 19:04</div>
+          </a>
+
+          <a class="rec" href="#">
+            <div class="rec__top">
+              <span class="rec__title">迪丽热巴·艾山</span>
+              <span class="tag tag--outline">用户评价</span>
+            </div>
+            <div class="rec__text">
+              命中「<span class="review__hit">坑人</span>」· 分级：警示
+            </div>
+            <div class="rec__meta">2026-10-29 16:20</div>
+          </a>
+
+          <a class="rec" href="#">
+            <div class="rec__top">
+              <span class="rec__title">古丽娜尔·哈力克</span>
+              <span class="tag tag--outline">IM 会话</span>
+            </div>
+            <div class="rec__text">
+              命中「<span class="review__hit">高利贷</span>」· 分级：送审
+            </div>
+            <div class="rec__meta">2026-10-29 15:02</div>
+          </a>
+        </div>
+
+        <div class="panel__foot">
+          <span class="pagination__total" style="margin:0">共 50 条 · 第 1 / 7 页</span>
+        </div>
+      </section>
+
+      <!-- ==================== 右：原文复核 ==================== -->
+      <section class="panel">
+        <div class="panel__head">
+          <h2 class="panel__title">原文复核</h2>
+          <span class="tag tag--outline">INCR-2026-0087</span>
+        </div>
+
+        <div class="panel__body" style="padding:20px">
+
+          <div class="review__meta">
+            <span class="avatar">阿</span>
+            <div class="review__meta-main">
+              <div class="review__meta-title">阿依努尔·买买提 ↔ 张建国（律师）</div>
+              <div class="review__meta-sub">
+                会话 ID CV-2026-2214 · 命中词「包打赢」· 分级 送审 · 2026-10-29 21:36
+              </div>
+            </div>
+            <span class="tag tag--dot tag--warning">待处理</span>
+          </div>
+
+          <!-- 原文：完整保留，命中处只标注 -->
+          <div class="review__thread">
+            <div class="review__thread-head">
+              <span>原文（完整保留，未做任何改写）</span>
+              <span>共 6 条 · 命中 1 条</span>
+            </div>
+
+            <div class="review__bubble">
+              <div class="review__bubble-body">
+                张律师您好，我这个劳动仲裁的案子能赢吗？
+                <div class="review__bubble-time">21:31</div>
+              </div>
+            </div>
+
+            <div class="review__bubble review__bubble--right">
+              <div class="review__bubble-body">
+                要看证据。您先把解除劳动合同通知书和工资流水发我看看。
+                <div class="review__bubble-time">21:32</div>
+              </div>
+            </div>
+
+            <div class="review__bubble">
+              <div class="review__bubble-body">
+                材料我明天传。张律师，你们这边能不能<span class="review__hit">包打赢</span>？
+                赢了多给点都行。
+                <div class="review__bubble-time">21:36</div>
+              </div>
+            </div>
+
+            <div class="review__bubble review__bubble--right">
+              <div class="review__bubble-body">
+                不能承诺结果，这是执业规范。我只能保证把该走的程序走完，
+                证据充分的话胜诉可能性大一些。
+                <div class="review__bubble-time">21:37</div>
+              </div>
+            </div>
+
+            <div class="review__bubble">
+              <div class="review__bubble-body">
+                行，我理解。那明天上午把材料发您。
+                <div class="review__bubble-time">21:39</div>
+              </div>
+            </div>
+
+            <div class="review__bubble review__bubble--right">
+              <div class="review__bubble-body">
+                好的，收到材料我先看一下再约时间电话沟通。
+                <div class="review__bubble-time">21:40</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 上下文：前后各若干条，弱化显示 -->
+          <div class="review__ctx">
+            <div class="review__thread-head">
+              <span>同会话前序消息（仅作判断参考）</span>
+            </div>
+            <div class="review__bubble">
+              <div class="review__bubble-body">
+                在吗？想咨询一下被公司辞退的事。<div class="review__bubble-time">21:20</div>
+              </div>
+            </div>
+            <div class="review__bubble review__bubble--right">
+              <div class="review__bubble-body">
+                在的，您说一下具体情况。<div class="review__bubble-time">21:22</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 机器建议 -->
+          <div class="review__advice">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"
+                 style="width:16px;height:16px;flex:0 0 16px">
+              <path d="M12 4.2 3.4 19.4h17.2z"/><path d="M12 9.6v4"/><path d="M12 16.2v.2"/>
+            </svg>
+            <span>
+              系统建议：<b>放行并提示</b>。命中词出现在用户提问里，主语是用户，
+              但律师随后已明确拒绝承诺结果，不构成违规承诺。
+            </span>
+          </div>
+
+          <!-- 申诉 -->
+          <div class="review__appeal">
+            <div class="review__appeal-head">
+              <span>用户申诉</span>
+              <span class="tag tag--gray tag--dot">未申诉</span>
+            </div>
+            <div class="review__appeal-text">
+              该用户尚未提交申诉。消息已被系统拦截发送，用户侧显示「内容含敏感词，正在审核」。
+            </div>
+          </div>
+
+        </div>
+
+        <div class="panel__foot" style="display:flex;justify-content:flex-end;gap:8px">
+          <button class="btn" type="button">忽略（误判）</button>
+          <button class="btn btn--danger" type="button">警告用户</button>
+          <button class="btn btn--danger-solid" type="button">封禁</button>
+        </div>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<script src="shell.js"></script>
+</body>
+</html>

@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="dsh-design" content="web">
+<title>文书模板 · 法泽管理后台</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   A-18 文书模板
+   --------------------------------------------------------------------------
+   职责：生成文书用的模板列表、启停、4 语言版本、字段定义入口。
+         模板正文里写 {{字段名}}，下单后由 poi-tl 用到案件数据替换后出 Word/PDF。
+   依据：《PC 后台开发计划_v1.0》§2.5 A-18；数据表 document_template
+   接口：**缺**。见《未完成需备注》§1
+   说明：
+     1. 结构套 A-03 用户列表母版：页头 → 提示条 → 查询栏 → 工具栏 → 表格 → 分页。
+     2. 提示条在顶上而不是塞进卡片脚注：{{字段名}} 是这一页最关键的使用规则，
+        写错字段名生成出来就是空白文书，比「列表怎么筛」重要得多。
+     3. 字段数单独一列：模板编辑器里加一个字段，这列就变；
+        运营靠这一列就能看出哪些模板还停在旧版（字段数明显偏少）。
+     4. 高度预算（内容区 776）：
+        页头 41 + 提示条 29 + 下间距 8 + 查询栏 58 + 间距 12 + 表格卡 622 = 770
+        表格卡 = 工具栏 48 + 表头 40 + 10 行 × 48 + 分页 52 + 上下边框 2
+    ========================================================================== */
+
+/* 列宽：计划书给的八列（操作列含在内）合计 100。
+   实测「劳动争议调解仲裁法 第 27 条」需要 17%，从模板名列收 1%。 */
+.doc-tpl-table col.c-no { width: 10%; }
+.doc-tpl-table col.c-name { width: 25%; }
+.doc-tpl-table col.c-type { width: 11%; }
+.doc-tpl-table col.c-law { width: 17%; }
+.doc-tpl-table col.c-fields { width: 9%; }
+.doc-tpl-table col.c-lang { width: 11%; }
+.doc-tpl-table col.c-state { width: 8%; }
+.doc-tpl-table col.c-ops { width: 9%; }
+
+/* 页头下间距 16 → 12：页头右侧按钮 32 高（比标题高），加上提示条后
+   内容会多出 2px 触发整页滚动，压掉 4px 正好一屏 776 */
+.doc-tpl__head {
+  margin-bottom: var(--sp-3);
+}
+
+/* 顶部提示条：压掉通用 .alert 的上下 padding（8 → 4）与下间距 */
+.doc-tpl__notice {
+  padding: var(--sp-1) var(--sp-4);
+  margin-bottom: var(--sp-2);
+}
+
+/* 查询栏上下 12（默认 16）：省下的 8px 让给表格第 10 行 */
+.doc-tpl__query .query-bar {
+  padding: var(--sp-3) var(--sp-5);
+}
+
+/* 字段名占位符用等宽显示规则：{{姓名}} 里的花括号在比例字体里会挤在一起 */
+.doc-tpl__notice code {
+  padding: 0 4px;
+  border-radius: var(--r-xs);
+  background: var(--bg-surface);
+  font-family: var(--font-num);
+  font-size: var(--fs-xs);
+  color: var(--brand-text);
+}
+
+/* 模板编号、更新时间用等宽 */
+.doc-tpl-table .mono-time {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+
+/* 字段数：数字列右对齐，读起来比左对齐快 */
+.doc-tpl-table .cell-count {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--text-body);
+}
+
+/* 语言版本：齐全的用次级文字，缺版本的用 warning 深色 */
+.lang-ok {
+  color: var(--text-secondary);
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+}
+
+.lang-miss {
+  color: var(--state-warning-deep);
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--fw-medium);
+}
+</style>
+</head>
+<body class="shell" data-page="17-doc-template">
+
+<aside class="sidebar" id="sidebar"></aside>
+
+<div class="main">
+  <header class="navbar" id="navbar"></header>
+  <div class="tags-view" id="tags-view"></div>
+
+  <main class="app-container scroll-y">
+
+    <!-- ==================== 页头 ==================== -->
+    <div class="page-head doc-tpl__head">
+      <div>
+        <h1 class="page-head__title">文书模板</h1>
+      </div>
+      <div class="page-head__actions">
+        <button class="btn btn--primary" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"
+               style="width:14px;height:14px">
+            <path d="M12 5.2v13.6"/><path d="M5.2 12h13.6"/>
+          </svg>
+          新建模板
+        </button>
+      </div>
+    </div>
+
+    <!-- ==================== 提示条 ==================== -->
+    <div class="alert doc-tpl__notice">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="8.6"/>
+        <path d="M12 11v5.4"/><path d="M12 7.8v.2"/>
+      </svg>
+      <span>模板字段以 <code>{{字段名}}</code> 形式写在正文里，生成文书时由后端替换</span>
+    </div>
+
+    <!-- ==================== 查询栏 ==================== -->
+    <div class="card doc-tpl__query">
+      <form class="query-bar" method="get">
+        <div class="field-inline">
+          <label class="field-inline__label" for="q-name">模板名</label>
+          <input class="input" id="q-name" type="text" placeholder="模板名称关键词">
+        </div>
+
+        <div class="field-inline">
+          <label class="field-inline__label" for="q-type">文书类型</label>
+          <select class="select" id="q-type">
+            <option>全部</option>
+            <option>起诉状</option>
+            <option>答辩状</option>
+            <option>上诉状</option>
+            <option>申请书</option>
+            <option>委托书</option>
+            <option>调解协议</option>
+          </select>
+        </div>
+
+        <div class="field-inline">
+          <label class="field-inline__label" for="q-state">状态</label>
+          <select class="select" id="q-state">
+            <option>全部</option>
+            <option>已启用</option>
+            <option>已停用</option>
+            <option>草稿</option>
+          </select>
+        </div>
+
+        <div class="query-bar__actions">
+          <button class="btn" type="submit">查询</button>
+          <button class="btn" type="reset">重置</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- ==================== 表格 ==================== -->
+    <div class="card card--flush" style="margin-top:var(--sp-3)">
+      <div class="toolbar">
+        <div class="toolbar__left">
+          <button class="btn btn--sm" type="button">批量导出模板</button>
+          <button class="btn btn--sm" type="button">导入模板</button>
+        </div>
+        <div class="toolbar__right">
+          <span class="toolbar__count">共 <b>32</b> 条</span>
+          <button class="icon-btn" type="button" title="刷新" aria-label="刷新">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M20 12a8 8 0 1 1-2.4-5.7"/>
+              <path d="M20.2 4.6v4.2H16"/>
+            </svg>
+          </button>
+          <button class="icon-btn" type="button" title="列设置" aria-label="列设置">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="3.6" y="4.4" width="16.8" height="15.2" rx="2"/>
+              <path d="M9.4 4.4v15.2"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="table doc-tpl-table">
+          <colgroup>
+            <col class="c-no">
+            <col class="c-name">
+            <col class="c-type">
+            <col class="c-law">
+            <col class="c-fields">
+            <col class="c-lang">
+            <col class="c-state">
+            <col class="c-ops">
+          </colgroup>
+          <thead>
+            <tr>
+              <th>模板编号</th>
+              <th>模板名 / 字段</th>
+              <th>类型</th>
+              <th>适用法条</th>
+              <th style="text-align:right">字段数</th>
+              <th>语言版本</th>
+              <th>状态</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="cell-id">TPL-2026-012</span></td>
+              <td>
+                <div class="cell-stack">
+                  <span class="cell-strong">离婚纠纷民事起诉状</span>
+                  <span class="cell-stack__sub">字段 18 个</span>
+                </div>
+              </td>
+              <td><span class="tag tag--outline">起诉状</span></td>
+              <td><span class="text-sm">民事诉讼法 第 122 条</span></td>
+              <td class="cell-count">18</td>
+              <td><span class="lang-ok">4/4</span></td>
+              <td><span class="tag tag--dot tag--success">已启用</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">编辑</button>
+                  <button class="btn btn--text" type="button">预览</button>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="cell-id">TPL-2026-011</span></td>
+              <td>
+                <div class="cell-stack">
+                  <span class="cell-strong">劳动争议仲裁申请书</span>
+                  <span class="cell-stack__sub">字段 14 个</span>
+                </div>
+              </td>
+              <td><span class="tag tag--outline">申请书</span></td>
+              <td><span class="text-sm">劳动争议调解仲裁法 第 27 条</span></td>
+              <td class="cell-count">14</td>
+              <td><span class="lang-miss">2/4</span></td>
+              <td><span class="tag tag--dot tag--success">已启用</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">编辑</button>
+                  <button class="btn btn--text" type="button">预览</button>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="cell-id">TPL-2026-010</span></td>
+              <td>
+                <div class="cell-stack">
+                  <span class="cell-strong">交通事故损害赔偿起诉状</span>
+                  <span class="cell-stack__sub">字段 16 个</span>
+                </div>
+              </td>
+              <td><span class="tag tag--outline">起诉状</span></td>
+              <td><span class="text-sm">民法典 第 1179 条</span></td>
+              <td class="cell-count">16</td>
+              <td><span class="lang-ok">4/4</span></td>
+              <td><span class="tag tag--dot tag--success">已启用</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">编辑</button>
+                  <button class="btn btn--text" type="button">预览</button>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="cell-id">TPL-2026-009</span></td>
+              <td>
+                <div class="cell-stack">
+                  <span class="cell-strong">民间借贷纠纷答辩状</span>
+                  <span class="cell-stack__sub">字段 12 个</span>
+                </div>
+              </td>
+              <td><span class="tag tag--outline">答辩状</span></td>
+              <td><span class="text-sm">民事诉讼法 第 128 条</span></td>
+              <td class="cell-count">12</td>
+              <td><span class="lang-miss">3/4</span></td>
+              <td><span class="tag tag--dot tag--warning">草稿</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">编辑</button>
+                  <button class="btn btn--text" type="button">预览</button>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="cell-id">TPL-2026-008</span></td>
+              <td>
+                <div class="cell-stack">
+                  <span class="cell-strong">抚养权变更申请书</span>
+                  <span class="cell-stack__sub">字段 10 个</span>
+                </div>
+              </td>
+              <td><span class="tag tag--outline">申请书</span></td>
+              <td><span class="text-sm">民法典 第 1084 条</span></td>
+              <td class="cell-count">10</td>
+              <td><span class="lang-ok">4/4</span></td>
+              <td><span class="tag tag--dot tag--success">已启用</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">编辑</button>
+                  <button class="btn btn--text" type="button">预览</button>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="cell-id">TPL-2026-007</span></td>
+              <td>
+                <div class="cell-stack">
+                  <span class="cell-strong">房屋买卖合同纠纷上诉状</span>
+                  <span class="cell-stack__sub">字段 15 个</span>
+                </div>
+              </td>
+              <td><span class="tag tag--outline">上诉状</span></td>
+              <td><span class="text-sm">民事诉讼法 第 171 条</span></td>
+              <td class="cell-count">15</td>
+              <td><span class="lang-miss">2/4</span></td>
+              <td><span class="tag tag--dot tag--gray">已停用</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">编辑</button>
+                  <button class="btn btn--text" type="button">预览</button>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="cell-id">TPL-2026-006</span></td>
+              <td>
+                <div class="cell-stack">
+                  <span class="cell-strong">法律援助委托书</span>
+                  <span class="cell-stack__sub">字段 9 个</span>
+                </div>
+              </td>
+              <td><span class="tag tag--outline">委托书</span></td>
+              <td><span class="text-sm">民法典 第 165 条</span></td>
+              <td class="cell-count">9</td>
+              <td><span class="lang-ok">4/4</span></td>
+              <td><span class="tag tag--dot tag--success">已启用</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">编辑</button>
+                  <button class="btn btn--text" type="button">预览</button>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="cell-id">TPL-2026-005</span></td>
+              <td>
+                <div class="cell-stack">
+                  <span class="cell-strong">工伤认定申请书</span>
+                  <span class="cell-stack__sub">字段 13 个</span>
+                </div>
+              </td>
+              <td><span class="tag tag--outline">申请书</span></td>
+              <td><span class="text-sm">工伤保险条例 第 17 条</span></td>
+              <td class="cell-count">13</td>
+              <td><span class="lang-miss">2/4</span></td>
+              <td><span class="tag tag--dot tag--success">已启用</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">编辑</button>
+                  <button class="btn btn--text" type="button">预览</button>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="cell-id">TPL-2026-004</span></td>
+              <td>
+                <div class="cell-stack">
+                  <span class="cell-strong">邻里纠纷调解协议</span>
+                  <span class="cell-stack__sub">字段 8 个</span>
+                </div>
+              </td>
+              <td><span class="tag tag--outline">调解协议</span></td>
+              <td><span class="text-sm">人民调解法 第 31 条</span></td>
+              <td class="cell-count">8</td>
+              <td><span class="lang-ok">4/4</span></td>
+              <td><span class="tag tag--dot tag--warning">草稿</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">编辑</button>
+                  <button class="btn btn--text" type="button">预览</button>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="cell-id">TPL-2026-003</span></td>
+              <td>
+                <div class="cell-stack">
+                  <span class="cell-strong">农村土地承包纠纷起诉状</span>
+                  <span class="cell-stack__sub">字段 11 个</span>
+                </div>
+              </td>
+              <td><span class="tag tag--outline">起诉状</span></td>
+              <td><span class="text-sm">农村土地承包法 第 55 条</span></td>
+              <td class="cell-count">11</td>
+              <td><span class="lang-miss">1/4</span></td>
+              <td><span class="tag tag--dot tag--gray">已停用</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">编辑</button>
+                  <button class="btn btn--text" type="button">预览</button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- 分页 -->
+      <div class="pagination">
+        <span class="pagination__total">共 <b>32</b> 条 · 当前第 <b>1</b> / 4 页</span>
+        <button class="page-btn page-btn--disabled" type="button" aria-label="上一页">‹</button>
+        <button class="page-btn page-btn--active" type="button">1</button>
+        <button class="page-btn" type="button">2</button>
+        <button class="page-btn" type="button">3</button>
+        <button class="page-btn" type="button">4</button>
+        <button class="page-btn" type="button" aria-label="下一页">›</button>
+        <select class="pagination__size" aria-label="每页条数">
+          <option>10 条 / 页</option>
+          <option>20 条 / 页</option>
+          <option>50 条 / 页</option>
+        </select>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script src="shell.js"></script>
+</body>
+</html>

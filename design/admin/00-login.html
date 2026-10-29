@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="dsh-design" content="web">
+<title>登录 · 法泽管理后台</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   A-01 登录页
+   --------------------------------------------------------------------------
+   职责：管理员账号密码登录 + 图形验证码。
+   依据：《PC 后台开发计划_v1.0》§2.1 A-01；技术路线 §15.2（独立域 admin.faze.com，
+        仅 admin 角色可登）
+   接口：RuoYi 自带 /login、/captchaImage，不属业务接口
+   说明：
+     1. 这是 26 屏里唯一不带 RuoYi 骨架的页面（登录时还没有侧边栏与顶栏）。
+     2. RuoYi 默认登录页是「左侧插画 + 右侧表单」，本设计保留这个结构，
+        只把插画换成品牌深色板、把主题色从 #409EFF 换成品牌蓝 #4a66ee。
+     3. 左侧是深色板，与后台侧边栏同一色号，登录进来视觉不断裂。
+   ========================================================================== */
+
+.login {
+  display: grid;
+  grid-template-columns: 760px minmax(0, 1fr);
+  width: var(--canvas-w);
+  height: var(--canvas-h);
+  background: var(--bg-surface);
+}
+
+/* ---------- 左：品牌板 ---------- */
+.login__brand {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: var(--sp-12) var(--sp-12) var(--sp-10);
+  background: var(--bg-sidebar);
+  overflow: hidden;
+}
+
+/* 天平水印：放大到 460px 压在右下，透明度压到 5%，
+   只提供「这是法律平台」的气氛，不抢标题 */
+.login__watermark {
+  position: absolute;
+  right: -90px;
+  bottom: -70px;
+  width: 460px;
+  height: 460px;
+  color: var(--text-on-brand);
+  opacity: 0.05;
+  pointer-events: none;
+}
+
+.login__logo {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  color: var(--text-on-brand);
+}
+
+.login__mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--r-md);
+  background: var(--brand-primary);
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-bold);
+}
+
+.login__brand-name {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.login__brand-name b {
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.08em;
+}
+
+.login__brand-name span {
+  font-size: var(--fs-xs);
+  color: var(--text-sidebar);
+  letter-spacing: 0.14em;
+}
+
+/* 中部：定位语。垂直方向往上推一点，不和底部版权挤在一起 */
+.login__copy {
+  margin-top: auto;
+  margin-bottom: auto;
+  max-width: 420px;
+}
+
+.login__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  height: 24px;
+  padding: 0 var(--sp-2);
+  border: 1px solid color-mix(in srgb, var(--text-on-brand) 22%, transparent);
+  border-radius: var(--r-sm);
+  color: var(--text-sidebar);
+  font-size: var(--fs-xs);
+  letter-spacing: 0.06em;
+}
+
+.login__eyebrow i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--state-success);
+}
+
+.login__headline {
+  margin-top: var(--sp-5);
+  font-size: 32px;
+  font-weight: var(--fw-semibold);
+  line-height: 1.35;
+  letter-spacing: -0.01em;
+  color: var(--text-on-brand);
+}
+
+.login__headline em {
+  font-style: normal;
+  color: var(--brand-on-dark);
+}
+
+.login__lede {
+  margin-top: var(--sp-4);
+  font-size: var(--fs-md);
+  line-height: 1.8;
+  color: var(--text-sidebar);
+}
+
+/* 底部：三行事实，不用「赋能」「一站式」这类空话 */
+.login__facts {
+  display: flex;
+  gap: var(--sp-8);
+  padding-top: var(--sp-5);
+  border-top: 1px solid color-mix(in srgb, var(--text-on-brand) 12%, transparent);
+}
+
+.login__fact b {
+  display: block;
+  font-family: var(--font-num);
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-semibold);
+  color: var(--text-on-brand);
+}
+
+.login__fact span {
+  font-size: var(--fs-xs);
+  color: var(--text-sidebar);
+}
+
+/* ---------- 右：表单 ---------- */
+.login__panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-12) var(--sp-12) var(--sp-8);
+  background: var(--bg-surface);
+}
+
+.login__form {
+  width: 360px;
+}
+
+.login__title {
+  font-size: var(--fs-2xl);
+  font-weight: var(--fw-semibold);
+  line-height: var(--lh-tight);
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+
+.login__subtitle {
+  margin-top: var(--sp-2);
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+.login__fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  margin-top: var(--sp-8);
+}
+
+/* 登录页输入框用大尺寸（40px）：它是全屏唯一交互，做大一点 */
+.login .input {
+  height: var(--ctrl-h-lg);
+  padding-left: 38px;
+  font-size: var(--fs-md);
+}
+
+.login__field {
+  position: relative;
+}
+
+.login__field > svg {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  color: var(--text-placeholder);
+  pointer-events: none;
+}
+
+/* 验证码：输入框 + 图片按钮横排 */
+.login__captcha {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 104px;
+  gap: var(--sp-3);
+}
+
+.login .login__captcha .input {
+  padding-left: 38px;
+}
+
+.captcha-img {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--ctrl-h-lg);
+  padding: 0;
+  border: 1px solid var(--border-input);
+  border-radius: var(--radius-ctrl);
+  background: var(--bg-surface-2);
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.captcha-img:hover {
+  border-color: var(--brand-primary);
+}
+
+.captcha-img svg {
+  width: 100%;
+  height: 100%;
+}
+
+.login__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: var(--sp-1);
+  font-size: var(--fs-sm);
+}
+
+.login__remember {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.login__link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  color: var(--brand-text);
+  text-decoration: none;
+}
+
+.login__link:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.login__submit {
+  height: var(--ctrl-h-lg);
+  margin-top: var(--sp-5);
+  font-size: var(--fs-md);
+  letter-spacing: 0.04em;
+}
+
+.login__tip {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  margin-top: var(--sp-6);
+  padding: var(--sp-3);
+  border-radius: var(--r-md);
+  background: var(--bg-surface-2);
+  font-size: var(--fs-xs);
+  line-height: var(--lh-relaxed);
+  color: var(--text-muted);
+}
+
+.login__tip svg {
+  flex: 0 0 14px;
+  width: 14px;
+  height: 14px;
+  margin-top: 2px;
+  color: var(--text-placeholder);
+}
+
+.login__foot {
+  width: 360px;
+  margin-top: var(--sp-10);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  text-align: center;
+  line-height: 1.8;
+}
+
+.login__foot a {
+  color: var(--text-muted);
+  text-decoration: none;
+}
+
+.login__foot a:hover {
+  color: var(--brand-primary);
+}
+</style>
+</head>
+<body>
+
+<div class="login">
+
+  <!-- ==================== 左：品牌板 ==================== -->
+  <aside class="login__brand">
+    <!-- 天平水印：法律平台的最小视觉暗示 -->
+    <svg class="login__watermark" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+         stroke-width="0.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M12 4.2v15.6"/><path d="M7.4 20h9.2"/><path d="M4.6 8.4h14.8"/>
+      <path d="M4.6 8.4 2.4 13.6h4.4L4.6 8.4Z"/><path d="M19.4 8.4l2.2 5.2h-4.4l2.2-5.2Z"/>
+      <circle cx="12" cy="4.2" r="1.2"/>
+    </svg>
+
+    <div class="login__logo">
+      <span class="login__mark">法</span>
+      <span class="login__brand-name">
+        <b>法泽 FAZE</b>
+        <span>MANAGEMENT CONSOLE</span>
+      </span>
+    </div>
+
+    <div class="login__copy">
+      <span class="login__eyebrow"><i></i>服务运行中</span>
+      <h1 class="login__headline">伊犁普惠法律服务<em>管理后台</em></h1>
+      <p class="login__lede">
+        面向新疆伊犁地区的普惠型法律服务平台。这里集中管理用户与律师资质、
+        订单与资金流水、内容与案件进度，以及平台侧的审核与治理动作。
+      </p>
+    </div>
+
+    <div class="login__facts">
+      <div class="login__fact"><b>4</b><span>语言版本</span></div>
+      <div class="login__fact"><b>1,284</b><span>注册用户</span></div>
+      <div class="login__fact"><b>26</b><span>业务页面</span></div>
+    </div>
+  </aside>
+
+  <!-- ==================== 右：登录表单 ==================== -->
+  <main class="login__panel">
+    <form class="login__form" method="post" action="01-dashboard.html">
+      <h2 class="login__title">登录</h2>
+      <p class="login__subtitle">仅限平台管理员账号，所有操作全程留痕</p>
+
+      <div class="login__fields">
+        <!-- 账号 -->
+        <div class="login__field">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="8" r="3.6"/>
+            <path d="M4.8 20.2c0-3.6 3.2-5.8 7.2-5.8s7.2 2.2 7.2 5.8"/>
+          </svg>
+          <input class="input" type="text" name="username" value="admin"
+                 placeholder="请输入管理员账号" autocomplete="username" aria-label="管理员账号">
+        </div>
+
+        <!-- 密码 -->
+        <div class="login__field">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="4.4" y="10.2" width="15.2" height="9.6" rx="2"/>
+            <path d="M8 10.2V7.4a4 4 0 0 1 8 0v2.8"/>
+            <path d="M12 14v2.2"/>
+          </svg>
+          <input class="input" type="password" name="password" value="faze2026"
+                 placeholder="请输入密码" autocomplete="current-password" aria-label="密码">
+        </div>
+
+        <!-- 验证码 -->
+        <div class="login__captcha">
+          <div class="login__field">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M5.2 5.6h13.6a1.4 1.4 0 0 1 1.4 1.4v10a1.4 1.4 0 0 1-1.4 1.4H5.2a1.4 1.4 0 0 1-1.4-1.4V7a1.4 1.4 0 0 1 1.4-1.4Z"/>
+              <path d="m4.4 7.6 7.6 5.2 7.6-5.2"/>
+            </svg>
+            <input class="input" type="text" name="code" placeholder="验证码"
+                   autocomplete="off" aria-label="验证码">
+          </div>
+          <button class="captcha-img" type="button" title="看不清？点击换一张">
+            <!-- 图形验证码：4 位字符 + 干扰线，宽度固定 104 -->
+            <svg viewBox="0 0 104 40" aria-label="验证码图片">
+              <rect width="104" height="40" fill="#fafbfc"/>
+              <path d="M2 30 Q 26 8 50 26 T 102 12" stroke="#c9cfe0" stroke-width="1.2" fill="none"/>
+              <path d="M4 14 Q 30 34 56 12 T 100 28" stroke="#d8ddea" stroke-width="1" fill="none"/>
+              <text x="12" y="28" font-family="Inter, sans-serif" font-size="19" font-weight="600"
+                    fill="#4a66ee" transform="rotate(-8 12 28)">7</text>
+              <text x="34" y="29" font-family="Inter, sans-serif" font-size="19" font-weight="600"
+                    fill="#22283a" transform="rotate(6 34 29)">K</text>
+              <text x="56" y="28" font-family="Inter, sans-serif" font-size="19" font-weight="600"
+                    fill="#8a2be2" transform="rotate(-4 56 28)">9</text>
+              <text x="78" y="29" font-family="Inter, sans-serif" font-size="19" font-weight="600"
+                    fill="#4a66ee" transform="rotate(9 78 29)">P</text>
+            </svg>
+          </button>
+        </div>
+
+        <div class="login__row">
+          <label class="login__remember">
+            <input class="check" type="checkbox" checked aria-label="记住账号">
+            记住账号
+          </label>
+          <a class="login__link" href="#">忘记密码</a>
+        </div>
+
+        <button class="btn btn--primary btn--block login__submit" type="submit">登录</button>
+      </div>
+
+      <div class="login__tip">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="8.6"/>
+          <path d="M12 11v5.4"/><path d="M12 7.8v.2"/>
+        </svg>
+        <span>
+          本系统面向平台管理员开放。涉及用户隐私与资金的操作会被完整记录（操作人、
+          时间、来源 IP、变更前后值），请勿共享账号。
+        </span>
+      </div>
+    </form>
+
+    <footer class="login__foot">
+      © 2026 法泽 FAZE · 伊犁师范大学法学专业实验基地<br>
+      <a href="#">服务条款</a> · <a href="#">隐私政策</a> · 版本 v1.0.0
+    </footer>
+  </main>
+
+</div>
+
+</body>
+</html>

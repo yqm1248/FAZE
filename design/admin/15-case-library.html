@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="dsh-design" content="web">
+<title>案例库 · 法泽管理后台</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   A-16 案例库
+   --------------------------------------------------------------------------
+   职责：面向 App 公开展示的案例录入、分类、法条绑定、4 语言版本、上下架。
+   依据：《PC 后台开发计划_v1.0》§2.5 A-16；数据表 case_library /
+         case_library_translation
+   接口：**缺**。见《未完成需备注》§1
+   说明：
+     1. 结构套 A-03 用户列表母版：页头 → 提示条 → 查询栏 → 工具栏 → 表格 → 分页。
+     2. 本页不写页头描述，改用一条 .alert 顶上承担说明职责 ——
+        「内容对 App 公开展示、录入后要过内容审核才上线」不是可有可无的介绍，
+        是录入前必须先看到的规则，用提示条比用灰色小字更合适。
+        省下的高度正好让表格 10 行一屏放下（预算见第 4 点）。
+     3. 「语言」列写 4/4、2/4 这种分数：案例要 4 语言齐全才对用户公开展示，
+        缺版本用 warning 深色标出，比一个「未完成」标签更能看出还差几版。
+     4. 高度预算（内容区 776）：
+        页头 41 + 提示条 29 + 下间距 8 + 查询栏 58 + 间距 12 + 表格卡 622 = 770
+        表格卡 = 工具栏 48 + 表头 40 + 10 行 × 48 + 分页 52 + 上下边框 2
+    ========================================================================== */
+
+/* 列宽用 colgroup 百分比固定，换数据不跳列。
+   实测（Edge 1440 宽无头渲染）：案例编号 12 字符等宽串要 122px、标签「审核驳回」
+   要 73px，所以编号列给 13%、状态列给 9%；其余从标题/分类里收。
+   八列合计必须 100%。 */
+.case-lib-table col.c-no { width: 13%; }
+.case-lib-table col.c-title { width: 24%; }
+.case-lib-table col.c-cat { width: 10%; }
+.case-lib-table col.c-law { width: 15%; }
+.case-lib-table col.c-lang { width: 9%; }
+.case-lib-table col.c-state { width: 9%; }
+.case-lib-table col.c-upd { width: 11%; }
+.case-lib-table col.c-ops { width: 9%; }
+
+/* 页头下间距 16 → 12：页头右侧按钮 32 高（比标题高），加上提示条后
+   内容会多出 2px 触发整页滚动，压掉 4px 正好一屏 776 */
+.case-lib__head {
+  margin-bottom: var(--sp-3);
+}
+
+/* 顶部提示条：压掉通用 .alert 的上下 padding（8 → 4）与下间距 */
+.case-lib__notice {
+  padding: var(--sp-1) var(--sp-4);
+  margin-bottom: var(--sp-2);
+}
+
+/* 查询栏上下 12（默认 16）：省下的 8px 让给表格第 10 行 */
+.case-lib__query .query-bar {
+  padding: var(--sp-3) var(--sp-5);
+}
+
+/* 案例编号、更新时间用等宽，竖排能对齐 */
+.case-lib-table .mono-time {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+
+/* 语言版本：齐全的用次级文字（不抢），缺版本的用 warning 深色 */
+.lang-ok {
+  color: var(--text-secondary);
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+}
+
+.lang-miss {
+  color: var(--state-warning-deep);
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--fw-medium);
+}
+</style>
+</head>
+<body class="shell" data-page="15-case-library">
+
+<aside class="sidebar" id="sidebar"></aside>
+
+<div class="main">
+  <header class="navbar" id="navbar"></header>
+  <div class="tags-view" id="tags-view"></div>
+
+  <main class="app-container scroll-y">
+
+    <!-- ==================== 页头 ==================== -->
+    <div class="page-head case-lib__head">
+      <div>
+        <h1 class="page-head__title">案例库</h1>
+      </div>
+      <div class="page-head__actions">
+        <button class="btn btn--primary" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"
+               style="width:14px;height:14px">
+            <path d="M12 5.2v13.6"/><path d="M5.2 12h13.6"/>
+          </svg>
+          新建案例
+        </button>
+      </div>
+    </div>
+
+    <!-- ==================== 提示条 ==================== -->
+    <div class="alert case-lib__notice">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="8.6"/>
+        <path d="M12 11v5.4"/><path d="M12 7.8v.2"/>
+      </svg>
+      <span>案例库内容对 App 用户公开展示，录入后需经内容审核才会上线</span>
+    </div>
+
+    <!-- ==================== 查询栏 ==================== -->
+    <div class="card case-lib__query">
+      <form class="query-bar" method="get">
+        <div class="field-inline">
+          <label class="field-inline__label" for="q-title">案例标题</label>
+          <input class="input" id="q-title" type="text" placeholder="标题关键词">
+        </div>
+
+        <div class="field-inline">
+          <label class="field-inline__label" for="q-cat">案例分类</label>
+          <select class="select" id="q-cat">
+            <option>全部</option>
+            <option>婚姻家事</option>
+            <option>劳动纠纷</option>
+            <option>合同纠纷</option>
+            <option>交通事故</option>
+            <option>刑事</option>
+            <option>民族政策</option>
+          </select>
+        </div>
+
+        <div class="field-inline">
+          <label class="field-inline__label" for="q-law">适用法条</label>
+          <input class="input" id="q-law" type="text" placeholder="法条名称或条号">
+        </div>
+
+        <div class="query-bar__actions">
+          <button class="btn" type="submit">查询</button>
+          <button class="btn" type="reset">重置</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- ==================== 表格 ==================== -->
+    <div class="card card--flush" style="margin-top:var(--sp-3)">
+      <div class="toolbar">
+        <div class="toolbar__left">
+          <button class="btn btn--sm btn--danger" type="button">批量下架</button>
+          <button class="btn btn--sm" type="button">批量导出</button>
+        </div>
+        <div class="toolbar__right">
+          <span class="toolbar__count">共 <b>128</b> 条</span>
+          <button class="icon-btn" type="button" title="刷新" aria-label="刷新">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M20 12a8 8 0 1 1-2.4-5.7"/>
+              <path d="M20.2 4.6v4.2H16"/>
+            </svg>
+          </button>
+          <button class="icon-btn" type="button" title="列设置" aria-label="列设置">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="3.6" y="4.4" width="16.8" height="15.2" rx="2"/>
+              <path d="M9.4 4.4v15.2"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="table case-lib-table">
+          <colgroup>
+            <col class="c-no">
+            <col class="c-title">
+            <col class="c-cat">
+            <col class="c-law">
+            <col class="c-lang">
+            <col class="c-state">
+            <col class="c-upd">
+            <col class="c-ops">
+          </colgroup>
+          <thead>
+            <tr>
+              <th>案例编号</th>
+              <th>标题 / 当事人</th>
+              <th>分类</th>
+              <th>适用法条</th>
+              <th>语言</th>
+              <th>状态</th>
+              <th>更新时间</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="cell-id">CASE-2026-031</span></td>
+              <td>
+                <div class="cell-stack">
+                  <span class="cell-strong">离婚时隐匿共同财产的分割</span>
+                  <span class="cell-stack__sub">当事人：阿依努尔·买买提 vs 麦麦提·艾力</span>
+                </div>
+              </td>
+              <td><span class="tag tag--outline">婚姻家事</span></td>
+              <td><span class="text-sm">民法典 第 1092 条</span></td>
+              <td><span class="lang-ok">4/4</span></td>
+              <td><span class="tag tag--dot tag--success">已上线</span></td>
+              <td><span class="mono-time">2026-10-29 18:42</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">编辑</button>
+                  <button class="btn btn--text is-danger" type="button">下架</button>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="cell-id">CASE-2026-030</span></td>
+              <td>
+                <div class="cell-stack">
+                  <span class="cell-strong">外卖骑手工伤认定与用工关系</span>
+                  <span class="cell-stack__sub">当事人：艾力·热合曼 vs 奎屯远景物流</span>
+                </div>
+              </td>
+              <td><span class="tag tag--outline">劳动纠纷</span></td>
+              <td><span class="text-sm">工伤保险条例 第 14 条</span></td>
+              <td><span class="lang-miss">2/4</span></td>
+              <td><span class="tag tag--dot tag--warning">待审核</span></td>
+              <td><span class="mono-time">2026-10-29 16:20</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">编辑</button>
+                  <button class="btn btn--text is-danger" type="button">下架</button>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="cell-id">CASE-2026-029</span></td>
+              <td>
+                <div class="cell-stack">
+                  <span class="cell-strong">牧道交通事故的责任比例划分</span>
+                  <span class="cell-stack__sub">当事人：王海涛 vs 伊宁市公交公司</span>
+                </div>
+              </td>
+              <td><span class="tag tag--outline">交通事故</span></td>
+              <td><span class="text-sm">道路交通安全法 第 76 条</span></td>
+              <td><span class="lang-ok">4/4</span></td>
+              <td><span class="tag tag--dot tag--success">已上线</span></td>
+              <td><span class="mono-time">2026-10-29 11:05</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">编辑</button>
+                  <button class="btn btn--text is-danger" type="button">下架</button>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="cell-id">CASE-2026-028</span></td>
+              <td>
+                <div class="cell-stack">
+                  <span class="cell-strong">房屋租赁押金返还争议</span>
+                  <span class="cell-stack__sub">当事人：迪丽热巴·艾山 vs 刘敏</span>
+                </div>
+              </td>
+              <td><span class="tag tag--outline">合同纠纷</span></td>
+              <td><span class="text-sm">民法典 第 733 条</span></td>
+              <td><span class="lang-miss">3/4</span></td>
+              <td><span class="tag tag--dot tag--success">已上线</span></td>
+              <td><span class="mono-time">2026-10-29 09:31</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">编辑</button>
+                  <button class="btn btn--text is-danger" type="button">下架</button>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="cell-id">CASE-2026-027</span></td>
+              <td>
+                <div class="cell-stack">
+                  <span class="cell-strong">追索劳动报酬要准备哪些证据</span>
+                  <span class="cell-stack__sub">当事人：张建国 vs 伊宁县纺织厂</span>
+                </div>
+              </td>
+              <td><span class="tag tag--outline">劳动纠纷</span></td>
+              <td><span class="text-sm">民法典 第 509 条</span></td>
+              <td><span class="lang-ok">4/4</span></td>
+              <td><span class="tag tag--dot tag--success">已上线</span></td>
+              <td><span class="mono-time">2026-10-28 17:48</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">编辑</button>
+                  <button class="btn btn--text is-danger" type="button">下架</button>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="cell-id">CASE-2026-026</span></td>
+              <td>
+                <div class="cell-stack">
+                  <span class="cell-strong">婚姻存续期间一方举债的认定</span>
+                  <span class="cell-stack__sub">当事人：古丽娜尔·哈力克 vs 哈力克</span>
+                </div>
+              </td>
+              <td><span class="tag tag--outline">婚姻家事</span></td>
+              <td><span class="text-sm">民法典 第 1064 条</span></td>
+              <td><span class="lang-miss">2/4</span></td>
+              <td><span class="tag tag--dot tag--warning">待审核</span></td>
+              <td><span class="mono-time">2026-10-28 15:06</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">编辑</button>
+                  <button class="btn btn--text is-danger" type="button">下架</button>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="cell-id">CASE-2026-025</span></td>
+              <td>
+                <div class="cell-stack">
+                  <span class="cell-strong">故意伤害案中正当防卫的边界</span>
+                  <span class="cell-stack__sub">当事人：赵雪梅 vs 李伟</span>
+                </div>
+              </td>
+              <td><span class="tag tag--outline">刑事</span></td>
+              <td><span class="text-sm">刑法 第 20 条</span></td>
+              <td><span class="lang-ok">4/4</span></td>
+              <td><span class="tag tag--dot tag--success">已上线</span></td>
+              <td><span class="mono-time">2026-10-28 10:22</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">编辑</button>
+                  <button class="btn btn--text is-danger" type="button">下架</button>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="cell-id">CASE-2026-024</span></td>
+              <td>
+                <div class="cell-stack">
+                  <span class="cell-strong">少数民族语言条款的歧义解释</span>
+                  <span class="cell-stack__sub">当事人：玛尔哈巴·吐尔逊 vs 霍城县医院</span>
+                </div>
+              </td>
+              <td><span class="tag tag--outline">民族政策</span></td>
+              <td><span class="text-sm">民法典 第 142 条</span></td>
+              <td><span class="lang-miss">3/4</span></td>
+              <td><span class="tag tag--dot tag--danger">审核驳回</span></td>
+              <td><span class="mono-time">2026-10-27 16:55</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">编辑</button>
+                  <button class="btn btn--text is-danger" type="button">下架</button>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="cell-id">CASE-2026-023</span></td>
+              <td>
+                <div class="cell-stack">
+                  <span class="cell-strong">草场承包经营权能否继承</span>
+                  <span class="cell-stack__sub">当事人：帕提古丽·阿布都 vs 察布查尔县</span>
+                </div>
+              </td>
+              <td><span class="tag tag--outline">合同纠纷</span></td>
+              <td><span class="text-sm">农村土地承包法 第 32 条</span></td>
+              <td><span class="lang-miss">2/4</span></td>
+              <td><span class="tag tag--dot tag--gray">已下架</span></td>
+              <td><span class="mono-time">2026-10-27 14:10</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">编辑</button>
+                  <button class="btn btn--text" type="button">上线</button>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="cell-id">CASE-2026-022</span></td>
+              <td>
+                <div class="cell-stack">
+                  <span class="cell-strong">买卖合同质量异议期的起算</span>
+                  <span class="cell-stack__sub">当事人：阿卜杜拉·肉孜 vs 奎屯农机公司</span>
+                </div>
+              </td>
+              <td><span class="tag tag--outline">合同纠纷</span></td>
+              <td><span class="text-sm">民法典 第 621 条</span></td>
+              <td><span class="lang-ok">4/4</span></td>
+              <td><span class="tag tag--dot tag--success">已上线</span></td>
+              <td><span class="mono-time">2026-10-26 09:40</span></td>
+              <td>
+                <div class="table__ops">
+                  <button class="btn btn--text" type="button">编辑</button>
+                  <button class="btn btn--text is-danger" type="button">下架</button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- 分页 -->
+      <div class="pagination">
+        <span class="pagination__total">共 <b>128</b> 条 · 当前第 <b>1</b> / 13 页</span>
+        <button class="page-btn page-btn--disabled" type="button" aria-label="上一页">‹</button>
+        <button class="page-btn page-btn--active" type="button">1</button>
+        <button class="page-btn" type="button">2</button>
+        <button class="page-btn" type="button">3</button>
+        <button class="page-btn page-btn--disabled" type="button" aria-label="更多">…</button>
+        <button class="page-btn" type="button">13</button>
+        <button class="page-btn" type="button" aria-label="下一页">›</button>
+        <select class="pagination__size" aria-label="每页条数">
+          <option>10 条 / 页</option>
+          <option>20 条 / 页</option>
+          <option>50 条 / 页</option>
+        </select>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script src="shell.js"></script>
+</body>
+</html>

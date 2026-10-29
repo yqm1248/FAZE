@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="dsh-design" content="web">
+<title>公告与推送 · 法泽管理后台</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   A-23 公告与推送
+   --------------------------------------------------------------------------
+   职责：新建全员公告 / 定向推送，查看已发公告的触达情况。
+   依据：《PC 后台开发计划_v1.0》§2.7 A-23；技术路线 §15.1「消息管理」
+   接口：**缺**。见《未完成需备注》§1
+   说明：
+     1. 上半是「发」、下半是「已发」：公告是一次性动作，管理员来这一页的
+        目的几乎只有「发一条」，所以表单在上、历史在下。
+     2. 渠道多选而不是单选：站内信一定要发（否则用户事后找不到），
+        App 推送与短信是可选的放大器。这一点用默认勾选体现，不用文字说明。
+     3. 已发列表只放 5 行：这一页的主角是新建表单，历史只是留痕。
+   ========================================================================== */
+
+.announce-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+/* 正文输入：公告要能写长，给 5 行高度 */
+.announce-text {
+  width: 100%;
+  min-height: 104px;
+}
+
+/* 渠道多选：三行说明，比一行挤在一起好读 */
+.channel-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.channel {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  font-size: var(--fs-sm);
+  color: var(--text-body);
+  cursor: pointer;
+}
+
+.channel input {
+  margin-top: 3px;
+}
+
+.channel__desc {
+  display: block;
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+
+/* 已发公告表 */
+.notice-table col.c-title { width: 34%; }
+.notice-table col.c-target { width: 12%; }
+.notice-table col.c-ch { width: 14%; }
+.notice-table col.c-time { width: 15%; }
+.notice-table col.c-reach { width: 10%; }
+.notice-table col.c-open { width: 9%; }
+.notice-table col.c-state { width: 6%; }
+
+.notice-table td { height: 44px; }
+
+.notice-table .mono-time {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+
+.notice-title {
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+}
+</style>
+</head>
+<body class="shell" data-page="22-announcement">
+
+<aside class="sidebar" id="sidebar"></aside>
+
+<div class="main">
+  <header class="navbar" id="navbar"></header>
+  <div class="tags-view" id="tags-view"></div>
+
+  <main class="app-container scroll-y">
+
+    <div class="page-head">
+      <div>
+        <h1 class="page-head__title">公告与推送</h1>
+        <p class="page-head__desc">
+          公告发出后不可撤回，会立即进入用户消息中心。定向推送只对选中人群可见，请先确认人群范围。
+        </p>
+      </div>
+    </div>
+
+    <!-- ==================== 新建公告 ==================== -->
+    <div class="card">
+      <div class="card__head">
+        <h2 class="card__title">新建公告</h2>
+        <div class="card__extra">预览效果与 App 消息中心一致</div>
+      </div>
+      <div class="card__body">
+        <form class="announce-form" method="post">
+
+          <div class="form-grid">
+            <div class="form-row form-row--wide">
+              <label class="form-label is-required" for="a-title">公告标题</label>
+              <input class="input" id="a-title" type="text" value="关于国庆期间法律咨询服务安排的通知">
+            </div>
+
+            <div class="form-row">
+              <label class="form-label is-required" for="a-target">目标人群</label>
+              <select class="select" id="a-target">
+                <option>全部用户（1,284 人）</option>
+                <option>仅普通用户（1,197 人）</option>
+                <option>仅认证律师（87 人）</option>
+                <option>指定地区</option>
+              </select>
+            </div>
+
+            <div class="form-row">
+              <label class="form-label is-required" for="a-time">发送时间</label>
+              <select class="select" id="a-time">
+                <option>立即发送</option>
+                <option>定时发送</option>
+              </select>
+            </div>
+
+            <div class="form-row form-row--wide">
+              <span class="form-label">推送渠道</span>
+              <div class="channel-list">
+                <label class="channel">
+                  <input class="check" type="checkbox" checked aria-label="站内信">
+                  <span>
+                    站内信
+                    <span class="channel__desc">必选：公告主体的留存位置，用户可在消息中心回看</span>
+                  </span>
+                </label>
+                <label class="channel">
+                  <input class="check" type="checkbox" checked aria-label="App 推送">
+                  <span>
+                    App 推送
+                    <span class="channel__desc">走个推通道，用户未开启通知权限时收不到</span>
+                  </span>
+                </label>
+                <label class="channel">
+                  <input class="check" type="checkbox" aria-label="短信">
+                  <span>
+                    短信
+                    <span class="channel__desc">仅在涉及资金或服务中断时使用，按条计费</span>
+                  </span>
+                </label>
+              </div>
+            </div>
+
+            <div class="form-row form-row--wide">
+              <label class="form-label is-required" for="a-body">公告正文</label>
+              <textarea class="textarea announce-text" id="a-body">各位用户：
+
+国庆假期（10 月 1 日至 10 月 7 日）期间，平台法律咨询服务照常开放，律师在线时间可能略有延迟。
+
+涉及立案、开庭等有时限的事项，建议提前 3 个工作日预约律师，避免因假期影响进度。
+
+假期期间客服在线时间为每日 10:00—18:00，紧急问题可在工单入口提交，我们会在 24 小时内回复。
+
+感谢理解。</textarea>
+            </div>
+          </div>
+
+          <div class="row row--between">
+            <span class="text-xs text-muted">
+              预计触达 1,284 人 · 站内信 1,284 条 · App 推送 1,284 条
+            </span>
+            <div class="row">
+              <button class="btn" type="button">存为草稿</button>
+              <button class="btn btn--primary" type="submit">立即发送</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- ==================== 已发公告 ==================== -->
+    <div class="card card--flush" style="margin-top:var(--sp-4)">
+      <div class="toolbar">
+        <div class="toolbar__left">
+          <h2 class="card__title" style="font-size:var(--fs-md)">已发公告</h2>
+          <span class="toolbar__count">共 <b>18</b> 条</span>
+        </div>
+        <div class="toolbar__right">
+          <a class="btn btn--text" href="23-notify-template.html">通知模板</a>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="table notice-table">
+          <colgroup>
+            <col class="c-title">
+            <col class="c-target">
+            <col class="c-ch">
+            <col class="c-time">
+            <col class="c-reach">
+            <col class="c-open">
+            <col class="c-state">
+          </colgroup>
+          <thead>
+            <tr>
+              <th>标题</th>
+              <th>目标</th>
+              <th>渠道</th>
+              <th>发送时间</th>
+              <th style="text-align:right">触达</th>
+              <th style="text-align:right">打开率</th>
+              <th>状态</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="notice-title">关于平台服务费调整的说明</span></td>
+              <td>全部用户</td>
+              <td>站内信 · 推送</td>
+              <td><span class="mono-time">2026-10-20 10:00</span></td>
+              <td class="cell-num">1,240</td>
+              <td class="cell-num">62.4%</td>
+              <td><span class="tag tag--dot tag--success">已发</span></td>
+            </tr>
+            <tr>
+              <td><span class="notice-title">新功能上线：文书模板在线生成</span></td>
+              <td>全部用户</td>
+              <td>站内信 · 推送</td>
+              <td><span class="mono-time">2026-10-12 15:30</span></td>
+              <td class="cell-num">1,186</td>
+              <td class="cell-num">48.1%</td>
+              <td><span class="tag tag--dot tag--success">已发</span></td>
+            </tr>
+            <tr>
+              <td><span class="notice-title">律师入驻材料清单更新</span></td>
+              <td>仅律师</td>
+              <td>站内信</td>
+              <td><span class="mono-time">2026-10-08 09:00</span></td>
+              <td class="cell-num">87</td>
+              <td class="cell-num">91.2%</td>
+              <td><span class="tag tag--dot tag--success">已发</span></td>
+            </tr>
+            <tr>
+              <td><span class="notice-title">国庆期间服务安排</span></td>
+              <td>全部用户</td>
+              <td>站内信 · 推送 · 短信</td>
+              <td><span class="mono-time">2026-09-28 18:00</span></td>
+              <td class="cell-num">1,102</td>
+              <td class="cell-num">55.7%</td>
+              <td><span class="tag tag--dot tag--success">已发</span></td>
+            </tr>
+            <tr>
+              <td><span class="notice-title">关于开展实名认证的通知</span></td>
+              <td>未实名用户</td>
+              <td>站内信 · 推送</td>
+              <td><span class="mono-time">2026-09-15 11:20</span></td>
+              <td class="cell-num">341</td>
+              <td class="cell-num">38.4%</td>
+              <td><span class="tag tag--dot tag--success">已发</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script src="shell.js"></script>
+</body>
+</html>
