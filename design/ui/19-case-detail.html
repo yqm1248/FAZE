@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390, initial-scale=1">
+<meta name="dsh-design" content="app">
+<title>案例详情</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   案例详情页（第 6 批 · 延展，无参考图）
+   ==========================================================================
+   职责：公开法律案例的阅读页。从案例列表（04-case.html）点条目进来。
+   母版：**详情页母版**（渐变头 + 透明导航栏，同 14-lawyer-detail）
+         + **长文母版**（白底分节正文 + 法条引用块 + 免责声明，同 13-article）
+   数据来源：后台案例库录入的富文本，4 语言各自独立录入
+
+   为什么是「渐变头 + 白底长文」而不是像律师详情那样拆成多张卡：
+     律师详情是**浏览型**页面（扫一眼拿结论），卡片分块让信息更好抓；
+     案例详情是**阅读型**页面（要从头读到尾），拆成 4 张白卡会让阅读
+     节奏被 20px 灰缝切断 —— 每张卡自带内边距，读者会以为换了一个话题。
+     所以正文连成一整块白底，只靠分节标题分段。
+
+   四态：normal|loading|empty|error。详情页的「空」指案例已下架。
+
+   ★★★ 内容合规（比版式重要，不能删）：
+     1. 案例 meta 里**不写案号、不写审理法院全名**。脱敏改编的案例挂上
+        真实案号格式，等于伪造司法文书信息 —— 这是硬红线。本屏用
+        「已脱敏改编 · 2023年」交代来源性质，够读者判断可信度。
+     2. 页面底部免责声明不能删。案例最容易让读者产生「我这个跟这个一样，
+        我也能赢」的错觉，而判决结果高度依赖证据细节。
+     3. 正文法条文本是**排版示例**，正式实现必须从本地法条库取值并经法务审核。
+   ========================================================================== */
+
+body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  /* 渐变铺在 body 上（同 14-lawyer-detail）。正文白底会把它盖住，
+     只有导航栏 + 标题区露出渐变。 */
+  background: linear-gradient(
+    to bottom,
+    var(--banner-start) 0,
+    var(--bg-surface) 400px
+  );
+}
+
+/* 导航栏浮在渐变上 */
+.navbar {
+  background: transparent;
+}
+
+.screen {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  /* 覆盖 tokens.css 里给 tabbar 留的底部间距：本屏底部是 flex 流内的
+     固定操作栏，不需要再垫一层 */
+  padding: 0 0 var(--sp-md);
+}
+.screen::-webkit-scrollbar {
+  display: none;
+}
+
+/* ---------- 标题区（透明，露出 body 渐变） ---------- */
+.case-head {
+  padding: var(--sp-md) var(--sp-xl) var(--sp-xl);
+}
+
+.case-head__title {
+  font-size: 22px;
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+/* 关键词标签行 */
+.case-head__tags {
+  margin-block-start: var(--sp-md);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-xs);
+  flex-wrap: wrap;
+}
+
+.case-head__tags .tag {
+  height: 22px;
+  padding-inline: var(--sp-sm);
+}
+
+/* 来源与阅读量 */
+.case-head__meta {
+  margin-block-start: var(--sp-md);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-xs);
+  flex-wrap: wrap;
+  font-size: var(--fs-micro);
+  color: var(--text-muted);
+}
+
+.case__dot {
+  flex-shrink: 0;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  font-style: normal;
+}
+
+/* 数字用等宽，且与周围中文隔离（RTL 下数字方向不能跟着翻转） */
+.case__nums {
+  font-family: var(--font-num);
+  unicode-bidi: isolate;
+}
+
+/* ---------- 正文（白底，盖住 body 渐变） ---------- */
+.case-body {
+  background: var(--bg-surface);
+  padding: var(--sp-xl) var(--sp-xl) 0;
+}
+
+.case-body__section + .case-body__section {
+  margin-block-start: var(--sp-xxl);
+}
+
+.case-body__title {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  font-size: var(--fs-h2);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+/* 竖条用 <i>，默认斜体会让 4px 色块歪着看不出来，但语义上不对，关掉 */
+.case-body__bar {
+  flex: 0 0 auto;
+  width: 4px;
+  height: 17px;
+  border-radius: 2px;
+  background: var(--brand-primary);
+  font-style: normal;
+}
+
+.case-body p {
+  margin-block-start: var(--sp-md);
+  font-size: var(--fs-lg);
+  color: var(--text-body);
+  line-height: 1.75;
+}
+
+/* 案情里的人物用中性底色标一下，长段落里好找人名 */
+.who {
+  padding: 1px 3px;
+  border-radius: 3px;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-weight: var(--fw-medium);
+}
+
+/* ---------- 争议焦点（一行一问，用引用块突出） ---------- */
+.focus {
+  margin-block: var(--sp-md) 0;
+  padding: var(--sp-md) var(--sp-lg);
+  border-inline-start: 3px solid var(--border-outline);
+  background: var(--bg-canvas);
+  border-start-end-radius: var(--r-xs);
+  border-end-end-radius: var(--r-xs);
+  font-size: var(--fs-md);
+  color: var(--text-secondary);
+  line-height: var(--lh-relaxed);
+}
+
+/* ---------- 裁判结果 ---------- */
+.verdict {
+  margin-block-start: var(--sp-md);
+  padding: var(--sp-lg);
+  border-radius: var(--r-sm);
+  background: var(--state-success-soft);
+}
+
+.verdict__line {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-sm);
+  font-size: var(--fs-md);
+  color: var(--text-body);
+  line-height: var(--lh-relaxed);
+}
+
+.verdict__line + .verdict__line {
+  margin-block-start: var(--sp-sm);
+}
+
+.verdict__line svg {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  margin-block-start: 3px;
+  color: var(--state-success);
+}
+
+/* 「不支持」的那条用中性灰勾，避免和「支持」的绿勾混淆 */
+.verdict__line--no svg {
+  color: var(--text-muted);
+}
+
+/* ---------- 法条引用块（同 13-article，第 3 批定的组件） ---------- */
+.law-ref {
+  margin-block: var(--sp-md);
+  margin-inline: 0;
+  padding: var(--sp-md) var(--sp-lg);
+  border-inline-start: 3px solid var(--brand-primary);
+  background: var(--brand-primary-soft);
+  border-start-start-radius: 0;
+  border-start-end-radius: var(--r-xs);
+  border-end-end-radius: var(--r-xs);
+  border-end-start-radius: 0;
+}
+
+.law-ref__text {
+  margin-block-start: 0;
+  font-size: var(--fs-md);
+  color: var(--text-body);
+  line-height: 1.8;
+}
+
+/* 出处用 pressed 档：#4A66EE 压 #EEF2FF 只有 4.24:1，不足 4.5:1 */
+.law-ref__source {
+  display: block;
+  margin-block-start: var(--sp-sm);
+  font-size: var(--fs-caption);
+  font-style: normal;
+  font-weight: var(--fw-medium);
+  color: var(--brand-primary-pressed);
+  line-height: 1.5;
+}
+
+/* ---------- 启示清单 ---------- */
+.tips {
+  margin-block-start: var(--sp-md);
+  padding-inline-start: 0;
+  list-style: none;
+}
+
+.tips li {
+  position: relative;
+  margin-block-start: var(--sp-md);
+  padding-inline-start: 20px;
+  font-size: var(--fs-lg);
+  color: var(--text-body);
+  line-height: 1.75;
+}
+
+/* 自绘圆点：默认 list-style 在 RTL 下会跑到错误一侧 */
+.tips li::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: 4px;
+  inset-block-start: 11px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--brand-primary);
+}
+
+.tips b {
+  color: var(--text-primary);
+}
+
+/* ---------- 免责声明 ---------- */
+.case-disclaimer {
+  margin-block: var(--sp-xxl) var(--sp-xl);
+  margin-inline: var(--sp-xl);
+  padding: var(--sp-md);
+  border-radius: var(--r-sm);
+  background: var(--bg-canvas);
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: var(--lh-relaxed);
+}
+
+/* ---------- 底部固定操作栏（详情页母版） ---------- */
+.actionbar {
+  flex: 0 0 auto;
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-md);
+  padding: 10px var(--sp-xl) calc(10px + var(--safe-bottom));
+  background: var(--bg-surface);
+  border-block-start: 1px solid var(--border-divider);
+  box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.04);
+}
+
+.fav-btn {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  width: 52px;
+  min-height: 44px;
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: var(--fs-caption);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.fav-btn svg {
+  width: 22px;
+  height: 22px;
+}
+
+/* 已收藏：填充 + 主色。这里用主色不用红 —— 红心是「关注」的语义，
+   收藏是「存档备查」，两者混用会让用户以为点了就关注了作者。 */
+.fav-btn.is-on {
+  color: var(--brand-primary);
+}
+
+.fav-btn.is-on svg {
+  fill: currentColor;
+}
+
+.actionbar__cta {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* ---------- 已下架（空态） ---------- */
+.case-gone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--sp-huge) var(--sp-xl) var(--sp-xxxl);
+  text-align: center;
+  background: var(--bg-surface);
+}
+</style>
+</head>
+<body>
+
+<header class="statusbar">
+  <span>9:41</span>
+  <span class="statusbar__icons">
+    <svg width="17" height="11" viewBox="0 0 17 11" fill="none" aria-hidden="true">
+      <rect x="0" y="7" width="3" height="4" rx="1" fill="currentColor"/>
+      <rect x="4.5" y="5" width="3" height="6" rx="1" fill="currentColor"/>
+      <rect x="9" y="2.5" width="3" height="8.5" rx="1" fill="currentColor"/>
+      <rect x="13.5" y="0" width="3" height="11" rx="1" fill="currentColor"/>
+    </svg>
+    <svg width="16" height="11" viewBox="0 0 16 11" fill="none" aria-hidden="true">
+      <path d="M1 3.2A10.5 10.5 0 0 1 15 3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M3.6 5.9a7 7 0 0 1 8.8 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M6.2 8.6a3.4 3.4 0 0 1 3.6 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden="true">
+      <rect x="0.6" y="0.6" width="21" height="10.8" rx="3" stroke="currentColor" stroke-opacity="0.4" stroke-width="1.2"/>
+      <rect x="2.2" y="2.2" width="15" height="7.6" rx="1.8" fill="currentColor"/>
+      <path d="M23.4 4.2v3.6" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+  </span>
+</header>
+
+<div class="navbar">
+  <a class="navbar__back" href="04-case.html" aria-label="返回案例列表">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M15.2 4.6 7.8 12l7.4 7.4" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </a>
+  <span class="navbar__title"></span>
+  <div class="navbar__actions">
+    <button class="navbar__icon" type="button" data-share-open aria-label="分享案例">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <circle cx="17.6" cy="5.8" r="2.9" stroke="currentColor" stroke-width="1.9"/>
+        <circle cx="6.4" cy="12" r="2.9" stroke="currentColor" stroke-width="1.9"/>
+        <circle cx="17.6" cy="18.2" r="2.9" stroke="currentColor" stroke-width="1.9"/>
+        <path d="m9 10.6 6.1-3.3M9 13.4l6.1 3.3" stroke="currentColor" stroke-width="1.9"
+              stroke-linecap="round"/>
+      </svg>
+    </button>
+  </div>
+</div>
+
+<main class="screen">
+
+  <!-- ======================================================================
+       正常态
+       ====================================================================== -->
+  <div data-state="normal">
+
+    <header class="case-head">
+      <h1 class="case-head__title">交通事故后一直享有单位工资，还能主张误工费吗？</h1>
+
+      <div class="case-head__tags">
+        <span class="tag tag--brand">民事纠纷</span>
+        <span class="tag">交通事故责任</span>
+        <span class="tag">误工费</span>
+      </div>
+
+      <p class="case-head__meta">
+        <span>已脱敏改编</span>
+        <i class="case__dot"></i>
+        <span class="case__nums">2023</span>
+        <span>年</span>
+        <i class="case__dot"></i>
+        <span class="case__nums">1.2k</span>
+        <span>阅读</span>
+      </p>
+    </header>
+
+    <div class="case-body">
+
+      <!-- ---------- 案情简介 ---------- -->
+      <section class="case-body__section">
+        <h2 class="case-body__title"><i class="case-body__bar"></i>案情简介</h2>
+
+        <p>
+          <span class="who">马某</span>是伊宁市某事业单位的在职职工。<span class="case__nums">2023</span> 年
+          <span class="case__nums">3</span> 月的一天，他骑电动车经过一个路口，被一辆右转的小轿车撞倒，左侧锁骨骨折，住院 <span class="case__nums">18</span> 天，之后在家休养至
+          <span class="case__nums">6</span> 月底，前后误工 <span class="case__nums">96</span> 天。
+        </p>
+
+        <p>
+          交警部门认定，轿车司机右转未让直行，负事故全部责任。马某无责。
+        </p>
+
+        <p>
+          事故处理结束后，马某起诉，要求赔偿医疗费、护理费、营养费，另外还主张误工费
+          <span class="case__nums">3.2</span> 万元 —— 按他月工资 <span class="case__nums">1</span> 万元、误工 <span class="case__nums">96</span> 天折算。
+        </p>
+
+        <p>
+          保险公司和司机都不同意赔这笔误工费。理由是：马某是事业单位职工，住院和休养期间<b>单位照常发工资，绩效也没扣</b>，一分钱没少拿，谈不上损失。
+        </p>
+      </section>
+
+      <!-- ---------- 争议焦点 ---------- -->
+      <section class="case-body__section">
+        <h2 class="case-body__title"><i class="case-body__bar"></i>争议焦点</h2>
+
+        <p>
+          这个案子表面上争的是「该不该赔」，实际上争的是<b>误工费到底在赔什么</b>：是赔「这段时间没法干活」这件事，还是赔「这段时间少挣的钱」？
+        </p>
+
+        <p class="focus">
+          如果赔的是「误工」本身，那只要受伤休息了就该赔，工资照发不影响；如果赔的是「收入损失」，那没有实际减少收入，就没有损失可赔。
+        </p>
+      </section>
+
+      <!-- ---------- 裁判结果 ---------- -->
+      <section class="case-body__section">
+        <h2 class="case-body__title"><i class="case-body__bar"></i>裁判结果</h2>
+
+        <p>
+          法院审理后认为，误工费的性质是<b>对受害人因伤导致收入实际减少的补偿</b>，属于填平实际损失，不是对受伤本身的惩罚性赔偿。
+        </p>
+
+        <div class="verdict">
+          <p class="verdict__line">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="m5 12.4 4.6 4.6L19 6.6" stroke="currentColor" stroke-width="2.4"
+                    stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>医疗费、护理费、营养费按实际支出予以支持</span>
+          </p>
+          <p class="verdict__line verdict__line--no">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M6.6 17.4 17.4 6.6M6.6 6.6l10.8 10.8" stroke="currentColor" stroke-width="2.4"
+                    stroke-linecap="round"/>
+            </svg>
+            <span>误工费诉请不予支持 —— 马某误工期间工资照发，未产生收入损失</span>
+          </p>
+        </div>
+
+        <p>
+          需要说明的是，这个结论<b>不等于「有工资就不能要误工费」</b>。法院驳回的前提是「收入完全没有减少」。如果单位只发基本工资、绩效奖金被扣，被扣掉的那部分仍然是实际损失，照样可以主张。本案马某的工资和绩效都由单位足额发放，所以没有损失可填。
+        </p>
+      </section>
+
+      <!-- ---------- 相关法条 ---------- -->
+      <section class="case-body__section">
+        <h2 class="case-body__title"><i class="case-body__bar"></i>相关法条</h2>
+
+        <blockquote class="law-ref">
+          <p class="law-ref__text">
+            侵害他人造成人身损害的，应当赔偿医疗费、护理费、交通费、营养费、住院伙食补助费等为治疗和康复支出的合理费用，以及<b>因误工减少的收入</b>。……
+          </p>
+          <cite class="law-ref__source">《中华人民共和国民法典》第一千一百七十九条</cite>
+        </blockquote>
+
+        <p>
+          注意条文里的措辞是「<b>因误工减少的收入</b>」，不是「误工时间×日工资」。立法在定义这一项损失的时候，用的就是「减少」二字。
+        </p>
+
+        <blockquote class="law-ref">
+          <p class="law-ref__text">
+            误工费根据受害人的误工时间和收入状况确定。……<br>
+            <b>受害人有固定收入的，误工费按照实际减少的收入计算。</b>
+            受害人无固定收入的，按照其最近三年的平均收入计算；受害人不能举证证明其最近三年的平均收入状况的，可以参照受诉法院所在地相同或者相近行业上一年度职工的平均工资计算。
+          </p>
+          <cite class="law-ref__source">
+            《最高人民法院关于审理人身损害赔偿案件适用法律若干问题的解释》第七条
+          </cite>
+        </blockquote>
+
+        <p>
+          这条把两类人分得很清楚：有固定收入的，看「实际减少」；没有固定收入的，走「近三年平均」或者「当地同行业平均工资」。后一条对农牧民、个体户、打零工的劳动者很关键 —— 你不是没有误工费，是算法不一样。
+        </p>
+      </section>
+
+      <!-- ---------- 案例启示 ---------- -->
+      <section class="case-body__section">
+        <h2 class="case-body__title"><i class="case-body__bar"></i>案例启示</h2>
+
+        <ul class="tips">
+          <li>
+            <b>误工费看的是「少挣了多少」，不是「歇了多少天」。</b>
+            所以索赔前先算清楚：这段时间你的收入到底有没有减少、减少了多少。
+          </li>
+          <li>
+            <b>工资照发也可能能主张。</b>如果单位只发了基本工资，绩效、奖金、加班费、岗位津贴被扣掉了，被扣的部分仍然是损失。这时候要留好工资条、银行流水，再让单位出一份「扣发证明」，写清扣了哪些项目、扣了多少钱。
+          </li>
+          <li>
+            <b>没有固定工资条的人，重点在证明收入水平。</b>个体户留经营流水和进货单，跑运输的留运单和油费记录，务农的留承包合同、收粮票据。证明不了近三年平均收入的，法院会参照当地同行业上年度职工平均工资 —— 这个数通常比你实际收入低，所以能举证就别偷懒。
+          </li>
+          <li>
+            <b>反过来，如果你是被告方</b>，遇到对方「工资照发还在索赔误工费」，可以要求对方提供事故发生前后的银行流水和单位收入证明。只要证明对方收入没有减少，这一项通常就站不住。
+          </li>
+          <li>
+            <b>还有一点容易漏：</b>误工时间不是自己说多久就是多久，要以医疗机构出具的休假证明为准；因伤致残持续误工的，可以算到定残日前一天。
+          </li>
+        </ul>
+      </section>
+
+      <p class="case-disclaimer">
+        本案例经脱敏改编，用于普法说明，<b>不是真实案号，也不能作为你个案的处理依据</b>。同样的伤情，法院会结合你的实际收入、劳动合同、证据情况单独判断。具体纠纷请带齐材料咨询执业律师。文中法条以正式发布的文本为准。
+      </p>
+
+    </div>
+
+  </div>
+
+  <!-- ======================================================================
+       加载态：标题 + 正文骨架
+       ====================================================================== -->
+  <div data-state="loading" hidden>
+    <div class="case-head">
+      <div class="skeleton" style="height:24px;width:100%"></div>
+      <div class="skeleton" style="height:24px;width:72%;margin-block-start:10px"></div>
+      <div class="skeleton" style="height:22px;width:58%;margin-block-start:18px"></div>
+      <div class="skeleton" style="height:11px;width:46%;margin-block-start:14px"></div>
+    </div>
+    <div class="case-body">
+      <div class="skeleton" style="height:17px;width:32%"></div>
+      <div class="skeleton" style="height:15px;width:100%;margin-block-start:16px"></div>
+      <div class="skeleton" style="height:15px;width:96%;margin-block-start:10px"></div>
+      <div class="skeleton" style="height:15px;width:88%;margin-block-start:10px"></div>
+      <div class="skeleton" style="height:15px;width:100%;margin-block-start:10px"></div>
+      <div class="skeleton" style="height:17px;width:32%;margin-block-start:30px"></div>
+      <div class="skeleton" style="height:15px;width:100%;margin-block-start:16px"></div>
+      <div class="skeleton" style="height:15px;width:92%;margin-block-start:10px"></div>
+    </div>
+  </div>
+
+  <!-- ======================================================================
+       空态：案例已下架
+       ====================================================================== -->
+  <div data-state="empty" hidden>
+    <div class="case-gone">
+      <svg class="empty__art" viewBox="0 0 96 96" fill="none" aria-hidden="true">
+        <rect x="22" y="16" width="52" height="64" rx="5" stroke="currentColor" stroke-width="2.4"/>
+        <path d="M34 34h28M34 46h28M34 58h18" stroke="currentColor" stroke-width="2.4"
+              stroke-linecap="round"/>
+      </svg>
+      <p class="empty__title">这个案例已经下架了</p>
+      <p class="empty__desc">可能是内容正在更新，也可能是案例库在做整理。回列表看看其他案例吧。</p>
+      <a class="btn-primary empty__action" href="04-case.html">返回案例列表</a>
+    </div>
+  </div>
+
+  <!-- ======================================================================
+       错误态：正文加载失败
+       ====================================================================== -->
+  <div data-state="error" hidden>
+    <div class="errorbox">
+      <svg class="errorbox__art" viewBox="0 0 96 96" fill="none" aria-hidden="true">
+        <circle cx="48" cy="48" r="30" stroke="currentColor" stroke-width="2.4"/>
+        <path d="M48 32v20" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
+        <circle cx="48" cy="62" r="2.4" fill="currentColor"/>
+      </svg>
+      <p class="errorbox__title">案例没有加载出来</p>
+      <p class="errorbox__desc">网络不稳定或者服务器维护中。稍等一下再试试。</p>
+      <button class="errorbox__retry" type="button" data-retry>
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M20.2 12a8.2 8.2 0 1 1-2.4-5.8" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round"/>
+          <path d="M20.4 3.6v4.6h-4.6" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        重新加载
+      </button>
+    </div>
+  </div>
+
+</main>
+
+<div class="actionbar">
+  <button class="fav-btn" type="button" data-fav aria-pressed="false"
+          data-fav-on="已收藏，可在「我的 - 我的收藏」查看"
+          data-fav-off="已取消收藏"
+          aria-label="收藏案例">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M6.4 4.2h11.2a1.4 1.4 0 0 1 1.4 1.4v14.6l-7-4.2-7 4.2V5.6a1.4 1.4 0 0 1 1.4-1.4Z"
+            stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/>
+    </svg>
+    <span data-fav-text>收藏</span>
+  </button>
+  <a class="btn-primary actionbar__cta" href="03-agent.html">我有类似问题</a>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

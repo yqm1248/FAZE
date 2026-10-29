@@ -1064,4 +1064,117 @@
       showToast("已删除这条记录");
     });
   });
+
+  /* ==========================================================================
+     22. 单选组（第 6 批：在线立案的案件类型 / 纠纷类型、送达方式）
+     ==========================================================================
+     已有的 [data-pick] 是**多选 toggle**（律师入驻的专长领域，一个人可以擅长几样），
+     不能直接拿来当单选用。这里新增两组单选：
+       [data-case-type]  案件类型三选一（民事 / 行政 / 刑事）
+       [data-pick-one]   纠纷类型单选
+       [data-method]     送达方式三选一
+
+     注意：三个都是"全局单选"，即整个页面里同组只有一个是 is-active。
+     同一页只出现一组同名钩子，所以不用按容器分组。
+     ========================================================================== */
+  function bindSingleChoice(selector) {
+    var options = document.querySelectorAll(selector);
+
+    Array.prototype.forEach.call(options, function (item) {
+      item.addEventListener("click", function () {
+        Array.prototype.forEach.call(options, function (other) {
+          if (other === item) other.classList.add("is-active");
+          else other.classList.remove("is-active");
+        });
+      });
+    });
+  }
+
+  bindSingleChoice("[data-case-type]");
+  bindSingleChoice("[data-pick-one]");
+  bindSingleChoice("[data-method]");
+
+  /* ==========================================================================
+     23. 复制（第 6 批：立案成功页的案件编号）
+     ==========================================================================
+     clipboard API 要求安全上下文，http://127.0.0.1 和 localhost 算安全，
+     但如果设计稿被用 file:// 打开就会失败 —— 所以失败分支要给出兜底提示，
+     不能静默什么都不发生。
+     ========================================================================== */
+  Array.prototype.forEach.call(document.querySelectorAll("[data-copy]"), function (btn) {
+    btn.addEventListener("click", function () {
+      var text = btn.getAttribute("data-copy") || "";
+
+      function fallback() {
+        showToast("长按上面这串编号手动复制");
+      }
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function () {
+          showToast("已复制：" + text);
+        }, fallback);
+      } else {
+        fallback();
+      }
+    });
+  });
+
+  /* ==========================================================================
+     24. 文书签收二次确认（第 6 批：案件送达页）
+     ==========================================================================
+     签收是不可撤销动作，而且会起算诉讼期限，所以必须问一次。
+     确认框的标题要带上具体文书名 —— 泛泛地说「确认签收？」人记不住是哪一份。
+     ========================================================================== */
+  var signMask = document.querySelector("[data-sign-mask]");
+  var signDialog = document.querySelector("[data-sign-dialog]");
+  var signTitle = document.querySelector("[data-sign-title]");
+  var signClosers = document.querySelectorAll("[data-sign-close]");
+  var signConfirm = document.querySelector("[data-sign-confirm]");
+
+  function setSignDialog(open) {
+    toggleLayer(signMask, open);
+    toggleLayer(signDialog, open);
+  }
+
+  if (signDialog) {
+    Array.prototype.forEach.call(
+      document.querySelectorAll("[data-sign-open]"),
+      function (btn) {
+        btn.addEventListener("click", function () {
+          var name = btn.getAttribute("data-sign-open");
+          if (signTitle && name) {
+            signTitle.textContent = "确认签收《" + name + "》？";
+          }
+          setSignDialog(true);
+        });
+      }
+    );
+
+    Array.prototype.forEach.call(signClosers, function (btn) {
+      btn.addEventListener("click", function () {
+        setSignDialog(false);
+      });
+    });
+
+    if (signMask) {
+      signMask.addEventListener("click", function () {
+        setSignDialog(false);
+      });
+    }
+
+    if (signConfirm) {
+      signConfirm.addEventListener("click", function () {
+        setSignDialog(false);
+        showToast("已签收，送达时间已记录");
+      });
+    }
+
+    /* 走查开关：hash #open-sign 直接打开签收确认框。
+       必须放在变量赋值之后 —— 函数声明会提升、var 不会，
+       第 5 批的 #open-clear 就是这么静默失效过一次。 */
+    if (walkHash === "open-sign") {
+      if (signTitle) signTitle.textContent = "确认签收《受理案件通知书》？";
+      setSignDialog(true);
+    }
+  }
 })();

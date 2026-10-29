@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390, initial-scale=1">
+<meta name="dsh-design" content="app">
+<title>材料已提交</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   立案材料提交结果页（第 6 批 · 延展，无参考图）
+   ==========================================================================
+   职责：20-filing.html 提交后的落地页。告知「已收到什么、接下来谁做什么、多久」。
+   母版：**结果页母版**（同 16-join-status：状态头卡 + 时间轴 + 行动按钮）
+   数据来源：提交接口返回的案件编号 + 提交时间
+
+   ★ 为什么不叫「立案成功」：
+     立案是法院的司法行为。平台提交的是材料，法院受不受理还两说。
+     页面上写「立案成功」，用户第二天打电话问「我的案子什么时候开庭」，
+     客服没法回答，而且这话本身就是虚假陈述。所以标题是「材料已提交」，
+     案件编号是**平台单号**（FAZE- 开头），格式刻意与法院案号
+     「(2026) 新 4002 民初 1234 号」区别开，不给用户混淆的空间。
+
+   ★ 为什么不设四态：
+     结果页的数据在提交瞬间就确定了，不存在「加载失败」。网络失败发生在
+     提交环节，应该留在 20 页做行内报错重试，把用户跳到一个空白的结果页
+     再告诉他失败，是最糟的体验。所以这屏只有正常态 + 提交中的浮层。
+   ========================================================================== */
+
+body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-canvas);
+}
+
+.navbar {
+  background: transparent;
+}
+
+.screen {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding: var(--sp-md) var(--sp-xl) calc(var(--safe-bottom) + var(--sp-xl));
+}
+.screen::-webkit-scrollbar {
+  display: none;
+}
+
+/* ★ 卡片间距加在真正的父容器 [data-state] 上，不是 .screen
+   （第 4 批踩过：加在 .screen 上不生效，因为 .screen 只有一个子元素） */
+.screen > [data-state] {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-xl);
+}
+
+.screen > [data-state] > section {
+  margin: 0;
+}
+
+/* ---------- 状态头卡 ---------- */
+.status-hero {
+  padding: var(--sp-xxl) var(--sp-lg) var(--sp-xl);
+  text-align: center;
+}
+
+.status-hero__icon {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto;
+  color: var(--state-success);
+}
+
+.status-hero__icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.status-hero__title {
+  margin-block-start: var(--sp-md);
+  font-size: var(--fs-h1);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+.status-hero__desc {
+  margin-block-start: var(--sp-sm);
+  font-size: var(--fs-md);
+  color: var(--text-secondary);
+  line-height: var(--lh-relaxed);
+  max-width: 300px;
+  margin-inline: auto;
+}
+
+/* ---------- 案件编号 ---------- */
+.ticket {
+  padding: var(--sp-lg);
+  text-align: center;
+  background: var(--bg-surface);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-card);
+}
+
+.ticket__label {
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.3;
+}
+
+.ticket__no {
+  margin-block-start: var(--sp-xs);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-sm);
+}
+
+.ticket__no strong {
+  font-family: var(--font-num);
+  font-size: 20px;
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  letter-spacing: 0.01em;
+  font-variant-numeric: tabular-nums;
+  /* 数字与字母方向固定，RTL 页面里不能被翻转 */
+  unicode-bidi: isolate;
+}
+
+.ticket__copy {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* ★ 热区 44，视觉占位 28：盒子做 44 保证能点中，再用 -8 的外负边距
+     把布局占位压回 28，这样编号那一行不会被图标撑开。
+     不能只加 padding —— 全局 box-sizing: border-box 会把 padding 吃掉，
+     元素盒子仍是 28（第一次走查就是这么被量出来的 28×28）。 */
+  width: 44px;
+  height: 44px;
+  margin: -8px;
+  border: 0;
+  border-radius: var(--r-xs);
+  background: transparent;
+  color: var(--brand-primary);
+  cursor: pointer;
+}
+
+.ticket__copy svg {
+  width: 17px;
+  height: 17px;
+}
+
+.ticket__hint {
+  margin-block-start: var(--sp-sm);
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+/* ---------- 提交摘要 ---------- */
+.info {
+  padding: var(--sp-lg);
+}
+
+.info__row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-md);
+  padding-block: 9px;
+}
+
+.info__row + .info__row {
+  border-block-start: 1px solid var(--border-divider);
+}
+
+.info__label {
+  flex-shrink: 0;
+  font-size: var(--fs-md);
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.info__value {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: var(--fs-md);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+  line-height: 1.5;
+  text-align: end;
+  overflow-wrap: anywhere;
+}
+
+/* ---------- 分区卡 ---------- */
+.card--pad {
+  padding: var(--sp-lg);
+  background: var(--bg-surface);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-card);
+}
+
+.section-title {
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+/* ---------- 时间轴（同 16-join-status 的组件） ---------- */
+.timeline {
+  margin-block-start: var(--sp-md);
+  padding-inline-start: 0;
+  list-style: none;
+  position: relative;
+}
+
+.tl-item {
+  position: relative;
+  padding-inline-start: 30px;
+  padding-block-end: var(--sp-xl);
+}
+
+.tl-item:last-child {
+  padding-block-end: 0;
+}
+
+/* 竖线：从本节点连到下一个 */
+.tl-item::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: 5px;
+  inset-block-start: 20px;
+  inset-block-end: 0;
+  width: 2px;
+  background: var(--border-outline);
+}
+
+.tl-item:last-child::before {
+  content: none;
+}
+
+.tl-item.is-done::before {
+  background: var(--brand-primary);
+}
+
+.tl-item::after {
+  content: "";
+  position: absolute;
+  inset-inline-start: 0;
+  inset-block-start: 5px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--bg-surface);
+  box-shadow: inset 0 0 0 2px var(--border-outline);
+}
+
+.tl-item.is-done::after {
+  background: var(--brand-primary);
+  box-shadow: none;
+}
+
+.tl-item.is-active::after {
+  background: var(--brand-primary);
+  box-shadow: 0 0 0 4px var(--brand-primary-soft);
+}
+
+.tl-item__title {
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.tl-item:not(.is-done):not(.is-active) .tl-item__title {
+  color: var(--text-muted);
+  font-weight: var(--fw-regular);
+}
+
+.tl-item__meta {
+  margin-block-start: 3px;
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.tl-item.is-active .tl-item__meta {
+  color: var(--brand-primary-pressed);
+}
+
+/* 第 4 步不由平台决定，用一句强调把边界划清 */
+.tl-item__boundary {
+  margin-block-start: var(--sp-sm);
+  padding: var(--sp-sm) var(--sp-md);
+  border-radius: var(--r-xs);
+  background: var(--bg-canvas);
+  font-size: var(--fs-caption);
+  color: var(--text-secondary);
+  line-height: var(--lh-relaxed);
+}
+
+/* ---------- 待办 ---------- */
+.tips {
+  margin-block-start: var(--sp-md);
+  padding-inline-start: 0;
+  list-style: none;
+}
+
+.tips li {
+  position: relative;
+  margin-block-start: var(--sp-sm);
+  padding-inline-start: 20px;
+  font-size: var(--fs-md);
+  color: var(--text-body);
+  line-height: var(--lh-relaxed);
+}
+
+.tips li::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: 4px;
+  inset-block-start: 9px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--brand-primary);
+}
+
+.tips a {
+  color: var(--brand-primary-pressed);
+  font-weight: var(--fw-medium);
+  text-decoration: underline;
+}
+
+/* ---------- 底部按钮 ---------- */
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.btn-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--btn-h);
+  border: 1px solid var(--border-outline);
+  border-radius: var(--r-pill);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: var(--fs-h3);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.btn-outline:active {
+  background: var(--bg-input);
+}
+</style>
+</head>
+<body>
+
+<header class="statusbar">
+  <span>9:41</span>
+  <span class="statusbar__icons">
+    <svg width="17" height="11" viewBox="0 0 17 11" fill="none" aria-hidden="true">
+      <rect x="0" y="7" width="3" height="4" rx="1" fill="currentColor"/>
+      <rect x="4.5" y="5" width="3" height="6" rx="1" fill="currentColor"/>
+      <rect x="9" y="2.5" width="3" height="8.5" rx="1" fill="currentColor"/>
+      <rect x="13.5" y="0" width="3" height="11" rx="1" fill="currentColor"/>
+    </svg>
+    <svg width="16" height="11" viewBox="0 0 16 11" fill="none" aria-hidden="true">
+      <path d="M1 3.2A10.5 10.5 0 0 1 15 3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M3.6 5.9a7 7 0 0 1 8.8 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M6.2 8.6a3.4 3.4 0 0 1 3.6 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden="true">
+      <rect x="0.6" y="0.6" width="21" height="10.8" rx="3" stroke="currentColor" stroke-opacity="0.4" stroke-width="1.2"/>
+      <rect x="2.2" y="2.2" width="15" height="7.6" rx="1.8" fill="currentColor"/>
+      <path d="M23.4 4.2v3.6" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+  </span>
+</header>
+
+<div class="navbar">
+  <a class="navbar__back" href="01-home.html" aria-label="返回首页">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M15.2 4.6 7.8 12l7.4 7.4" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </a>
+  <h1 class="navbar__title">材料已提交</h1>
+</div>
+
+<main class="screen">
+
+  <div data-state="normal">
+
+    <section class="card status-hero">
+      <div class="status-hero__icon">
+        <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
+          <circle cx="32" cy="32" r="26" stroke="currentColor" stroke-width="3"/>
+          <path d="m21 33 7.6 7.6L43 25" stroke="currentColor" stroke-width="3.2"
+                stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <h2 class="status-hero__title">材料已收到</h2>
+      <p class="status-hero__desc">
+        法务会在 1 个工作日内做完形式审查，然后代为提交至伊宁市人民法院。审查结果会通过站内消息通知你。
+      </p>
+    </section>
+
+    <!-- 平台单号：FAZE- 开头，刻意与法院案号格式区分 -->
+    <section class="ticket">
+      <p class="ticket__label">案件编号</p>
+      <p class="ticket__no">
+        <strong>FAZE-2026-0087</strong>
+        <button class="ticket__copy" type="button" data-copy="FAZE-2026-0087"
+                aria-label="复制案件编号">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <rect x="8.6" y="8.6" width="11.8" height="11.8" rx="2" stroke="currentColor"
+                  stroke-width="1.8"/>
+            <path d="M15.4 5.8a2 2 0 0 0-2-2H5.6a2 2 0 0 0-2 2v7.8a2 2 0 0 0 2 2"
+                  stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </p>
+      <p class="ticket__hint">
+        这是平台的受理单号，不是法院案号。法院立上案后会另行给你一个「(2026) 新 4002 民初 … 号」，两个编号都要留着。
+      </p>
+    </section>
+
+    <section class="card info">
+      <div class="info__row">
+        <span class="info__label">案件类型</span>
+        <span class="info__value">民事 · 民间借贷</span>
+      </div>
+      <div class="info__row">
+        <span class="info__label">争议金额</span>
+        <span class="info__value">¥ 32,000</span>
+      </div>
+      <div class="info__row">
+        <span class="info__label">证据材料</span>
+        <span class="info__value">2 份</span>
+      </div>
+      <div class="info__row">
+        <span class="info__label">提交时间</span>
+        <span class="info__value">2026年10月29日 11:20</span>
+      </div>
+    </section>
+
+    <section class="card card--pad">
+      <h2 class="section-title">接下来会发生什么</h2>
+      <ol class="timeline">
+        <li class="tl-item is-done">
+          <p class="tl-item__title">材料已提交</p>
+          <p class="tl-item__meta">2026年10月29日 11:20</p>
+        </li>
+        <li class="tl-item is-active">
+          <p class="tl-item__title">法务形式审查</p>
+          <p class="tl-item__meta">预计 10月30日前完成</p>
+        </li>
+        <li class="tl-item">
+          <p class="tl-item__title">代为提交至法院</p>
+          <p class="tl-item__meta">审查通过后 1 个工作日内</p>
+        </li>
+        <li class="tl-item">
+          <p class="tl-item__title">法院决定是否受理</p>
+          <p class="tl-item__meta">一般 7 日内答复</p>
+          <p class="tl-item__boundary">
+            这一步不由平台决定。法院可能受理、可能要求补正材料、也可能裁定不予受理，以法院作出的书面通知为准。
+          </p>
+        </li>
+      </ol>
+    </section>
+
+    <section class="card card--pad">
+      <h2 class="section-title">这期间你可以做什么</h2>
+      <ul class="tips">
+        <li>把证据原件收好。开庭时通常要核对原件，照片和复印件不能单独作为定案依据。</li>
+        <!-- 这里原本指向 51-case-progress.html（第 15 批才做），留死链会让走查
+             每次都报「跳到的页面不存在」。原型阶段先不给链接，页面做完再补回来。 -->
+        <li>如果想起还有材料没交，不用重新提交一遍，在「我的 - 案件进度」里补充就行。</li>
+        <li>接到陌生电话说是法院的，先核对案号再说话。真正的法院不会在电话里让你转账。</li>
+      </ul>
+    </section>
+
+    <div class="actions">
+      <a class="btn-primary" href="51-case-progress.html">查看案件进度</a>
+      <a class="btn-outline" href="01-home.html">返回首页</a>
+    </div>
+
+  </div>
+
+</main>
+
+<!-- 提交中转场：真实项目里点「提交材料」后先出这个，成功后 replace 到本页 -->
+<div class="loading" data-loading hidden role="status" aria-live="polite">
+  <div class="loading__box">
+    <div class="loading__spinner"></div>
+    <p class="loading__text" data-loading-text>正在提交材料…</p>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390, initial-scale=1">
+<meta name="dsh-design" content="app">
+<title>文书送达</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   案件送达页（第 6 批 · 延展，无参考图）
+   ==========================================================================
+   职责：查看法院送达的文书、签收、确认电子送达方式、查回执。
+   入口：首页「快捷功能 - 案件送达」。父级可回首页。
+   母版：**列表母版**（同 12-articles：分组标题 + 条目列表）+ 二次确认框
+   数据来源：案件送达接口（待签收 / 已签收 + 送达方式 + 回执号）
+
+   ★★★ 这一屏的法律边界（比版式重要，修改文案前先读这段）：
+     1. **平台不是送达主体。** 司法文书的送达只能是法院（或法院委托）做出的。
+        平台这一屏实际做的两件事是：
+          a. 法院通过平台把文书转达给当事人（平台是通道，不是送达人）
+          b. 记录当事人的「电子送达地址确认」意愿，报给法院
+        所以页面里不能说「平台已向你送达」，只能说「法院通过本平台送达」。
+     2. **签收有时间后果。** 签收时间就是送达时间，答辩期、举证期、上诉期
+        都从这天起算。所以签收必须二次确认，且必须告诉用户「签收不等于认可
+        内容，异议权利照样有」—— 两者混在一起会让人不敢签，反而误了期限。
+     3. **回执不是送达回证。** 平台生成的是「阅读回执」（谁、什么时候、
+        用什么设备读的），法律上叫电子送达的送达凭证，跟法院盖章的
+        《送达回证》不是一回事。回执上要写清这一点，不能让人拿去当法院凭证用。
+     4. **诉讼费期限是真实的死线。** 原告收到《交纳诉讼费用通知书》后
+        7 日内不交费，法院按撤诉处理。这是本产品里最容易让用户吃大亏的一条，
+        必须用警示色单独标出来，不能和普通文书排在一起。
+   ========================================================================== */
+
+body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-canvas);
+}
+
+.navbar {
+  background: var(--bg-surface);
+}
+
+.screen {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding: var(--sp-md) 0 calc(var(--safe-bottom) + var(--sp-xl));
+}
+.screen::-webkit-scrollbar {
+  display: none;
+}
+
+/* ★ 间距必须加在 [data-state] 上，不是 .screen（.screen 只有一个子元素） */
+.screen > [data-state] {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-xl);
+}
+
+/* ---------- 顶部说明 ---------- */
+.notice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-sm);
+  margin-inline: var(--sp-xl);
+  padding: var(--sp-md);
+  border-radius: var(--r-sm);
+  background: var(--brand-primary-soft);
+  color: var(--brand-primary-pressed);
+  font-size: var(--fs-caption);
+  line-height: var(--lh-relaxed);
+}
+
+.notice svg {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  margin-block-start: 2px;
+}
+
+/* ---------- 分组 ---------- */
+.group__head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-sm);
+  padding-inline: var(--sp-xl);
+  margin-block-end: var(--sp-sm);
+}
+
+.group__title {
+  font-size: var(--fs-h2);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+.group__count {
+  font-family: var(--font-num);
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+}
+
+/* ---------- 文书列表 ---------- */
+.doc-list {
+  margin-inline: var(--sp-xl);
+  background: var(--bg-surface);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+
+/* 整行是可点的：用 button 而不是 div，键盘和读屏才认得出这是可操作元素 */
+.doc {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-md);
+  width: 100%;
+  min-height: 76px;
+  padding: var(--sp-md) var(--sp-lg);
+  border: 0;
+  background: var(--bg-surface);
+  color: inherit;
+  font-family: inherit;
+  text-align: start;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.doc + .doc {
+  border-block-start: 1px solid var(--border-divider);
+}
+
+.doc:active {
+  background: var(--bg-canvas);
+}
+
+.doc__icon {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--r-sm);
+  background: var(--brand-primary-soft);
+  color: var(--brand-primary-pressed);
+}
+
+.doc__icon svg {
+  width: 21px;
+  height: 21px;
+}
+
+/* 已签收的图标转中性色，不再抢注意力 */
+.doc--done .doc__icon {
+  background: var(--bg-input);
+  color: var(--text-muted);
+}
+
+.doc__main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.doc__name {
+  display: block;
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.doc--done .doc__name {
+  color: var(--text-secondary);
+  font-weight: var(--fw-regular);
+}
+
+.doc__meta {
+  display: block;
+  margin-block-start: 3px;
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+/* 期限：待签收的文书要让人一眼看出还剩几天 */
+.doc__due {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-block-start: var(--sp-xs);
+  padding: 1px 7px;
+  border-radius: var(--r-xs);
+  background: var(--state-warning-soft);
+  color: var(--state-warning-deep);
+  font-size: var(--fs-micro);
+  line-height: 1.6;
+}
+
+.doc__due--urgent {
+  background: #FDECEE;
+  color: #A1081A;
+  font-weight: var(--fw-bold);
+}
+
+.doc__due svg {
+  width: 12px;
+  height: 12px;
+}
+
+/* 右侧动作 */
+.doc__side {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  align-self: center;
+  min-height: 44px;
+}
+
+.doc__cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 56px;
+  min-height: 32px;
+  padding-inline: var(--sp-md);
+  border-radius: var(--r-pill);
+  background: var(--brand-primary);
+  color: var(--text-on-brand);
+  /* 用 caption(12) 不用 sm(13)：13 这一档本屏只有它一个用户，凑成第 8 种字号 */
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-medium);
+  line-height: 1;
+}
+
+.doc__state {
+  font-size: var(--fs-micro);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.doc__arrow {
+  width: 18px;
+  height: 18px;
+  color: var(--text-muted);
+}
+
+/* ---------- 诉讼费死线警示 ---------- */
+.deadline {
+  margin-inline: var(--sp-xl);
+  padding: var(--sp-md) var(--sp-lg);
+  border-radius: var(--r-sm);
+  background: #FDECEE;
+  border-inline-start: 3px solid var(--state-danger);
+}
+
+.deadline__title {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-xs);
+  font-size: var(--fs-md);
+  font-weight: var(--fw-bold);
+  color: #A1081A;
+  line-height: 1.4;
+}
+
+.deadline__title svg {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+}
+
+.deadline__text {
+  margin-block-start: var(--sp-xs);
+  font-size: var(--fs-caption);
+  color: #7A0A16;
+  line-height: var(--lh-relaxed);
+}
+
+.deadline__text b {
+  color: #A1081A;
+}
+
+/* ---------- 送达方式确认 ---------- */
+.method {
+  margin-inline: var(--sp-xl);
+  padding: var(--sp-lg);
+  background: var(--bg-surface);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-card);
+}
+
+.method__title {
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+.method__sub {
+  margin-block-start: var(--sp-xs);
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: var(--lh-relaxed);
+}
+
+.method-list {
+  margin-block-start: var(--sp-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-sm);
+}
+
+.method-opt {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-md);
+  width: 100%;
+  min-height: 62px;
+  padding: var(--sp-md);
+  border: 1.5px solid var(--border-outline);
+  border-radius: var(--r-sm);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-family: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.method-opt.is-active {
+  border-color: var(--brand-primary);
+  background: var(--brand-primary-soft);
+}
+
+/* 单选圆点 */
+.method-opt__dot {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  margin-block-start: 2px;
+  border-radius: 50%;
+  border: 2px solid var(--border-outline);
+  background: var(--bg-surface);
+  position: relative;
+}
+
+.method-opt.is-active .method-opt__dot {
+  border-color: var(--brand-primary);
+}
+
+.method-opt.is-active .method-opt__dot::after {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  background: var(--brand-primary);
+}
+
+.method-opt__body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.method-opt__name {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-xs);
+  font-size: var(--fs-md);
+  font-weight: var(--fw-medium);
+  line-height: 1.4;
+}
+
+.method-opt__tag {
+  padding: 0 5px;
+  border-radius: var(--r-xs);
+  background: var(--brand-primary);
+  color: var(--text-on-brand);
+  /* 10px 是这屏唯一的第 8 档字号，且 10 太小 —— 收进 micro(11) */
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-regular);
+  line-height: 16px;
+  white-space: nowrap;
+}
+
+.method-opt__hint {
+  display: block;
+  margin-block-start: 2px;
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+/* 同意条款 */
+.agree {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-sm);
+  margin-block-start: var(--sp-md);
+  padding-block-start: var(--sp-md);
+  border-block-start: 1px solid var(--border-divider);
+  font-size: var(--fs-caption);
+  color: var(--text-secondary);
+  line-height: var(--lh-relaxed);
+  cursor: pointer;
+}
+
+/* ★ 同意勾选框：视觉 18，热区 44。
+   原生 checkbox 是 18×18，而它是本页「不勾就不能签收」的必经动作（合规要求），
+   18 太小了 —— 中老年用户很容易点空，点空就以为「点了没反应」。
+   做法：appearance:none 去掉原生外观，盒子做到 44，用两个内联 SVG 画
+   18 的方框（未选 / 选中带勾），background-position 居中。
+   margin -13 把布局占位压回 18，不撑乱这一行。
+
+   为什么不用伪元素画：<input> 是替换元素，::before / ::after 不渲染。
+   为什么不用 accent-color：那个只能换勾的色，改不了尺寸。 */
+.agree input {
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  margin: -13px;
+  border: 0;
+  background-color: transparent;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 18px 18px;
+  /* 未选中：18×18 圆角方框。描边色取 --border-outline(#EEEEEE)，填充白 */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 18'%3E%3Crect x='1' y='1' width='16' height='16' rx='3' fill='%23FFFFFF' stroke='%23EEEEEE' stroke-width='1.5'/%3E%3C/svg%3E");
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+}
+
+/* 选中：主色底 + 白勾。勾不是方向性符号，RTL 下不镜像（§7.5 白名单） */
+.agree input:checked {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 18'%3E%3Crect x='1' y='1' width='16' height='16' rx='3' fill='%234A66EE' stroke='%234A66EE' stroke-width='1.5'/%3E%3Cpath d='M5 9.2 7.6 11.8 13 6.2' fill='none' stroke='%23FFFFFF' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+.agree a {
+  color: var(--brand-primary-pressed);
+  font-weight: var(--fw-medium);
+  text-decoration: underline;
+}
+
+/* ---------- 回执说明 ---------- */
+.receipt-note {
+  margin-inline: var(--sp-xl);
+  padding: var(--sp-md);
+  border-radius: var(--r-sm);
+  background: var(--bg-surface);
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: var(--lh-relaxed);
+}
+
+.receipt-note b {
+  color: var(--text-secondary);
+}
+
+/* ---------- 签收确认框：分隔线加深 ----------
+   本屏的确认框内容比「退出登录」那个框长，按钮区需要一条看得见的分隔线，
+   否则按钮文字像是正文的最后一行。--border-divider(#F5F5F5) 在白底上几乎不可见，
+   这里换 --border-outline(#EEEEEE)。 */
+.dialog__actions {
+  border-block-start-color: var(--border-outline);
+}
+</style>
+</head>
+<body>
+
+<header class="statusbar">
+  <span>9:41</span>
+  <span class="statusbar__icons">
+    <svg width="17" height="11" viewBox="0 0 17 11" fill="none" aria-hidden="true">
+      <rect x="0" y="7" width="3" height="4" rx="1" fill="currentColor"/>
+      <rect x="4.5" y="5" width="3" height="6" rx="1" fill="currentColor"/>
+      <rect x="9" y="2.5" width="3" height="8.5" rx="1" fill="currentColor"/>
+      <rect x="13.5" y="0" width="3" height="11" rx="1" fill="currentColor"/>
+    </svg>
+    <svg width="16" height="11" viewBox="0 0 16 11" fill="none" aria-hidden="true">
+      <path d="M1 3.2A10.5 10.5 0 0 1 15 3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M3.6 5.9a7 7 0 0 1 8.8 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M6.2 8.6a3.4 3.4 0 0 1 3.6 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden="true">
+      <rect x="0.6" y="0.6" width="21" height="10.8" rx="3" stroke="currentColor" stroke-opacity="0.4" stroke-width="1.2"/>
+      <rect x="2.2" y="2.2" width="15" height="7.6" rx="1.8" fill="currentColor"/>
+      <path d="M23.4 4.2v3.6" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+  </span>
+</header>
+
+<div class="navbar">
+  <a class="navbar__back" href="01-home.html" aria-label="返回首页">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M15.2 4.6 7.8 12l7.4 7.4" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </a>
+  <h1 class="navbar__title">文书送达</h1>
+</div>
+
+<main class="screen">
+
+  <div data-state="normal">
+
+    <p class="notice">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <circle cx="12" cy="12" r="9.2" stroke="currentColor" stroke-width="1.9"/>
+        <path d="M12 7.6v5.2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <circle cx="12" cy="16.4" r="1.2" fill="currentColor"/>
+      </svg>
+      <span>
+        下面的文书由<b>伊宁市人民法院</b>作出，通过本平台转达给你。签收时间会作为送达时间记录，答辩期、举证期、上诉期都从这天起算。
+      </span>
+    </p>
+
+    <!-- ==================================================================
+         待签收
+         ================================================================== -->
+    <section>
+      <div class="group__head">
+        <h2 class="group__title">待签收</h2>
+        <span class="group__count">2 份</span>
+      </div>
+
+      <div class="doc-list">
+
+        <button class="doc" type="button" data-sign-open="受理案件通知书">
+          <span class="doc__icon">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M6.2 3.4h8.2l5 5v11.2a1.8 1.8 0 0 1-1.8 1.8H6.2a1.8 1.8 0 0 1-1.8-1.8V5.2a1.8 1.8 0 0 1 1.8-1.8Z"
+                    stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+              <path d="M14.2 3.6v5.2h5M8.4 13.4h7.2M8.4 17h4.6" stroke="currentColor"
+                    stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </span>
+          <span class="doc__main">
+            <span class="doc__name">《受理案件通知书》</span>
+            <span class="doc__meta">(2026) 新 4002 民初 1847 号 · 伊宁市人民法院</span>
+            <span class="doc__due">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <circle cx="12" cy="12" r="8.6" stroke="currentColor" stroke-width="2"/>
+                <path d="M12 7.4V12l3.4 2" stroke="currentColor" stroke-width="2"
+                      stroke-linecap="round"/>
+              </svg>
+              送达于 11月2日 · 已过 1 天
+            </span>
+          </span>
+          <span class="doc__side"><span class="doc__cta">签收</span></span>
+        </button>
+
+        <button class="doc" type="button" data-sign-open="交纳诉讼费用通知书">
+          <span class="doc__icon">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <rect x="2.8" y="6.2" width="18.4" height="11.6" rx="2.2" stroke="currentColor"
+                    stroke-width="1.8"/>
+              <circle cx="12" cy="12" r="2.6" stroke="currentColor" stroke-width="1.8"/>
+              <path d="M6.2 12h.01M17.8 12h.01" stroke="currentColor" stroke-width="2.2"
+                    stroke-linecap="round"/>
+            </svg>
+          </span>
+          <span class="doc__main">
+            <span class="doc__name">《交纳诉讼费用通知书》</span>
+            <span class="doc__meta">(2026) 新 4002 民初 1847 号 · 伊宁市人民法院</span>
+            <span class="doc__due doc__due--urgent">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M12 3.4 2.8 20h18.4L12 3.4Z" stroke="currentColor" stroke-width="2"
+                      stroke-linejoin="round"/>
+                <path d="M12 9.6v4.2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                <circle cx="12" cy="17" r="1.1" fill="currentColor"/>
+              </svg>
+              距交费截止还剩 5 天（11月8日）
+            </span>
+          </span>
+          <span class="doc__side"><span class="doc__cta">签收</span></span>
+        </button>
+
+      </div>
+    </section>
+
+    <!-- 诉讼费死线：单独一条，不混在列表里 -->
+    <div class="deadline">
+      <p class="deadline__title">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/>
+          <path d="M12 7.6v5.4M12 16.4h.01" stroke="currentColor" stroke-width="2.2"
+                stroke-linecap="round"/>
+        </svg>
+        逾期不交诉讼费，法院按撤诉处理
+      </p>
+      <p class="deadline__text">
+        这一步没有商量余地：<b>收到通知书次日起 7 日内</b>未预交案件受理费的，法院裁定按自动撤诉处理，你的案子等于白立。交费直接去法院诉讼服务中心窗口或通过《人民法院在线服务》小程序，<b>本平台不代收诉讼费</b>。
+      </p>
+    </div>
+
+    <!-- ==================================================================
+         送达方式确认
+         ================================================================== -->
+    <section class="method">
+      <h2 class="method__title">后续文书怎么收</h2>
+      <p class="method__sub">
+        这是你的选择，随时可以改。选定后平台会把《电子送达地址确认书》报给法院。
+      </p>
+
+      <div class="method-list" data-method-list>
+        <button class="method-opt is-active" type="button" data-method="app">
+          <span class="method-opt__dot" aria-hidden="true"></span>
+          <span class="method-opt__body">
+            <span class="method-opt__name">
+              平台内电子送达
+              <span class="method-opt__tag">推荐</span>
+            </span>
+            <span class="method-opt__hint">
+              文书直接进这个页面，签收即视为送达，全程有时间戳。最快，也不会丢。
+            </span>
+          </span>
+        </button>
+
+        <button class="method-opt" type="button" data-method="sms">
+          <span class="method-opt__dot" aria-hidden="true"></span>
+          <span class="method-opt__body">
+            <span class="method-opt__name">短信通知，到法院自取</span>
+            <span class="method-opt__hint">
+              法院会发短信提醒，你需要自己到诉讼服务中心领取纸质文书。适合本来就常去法院、不放心电子文书的人。
+            </span>
+          </span>
+        </button>
+
+        <button class="method-opt" type="button" data-method="post">
+          <span class="method-opt__dot" aria-hidden="true"></span>
+          <span class="method-opt__body">
+            <span class="method-opt__name">邮寄纸质文书</span>
+            <span class="method-opt__hint">
+              寄到你在平台登记的地址，路上要 3–5 天，开庭通知可能来不及。
+            </span>
+          </span>
+        </button>
+      </div>
+
+      <label class="agree">
+        <input type="checkbox" checked>
+        <span>
+          我已阅读并同意<a href="11-privacy.html">《电子送达地址确认书》</a>，同意以电子方式接收本案后续诉讼文书。我知道电子送达与纸质送达具有同等效力。
+        </span>
+      </label>
+    </section>
+
+    <!-- ==================================================================
+         已签收
+         ================================================================== -->
+    <section>
+      <div class="group__head">
+        <h2 class="group__title">已签收</h2>
+        <span class="group__count">1 份</span>
+      </div>
+
+      <div class="doc-list">
+        <a class="doc doc--done" href="26-doc-preview.html">
+          <span class="doc__icon">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="m6.4 12.4 3.6 3.6 7.6-8" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </span>
+          <span class="doc__main">
+            <span class="doc__name">《诉讼权利义务告知书》</span>
+            <span class="doc__meta">回执 FY-SD-20261102-0042 · 11月2日 14:36 签收</span>
+          </span>
+          <span class="doc__side">
+            <svg class="doc__arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="m9.4 5.6 6.4 6.4-6.4 6.4" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </span>
+        </a>
+      </div>
+    </section>
+
+    <p class="receipt-note">
+      <b>回执是什么：</b>平台生成的是一份电子阅读回执，记录谁、在什么时候、用什么设备看了这份文书，法院可以调取。它<b>不是</b>法院盖章的《送达回证》 ——真正需要送达证明的场合（比如上诉期争议），以法院出具的为准。
+    </p>
+
+  </div>
+
+</main>
+
+<!-- ========================================================================
+     签收二次确认（不可撤销，且会起算诉讼期限）
+     ========================================================================
+     内容刻意压得短：这个框的作用是让人「确认一下」，不是让他读一篇文章。第一版塞了两条 sign-list（不可撤销 / 文书会存档），框体涨到 670px，按钮区域没有可见边界，看着像被正文截断 —— 精简掉列表，把「不可撤销」并进 hint 的一句里。 -->
+<div class="mask" data-sign-mask hidden></div>
+<div class="dialog" data-sign-dialog hidden role="dialog" aria-modal="true"
+     aria-labelledby="sign-title">
+  <h2 class="dialog__title" id="sign-title" data-sign-title>确认签收这份文书？</h2>
+  <p class="dialog__body">
+    签收后，当前时间会记为送达时间。答辩期、举证期、上诉期从这一天起算。
+  </p>
+  <p class="dialog__hint">
+    签收不代表你认可内容，有异议照样可以书面提出 —— 但别因为怕签收而拖着。签收记录不可撤销。
+  </p>
+  <div class="dialog__actions">
+    <button class="dialog__btn" type="button" data-sign-close>再看看</button>
+    <button class="dialog__btn dialog__btn--primary" type="button" data-sign-confirm>
+      确认签收
+    </button>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
