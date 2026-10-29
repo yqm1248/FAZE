@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390, initial-scale=1">
+<meta name="dsh-design" content="app">
+<title>我的文书</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   我的文书列表页（第 8 批 · 延展，无参考图）
+   ==========================================================================
+   职责：查看自己生成过的所有文书，按草稿 / 已完成筛选，点条目回到预览页。
+   入口：我的页「我的服务 - 我的文书」；26 的「保存到云端」也会落到这里
+   母版：**列表母版**（同 12-articles / 18-ai-history：顶部分类 + 条目列表 + 四态）
+   数据来源：文书列表接口（id / 标题 / 模板类型 / 状态 / 更新时间 / 页数 / 是否盖章）
+
+   ★ 三个状态标签要区分清楚，不能混成一个「已完成」：
+     - 草稿：还没生成，可以继续填
+     - 已完成：生成了 PDF 但没盖章
+     - 已盖章：加盖了电子签章，内容锁死不可编辑
+     用户最关心的是「哪份还能改、哪份已经定稿了」，这个信息比时间更重要，
+     所以状态标签放右侧单独一列，不混在 meta 里。
+
+   ★ 为什么列表里显示「页数」：用户找文书时常常只记得厚度（「那份三页的」），
+     不记得标题。页数 + 时间两个线索比标题更能帮人定位。
+
+   四态：normal / loading（骨架）/ empty（还没有任何文书）/ error。
+   ========================================================================== */
+
+body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-canvas);
+}
+
+.navbar {
+  background: var(--bg-surface);
+}
+
+.screen {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding-block-end: calc(var(--safe-bottom) + var(--sp-xl));
+}
+.screen::-webkit-scrollbar {
+  display: none;
+}
+
+/* 顶栏白底与列表灰底之间画线（see components.css .topbar 的说明） */
+.list-top {
+  background: var(--bg-surface);
+  border-block-end: 1px solid var(--border-outline);
+}
+
+.filter {
+  padding-inline: var(--sp-md);
+}
+
+/* ---------- 列表 ---------- */
+.list {
+  padding: var(--sp-md) var(--sp-xl) 0;
+}
+
+.doc-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-md);
+  padding: var(--sp-md) var(--sp-lg);
+  border-radius: var(--r-md);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+  text-decoration: none;
+  color: inherit;
+}
+
+.doc-item + .doc-item {
+  margin-block-start: var(--sp-md);
+}
+
+.doc-item:active {
+  background: var(--bg-canvas);
+}
+
+/* 图标：草稿用虚线描边，已完成用实底 —— 一眼分离两种状态 */
+.doc-item__icon {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: var(--r-sm);
+  background: var(--brand-primary-soft);
+  color: var(--brand-primary);
+}
+
+.doc-item--draft .doc-item__icon {
+  background: var(--bg-canvas);
+  color: var(--text-muted);
+}
+
+.doc-item--sealed .doc-item__icon {
+  background: var(--state-success-soft);
+  color: var(--state-success);
+}
+
+.doc-item__icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.doc-item__main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.doc-item__name {
+  display: block;
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.doc-item__meta {
+  display: block;
+  margin-block-start: 3px;
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 分隔符用细圆点，不用竖线 —— 竖线在 RTL 下要额外处理方向 */
+.dot {
+  display: inline-block;
+  width: 3px;
+  height: 3px;
+  margin-inline: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  vertical-align: middle;
+  font-style: normal;
+}
+
+/* 状态标签：放右侧单独一列，不混进 meta */
+.doc-item__state {
+  flex: 0 0 auto;
+  align-self: flex-start;
+  margin-block-start: 2px;
+  padding: 2px 7px;
+  border-radius: var(--r-xs);
+  font-size: var(--fs-micro);
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.doc-item__state--draft {
+  background: var(--bg-input);
+  color: var(--text-secondary);
+}
+
+.doc-item__state--done {
+  background: var(--brand-primary-soft);
+  color: var(--brand-primary-pressed);
+}
+
+.doc-item__state--sealed {
+  background: var(--state-success-soft);
+  color: var(--state-success);
+}
+
+/* ---------- 底部新建入口 ---------- */
+.list-foot {
+  padding: var(--sp-xl) var(--sp-xl) 0;
+}
+
+/* ---------- 空态 / 错误态 ---------- */
+.state-wrap {
+  padding-block: var(--sp-huge) var(--sp-xxxl);
+}
+</style>
+</head>
+<body>
+
+<header class="statusbar">
+  <span>9:41</span>
+  <span class="statusbar__icons">
+    <svg width="17" height="11" viewBox="0 0 17 11" fill="none" aria-hidden="true">
+      <rect x="0" y="7" width="3" height="4" rx="1" fill="currentColor"/>
+      <rect x="4.5" y="5" width="3" height="6" rx="1" fill="currentColor"/>
+      <rect x="9" y="2.5" width="3" height="8.5" rx="1" fill="currentColor"/>
+      <rect x="13.5" y="0" width="3" height="11" rx="1" fill="currentColor"/>
+    </svg>
+    <svg width="16" height="11" viewBox="0 0 16 11" fill="none" aria-hidden="true">
+      <path d="M1 3.2A10.5 10.5 0 0 1 15 3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M3.6 5.9a7 7 0 0 1 8.8 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M6.2 8.6a3.4 3.4 0 0 1 3.6 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden="true">
+      <rect x="0.6" y="0.6" width="21" height="10.8" rx="3" stroke="currentColor" stroke-opacity="0.4" stroke-width="1.2"/>
+      <rect x="2.2" y="2.2" width="15" height="7.6" rx="1.8" fill="currentColor"/>
+      <path d="M23.4 4.2v3.6" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+  </span>
+</header>
+
+<div class="navbar">
+  <a class="navbar__back" href="05-profile.html" aria-label="返回我的">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M15.2 4.6 7.8 12l7.4 7.4" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </a>
+  <h1 class="navbar__title">我的文书</h1>
+  <div class="navbar__actions">
+    <a class="navbar__icon" href="23-doc-templates.html" aria-label="新建文书">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M12 5.2v13.6M5.2 12h13.6" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round"/>
+      </svg>
+    </a>
+  </div>
+</div>
+
+<main class="screen">
+
+  <div data-state="normal">
+
+    <div class="list-top">
+      <div class="filter" data-drag-scroll>
+        <button class="filter__chip filter__chip--active" type="button" data-doc-filter="all">
+          全部
+        </button>
+        <button class="filter__chip" type="button" data-doc-filter="draft">
+          草稿
+        </button>
+        <button class="filter__chip" type="button" data-doc-filter="done">
+          已完成
+        </button>
+      </div>
+    </div>
+
+    <div class="list">
+
+      <a class="doc-item doc-item--sealed" href="26-doc-preview.html" data-doc-state="done">
+        <span class="doc-item__icon">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M6.2 3.4h8.2l5 5v11.2a1.8 1.8 0 0 1-1.8 1.8H6.2a1.8 1.8 0 0 1-1.8-1.8V5.2a1.8 1.8 0 0 1 1.8-1.8Z"
+                  stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+            <path d="m8.6 14.4 2.2 2.2 4.4-4.4" stroke="currentColor" stroke-width="1.9"
+                  stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </span>
+        <span class="doc-item__main">
+          <span class="doc-item__name">民事起诉状 · 民间借贷</span>
+          <span class="doc-item__meta">
+            2026-10-29 11:20<i class="dot"></i>3 页<i class="dot"></i>已加盖电子签章
+          </span>
+        </span>
+        <span class="doc-item__state doc-item__state--sealed">已盖章</span>
+      </a>
+
+      <a class="doc-item" href="26-doc-preview.html" data-doc-state="done">
+        <span class="doc-item__icon">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M6.2 3.4h8.2l5 5v11.2a1.8 1.8 0 0 1-1.8 1.8H6.2a1.8 1.8 0 0 1-1.8-1.8V5.2a1.8 1.8 0 0 1 1.8-1.8Z"
+                  stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+            <path d="M14.2 3.6v5.2h5M8.6 13h6.8M8.6 16.6h4.4" stroke="currentColor"
+                  stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </span>
+        <span class="doc-item__main">
+          <span class="doc-item__name">证据清单</span>
+          <span class="doc-item__meta">
+            2026-10-28 16:42<i class="dot"></i>2 页<i class="dot"></i>未盖章
+          </span>
+        </span>
+        <span class="doc-item__state doc-item__state--done">已完成</span>
+      </a>
+
+      <a class="doc-item" href="26-doc-preview.html" data-doc-state="done">
+        <span class="doc-item__icon">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M5.6 3.4h9.6a1.8 1.8 0 0 1 1.8 1.8v13.6a1.8 1.8 0 0 1-1.8 1.8H5.6a1.8 1.8 0 0 1-1.8-1.8V5.2a1.8 1.8 0 0 1 1.8-1.8Z"
+                  stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+            <path d="M7.8 8.4h5.8M7.8 12h5.8M7.8 15.6h3.6" stroke="currentColor"
+                  stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+        </span>
+        <span class="doc-item__main">
+          <span class="doc-item__name">借条 · 个人借款</span>
+          <span class="doc-item__meta">
+            2026-10-21 09:08<i class="dot"></i>1 页<i class="dot"></i>未盖章
+          </span>
+        </span>
+        <span class="doc-item__state doc-item__state--done">已完成</span>
+      </a>
+
+      <a class="doc-item doc-item--draft" href="24-doc-lawsuit.html" data-doc-state="draft">
+        <span class="doc-item__icon">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M6.2 3.4h8.2l5 5v11.2a1.8 1.8 0 0 1-1.8 1.8H6.2a1.8 1.8 0 0 1-1.8-1.8V5.2a1.8 1.8 0 0 1 1.8-1.8Z"
+                  stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+            <path d="M8.6 13h6.8M8.6 16.6h3.4" stroke="currentColor" stroke-width="1.8"
+                  stroke-linecap="round"/>
+          </svg>
+        </span>
+        <span class="doc-item__main">
+          <span class="doc-item__name">民事起诉状 · 买卖合同</span>
+          <span class="doc-item__meta">
+            2026-10-18 20:35<i class="dot"></i>填到「事实与理由」
+          </span>
+        </span>
+        <span class="doc-item__state doc-item__state--draft">草稿</span>
+      </a>
+
+      <a class="doc-item doc-item--draft" href="25-doc-other.html" data-doc-state="draft">
+        <span class="doc-item__icon">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M6.2 3.4h8.2l5 5v11.2a1.8 1.8 0 0 1-1.8 1.8H6.2a1.8 1.8 0 0 1-1.8-1.8V5.2a1.8 1.8 0 0 1 1.8-1.8Z"
+                  stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+            <path d="M14.2 3.6v5.2h5" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+          </svg>
+        </span>
+        <span class="doc-item__main">
+          <span class="doc-item__name">劳动合同</span>
+          <span class="doc-item__meta">
+            2026-10-15 14:02<i class="dot"></i>填到「期限与报酬」
+          </span>
+        </span>
+        <span class="doc-item__state doc-item__state--draft">草稿</span>
+      </a>
+
+    </div>
+
+    <div class="list-foot">
+      <a class="btn-primary" href="23-doc-templates.html" style="width:100%">新建文书</a>
+    </div>
+
+  </div>
+
+  <!-- ======================================================================
+       加载态：骨架条目
+       ====================================================================== -->
+  <div data-state="loading" hidden>
+    <div class="list">
+      <div class="doc-item" style="box-shadow:none">
+        <div class="skeleton" style="width:42px;height:42px;border-radius:6px"></div>
+        <div class="doc-item__main">
+          <div class="skeleton" style="height:15px;width:56%"></div>
+          <div class="skeleton" style="height:12px;width:74%;margin-block-start:8px"></div>
+        </div>
+      </div>
+      <div class="doc-item" style="box-shadow:none">
+        <div class="skeleton" style="width:42px;height:42px;border-radius:6px"></div>
+        <div class="doc-item__main">
+          <div class="skeleton" style="height:15px;width:44%"></div>
+          <div class="skeleton" style="height:12px;width:66%;margin-block-start:8px"></div>
+        </div>
+      </div>
+      <div class="doc-item" style="box-shadow:none">
+        <div class="skeleton" style="width:42px;height:42px;border-radius:6px"></div>
+        <div class="doc-item__main">
+          <div class="skeleton" style="height:15px;width:52%"></div>
+          <div class="skeleton" style="height:12px;width:70%;margin-block-start:8px"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================================
+       空态：还没有任何文书
+       ====================================================================== -->
+  <div data-state="empty" hidden>
+    <div class="state-wrap">
+      <div class="empty">
+        <svg class="empty__art" viewBox="0 0 96 96" fill="none" aria-hidden="true">
+          <path d="M26 22h30l14 14v38a4 4 0 0 1-4 4H26a4 4 0 0 1-4-4V26a4 4 0 0 1 4-4Z"
+                stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"/>
+          <path d="M56 22v14h14" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"/>
+          <path d="M34 52h20M34 62h12" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+        </svg>
+        <p class="empty__title">还没有生成过文书</p>
+        <p class="empty__desc">起诉状、证据清单、劳动合同等常用文书都可以在这里生成，填完自动排版。</p>
+        <a class="btn-primary empty__action" href="23-doc-templates.html">去选模板</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================================
+       错误态
+       ====================================================================== -->
+  <div data-state="error" hidden>
+    <div class="state-wrap">
+      <div class="errorbox">
+        <svg class="errorbox__art" viewBox="0 0 96 96" fill="none" aria-hidden="true">
+          <circle cx="48" cy="48" r="30" stroke="currentColor" stroke-width="2.4"/>
+          <path d="M48 32v20" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
+          <circle cx="48" cy="62" r="2.4" fill="currentColor"/>
+        </svg>
+        <p class="errorbox__title">文书列表没有加载出来</p>
+        <p class="errorbox__desc">网络不稳定或者服务器维护中。稍等一下再试试。</p>
+        <button class="errorbox__retry" type="button" data-retry>
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M20.2 12a8.2 8.2 0 1 1-2.4-5.8" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round"/>
+            <path d="M20.4 3.6v4.6h-4.6" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          重新加载
+        </button>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

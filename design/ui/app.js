@@ -582,6 +582,11 @@
 
   if (chips.length && stateNodes.length) {
     Array.prototype.forEach.call(chips, function (chip) {
+      /* 有专属筛选逻辑的 chips 跳过通用流程：
+         23 的模板分类（data-tpl-cat）要真过滤卡片、不该闪骨架屏，
+         25 的模板切换（data-tpl）走第 26 段。 */
+      if (chip.hasAttribute("data-tpl-cat") || chip.hasAttribute("data-tpl")) return;
+
       chip.addEventListener("click", function (e) {
         e.preventDefault();
 
@@ -1082,10 +1087,17 @@
 
     Array.prototype.forEach.call(options, function (item) {
       item.addEventListener("click", function () {
-        Array.prototype.forEach.call(options, function (other) {
-          if (other === item) other.classList.add("is-active");
-          else other.classList.remove("is-active");
-        });
+        /* 作用域取最近的 [data-choice-group]，没有就取父元素。
+           第 8 批的 25-doc-other 一屏里有多组同名单选（提交形式 / 工时制度 /
+           贸易术语 / 争议解决），原来的全局单选会让它们互相取消。 */
+        var scope = item.closest("[data-choice-group]") || item.parentNode;
+        Array.prototype.forEach.call(
+          scope.querySelectorAll(selector),
+          function (other) {
+            if (other === item) other.classList.add("is-active");
+            else other.classList.remove("is-active");
+          }
+        );
       });
     });
   }
@@ -1176,5 +1188,327 @@
       if (signTitle) signTitle.textContent = "确认签收《受理案件通知书》？";
       setSignDialog(true);
     }
+  }
+
+  /* ==========================================================================
+     25. 文书表单（第 8 批：24-doc-lawsuit / 25-doc-other）
+     ==========================================================================
+     三个交互：
+       data-phrase    把常用诉请表述追加到诉讼请求输入框（真追加，不是替换）
+       data-add-party 添加一份原告/被告 —— 设计稿只提示，不克隆 DOM。
+                      真实项目里这是列表渲染，复制节点会把 id 也复制成重复的。
+       data-draft     保存草稿（提示）
+     ========================================================================== */
+  var claimBox = document.querySelector("[data-claim-box]");
+
+  Array.prototype.forEach.call(
+    document.querySelectorAll("[data-phrase]"),
+    function (btn) {
+      btn.addEventListener("click", function () {
+        if (!claimBox) return;
+        var text = btn.getAttribute("data-phrase") || "";
+        /* 上一条请求没以分号结尾时补一个，否则两句话会粘在一起 */
+        var cur = claimBox.value.replace(/\s+$/, "");
+        if (cur && !/[；;。]$/.test(cur)) cur += "；";
+        claimBox.value = cur + text;
+        claimBox.focus();
+        /* 光标放到末尾，方便直接补金额 */
+        claimBox.selectionStart = claimBox.selectionEnd = claimBox.value.length;
+      });
+    }
+  );
+
+  Array.prototype.forEach.call(
+    document.querySelectorAll("[data-add-party]"),
+    function (btn) {
+      btn.addEventListener("click", function () {
+        var kind = btn.getAttribute("data-add-party");
+        var MESSAGES = {
+          plaintiff: "已添加一份原告信息",
+          defendant: "已添加一份被告信息",
+          evidence: "已添加一份证据条目"
+        };
+        showToast(MESSAGES[kind] || "已添加");
+      });
+    }
+  );
+
+  var draftBtn = document.querySelector("[data-draft]");
+  if (draftBtn) {
+    draftBtn.addEventListener("click", function () {
+      showToast("草稿已保存，可在「我的文书」继续编辑");
+    });
+  }
+
+  /* ==========================================================================
+     26. 文书模板切换（第 8 批：25-doc-other）
+     ==========================================================================
+     一个页面三套字段。真实项目里这是后台 field_schema 驱动的渲染，
+     设计稿用一个 HTML 装三个 data-schema 容器来模拟同一件事 ——
+     不拆成三个静态页，否则加第四个模板时又要再画一屏。
+     ========================================================================== */
+  var tplChips = document.querySelectorAll("[data-tpl]");
+  var schemaPanels = document.querySelectorAll("[data-schema]");
+  var schemaTitle = document.querySelector("[data-schema-title]");
+  var schemaSub = document.querySelector("[data-schema-sub]");
+  var schemaScreen = document.querySelector(".screen");
+
+  /* 标题与副标题跟着模板走，避免切到劳动合同后标题还写着「证据清单」 */
+  var SCHEMA_META = {
+    evidence: ["证据清单", "列明证据名称、来源与证明目的，用于随起诉状一并提交"],
+    labor: ["劳动合同", "按《劳动合同法》必备条款生成，可直接打印签署"],
+    ec: ["跨境电商合同", "按国际贸易惯例生成，含贸易术语与争议解决条款"]
+  };
+
+  Array.prototype.forEach.call(tplChips, function (chip) {
+    chip.addEventListener("click", function () {
+      var key = chip.getAttribute("data-tpl");
+
+      Array.prototype.forEach.call(tplChips, function (other) {
+        if (other === chip) other.classList.add("filter__chip--active");
+        else other.classList.remove("filter__chip--active");
+      });
+
+      Array.prototype.forEach.call(schemaPanels, function (panel) {
+        if (panel.getAttribute("data-schema") === key) panel.removeAttribute("hidden");
+        else panel.setAttribute("hidden", "");
+      });
+
+      var meta = SCHEMA_META[key];
+      if (meta) {
+        if (schemaTitle) schemaTitle.textContent = meta[0];
+        if (schemaSub) schemaSub.textContent = meta[1];
+      }
+      /* 换模板后回到顶部，否则会停在上一个模板的表单中间 */
+      if (schemaScreen) schemaScreen.scrollTop = 0;
+    });
+  });
+
+  /* 走查开关：hash #schema-labor / #schema-ec 直接切到某套字段
+     （走查文件 _walkthrough/24-28-doc.html 用它把三套模板并排摆出来） */
+  if (walkHash.indexOf("schema-") === 0) {
+    var initialTpl = document.querySelector(
+      '[data-tpl="' + walkHash.slice(7) + '"]'
+    );
+    if (initialTpl) initialTpl.click();
+  }
+
+  /* ==========================================================================
+     27. 文书预览（第 8 批：26-doc-preview）
+     ==========================================================================
+     三个浮层/动作：
+       导出现层面板    [data-export-*]   PDF / Word 二选一
+       签章面板        [data-seal-*]     不可撤销，需二次说明
+       保存到云端      [data-save]       提示
+     ========================================================================== */
+  var exportMask = document.querySelector("[data-export-mask]");
+  var exportSheet = document.querySelector("[data-export-sheet]");
+
+  function setExportSheet(open) {
+    toggleLayer(exportMask, open);
+    toggleLayer(exportSheet, open);
+  }
+
+  if (exportSheet) {
+    var exportOpen = document.querySelector("[data-export-open]");
+    if (exportOpen) {
+      exportOpen.addEventListener("click", function () {
+        setExportSheet(true);
+      });
+    }
+    Array.prototype.forEach.call(
+      document.querySelectorAll("[data-export-close]"),
+      function (btn) {
+        btn.addEventListener("click", function () {
+          setExportSheet(false);
+        });
+      }
+    );
+    if (exportMask) {
+      exportMask.addEventListener("click", function () {
+        setExportSheet(false);
+      });
+    }
+    Array.prototype.forEach.call(
+      document.querySelectorAll("[data-export]"),
+      function (btn) {
+        btn.addEventListener("click", function () {
+          var kind = btn.getAttribute("data-export");
+          setExportSheet(false);
+          showToast(kind === "pdf" ? "正在导出 PDF…" : "正在导出 Word…");
+        });
+      }
+    );
+  }
+
+  var sealMask = document.querySelector("[data-seal-mask]");
+  var sealSheet = document.querySelector("[data-seal-sheet]");
+
+  function setSealSheet(open) {
+    toggleLayer(sealMask, open);
+    toggleLayer(sealSheet, open);
+  }
+
+  if (sealSheet) {
+    var sealOpen = document.querySelector("[data-seal-open]");
+    if (sealOpen) {
+      sealOpen.addEventListener("click", function () {
+        setSealSheet(true);
+      });
+    }
+    Array.prototype.forEach.call(
+      document.querySelectorAll("[data-seal-close]"),
+      function (btn) {
+        btn.addEventListener("click", function () {
+          setSealSheet(false);
+        });
+      }
+    );
+    if (sealMask) {
+      sealMask.addEventListener("click", function () {
+        setSealSheet(false);
+      });
+    }
+    var sealConfirm = document.querySelector("[data-seal-confirm]");
+    if (sealConfirm) {
+      sealConfirm.addEventListener("click", function () {
+        setSealSheet(false);
+        showToast("已盖章，本份文书已锁定");
+      });
+    }
+
+    /* 走查开关：hash #open-seal 直接打开签章面板 */
+    if (walkHash === "open-seal") setSealSheet(true);
+  }
+
+  var saveBtn = document.querySelector("[data-save]");
+  if (saveBtn) {
+    saveBtn.addEventListener("click", function () {
+      showToast("已保存到「我的文书」");
+    });
+  }
+
+  /* ==========================================================================
+     28. 文书模板分类筛选（第 8 批：23-doc-templates）
+     ==========================================================================
+     和第 14 段的通用筛选不同：这里**真的按分类过滤卡片**，
+     不切骨架屏 —— 模板只有六张，本地过滤是瞬时的，闪一下骨架屏反而更慢。
+     ========================================================================== */
+  var catChips = document.querySelectorAll("[data-tpl-cat]");
+  var tplCards = document.querySelectorAll(".tpl-card[data-cat]");
+
+  Array.prototype.forEach.call(catChips, function (chip) {
+    chip.addEventListener("click", function () {
+      var key = chip.getAttribute("data-tpl-cat");
+
+      Array.prototype.forEach.call(catChips, function (other) {
+        if (other === chip) other.classList.add("filter__chip--active");
+        else other.classList.remove("filter__chip--active");
+      });
+
+      Array.prototype.forEach.call(tplCards, function (card) {
+        var hit = key === "all" || card.getAttribute("data-cat") === key;
+        if (hit) card.removeAttribute("hidden");
+        else card.setAttribute("hidden", "");
+      });
+    });
+  });
+
+  /* ==========================================================================
+     29. 我的文书筛选（第 8 批：27-doc-mine）
+     ==========================================================================
+     草稿 / 已完成两组。注意「已盖章」在数据上属于「已完成」，
+     所以筛选只看 data-doc-state（draft / done），不看标签文字。
+     ========================================================================== */
+  var docChips = document.querySelectorAll("[data-doc-filter]");
+  var docItems = document.querySelectorAll(".doc-item[data-doc-state]");
+
+  Array.prototype.forEach.call(docChips, function (chip) {
+    chip.addEventListener("click", function () {
+      var key = chip.getAttribute("data-doc-filter");
+
+      Array.prototype.forEach.call(docChips, function (other) {
+        if (other === chip) other.classList.add("filter__chip--active");
+        else other.classList.remove("filter__chip--active");
+      });
+
+      Array.prototype.forEach.call(docItems, function (item) {
+        var hit = key === "all" || item.getAttribute("data-doc-state") === key;
+        if (hit) item.removeAttribute("hidden");
+        else item.setAttribute("hidden", "");
+      });
+    });
+  });
+
+  /* ==========================================================================
+     30. 电子签章管理（第 8 批：28-doc-seal）
+     ==========================================================================
+     新建面板 + 设为默认 + 删除。删除走 toast 不真删（设计稿不做数据操作）。
+     ========================================================================== */
+  var sealNewMask = document.querySelector("[data-seal-new-mask]");
+  var sealNewSheet = document.querySelector("[data-seal-new-sheet]");
+
+  function setSealNewSheet(open) {
+    toggleLayer(sealNewMask, open);
+    toggleLayer(sealNewSheet, open);
+  }
+
+  if (sealNewSheet) {
+    Array.prototype.forEach.call(
+      document.querySelectorAll("[data-seal-new]"),
+      function (btn) {
+        btn.addEventListener("click", function () {
+          setSealNewSheet(true);
+        });
+      }
+    );
+    Array.prototype.forEach.call(
+      document.querySelectorAll("[data-seal-new-close]"),
+      function (btn) {
+        btn.addEventListener("click", function () {
+          setSealNewSheet(false);
+        });
+      }
+    );
+    if (sealNewMask) {
+      sealNewMask.addEventListener("click", function () {
+        setSealNewSheet(false);
+      });
+    }
+    var sealNewConfirm = document.querySelector("[data-seal-new-confirm]");
+    if (sealNewConfirm) {
+      sealNewConfirm.addEventListener("click", function () {
+        setSealNewSheet(false);
+        showToast("签章已保存");
+      });
+    }
+  }
+
+  /* 走查开关：hash #open-seal 直接打开新建面板 */
+  if (walkHash === "open-seal") setSealNewSheet(true);
+
+  Array.prototype.forEach.call(
+    document.querySelectorAll("[data-seal-default]"),
+    function (btn) {
+      btn.addEventListener("click", function () {
+        showToast("已设为默认签章");
+      });
+    }
+  );
+
+  Array.prototype.forEach.call(
+    document.querySelectorAll("[data-seal-delete]"),
+    function (btn) {
+      btn.addEventListener("click", function () {
+        showToast("签章已删除");
+      });
+    }
+  );
+
+  var sealEdit = document.querySelector("[data-seal-edit]");
+  if (sealEdit) {
+    sealEdit.addEventListener("click", function () {
+      showToast("查看签章详情（演示）");
+    });
   }
 })();

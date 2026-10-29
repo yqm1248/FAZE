@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390, initial-scale=1">
+<meta name="dsh-design" content="app">
+<title>文书模板</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   文书模板列表页（第 8 批 · 延展，无参考图）
+   ==========================================================================
+   职责：文书中心首页。按分类浏览模板，点卡片进入对应的表单页。
+   入口：首页「快捷功能 - 全部功能」里的文书入口、我的页「我的服务」、
+         以及律师工作台的「新建文书」
+   母版：**网格卡片**（本屏定）—— 两列卡片，每张卡一个模板
+   数据来源：后台文书模板表（template_id / 名称 / 分类 / 说明 / 图标 / 计价）
+
+   ★ 为什么用两列网格而不是列表：
+     模板是「选一个来做」的东西，不是「读一条」的东西。网格卡片一眼能扫过
+     五六个模板的名字，列表一行只有一条，同样高度能多放一倍。这是电商
+     分类页和设置页的区别。
+     但卡片里不放长说明 —— 两列宽度只有 169，文字超过两行就会被挤成碎句。
+
+   ★ 卡片上的「免费 / 收费」必须标出来。文书代写是付费服务（律师入驻时
+     自己定的价），模板生成本身免费。用户点进去才发现要钱，是最差的体验。
+
+   四态：normal / loading（骨架卡）/ empty（该分类暂无模板）/ error。
+   ========================================================================== */
+
+body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-canvas);
+}
+
+.navbar {
+  background: var(--bg-surface);
+}
+
+.screen {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding-block-end: calc(var(--safe-bottom) + var(--sp-xl));
+}
+.screen::-webkit-scrollbar {
+  display: none;
+}
+
+/* 顶栏和列表之间要有分界线：白 #FFFFFF 和灰 #F7F8FA 只差 3 个色阶，
+   不画线第一张卡会像粘在分类条上（第 3 批的教训，见 components.css .topbar） */
+.tpl-top {
+  background: var(--bg-surface);
+  border-block-end: 1px solid var(--border-outline);
+}
+
+/* ---------- 顶部说明 ---------- */
+.tpl-head {
+  padding: var(--sp-lg) var(--sp-xl) 0;
+}
+
+.tpl-title {
+  font-size: var(--fs-h1);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+.tpl-sub {
+  margin-block-start: var(--sp-xs);
+  font-size: var(--fs-md);
+  color: var(--text-secondary);
+  line-height: var(--lh-normal);
+}
+
+/* ---------- 分类条 ----------
+   复用 components.css 的 .filter / .filter__chip（视觉 34、热区 44） */
+.filter {
+  padding-inline: var(--sp-md);
+}
+
+/* ---------- 网格 ---------- */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--sp-md);
+  padding: var(--sp-lg) var(--sp-xl) 0;
+}
+
+.tpl-card {
+  display: flex;
+  flex-direction: column;
+  min-height: 148px;
+  padding: var(--sp-md);
+  border-radius: var(--r-md);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+  text-decoration: none;
+  color: inherit;
+}
+
+.tpl-card:active {
+  background: var(--bg-canvas);
+}
+
+/* 图标：浅主色底 + 主色线性图标，和首页三宫格同一套语言 */
+.tpl-card__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--r-sm);
+  background: var(--brand-primary-soft);
+  color: var(--brand-primary);
+}
+
+.tpl-card__icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+/* 合同类用另一档底色，让两大类在建卡时就能区分 */
+.tpl-card__icon--contract {
+  background: var(--state-success-soft);
+  color: var(--state-success);
+}
+
+.tpl-card__name {
+  margin-block-start: var(--sp-md);
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.tpl-card__desc {
+  margin-block-start: var(--sp-xs);
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.5;
+  /* 两行截断：卡片是网格，高度必须一致，否则第二行卡片会高低不齐。
+     ★ 这里不能同时用 flex: 1 1 auto —— display:-webkit-box 与 flex-grow
+       一起用时高度算不对，文字会溢出到下面的「免费生成」上，
+       走查量到叠了 9px。改成写死两行高（12 × 1.5 × 2 = 36）再 overflow 裁切，
+       卡片底部用 margin-block-start:auto 顶住。 */
+  height: 36px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.tpl-card__foot {
+  /* 顶到卡片底部，让所有卡片的「免费生成 + 箭头」落在同一水平线 */
+  margin-block-start: auto;
+  padding-block-start: var(--sp-sm);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-xs);
+}
+
+/* 免费 / 付费标记 */
+.tpl-card__price {
+  font-size: var(--fs-micro);
+  color: var(--state-success);
+  line-height: 1.4;
+}
+
+.tpl-card__price--paid {
+  color: var(--state-warning-deep);
+}
+
+.tpl-card__arrow {
+  width: 16px;
+  height: 16px;
+  color: var(--text-muted);
+}
+
+/* ---------- 底部提示 ---------- */
+.tip {
+  margin: var(--sp-xl) var(--sp-xl) 0;
+  padding: var(--sp-md);
+  border-radius: var(--r-sm);
+  background: var(--bg-surface);
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: var(--lh-relaxed);
+}
+
+.tip b {
+  color: var(--text-secondary);
+}
+
+/* ---------- 骨架 ---------- */
+.skeleton-card {
+  height: 148px;
+  border-radius: var(--r-md);
+}
+
+/* ---------- 空态 / 错误态 ---------- */
+.state-wrap {
+  padding-block: var(--sp-huge) var(--sp-xxxl);
+}
+</style>
+</head>
+<body>
+
+<header class="statusbar">
+  <span>9:41</span>
+  <span class="statusbar__icons">
+    <svg width="17" height="11" viewBox="0 0 17 11" fill="none" aria-hidden="true">
+      <rect x="0" y="7" width="3" height="4" rx="1" fill="currentColor"/>
+      <rect x="4.5" y="5" width="3" height="6" rx="1" fill="currentColor"/>
+      <rect x="9" y="2.5" width="3" height="8.5" rx="1" fill="currentColor"/>
+      <rect x="13.5" y="0" width="3" height="11" rx="1" fill="currentColor"/>
+    </svg>
+    <svg width="16" height="11" viewBox="0 0 16 11" fill="none" aria-hidden="true">
+      <path d="M1 3.2A10.5 10.5 0 0 1 15 3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M3.6 5.9a7 7 0 0 1 8.8 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M6.2 8.6a3.4 3.4 0 0 1 3.6 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden="true">
+      <rect x="0.6" y="0.6" width="21" height="10.8" rx="3" stroke="currentColor" stroke-opacity="0.4" stroke-width="1.2"/>
+      <rect x="2.2" y="2.2" width="15" height="7.6" rx="1.8" fill="currentColor"/>
+      <path d="M23.4 4.2v3.6" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+  </span>
+</header>
+
+<div class="navbar">
+  <a class="navbar__back" href="01-home.html" aria-label="返回首页">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M15.2 4.6 7.8 12l7.4 7.4" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </a>
+  <h1 class="navbar__title">文书模板</h1>
+</div>
+
+<main class="screen">
+
+  <div data-state="normal">
+
+    <div class="tpl-top">
+      <div class="tpl-head">
+        <h2 class="tpl-title">选择文书类型</h2>
+        <p class="tpl-sub">按格式填写，系统自动排版为可直接提交的规范文书</p>
+      </div>
+
+      <div class="filter" data-drag-scroll>
+        <button class="filter__chip filter__chip--active" type="button" data-tpl-cat="all">
+          全部
+        </button>
+        <button class="filter__chip" type="button" data-tpl-cat="litigation">
+          诉讼文书
+        </button>
+        <button class="filter__chip" type="button" data-tpl-cat="contract">
+          合同文书
+        </button>
+        <button class="filter__chip" type="button" data-tpl-cat="labor">
+          劳动文书
+        </button>
+        <button class="filter__chip" type="button" data-tpl-cat="ec">
+          跨境电商
+        </button>
+      </div>
+    </div>
+
+    <div class="grid">
+
+      <!-- 诉讼文书 -->
+      <a class="tpl-card" href="24-doc-lawsuit.html" data-cat="litigation">
+        <span class="tpl-card__icon">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M12 3.4v17.2M5.2 7.6h13.6" stroke="currentColor" stroke-width="1.8"
+                  stroke-linecap="round"/>
+            <path d="M5.2 7.6 2.6 14h5.2L5.2 7.6ZM18.8 7.6 16.2 14h5.2l-2.6-6.4Z"
+                  stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+          </svg>
+        </span>
+        <span class="tpl-card__name">民事起诉状</span>
+        <span class="tpl-card__desc">向法院提起诉讼用的正式文书，含当事人信息、诉讼请求与事实理由</span>
+        <span class="tpl-card__foot">
+          <span class="tpl-card__price">免费生成</span>
+          <svg class="tpl-card__arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="m9.4 5.6 6.4 6.4-6.4 6.4" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </span>
+      </a>
+
+      <a class="tpl-card" href="25-doc-other.html" data-cat="litigation">
+        <span class="tpl-card__icon">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M6.2 3.4h8.2l5 5v11.2a1.8 1.8 0 0 1-1.8 1.8H6.2a1.8 1.8 0 0 1-1.8-1.8V5.2a1.8 1.8 0 0 1 1.8-1.8Z"
+                  stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+            <path d="M14.2 3.6v5.2h5M8.6 13h6.8M8.6 16.6h4.4" stroke="currentColor"
+                  stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </span>
+        <span class="tpl-card__name">证据清单</span>
+        <span class="tpl-card__desc">逐项列明证据名称、来源与证明目的，随起诉状一并提交</span>
+        <span class="tpl-card__foot">
+          <span class="tpl-card__price">免费生成</span>
+          <svg class="tpl-card__arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="m9.4 5.6 6.4 6.4-6.4 6.4" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </span>
+      </a>
+
+      <a class="tpl-card" href="25-doc-other.html" data-cat="litigation">
+        <span class="tpl-card__icon">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M4.4 19.6 9 15l3 3 7.6-7.6" stroke="currentColor" stroke-width="1.8"
+                  stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M15.4 7.4h5v5" stroke="currentColor" stroke-width="1.8"
+                  stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </span>
+        <span class="tpl-card__name">授权委托书</span>
+        <span class="tpl-card__desc">委托律师或近亲属代为出庭、签收文书时使用</span>
+        <span class="tpl-card__foot">
+          <span class="tpl-card__price">免费生成</span>
+          <svg class="tpl-card__arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="m9.4 5.6 6.4 6.4-6.4 6.4" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </span>
+      </a>
+
+      <!-- 合同文书 -->
+      <a class="tpl-card" href="25-doc-other.html" data-cat="contract">
+        <span class="tpl-card__icon tpl-card__icon--contract">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M5.6 3.4h9.6a1.8 1.8 0 0 1 1.8 1.8v13.6a1.8 1.8 0 0 1-1.8 1.8H5.6a1.8 1.8 0 0 1-1.8-1.8V5.2a1.8 1.8 0 0 1 1.8-1.8Z"
+                  stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+            <path d="M7.8 8.4h5.8M7.8 12h5.8M7.8 15.6h3.6" stroke="currentColor"
+                  stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+        </span>
+        <span class="tpl-card__name">借条 / 欠条</span>
+        <span class="tpl-card__desc">载明借款金额、期限与利息约定，写清这几点才有法律效力</span>
+        <span class="tpl-card__foot">
+          <span class="tpl-card__price">免费生成</span>
+          <svg class="tpl-card__arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="m9.4 5.6 6.4 6.4-6.4 6.4" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </span>
+      </a>
+
+      <a class="tpl-card" href="25-doc-other.html" data-cat="contract">
+        <span class="tpl-card__icon tpl-card__icon--contract">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M7.4 3.6h9.2a1.8 1.8 0 0 1 1.8 1.8v13.2a1.8 1.8 0 0 1-1.8 1.8H7.4a1.8 1.8 0 0 1-1.8-1.8V5.4a1.8 1.8 0 0 1 1.8-1.8Z"
+                  stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+            <path d="M15.4 15.4h4.2M17.5 13.3v4.2" stroke="currentColor" stroke-width="1.8"
+                  stroke-linecap="round"/>
+            <circle cx="11.4" cy="9.4" r="2.4" stroke="currentColor" stroke-width="1.8"/>
+          </svg>
+        </span>
+        <span class="tpl-card__name">房屋租赁合同</span>
+        <span class="tpl-card__desc">含租期、租金、押金、维修责任与提前解约条款</span>
+        <span class="tpl-card__foot">
+          <span class="tpl-card__price">免费生成</span>
+          <svg class="tpl-card__arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="m9.4 5.6 6.4 6.4-6.4 6.4" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </span>
+      </a>
+
+      <!-- 劳动文书 -->
+      <a class="tpl-card" href="25-doc-other.html" data-cat="labor">
+        <span class="tpl-card__icon tpl-card__icon--contract">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <rect x="3.2" y="6.8" width="17.6" height="12.4" rx="2.2" stroke="currentColor"
+                  stroke-width="1.8"/>
+            <path d="M8.8 6.8V5.4a2 2 0 0 1 2-2h2.4a2 2 0 0 1 2 2v1.4" stroke="currentColor"
+                  stroke-width="1.8" stroke-linecap="round"/>
+            <path d="M3.2 12.4h17.6" stroke="currentColor" stroke-width="1.8"/>
+          </svg>
+        </span>
+        <span class="tpl-card__name">劳动合同</span>
+        <span class="tpl-card__desc">按《劳动合同法》必备条款生成，含期限、试用期与报酬约定</span>
+        <span class="tpl-card__foot">
+          <span class="tpl-card__price">免费生成</span>
+          <svg class="tpl-card__arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="m9.4 5.6 6.4 6.4-6.4 6.4" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </span>
+      </a>
+
+      <!-- 跨境电商 -->
+      <a class="tpl-card" href="25-doc-other.html" data-cat="ec">
+        <span class="tpl-card__icon tpl-card__icon--contract">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="12" cy="12" r="8.8" stroke="currentColor" stroke-width="1.8"/>
+            <path d="M3.4 12h17.2M12 3.2c2.4 2.4 3.6 5.4 3.6 8.8s-1.2 6.4-3.6 8.8c-2.4-2.4-3.6-5.4-3.6-8.8s1.2-6.4 3.6-8.8Z"
+                  stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+          </svg>
+        </span>
+        <span class="tpl-card__name">跨境电商合同</span>
+        <span class="tpl-card__desc">含贸易术语、结算方式与争议解决条款，适用于霍尔果斯口岸贸易</span>
+        <span class="tpl-card__foot">
+          <span class="tpl-card__price">免费生成</span>
+          <svg class="tpl-card__arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="m9.4 5.6 6.4 6.4-6.4 6.4" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </span>
+      </a>
+
+    </div>
+
+    <p class="tip">
+      <b>模板生成免费。</b>如需律师改写、审核或代写，可在生成后选择「分享给律师」，由承办律师按报价收费。
+    </p>
+
+  </div>
+
+  <!-- ======================================================================
+       加载态：骨架卡
+       ====================================================================== -->
+  <div data-state="loading" hidden>
+    <div class="grid">
+      <div class="skeleton skeleton-card"></div>
+      <div class="skeleton skeleton-card"></div>
+      <div class="skeleton skeleton-card"></div>
+      <div class="skeleton skeleton-card"></div>
+    </div>
+  </div>
+
+  <!-- ======================================================================
+       空态：该分类暂无模板
+       ====================================================================== -->
+  <div data-state="empty" hidden>
+    <div class="state-wrap">
+      <div class="empty">
+        <svg class="empty__art" viewBox="0 0 96 96" fill="none" aria-hidden="true">
+          <path d="M26 22h30l14 14v38a4 4 0 0 1-4 4H26a4 4 0 0 1-4-4V26a4 4 0 0 1 4-4Z"
+                stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"/>
+          <path d="M56 22v14h14" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"/>
+          <path d="M34 48h16M34 58h10" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+        </svg>
+        <p class="empty__title">这个分类下还没有模板</p>
+        <p class="empty__desc">模板由平台陆续补充。可以先看看其他分类，或直接在「我的 — 客服帮助」提需求。</p>
+        <a class="btn-primary empty__action" href="23-doc-templates.html">查看全部模板</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================================
+       错误态
+       ====================================================================== -->
+  <div data-state="error" hidden>
+    <div class="state-wrap">
+      <div class="errorbox">
+        <svg class="errorbox__art" viewBox="0 0 96 96" fill="none" aria-hidden="true">
+          <circle cx="48" cy="48" r="30" stroke="currentColor" stroke-width="2.4"/>
+          <path d="M48 32v20" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
+          <circle cx="48" cy="62" r="2.4" fill="currentColor"/>
+        </svg>
+        <p class="errorbox__title">模板列表没有加载出来</p>
+        <p class="errorbox__desc">网络不稳定或者服务器维护中。稍等一下再试试。</p>
+        <button class="errorbox__retry" type="button" data-retry>
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M20.2 12a8.2 8.2 0 1 1-2.4-5.8" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round"/>
+            <path d="M20.4 3.6v4.6h-4.6" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          重新加载
+        </button>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

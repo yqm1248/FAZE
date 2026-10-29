@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390, initial-scale=1">
+<meta name="dsh-design" content="app">
+<title>其他文书</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   其他文书表单页（第 8 批 · 延展，无参考图）
+   ==========================================================================
+   职责：证据清单 / 劳动合同 / 跨境电商合同等模板的通用表单页。
+         与起诉状（24）的区别是：起诉状的字段是写死的法律要件，
+         而这些模板的字段由后台 field_schema 配置，本页只负责渲染。
+   入口：文书模板列表（23-doc-templates.html）点具体模板进来
+   母版：**文书表单母版**（24-doc-lawsuit 定的，见 components.css 第 17 段）
+   数据来源：模板配置 field_schema + 用户填写
+
+   ★ 为什么做成「一个页面切换三套字段」而不是三个页面：
+     导航树把这个页面定义为「按模板 field_schema 动态渲染」——
+     也就是说真实项目里这三个模板共用同一个路由，字段由配置驱动。
+     设计稿如果拆成三个 HTML，等于把「配置驱动」这件事画死成了三个静态页，
+     后续加第四个模板时又得再画一屏。所以这里用 chips 真切换：
+     三个 data-schema 容器，点 chip 显示对应的那套。
+     （app.js 第 26 段做切换，不是演示提示。）
+
+   ★ 字段名照各文书的法定要素来，不是随手编的：
+     证据清单必须写清「证明目的」——法院看的是这份证据要证明什么，
+     不是它叫什么名字；劳动合同必须有合同期限、试用期、工资、工作地点，
+     这四项缺一项都可能在劳动争议里吃亏。
+   ========================================================================== */
+
+body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: linear-gradient(to bottom, var(--banner-start) 0, var(--bg-surface) 420px);
+}
+
+.navbar {
+  background: transparent;
+}
+
+.screen {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding: 0 0 var(--sp-xl);
+}
+.screen::-webkit-scrollbar {
+  display: none;
+}
+
+/* ---------- 页面标题 ---------- */
+.page-head {
+  padding: 0 var(--sp-xl);
+}
+
+.page-title {
+  padding-block: var(--sp-md) var(--sp-xs);
+  font-size: var(--fs-h1);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+.page-sub {
+  font-size: var(--fs-md);
+  color: var(--text-secondary);
+  line-height: var(--lh-normal);
+}
+
+/* ---------- 模板切换 ----------
+   复用 components.css 的 .filter / .filter__chip（分类条那套），
+   视觉药丸 34、热区 44，和律师分类、文章分类完全一致。 */
+.tpl-bar {
+  margin-block-start: var(--sp-md);
+  padding-inline: var(--sp-md);
+}
+
+/* ---------- 说明条 ---------- */
+.notice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-sm);
+  margin: var(--sp-md) var(--sp-xl) var(--sp-lg);
+  padding: var(--sp-md);
+  border-radius: var(--r-sm);
+  background: var(--brand-primary-soft);
+  color: var(--brand-primary-pressed);
+  font-size: var(--fs-caption);
+  line-height: var(--lh-relaxed);
+}
+
+.notice svg {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  margin-block-start: 2px;
+}
+
+/* ---------- 表单体 ---------- */
+.doc-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-xl);
+  padding-inline: var(--sp-xl);
+}
+
+/* 一组单选放在字段行里时，给上下留一点呼吸，否则和分隔线贴太近 */
+.row-picks {
+  padding-block: 6px var(--sp-sm);
+}
+
+/* ---------- 底部固定操作栏 ---------- */
+.actionbar {
+  flex: 0 0 auto;
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-md);
+  padding: 10px var(--sp-xl) calc(10px + var(--safe-bottom));
+  background: var(--bg-surface);
+  border-block-start: 1px solid var(--border-divider);
+  box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.04);
+}
+
+.btn-ghost {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 104px;
+  height: var(--btn-h);
+  padding-inline: var(--sp-lg);
+  border: 1px solid var(--border-outline);
+  border-radius: var(--r-pill);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: var(--fs-h3);
+  cursor: pointer;
+}
+
+.btn-ghost:active {
+  background: var(--bg-input);
+}
+
+.actionbar__cta {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+</style>
+</head>
+<body>
+
+<header class="statusbar">
+  <span>9:41</span>
+  <span class="statusbar__icons">
+    <svg width="17" height="11" viewBox="0 0 17 11" fill="none" aria-hidden="true">
+      <rect x="0" y="7" width="3" height="4" rx="1" fill="currentColor"/>
+      <rect x="4.5" y="5" width="3" height="6" rx="1" fill="currentColor"/>
+      <rect x="9" y="2.5" width="3" height="8.5" rx="1" fill="currentColor"/>
+      <rect x="13.5" y="0" width="3" height="11" rx="1" fill="currentColor"/>
+    </svg>
+    <svg width="16" height="11" viewBox="0 0 16 11" fill="none" aria-hidden="true">
+      <path d="M1 3.2A10.5 10.5 0 0 1 15 3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M3.6 5.9a7 7 0 0 1 8.8 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M6.2 8.6a3.4 3.4 0 0 1 3.6 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden="true">
+      <rect x="0.6" y="0.6" width="21" height="10.8" rx="3" stroke="currentColor" stroke-opacity="0.4" stroke-width="1.2"/>
+      <rect x="2.2" y="2.2" width="15" height="7.6" rx="1.8" fill="currentColor"/>
+      <path d="M23.4 4.2v3.6" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+  </span>
+</header>
+
+<div class="navbar">
+  <a class="navbar__back" href="23-doc-templates.html" aria-label="返回文书模板">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M15.2 4.6 7.8 12l7.4 7.4" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </a>
+  <h1 class="navbar__title">文书生成</h1>
+</div>
+
+<main class="screen">
+
+  <div class="page-head">
+    <h2 class="page-title" data-schema-title>证据清单</h2>
+    <p class="page-sub" data-schema-sub>列明证据名称、来源与证明目的，用于随起诉状一并提交</p>
+  </div>
+
+  <!-- 模板切换：点哪个就显示哪套字段 -->
+  <div class="filter tpl-bar" data-tpl-chips>
+    <button class="filter__chip filter__chip--active" type="button" data-tpl="evidence">
+      证据清单
+    </button>
+    <button class="filter__chip" type="button" data-tpl="labor">
+      劳动合同
+    </button>
+    <button class="filter__chip" type="button" data-tpl="ec">
+      跨境电商合同
+    </button>
+  </div>
+
+  <div class="notice">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="12" cy="12" r="9.2" stroke="currentColor" stroke-width="1.9"/>
+      <path d="M12 7.6v5.2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      <circle cx="12" cy="16.4" r="1.2" fill="currentColor"/>
+    </svg>
+    <span>
+      各模板的字段由平台后台配置。新增模板无需更新 App，切换模板后字段随之变化。
+    </span>
+  </div>
+
+  <div class="doc-body">
+
+    <!-- ==================================================================
+         证据清单
+         ================================================================== -->
+    <section class="card group" data-schema="evidence">
+      <div class="group__head">
+        <i class="group__bar"></i>
+        <h3 class="group__title">证据信息</h3>
+      </div>
+
+      <div class="form-row">
+        <label class="form-row__label" for="ev-name">证据名称 <em>*</em></label>
+        <div class="form-row__main">
+          <input id="ev-name" name="evName" type="text" placeholder="如：微信转账记录截图">
+          <p class="form-row__error">请填写证据名称</p>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <label class="form-row__label" for="ev-from">证据来源 <em>*</em></label>
+        <div class="form-row__main">
+          <input id="ev-from" name="evFrom" type="text" placeholder="如：原告留存、银行出具">
+          <p class="form-row__error">请填写证据来源</p>
+        </div>
+      </div>
+
+      <div class="form-row form-row--block">
+        <label class="form-row__label" for="ev-purpose">证明目的 <em>*</em></label>
+        <div class="form-row__main">
+          <textarea id="ev-purpose" name="evPurpose"
+            placeholder="这份证据要证明什么。例：证明原告于 2025 年 8 月向被告交付借款 30000 元。"></textarea>
+          <p class="form-row__error">请填写证明目的</p>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <label class="form-row__label" for="ev-pages">页数 / 份数</label>
+        <div class="form-row__main">
+          <input id="ev-pages" name="evPages" type="text" inputmode="numeric"
+                 placeholder="如：3 页 1 份">
+        </div>
+      </div>
+
+      <div class="form-row" data-choice-group>
+        <span class="form-row__label">提交形式</span>
+        <div class="form-row__main row-picks">
+          <div class="pick-list">
+            <button class="pick is-active" type="button" data-pick-one>原件</button>
+            <button class="pick" type="button" data-pick-one>复印件</button>
+            <button class="pick" type="button" data-pick-one>原件+复印件</button>
+          </div>
+        </div>
+      </div>
+
+      <button class="add-btn" type="button" data-add-party="evidence">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 5.2v13.6M5.2 12h13.6" stroke="currentColor" stroke-width="1.9"
+                stroke-linecap="round"/>
+        </svg>
+        添加第二份证据
+      </button>
+    </section>
+
+    <!-- ==================================================================
+         劳动合同
+         ================================================================== -->
+    <section class="card group" data-schema="labor" hidden>
+      <div class="group__head">
+        <i class="group__bar"></i>
+        <h3 class="group__title">合同主体</h3>
+      </div>
+
+      <div class="form-row">
+        <label class="form-row__label" for="lb-co">用人单位 <em>*</em></label>
+        <div class="form-row__main">
+          <input id="lb-co" name="lbCompany" type="text" placeholder="营业执照上的全称">
+          <p class="form-row__error">请填写用人单位名称</p>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <label class="form-row__label" for="lb-name">劳动者 <em>*</em></label>
+        <div class="form-row__main">
+          <input id="lb-name" name="lbName" type="text" placeholder="与身份证一致">
+          <p class="form-row__error">请填写劳动者姓名</p>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <label class="form-row__label" for="lb-post">岗位 <em>*</em></label>
+        <div class="form-row__main">
+          <input id="lb-post" name="lbPost" type="text" placeholder="如：销售主管">
+          <p class="form-row__error">请填写岗位</p>
+        </div>
+      </div>
+
+      <div class="group__head">
+        <i class="group__bar"></i>
+        <h3 class="group__title">期限与报酬</h3>
+      </div>
+
+      <div class="form-row">
+        <label class="form-row__label" for="lb-term">合同期限 <em>*</em></label>
+        <div class="form-row__main">
+          <input id="lb-term" name="lbTerm" type="text" placeholder="2026-01-01 至 2028-12-31">
+          <p class="form-row__error">请填写合同起止日期</p>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <label class="form-row__label" for="lb-probation">试用期</label>
+        <div class="form-row__main">
+          <input id="lb-probation" name="lbProbation" type="text" inputmode="numeric"
+                 placeholder="月数，无试用期填 0">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <label class="form-row__label" for="lb-pay">月工资 <em>*</em></label>
+        <div class="form-row__main">
+          <input id="lb-pay" name="lbPay" type="text" inputmode="numeric"
+                 placeholder="税前金额，单位为元">
+          <p class="form-row__error">请填写月工资</p>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <label class="form-row__label" for="lb-place">工作地点</label>
+        <div class="form-row__main">
+          <input id="lb-place" name="lbPlace" type="text" placeholder="如：伊宁市解放路">
+        </div>
+      </div>
+
+      <div class="form-row" data-choice-group>
+        <span class="form-row__label">工时制度</span>
+        <div class="form-row__main row-picks">
+          <div class="pick-list">
+            <button class="pick is-active" type="button" data-pick-one>标准工时</button>
+            <button class="pick" type="button" data-pick-one>综合计算</button>
+            <button class="pick" type="button" data-pick-one>不定时</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================================================================
+         跨境电商合同
+         ================================================================== -->
+    <section class="card group" data-schema="ec" hidden>
+      <div class="group__head">
+        <i class="group__bar"></i>
+        <h3 class="group__title">交易双方</h3>
+      </div>
+
+      <div class="form-row">
+        <label class="form-row__label" for="ec-seller">卖方 <em>*</em></label>
+        <div class="form-row__main">
+          <input id="ec-seller" name="ecSeller" type="text" placeholder="公司或个体工商户全称">
+          <p class="form-row__error">请填写卖方名称</p>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <label class="form-row__label" for="ec-buyer">买方 <em>*</em></label>
+        <div class="form-row__main">
+          <input id="ec-buyer" name="ecBuyer" type="text" placeholder="境外买方全称">
+          <p class="form-row__error">请填写买方名称</p>
+        </div>
+      </div>
+
+      <div class="group__head">
+        <i class="group__bar"></i>
+        <h3 class="group__title">货物与价款</h3>
+      </div>
+
+      <div class="form-row">
+        <label class="form-row__label" for="ec-goods">商品名称 <em>*</em></label>
+        <div class="form-row__main">
+          <input id="ec-goods" name="ecGoods" type="text" placeholder="名称与规格型号">
+          <p class="form-row__error">请填写商品名称</p>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <label class="form-row__label" for="ec-qty">数量</label>
+        <div class="form-row__main">
+          <input id="ec-qty" name="ecQty" type="text" placeholder="如：1,200 件">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <label class="form-row__label" for="ec-price">单价</label>
+        <div class="form-row__main">
+          <input id="ec-price" name="ecPrice" type="text" placeholder="如：USD 12.50 / 件">
+        </div>
+      </div>
+
+      <div class="form-row" data-choice-group>
+        <span class="form-row__label">贸易术语</span>
+        <div class="form-row__main row-picks">
+          <div class="pick-list">
+            <button class="pick is-active" type="button" data-pick-one>FOB</button>
+            <button class="pick" type="button" data-pick-one>CIF</button>
+            <button class="pick" type="button" data-pick-one>EXW</button>
+            <button class="pick" type="button" data-pick-one>DDP</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-row" data-choice-group>
+        <span class="form-row__label">争议解决</span>
+        <div class="form-row__main row-picks">
+          <div class="pick-list">
+            <button class="pick is-active" type="button" data-pick-one>仲裁</button>
+            <button class="pick" type="button" data-pick-one>诉讼</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+</main>
+
+<div class="actionbar">
+  <button class="btn-ghost" type="button" data-draft>保存草稿</button>
+  <a class="btn-primary actionbar__cta" href="26-doc-preview.html">生成文书</a>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

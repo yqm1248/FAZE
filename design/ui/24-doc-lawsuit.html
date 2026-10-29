@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390, initial-scale=1">
+<meta name="dsh-design" content="app">
+<title>起诉状</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   起诉状表单页（第 8 批 · 有参考图 11-lawsuit.png）
+   ==========================================================================
+   职责：按字段收集原被告信息、诉讼请求、事实与理由，提交后自动排版成
+         《民事起诉状》并跳到预览页（26-doc-preview.html）。
+   入口：首页「AI 解答卡 - 生成起诉状」、文书模板列表（23-doc-templates.html）
+   母版：**文书表单母版** —— 本屏定下的结构，25-doc-other 直接照它：
+        渐变头 + 说明条 + 分组卡（横排 label/input）+ 底部固定操作栏
+
+   与原图的关系（复刻哪部分、改哪部分）：
+     1. **保留横排 label/input**。原图是 label 在左、输入区在右的表格式排版，
+        起诉状的字段名都很短（姓名/名称、联系电话、住所地），横排省纵向空间、
+        更像一份「表格」，这是原图最好的一处，照搬。
+        （20-filing 用的是竖排，因为那边字段名长、以句子为主，两处不冲突。）
+     2. **导航栏改成白底**。原图是实心蓝导航栏 + 白色标题，和本产品前 7 批的
+        导航体系不一致；改成同 15-lawyer-join 的「透明导航栏 + 浅蓝渐变头」。
+     3. **补充多样本原告/被告**（导航树明确要求「支持添加多个原告/被告」，
+        原图只有一个）。做法是每张卡底部一个虚线「添加」按钮。
+     4. **补充底部固定操作栏**（原图缺失）。「保存草稿」对应导航树的防丢失要求，
+        「立即生成」进入预览页。
+     5. **补充诉讼请求快捷短语**。原图只有一个空 textarea，普通人根本不知道该
+        怎么写诉请 —— 这里给三句可点的常用表述，点一下追加到输入框。
+
+   ★ 合规提醒：本页只做格式排版与字段校验，不做法律意见。
+     诉讼请求与事实理由怎么写才站得住，是律师的活，不是表单的活。
+     页面顶部必须留这一句，不能删。
+   ========================================================================== */
+
+body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  /* 顶部浅蓝渐变，440px 后转白（同 15-lawyer-join） */
+  background: linear-gradient(to bottom, var(--banner-start) 0, var(--bg-surface) 440px);
+}
+
+.navbar {
+  background: transparent;
+}
+
+.screen {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding: 0 var(--sp-xl) var(--sp-xl);
+}
+.screen::-webkit-scrollbar {
+  display: none;
+}
+
+/* ---------- 页面标题 ---------- */
+.page-title {
+  padding-block: var(--sp-md) var(--sp-xs);
+  font-size: var(--fs-h1);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+.page-sub {
+  font-size: var(--fs-md);
+  color: var(--text-secondary);
+  line-height: var(--lh-normal);
+}
+
+/* ---------- 说明条 ---------- */
+.notice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-sm);
+  margin-block: var(--sp-lg);
+  padding: var(--sp-md);
+  border-radius: var(--r-sm);
+  background: var(--state-warning-soft);
+  color: var(--state-warning-deep);
+  font-size: var(--fs-caption);
+  line-height: var(--lh-relaxed);
+}
+
+.notice svg {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  margin-block-start: 2px;
+}
+
+/* 分组卡（.group / .form-row / .form-row--block / .add-btn）已提到 components.css 第 17 段 ——
+   25-doc-other 用的是同一套，两处复制会分叉。 */
+
+/* ---------- 卡片纵向堆叠 ----------
+   gap 必须加在这个容器上，不是加在 .screen 上 —— 卡片在 .doc-body 里，
+   .screen 只有两个直接子元素，gap 加到 .screen 上只会拉开「标题 vs 表单」。 */
+.doc-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-xl);
+}
+
+/* ---------- 诉讼请求快捷短语 ----------
+   普通人写不出「判令被告……」这种句式，给三句能直接点的。
+   点一下追加到输入框，不是替换 —— 用户可能想自己再改。
+   本屏独有，不进 components.css。 */
+.phrase {
+  display: flex;
+  flex-wrap: wrap;
+  /* 行间距 0：按钮本身 44 高、文字居中，上下各留 16px，已经够分开 */
+  gap: 0 var(--sp-md);
+  padding-block-end: var(--sp-md);
+}
+
+.phrase__btn {
+  height: 44px;
+  padding: 8px var(--sp-md);
+  border: 0;
+  background: transparent;
+  color: var(--brand-primary-pressed);
+  font-family: inherit;
+  font-size: var(--fs-md);
+  text-align: start;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.phrase__hint {
+  padding-block-end: var(--sp-sm);
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: var(--lh-relaxed);
+}
+
+/* ---------- 底部固定操作栏 ---------- */
+.actionbar {
+  flex: 0 0 auto;
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-md);
+  padding: 10px var(--sp-xl) calc(10px + var(--safe-bottom));
+  background: var(--bg-surface);
+  border-block-start: 1px solid var(--border-divider);
+  box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.04);
+}
+
+.btn-ghost {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 104px;
+  height: var(--btn-h);
+  padding-inline: var(--sp-lg);
+  border: 1px solid var(--border-outline);
+  border-radius: var(--r-pill);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: var(--fs-h3);
+  cursor: pointer;
+}
+
+.btn-ghost:active {
+  background: var(--bg-input);
+}
+
+.actionbar__cta {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+</style>
+</head>
+<body>
+
+<header class="statusbar">
+  <span>9:41</span>
+  <span class="statusbar__icons">
+    <svg width="17" height="11" viewBox="0 0 17 11" fill="none" aria-hidden="true">
+      <rect x="0" y="7" width="3" height="4" rx="1" fill="currentColor"/>
+      <rect x="4.5" y="5" width="3" height="6" rx="1" fill="currentColor"/>
+      <rect x="9" y="2.5" width="3" height="8.5" rx="1" fill="currentColor"/>
+      <rect x="13.5" y="0" width="3" height="11" rx="1" fill="currentColor"/>
+    </svg>
+    <svg width="16" height="11" viewBox="0 0 16 11" fill="none" aria-hidden="true">
+      <path d="M1 3.2A10.5 10.5 0 0 1 15 3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M3.6 5.9a7 7 0 0 1 8.8 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M6.2 8.6a3.4 3.4 0 0 1 3.6 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden="true">
+      <rect x="0.6" y="0.6" width="21" height="10.8" rx="3" stroke="currentColor" stroke-opacity="0.4" stroke-width="1.2"/>
+      <rect x="2.2" y="2.2" width="15" height="7.6" rx="1.8" fill="currentColor"/>
+      <path d="M23.4 4.2v3.6" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+  </span>
+</header>
+
+<div class="navbar">
+  <a class="navbar__back" href="23-doc-templates.html" aria-label="返回文书模板">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M15.2 4.6 7.8 12l7.4 7.4" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </a>
+  <h1 class="navbar__title">起诉状</h1>
+</div>
+
+<main class="screen">
+
+  <div data-state="normal">
+
+    <h2 class="page-title">民事起诉状</h2>
+    <p class="page-sub">填写下列信息，系统按司法文书格式自动排版</p>
+
+    <!-- ★ 合规说明：不能删 -->
+    <div class="notice">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <circle cx="12" cy="12" r="9.2" stroke="currentColor" stroke-width="1.9"/>
+        <path d="M12 7.6v5.2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <circle cx="12" cy="16.4" r="1.2" fill="currentColor"/>
+      </svg>
+      <span>
+        本页仅提供格式排版与字段校验。<b>诉讼请求与事实理由的法律表述建议经执业律师审核</b>后再向法院提交。
+      </span>
+    </div>
+
+    <div class="doc-body">
+
+      <!-- ==================================================================
+           原告信息
+           ================================================================== -->
+      <section class="card group">
+        <div class="group__head">
+          <i class="group__bar"></i>
+          <h3 class="group__title">原告信息</h3>
+          <!-- 删除按钮仅第 2 份起显示；这里用 hidden 标出结构 -->
+          <button class="group__del" type="button" aria-label="删除这份原告信息" hidden>
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2.2"
+                    stroke-linecap="round"/>
+            </svg>
+          </button>
+        </div>
+
+        <div class="form-row">
+          <label class="form-row__label" for="p1-name">姓名/名称 <em>*</em></label>
+          <div class="form-row__main">
+            <input id="p1-name" name="p1Name" type="text" placeholder="请输入原告姓名"
+                   autocomplete="name">
+            <p class="form-row__error">请填写原告姓名</p>
+          </div>
+        </div>
+
+        <div class="form-row" data-field="phone">
+          <label class="form-row__label" for="p1-phone">联系电话 <em>*</em></label>
+          <div class="form-row__main">
+            <input id="p1-phone" name="p1Phone" type="tel" inputmode="numeric"
+                   placeholder="请输入联系方式" autocomplete="tel" maxlength="11">
+            <p class="form-row__error">请填写 11 位手机号</p>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <label class="form-row__label" for="p1-addr">住所地 <em>*</em></label>
+          <div class="form-row__main">
+            <input id="p1-addr" name="p1Addr" type="text" placeholder="详情至门牌号"
+                   autocomplete="street-address">
+            <p class="form-row__error">请填写住所地</p>
+          </div>
+        </div>
+
+        <button class="add-btn" type="button" data-add-party="plaintiff">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M12 5.2v13.6M5.2 12h13.6" stroke="currentColor" stroke-width="1.9"
+                  stroke-linecap="round"/>
+          </svg>
+          添加原告
+        </button>
+      </section>
+
+      <!-- ==================================================================
+           被告信息
+           ================================================================== -->
+      <section class="card group">
+        <div class="group__head">
+          <i class="group__bar"></i>
+          <h3 class="group__title">被告信息</h3>
+        </div>
+
+        <div class="form-row">
+          <label class="form-row__label" for="d1-name">姓名/名称 <em>*</em></label>
+          <div class="form-row__main">
+            <input id="d1-name" name="d1Name" type="text" placeholder="请输入被告姓名">
+            <p class="form-row__error">请填写被告姓名</p>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <label class="form-row__label" for="d1-addr">住所地 <em>*</em></label>
+          <div class="form-row__main">
+            <input id="d1-addr" name="d1Addr" type="text" placeholder="详情至门牌号">
+            <p class="form-row__error">请填写住所地</p>
+          </div>
+        </div>
+
+        <button class="add-btn" type="button" data-add-party="defendant">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M12 5.2v13.6M5.2 12h13.6" stroke="currentColor" stroke-width="1.9"
+                  stroke-linecap="round"/>
+          </svg>
+          添加被告
+        </button>
+      </section>
+
+      <!-- ==================================================================
+           诉讼请求
+           ================================================================== -->
+      <section class="card group">
+        <div class="group__head">
+          <i class="group__bar"></i>
+          <h3 class="group__title">诉讼请求</h3>
+        </div>
+
+        <div class="form-row form-row--block">
+          <div class="form-row__main">
+            <textarea id="claim" name="claim" data-claim-box
+              placeholder="例如：1. 判令被告偿还欠款 10000 元及利息；2. 本案诉讼费由被告承担。"></textarea>
+          </div>
+        </div>
+
+        <p class="phrase__hint">常用表述，点击追加：</p>
+        <div class="phrase">
+          <button class="phrase__btn" type="button" data-phrase="判令被告偿还欠款本金 ______ 元；">
+            偿还欠款本金
+          </button>
+          <button class="phrase__btn" type="button" data-phrase="判令被告支付逾期利息；">
+            支付逾期利息
+          </button>
+          <button class="phrase__btn" type="button" data-phrase="本案诉讼费由被告承担。">
+            诉讼费由被告承担
+          </button>
+        </div>
+      </section>
+
+      <!-- ==================================================================
+           事实与理由
+           ================================================================== -->
+      <section class="card group">
+        <div class="group__head">
+          <i class="group__bar"></i>
+          <h3 class="group__title">事实与理由</h3>
+        </div>
+
+        <div class="form-row form-row--block">
+          <div class="form-row__main">
+            <textarea id="facts" name="facts" style="min-height:132px"
+              placeholder="请按时间顺序陈述纠纷发生的经过、双方往来、已催告情况，并说明有哪些证据可以证明。"></textarea>
+          </div>
+        </div>
+
+        <p class="phrase__hint">
+          按「何时 — 谁做了什么 — 造成什么后果 — 有哪些证据」的顺序写。法律依据无需填写，系统会按所选案由自动补入。
+        </p>
+      </section>
+
+    </div>
+
+  </div>
+
+</main>
+
+<div class="actionbar">
+  <button class="btn-ghost" type="button" data-draft>保存草稿</button>
+  <a class="btn-primary actionbar__cta" href="26-doc-preview.html">立即生成</a>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
