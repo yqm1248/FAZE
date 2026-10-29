@@ -35,8 +35,8 @@
 
 | 来源 | 抄（有据可依） | 不抄（有据可依） |
 |---|---|---|
-| **ZXZ** | ①`bo`(入参)/`dto`(出参) 分离；②13 分支异常处理器 + 校验异常**聚合 msg**；③`ThreadPoolConfig` 全参数化线程池；④`logback` 三文件 + `AsyncAppender` + `discardingThreshold=0`；⑤计算规则「枚举持 Class + 容器取 Bean」；⑥导出「策略 + 工厂 + 路由表」；⑦`BigDecimalUtils` 统一舍入；⑧双数据源 `DataSourceConfig` 结构 | ①Controller 里写业务（`BIController:231-298` 68 行日期回退）；②上帝类；③手拼 JSON 做第二套响应（`RecordController:66-72`，`msg` 变 `message`）；④异常 `e.getMessage()` 透传；⑤**只验 token 不验归属**（`ZQTAuthInterceptor:34-53`）；⑥明文密钥进 git（`application-prod.yml:6,27,43,76,93`）；⑦写了不读的死开关（`application-dev.yml:89-91` vs `ZQTConfig:15-35`）；⑧`RedisUtil` 里 17 处 `printStackTrace` |
-| **wgcloud** | ①**agent 主动 pull + DB 任务表**（§9.2 直接采用）；②显式 `TaskScheduler` 线程池；③攒批落库；④「当前状态表」先删后插；⑤异常「文件 + 库表」双写；⑥限流双窗口（闸值放 Redis）；⑦「已投递」是状态不是删除 | ①明文生产凭据（`config/prod/*.yml` 5 份）；②**8 个 agent 接口未鉴权且在白名单**（`DbTableController:73` 等）；③49 处 `${}` 拼 `orderBy`；④前端算 MD5 + 后端直查（pass-the-hash）；⑤`StaticKeys` 293 行「全局变量垃圾桶」（常量与可变状态混放）；⑥静态字段 + `getBean()`；⑦无界队列线程池（`ThreadPoolUtil:18`，`maxPoolSize` 永远无效）；⑧统一异常出口缺失导致 55 个 Controller 复制「异常写库」 |
+| **ZXZ** | **①注释量**（`@param` 668 / `@return` 299 / `@Schema` 1,576 / `@Operation` **46 个接口全覆盖 100%** / `@Tag` 9/9，见 §1.4）；**②注释的工程规范性**（类头与方法模板固定、`@Schema(requiredMode=REQUIRED)` 与 `@NotBlank` **成对出现**、OpenAPI 文档与代码同步，见 §1.4）；**③目录结构的工程规范性**（**技术分层 + 业务子包双维度**：`dto/xzb/`、`mapper/dm/`+`mapper/mysql/`、`rule/calculation/bigdecimal/{fixed,incentive,insurance}/`，见 §2.1）；④`bo`(入参)/`dto`(出参) 分离；⑤13 分支异常处理器 + 校验异常**聚合 msg**；⑥`ThreadPoolConfig` 全参数化线程池；⑦`logback` 三文件 + `AsyncAppender` + `discardingThreshold=0`；⑧计算规则「枚举持 Class + 容器取 Bean」；⑨导出「策略 + 工厂 + 路由表」；⑩`BigDecimalUtils` 统一舍入；⑪双数据源 `DataSourceConfig` 结构 | ①Controller 里写业务（`BIController:231-298` 68 行日期回退）；②上帝类；③手拼 JSON 做第二套响应（`RecordController:66-72`，`msg` 变 `message`）；④异常 `e.getMessage()` 透传；⑤**只验 token 不验归属**（`ZQTAuthInterceptor:34-53`）；⑥明文密钥进 git（`application-prod.yml:6,27,43,76,93`）；⑦写了不读的死开关（`application-dev.yml:89-91` vs `ZQTConfig:15-35`）；⑧`RedisUtil` 里 17 处 `printStackTrace` |
+| **wgcloud** | **①安全机制最完整（11 项，逐项见 §1.5）**——统一鉴权 Filter（`AuthRestFilter` 363 行）、免登录白名单、只读角色、**登录失败双窗口锁定**（1 分钟计数 / 10 分钟封禁）、**密码复杂度四项可配置且返回具体失败原因**（`PasswordPolicyUtil` 104 行）、密码过期与剩余天数、agent 通信 token、License 校验、上传大小限制、命令注入黑名单、日志分 4 类落库；②**agent 主动 pull + DB 任务表**（§9.2 直接采用，对 MQ 替换最关键）；③显式 `TaskScheduler` 线程池（§9.3）；④攒批落库；⑤「当前状态表」先删后插（幂等且免 upsert 方言差异）；⑥异常「文件 + 库表」双写；⑦`compressChartListData` 等间隔降采样 | ①明文生产凭据（`config/prod/*.yml` 5 份）；②**7 个 agent 接口未鉴权且同时在该白名单里**（`DbTableController:73`、`DceInfoController:72`、`FtpInfoController:62`、`HeathMonitorController:71`、`K8sMonitorController:69`、`LogInfoController:58`、`SnmpInfoController:70`——有校验的是另外 8 个，18 个里漏 7 个，见 §11.1）；③49 处 `${}` 拼 `orderBy`；④前端算 MD5 + 后端直查（pass-the-hash）；⑤`StaticKeys` 293 行「全局变量垃圾桶」（常量与可变状态混放）；⑥静态字段 + `getBean()`；⑦无界队列线程池（`ThreadPoolUtil:18`，`maxPoolSize` 永远无效）；⑧统一异常出口缺失导致 55 个 Controller 复制「异常写库」 |
 | **jxyd200** | ①**全局异常处理器「对外稳定文案 + 对内完整日志」双轨，且把「为什么」写进 Javadoc**（`GlobalExceptionHandler.java:105-117`，全仓最值得抄的单点）；②`rule/` 纯 POJO 业务规则层，可脱离 Spring 用 `javac` 直接单测；③**分层职责一句话可判定**（`biz/_template/README.md:17`：「Controller 不能写 SQL、事务、金额计算或状态流转」）；④**每个业务模块目录必须有 README，实测三层 100% 落地**（APP 14/14、Java 15/15、网关 7/7）；⑤`{@inheritDoc}` + 只在实现有偏差处写一句原因（`TraceabilityServiceImpl:26-50`）；⑥状态中文名单一来源（后端 VO 同时给 `code` 与 `label`） | ①`Map<String,Object>` 收 body + 手写 `toLong/toInteger` 适配层（61 个 Controller 里 11 个这么写）；②直接注入 Mapper（9 个，违反自己的模板）；③`@Schema` 全后端 1 处、springdoc 装了是空壳；④`assets/01~11` 编号文档集（04 篇整篇写错技术栈却没人发现）；⑤三风格注释并存（`@author` 456 / `@Description` 185 / `@since` 98） |
 
 ## 1.3 一条必须写在前面的判据：法泽是**写密集**，不能照搬 ZXZ 的取舍
@@ -52,15 +52,167 @@ ZXZ 是**读多写少**（177 个 select / 7 个写语句），所以它「几�
 | 无乐观锁 | 并发扣余额会超扣 | **§8.5**：余额与库存类字段必须乐观锁或 SQL 条件更新 |
 | 无 AOP | 操作日志靠前端埋点写库（ZXZ 的做法），**能伪造** | **§10.4**：操作日志必须服务端 AOP 采集，不信前端 |
 
+## 1.4 ZXZ 的三个结构性长处
+
+§1.3 讲的是「它的取舍能不能照搬」，这一节讲**它真正强的地方**——这三条是它作为「工程规范性范本」的价值所在。
+
+### 1.4.1 注释量：不是「有注释」，是「每个公开契约都有注释」
+
+| 指标 | 实测值 |
+|---|---|
+| `@param` | **668 处** |
+| `@return` | **299 处** |
+| `@Schema`（字段级文档） | **1,576 处** |
+| `@Operation` | **46 处 = 46 个接口，覆盖率 100%** |
+| `@Tag` | **9 / 9 个 Controller** |
+| 带类头的文件 | 214 / 324 |
+
+**为什么这是「量」而不是「凑数」**：`@Operation` 46/46 意味着**每一个对外接口在 Swagger 里都有中文摘要**；`@Schema` 1,576 处意味着**几乎每个 DTO 字段都有业务说明**。两者合起来，`/v3/api-docs` 打开就是一份能交给前端的文档。
+
+**对照 jxyd200**：springdoc 依赖引了，但全后端 `@Schema` **只有 1 处**——Swagger 是个空壳。**装了文档工具 ≠ 有文档。**
+
+### 1.4.2 注释的工程规范性：模板固定 + 文档与校验成对
+
+**类头模板（固定结构）**：
+
+```java
+/**
+ * @Description: 薪资包预算执行情况DTO
+ * @Author: yang
+ * @Date 2025-12-30
+ */
+```
+
+**方法模板（动作 + 参数 + 返回，固定三段）**：
+
+```java
+/**
+ * 获取部门列表
+ * @param request 部门列表请求参数
+ * @return 部门列表
+ */
+```
+
+**真正的「工程规范性」在第二层——文档与代码约束成对**：
+
+```java
+@Schema(description = "公司名称", requiredMode = Schema.RequiredMode.REQUIRED)
+@NotBlank(message = "公司名称不能为空")
+private String companyName;
+```
+
+`requiredMode` 与 `@NotBlank` 同时声明：**文档说必填，代码也校验必填**。这样不会出现「文档写必填、代码不校验」的漂移——而这是文档型契约最常见的腐烂方式。
+
+**法泽取哪一半**：
+
+| | 取 / 不取 | 理由 |
+|---|---|---|
+| 固定模板、方法必写动作/参数/返回 | ✅ **取** | 模板让「写注释」从创作变成填空，是覆盖率能到 100% 的前提 |
+| `@Schema` 与校验注解**成对** | ✅ **取** | 文档与校验同源，杜绝漂移 |
+| `@Operation` 覆盖**全部**接口 | ✅ **取** | 46/46 vs jxyd200 的 1 处，差距在这里 |
+| 模板里的 `@Author` / `@Date` | ❌ **不取** | 见 §4.1：这两个字段在三个项目里全部腐坏（ZXZ 的 `@Date` 4 种格式含占位符、wgcloud 的恒为「2021年1月16日」） |
+
+> **一句话**：学它的**密度与结构**，不学它的**元数据字段**。
+
+### 1.4.3 目录结构的工程规范性：技术分层 + 业务子包「双维度」
+
+ZXZ 的顶层**按技术角色**分，但**层内再按业务子包**切开：
+
+```text
+com.tfgc/
+├─ controller/        9 个
+├─ service/           9 接口 + 9 实现
+├─ dto/              148 个  ← 出参
+│   └─ xzb/                薪资包的出参
+├─ bo/                14 个  ← 入参
+├─ mapper/
+│   ├─ mysql/               主库
+│   └─ dm/                  达梦只读库
+├─ rule/                    纯业务规则，可脱离 Spring 单测
+│   └─ calculation/
+│       └─ bigdecimal/
+│           ├─ fixed/           固定薪资项
+│           ├─ incentive/       激励项
+│           └─ insurance/       社保项
+├─ strategy/          2 + 18 个策略类
+├─ enums/             24 个
+└─ converter/         2 个
+```
+
+**三个可学的点**：
+
+| 点 | ZXZ 怎么做 | 为什么这算「工程规范性」 |
+|---|---|---|
+| **层内按业务切子包** | `dto/xzb/`、`dto/xzb/qrhs/` | 同一层里 148 个 DTO 不堆一起，按业务域分开——**找文件靠目录，不靠全局搜索** |
+| **按数据源分子目录** | `mapper/mysql/`、`mapper/dm/` | 「这个查询打哪个库」在目录上就能看出来，不用点开 XML |
+| **规则按计算类别层层下钻** | `rule/calculation/bigdecimal/{fixed,incentive,insurance}/` | 新增一个薪资项 = 在 `fixed/` 下加一个类，**不改任何现有代码**；**目录结构本身在表达「可扩展点在哪」** |
+
+**法泽的对应选择**：法泽用「**域优先**」（`modules/<域>/...`），因为技术路线 §4.2 定了 12 个业务域且有跨域调用禁令（§2.3），域优先能把「一个域一个目录」的边界做硬。**但 ZXZ 的「层内下钻」在域内部照用**：
+
+```text
+modules/trade/
+├─ rule/fee/          → 抽成规则（对应 ZXZ 的 rule/calculation/*/）
+├─ rule/refund/       → 退款规则
+├─ vo/order/          → 订单出参（对应 ZXZ 的 dto/xzb/）
+└─ vo/wallet/         → 钱包出参
+```
+
+## 1.5 wgcloud 的安全机制清单（它最强的维度）
+
+**先给结论**：三个项目里 **wgcloud 的安全机制覆盖最完整（11 项）**——因为它是对公网暴露的运维监控系统；ZXZ 是内部 BI，只有 token 拦截器 + 一个加解密 Filter；jxyd200 更少。
+
+**但要分开看「设计意图」和「实现质量」**：它的机制设计几乎都对，实现有硬伤。法泽要的是**它的机制清单**，不是它的代码。
+
+| # | 机制 | 出处 | 设计意图（值得学） | 实现问题（不能抄） | 法泽怎么做 |
+|---|---|---|---|---|---|
+| 1 | **统一鉴权入口** | `AuthRestFilter.java`（363 行，`@WebFilter("/*")`） | 一个 Filter 拦全部请求，**不在每个 Controller 里写鉴权** | 白名单 40 条硬编码 + `startsWith` 前缀匹配 | Spring Security `SecurityFilterChain`；白名单集中在一个类、用**精确路径** |
+| 2 | **免登录白名单** | 同上 `static_resource[]` | 显式声明「哪些不需要登录」 | 新增接口忘加就暴露；前缀匹配可被路径构造绕过 | `permitAll()` + 精确匹配 + 单测断言「未登录访问受保护接口 → 401」 |
+| 3 | **只读角色** | 同上 `ROLE_GUEST` + `guest_no_views[]` | 有「只读账号」角色并限制其写操作 | **黑名单式**（`endsWith("/del")` 等 16 个词），新增写接口不在名单就默认放开 | 白名单式：`@PreAuthorize("hasAuthority('trade:write')")` 显式声明 |
+| 4 | **登录失败双窗口锁定** | `LoginController:176-206` + `StaticKeys:204-212` | **两个 TTL 不同的窗口**：1 分钟内错 5 次 → 封禁 10 分钟；且记录登录 IP | 状态在单机 `ExpiringMap`，重启清零、多实例不共享 | 阈值同（5 次 / 10 分钟），**状态放 Redis**，key = `login:err:{phone}` |
+| 5 | **密码复杂度（可配置 + 返回原因）** | `PasswordPolicyUtil:34-63`（104 行） | **四项全部可配**（最小长度 / 数字 / 字母 / 特殊字符），且 `validatePasswordComplexity()` **返回具体失败原因字符串**（空 = 通过）而不是布尔 | 无（这一项实现质量高） | 直接采用这个设计：返回原因、配置项进 `sys_config` |
+| 6 | **密码过期 + 剩余天数** | `PasswordPolicyUtil:72-103` | `isPasswordExpired()` + `getPasswordRemainingDays()`（-1 过期 / 0 不限），可提前提醒 | 无 | 直接采用；`sys_config` 加 `password_expire_days` |
+| 7 | **agent 通信 token** | `TokenUtils.java`（92 行） | 设备侧有独立凭证，与用户 JWT 分离 | **固定 MD5 值、无时间戳、无 nonce** → 抓到一次请求可无限重放 | HMAC-SHA256 + `X-Timestamp` + `X-Nonce`，时间窗 ±5 分钟，每设备独立 secret 可轮换 |
+| 8 | **License 校验** | `LicenseController.java`（68 行）+ `ScheduledTask:85` | 商业授权校验 + 定时校验 | — | 法泽不需要（自主运营） |
+| 9 | **上传大小限制** | `WgcloudServiceApplication:102-109`（200 MB） | 有全局上限，不是每个接口各写一遍 | 只限总大小，无后缀/魔数校验 | `spring.servlet.multipart.max-file-size` + **魔数校验** + 后缀白名单（《接口规范》§6.6） |
+| 10 | **命令注入防护** | `application-dev.yml:79` `shellToRunBlock` | 对会执行命令的功能做危险字符拦截 | **黑名单可绕**（`rm  -rf` 双空格、`/bin/rm`；`curl` 不在名单里） | 法泽无「执行用户命令」功能；**这条是「不要用黑名单」的反例** |
+| 11 | **日志分 4 类落库** | `StaticKeys:58-65` + `LogInfoService:59-71` | 业务告警 / 系统操作 / 告警恢复 / 第三方告警**分开存**，页面可按类过滤 | 同步单条 INSERT，数据库挂了就丢 | `@Async` + 队列，失败降级本地文件（§10.4） |
+
+**从这张表能提炼一条通用结论**（也是 §十四 的思想）：
+
+> **安全机制的「有没有」和「对不对」是两件事。** wgcloud 的 11 项机制「有」，但第 1/2/3/7/10 五项「不对」——而它们的「不对」是**同一个原因**：**用清单（白名单数组 / 黑名单词表 / 共享密钥）代替了结构（注解、精确匹配、签名）。**
+
+对法泽的直接启示：**能用结构表达的，就不用清单**。免登录用 `permitAll()` 表达而不是维护字符串数组；权限用 `@PreAuthorize` 表达而不是 `endsWith` 黑名单；设备凭证用签名表达而不是共享密钥。
+
 ---
 
 # 二、包结构与分层
 
-## 2.1 目录树（裁决一处冲突）
+## 2.1 目录树（裁决一处冲突 + 选定一种结构范式）
 
 **现状冲突**：`AGENTS.md` §3.2 的目录树写 `modules/` 下 **9 个域**；技术路线 §4.2 写 **12 个域**（多 `workbench`、`social`、`admin`）。两份文档不一致。
 
 **裁决：以技术路线 §4.2 的 12 域为准**，`AGENTS.md` §3.2 是缩写，实施时按 12 域建包。
+
+### 2.1.1 两种结构范式，法泽选哪个
+
+| 范式 | 长什么样 | 代表作 | 优点 | 代价 |
+|---|---|---|---|---|
+| **域优先**（法泽采用） | `modules/<域>/{controller,service,mapper,vo,bo,rule}/` | jxyd200 的 `features/*`、技术路线 §4.1 | **一个域一个目录**，跨域依赖在路径上一眼可见；删一个域 = 删一个目录 | 同一技术角色散在 12 个域里，找「所有 Controller」要跨目录 |
+| **层优先 + 层内下钻** | `controller/` `dto/<域>/` `mapper/<数据源>/` `rule/<类别>/` | **ZXZ**（见 §1.4.3） | 同层同类放一起，横向对比方便；`mapper/mysql/` vs `mapper/dm/` 这种**按基础设施差异分子目录**很直观 | 跨域调用要靠包名判断，边界容易糊（ZXZ 就糊了——`IndexServiceImpl` 4,734 行横跨 12 个域） |
+
+**法泽选「域优先」的硬理由**：技术路线 §4.2.1 有一条禁令——**禁止 A 域直接注入 B 域的 Mapper**。这条禁令要在代码评审和 ArchUnit 里可判定，「域优先」让它在**目录结构**上就成立（`modules.trade.mapper` 只能被 `modules.trade.*` import）；「层优先」下所有 Mapper 都在一起，这条禁令只能靠包名约定。
+
+**但 ZXZ 的「层内下钻」在域内部照用**（这是它的价值，别丢）：
+
+```text
+modules/trade/
+├─ rule/fee/          → 抽成规则（对应 ZXZ 的 rule/calculation/*/）
+├─ rule/refund/       → 退款规则
+├─ vo/order/          → 订单出参（对应 ZXZ 的 dto/xzb/）
+└─ vo/wallet/         → 钱包出参
+```
+
+**理由是同一个**：目录结构本身要能表达「可扩展点在哪」。`rule/fee/` 下有 5 个规则类，新增第 6 种只加一个类、不改任何现有文件——这和 ZXZ 的 `rule/calculation/bigdecimal/fixed/` 是同一个思想。
 
 ```text
 services/faze-api/src/main/java/com/faze/
@@ -362,6 +514,36 @@ public class PlatformPercentRule implements FeeRule {
 
 # 四、注释（Java 形式，密度要求与前端一致）
 
+> **先看 §1.4.1 / §1.4.2**：ZXZ 在这块是全仓最强的范本——`@param` 668 处、`@return` 299、`@Schema` 1,576 处、`@Operation` **46 个接口全覆盖 100%**。
+> 本章取它的**密度与结构**（固定模板 + 文档与校验成对），不取它的**元数据字段**（`@Author` / `@Date`，见 §4.1）。
+>
+> **法泽的类头模板（与 ZXZ 的差别只有一处：删掉元数据三行）**：
+>
+> ```java
+> /**
+>  * 订单状态机。只负责「从 A 能不能到 B」，不做落库、不发通知。
+>  *
+>  * 状态迁移表见《技术路线》§9.2.1，是服务端唯一依据；客户端只发意图。
+>  */
+> ```
+>
+> **法泽的方法模板（与 ZXZ 同构：动作 + 参数 + 返回，再加「前置/副作用」两行）**：
+>
+> ```java
+> /**
+>  * 律师接单。
+>  *
+>  * 前置：订单状态 = PAID 且当前律师是承办人。
+>  * 副作用：迁移状态、写 order_status_log、投递一条通知任务。
+>  *
+>  * @param lawyerId 当前登录律师，来自 JWT，不从请求体取
+>  * @param orderId  订单主键
+>  * @return 接单后的订单视图
+>  */
+> ```
+>
+> **强制**：`@Schema(description = ...)` 与校验注解**成对出现**（ZXZ 的做法，见 §1.4.2）——文档说必填、代码也校验必填。
+
 ## 4.1 类头（强制，三行以内）
 
 ```java
@@ -378,6 +560,8 @@ public class PlatformPercentRule implements FeeRule {
 - 把类名复述一遍
 
 ZXZ 的 `@Author`（**大写 A，非标准注解**）248 处、`@Date` 4 种格式并存（含占位符 `@Date 2025/01/XX`），`@since` 与 `@Date` 两套——**这些不是规范，是历史包袱**。
+
+> **注意分寸**：ZXZ 的注释**覆盖率与结构**值得抄（§1.4），但这三行元数据不值得抄。两者不矛盾——**它的强项是「每个契约都有注释」，不是「注释里写了作者和日期」。**
 
 ## 4.2 方法注释（public 强制，私有方法承担流程步骤时强制）
 
@@ -804,15 +988,101 @@ public void manualRecharge(...) { ... }
 
 # 十一、安全
 
-## 11.1 鉴权
+> **本章的骨架来自 §1.5 的 wgcloud 11 项机制**——三个项目里 wgcloud 的安全机制覆盖最完整（统一鉴权入口、免登录白名单、只读角色、登录双窗口锁定、密码复杂度与过期、设备凭证、上传限制、命令注入防护、日志分类落库）。
+> 下面按「机制 → 法泽的正确实现」组织；**wgcloud 每项的实现缺陷已在 §1.5 的表格里逐项列出**，这里不重复，只给正确做法。
+
+## 11.1 鉴权：统一入口 + 默认拒绝（wgcloud 机制 1/2/3 的正确版）
+
+wgcloud 的 `AuthRestFilter` 是**统一入口**（363 行 `@WebFilter("/*")`）——这个方向是对的，法泽照做。但它的白名单是 **40 条硬编码字符串 + `startsWith` 前缀匹配**，语义是「除名单外都要登录」，于是：
+
+- 新增接口**忘加白名单就暴露**（本不该暴露的反而被放行）
+- 前缀匹配可被路径构造绕过
+
+**法泽的做法：`anyRequest().denyAll()`，把默认方向反过来。**
+
+```java
+@Bean
+public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    http.csrf(AbstractHttpConfigurer::disable)                  // 无 Cookie 会话，JWT 在 Header
+        .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+        .authorizeHttpRequests(auth -> auth
+            .requestMatchers("/api/v1/pub/**").permitAll()       // 只有这一处白名单
+            .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
+            .requestMatchers("/api/v1/app/**").authenticated()
+            .anyRequest().denyAll())                             // ← 新增接口默认不可访问
+        .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+    return http.build();
+}
+```
 
 | 通道 | 方案 |
 |---|---|
 | C 端 | JWT（`Authorization: Bearer`）+ Redis 黑名单 |
 | PC 端 | **待拍板**（见《接口规范》§1.3 的 P-1：共享 RuoYi token A 方案 / faze-api 自签 B 方案） |
-| 内部 | 内网白名单 + 服务间令牌 |
+| 内部 | 内网白名单 + 服务间签名 |
 
-**禁止**：把鉴权逻辑写在每个 Controller 方法里（wgcloud 的 8 个未鉴权接口就是这么漏的），必须用注解 + 拦截器/过滤器统一。
+**禁止**：把鉴权逻辑写在每个 Controller 方法里。wgcloud 就是「每个 Controller 手写 `checkAgentToken`」，结果 **7 个 Controller 的 `agentList` 漏写**（`DbTableController:73`、`DceInfoController:72`、`FtpInfoController:62`、`HeathMonitorController:71`、`K8sMonitorController:69`、`LogInfoController:58`、`SnmpInfoController:70`），而它们**同时还在免登录白名单里** → 未登录即可拉取全量设备配置。
+
+**这不是「某人粗心」，是结构决定的**：手写 18 处、漏 7 处 ≈ 39% 的漏写率。**能用结构（注解 + Filter）表达的，不要用手写重复表达。**
+
+### 11.1.1 登录安全（wgcloud 机制 4/5/6，这几项它是真好）
+
+**① 失败锁定：双窗口，两个不同 TTL**
+
+wgcloud `LoginController:176-206` + `StaticKeys:204-212` 的设计值得直接采用：
+
+| 窗口 | TTL | 阈值 | 语义 |
+|---|---|---|---|
+| 计数窗口 | **1 分钟** | 错 5 次 | 短期异常（手滑、撞库试探） |
+| 封禁窗口 | **10 分钟** | — | 封禁后的冷却期 |
+
+```java
+// 1 分钟窗口：记错误次数
+String errKey  = "login:err:" + phone;
+Long   errCount = redis.opsForValue().increment(errKey);
+if (errCount == 1) redis.expire(errKey, Duration.ofMinutes(1));
+
+// 达 5 次 → 封禁 10 分钟
+if (errCount >= 5) {
+    redis.opsForValue().set("login:block:" + phone, "1", Duration.ofMinutes(10));
+    log.warn("账号锁定 phone={} ip={}", mask(phone), clientIp);   // 记录 IP，与 wgcloud 一致
+}
+```
+
+**wgcloud 的实现问题**：状态在单机 `ExpiringMap`，重启清零、多实例不共享。**法泽放 Redis**——这恰好也是「为什么本项目用 Redis」的一个具体理由。
+
+**② 密码复杂度：四项可配置 + 返回原因（这一项直接采用）**
+
+wgcloud `PasswordPolicyUtil:34-63` 的实现质量高，三个细节值得学：
+
+```java
+/**
+ * 校验密码复杂度。
+ *
+ * 返回**具体失败原因**而不是布尔值——前端可以直接显示「密码必须包含数字」，
+ * 不用自己再维护一份规则文案（两份规则必然漂移）。
+ *
+ * @return 空字符串表示通过；否则为可直接展示的失败原因
+ */
+public String validatePasswordComplexity(String password) {
+    if (StringUtils.isEmpty(password)) return "密码不能为空";
+    int minLength = config.getPasswordMinLength();
+    if (password.length() < minLength) return "密码长度不能少于" + minLength + "位";
+    if (config.isRequireDigit()       && !DIGIT.matcher(password).find())   return "密码必须包含数字";
+    if (config.isRequireLetter()      && !LETTER.matcher(password).find())  return "密码必须包含字母";
+    if (config.isRequireSpecialChar() && !SPECIAL.matcher(password).find()) return "密码必须包含特殊字符";
+    return "";
+}
+```
+
+**为什么「返回原因」比「返回 boolean」好**：布尔值迫使前端再写一遍规则文案去告诉用户哪里不合格，两份规则一定漂移。这一条是 wgcloud 全项目质量最高的 60 行。
+
+**③ 密码过期 + 剩余天数（同样直接采用）**
+
+`PasswordPolicyUtil:72-103`：`isPasswordExpired()` + `getPasswordRemainingDays()`（`-1` 已过期 / `0` 不限）。法泽把 `password_expire_days` 放 `sys_config`。
+
+> **但密码「怎么存」不学 wgcloud**：它是前端算 MD5、后端直查库（pass-the-hash，见 §1.5 机制 7 的说明）。**法泽用 BCrypt（cost=10）**，见技术路线 §4.7。
+> **这也是「机制对、实现错」的又一个例子**：它有一整套密码策略工具，却因为存储方式用 MD5，整套策略的价值大打折扣。
 
 ## 11.2 越权（IDOR）—— ZXZ 与 wgcloud 都在这翻车
 
@@ -1025,11 +1295,14 @@ jxyd200 有一份 **1,138 行**的《代码结构与注释规范改造计划》�
 
 | 主题 | ZXZ | wgcloud | jxyd200 | 法泽 |
 |---|---|---|---|---|
+| **注释量**（ZXZ 第一强项） | `@param` **668** / `@return` **299** / `@Schema` **1,576** / `@Operation` **46/46 = 100%** / `@Tag` 9/9 ✅ | 方法注释 **35%**（抽样 10 类：Controller 0%、CommonConfig 0%）⚠️ | 密度表最成体系，但落地分裂 ⚠️ | §四：模板固定 + `@Schema` 与校验**成对** + `@Operation` 全覆盖 |
+| **目录结构**（ZXZ 第二强项） | **技术分层 + 业务子包双维度**：`dto/xzb/`、`mapper/dm\|mysql/`、`rule/calculation/bigdecimal/{fixed,incentive,insurance}/` ✅ | 按技术角色平铺，无层内下钻 ⚠️ | feature-first ✅ | **域优先 + 域内下钻**（`modules/trade/rule/fee/`），见 §2.1 |
+| **安全机制覆盖** | 2 类（token 拦截器 + `@ApiEncrypt` 加解密 Filter） | **11 类，覆盖最全** ✅ 但其中 5 类实现有硬伤（§1.5） | 3 类（token 分平台、401 只清被拒 token、日志不打敏感） | §十一：以 wgcloud 11 项为骨架，逐项给正确实现 |
 | 统一响应 | `R<T>{code,msg,data}` 无 traceId | 三种风格并存 + `code` 只有 0/1 | `AjaxResult`（RuoYi） | `R<T>` + traceId（《接口规范》§5.1） |
 | 全局异常 | 13 分支，但 `e.getMessage()` 透传 ❌ | **完全没有** ❌ | **对外稳定文案 + 对内完整日志，且把原因写进 Javadoc** ✅ | 13 分支 + 稳定文案 + 原因写进注释 |
 | 错误码 | **0 个枚举** ❌ | 0/1 两值 ❌ | — | 78 个码的 `ErrorCode` 枚举 |
 | 参数校验 | bo/dto 分离好 ✅，`@Size` 0 处 ❌ | 基本没有 ❌ | 规范要求但**61 个 Controller 只有 9 个用** ❌ | §6 三层 + `@Size` 强制 |
-| 注释 | `@Author` 大写 248 处、`@Date` 4 种格式 ❌ | 五件套 + 方法注释 35% ❌ | 密度表最成体系 ✅ 但**三风格并存** ❌ | 类头三行 + 来源注释 + `// 任务 n` |
+| 注释的元数据 | `@Author` 大写 248 处、`@Date` 4 种格式（含占位符）❌ | 五件套 `@date` 恒为「2021年1月16日」❌ | 三风格并存（456/185/98）❌ | **禁元数据**，只写职责/边界/约束 |
 | 分层 | 上帝类 4734 行 ❌、Controller 写业务 ❌ | 单模块、Service 不接口化（合理） | **职责一句话可判定** ✅ 但 9 个 Controller 注入 Mapper ❌ | 按域分包 + 行数上限 + ArchUnit |
 | `rule/` 纯规则层 | 有 `rule/calculation/` ✅ | — | **可 javac 单测** ✅ | `OrderStatusMachine` / `FeeRule` |
 | AOP | **0** ❌ | **0** ❌ | 未用 ❌ | 操作日志 AOP 强制 |
@@ -1054,7 +1327,7 @@ jxyd200 有一份 **1,138 行**的《代码结构与注释规范改造计划》�
 | 手拼 JSON 做第二套响应 | ZXZ `RecordController:66-72` | `msg` 变 `message`，前端要写两套解析 |
 | 只验 token 不验归属 | ZXZ `ZQTAuthInterceptor:34-53` | 改一个 `companyId` 就能查别家数据 |
 | 明文生产密码进 git | wgcloud `config/prod/*.yml`（5 份） | 凭据永久泄露，删了也要轮换 |
-| 8 个接口未鉴权且在白名单 | wgcloud `DbTableController:73` 等 | 未登录可拉全量设备配置 |
+| 18 个 Controller 手写 token 校验，**漏 7 个**（且这 7 个在免登录白名单里） | wgcloud `DbTableController:73` 等 | 未登录可拉全量设备配置 |
 | 49 处 `${orderBy}` | wgcloud `SystemInfoMapper:359-365` | SQL 注入 |
 | 无界队列线程池 | wgcloud `ThreadPoolUtil:18` | `maxPoolSize` 失效，OOM |
 | 先 SELECT 后 UPDATE 领任务 | wgcloud `ShellStateMapper:51-56` | 同一条任务被两个消费者执行 |
