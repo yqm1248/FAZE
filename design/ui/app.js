@@ -583,9 +583,8 @@
   if (chips.length && stateNodes.length) {
     Array.prototype.forEach.call(chips, function (chip) {
       /* 有专属筛选逻辑的 chips 跳过通用流程：
-         23 的模板分类（data-tpl-cat）要真过滤卡片、不该闪骨架屏，
-         25 的模板切换（data-tpl）走第 26 段。 */
-      if (chip.hasAttribute("data-tpl-cat") || chip.hasAttribute("data-tpl")) return;
+         25 的模板切换（data-tpl）走第 26 段，不该闪骨架屏 */
+      if (chip.hasAttribute("data-tpl")) return;
 
       chip.addEventListener("click", function (e) {
         e.preventDefault();
@@ -1387,32 +1386,6 @@
       showToast("已保存到「我的文书」");
     });
   }
-
-  /* ==========================================================================
-     28. 文书模板分类筛选（第 8 批：23-doc-templates）
-     ==========================================================================
-     和第 14 段的通用筛选不同：这里**真的按分类过滤卡片**，
-     不切骨架屏 —— 模板只有六张，本地过滤是瞬时的，闪一下骨架屏反而更慢。
-     ========================================================================== */
-  var catChips = document.querySelectorAll("[data-tpl-cat]");
-  var tplCards = document.querySelectorAll(".tpl-card[data-cat]");
-
-  Array.prototype.forEach.call(catChips, function (chip) {
-    chip.addEventListener("click", function () {
-      var key = chip.getAttribute("data-tpl-cat");
-
-      Array.prototype.forEach.call(catChips, function (other) {
-        if (other === chip) other.classList.add("filter__chip--active");
-        else other.classList.remove("filter__chip--active");
-      });
-
-      Array.prototype.forEach.call(tplCards, function (card) {
-        var hit = key === "all" || card.getAttribute("data-cat") === key;
-        if (hit) card.removeAttribute("hidden");
-        else card.setAttribute("hidden", "");
-      });
-    });
-  });
 
   /* ==========================================================================
      29. 我的文书筛选（第 8 批：27-doc-mine）

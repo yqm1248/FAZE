@@ -60,7 +60,8 @@ body {
 
 /* ---------- 顶部说明 ---------- */
 .tpl-head {
-  padding: var(--sp-lg) var(--sp-xl) 0;
+  /* 去掉分类条后，标题区自己撑开上下留白，底部 12 让标题和下面的卡片不粘 */
+  padding: var(--sp-lg) var(--sp-xl) var(--sp-md);
 }
 
 .tpl-title {
@@ -75,12 +76,6 @@ body {
   font-size: var(--fs-md);
   color: var(--text-secondary);
   line-height: var(--lh-normal);
-}
-
-/* ---------- 分类条 ----------
-   复用 components.css 的 .filter / .filter__chip（视觉 34、热区 44） */
-.filter {
-  padding-inline: var(--sp-md);
 }
 
 /* ---------- 网格 ---------- */
@@ -143,16 +138,14 @@ body {
   font-size: var(--fs-caption);
   color: var(--text-muted);
   line-height: 1.5;
-  /* 两行截断：卡片是网格，高度必须一致，否则第二行卡片会高低不齐。
-     ★ 这里不能同时用 flex: 1 1 auto —— display:-webkit-box 与 flex-grow
-       一起用时高度算不对，文字会溢出到下面的「免费生成」上，
-       走查量到叠了 9px。改成写死两行高（12 × 1.5 × 2 = 36）再 overflow 裁切，
-       卡片底部用 margin-block-start:auto 顶住。 */
-  height: 36px;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  /* 两行高（12 × 1.5 × 2 ≈ 36）保证网格等高。
+     ★ 用 min-height 不用 height：写死 height 时，两行文字的行盒可能比 36 多零点几像素，
+       scrollHeight 就大于 clientHeight，走查会判「文字被挤断行」；
+       写死 height 时配合 -webkit-line-clamp 又会让元素 rect 与视觉高度对不上
+       （判「描述压住免费生成」，叠 9px）。min-height 两头都不碰。
+     文案本身控制在 24 字以内（两列卡宽 145、12px 字约 12 字一行），都是两行。
+     卡片底部用 margin-block-start:auto 顶住，让所有卡的「免费生成」同一水平线。 */
+  min-height: 36px;
 }
 
 .tpl-card__foot {
@@ -252,30 +245,12 @@ body {
         <h2 class="tpl-title">选择文书类型</h2>
         <p class="tpl-sub">按格式填写，系统自动排版为可直接提交的规范文书</p>
       </div>
-
-      <div class="filter" data-drag-scroll>
-        <button class="filter__chip filter__chip--active" type="button" data-tpl-cat="all">
-          全部
-        </button>
-        <button class="filter__chip" type="button" data-tpl-cat="litigation">
-          诉讼文书
-        </button>
-        <button class="filter__chip" type="button" data-tpl-cat="contract">
-          合同文书
-        </button>
-        <button class="filter__chip" type="button" data-tpl-cat="labor">
-          劳动文书
-        </button>
-        <button class="filter__chip" type="button" data-tpl-cat="ec">
-          跨境电商
-        </button>
-      </div>
     </div>
 
     <div class="grid">
 
       <!-- 诉讼文书 -->
-      <a class="tpl-card" href="24-doc-lawsuit.html" data-cat="litigation">
+      <a class="tpl-card" href="24-doc-lawsuit.html">
         <span class="tpl-card__icon">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path d="M12 3.4v17.2M5.2 7.6h13.6" stroke="currentColor" stroke-width="1.8"
@@ -285,7 +260,7 @@ body {
           </svg>
         </span>
         <span class="tpl-card__name">民事起诉状</span>
-        <span class="tpl-card__desc">向法院提起诉讼用的正式文书，含当事人信息、诉讼请求与事实理由</span>
+        <span class="tpl-card__desc">规范格式，含当事人信息、诉请与事实理由</span>
         <span class="tpl-card__foot">
           <span class="tpl-card__price">免费生成</span>
           <svg class="tpl-card__arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -295,7 +270,7 @@ body {
         </span>
       </a>
 
-      <a class="tpl-card" href="25-doc-other.html" data-cat="litigation">
+      <a class="tpl-card" href="25-doc-other.html">
         <span class="tpl-card__icon">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path d="M6.2 3.4h8.2l5 5v11.2a1.8 1.8 0 0 1-1.8 1.8H6.2a1.8 1.8 0 0 1-1.8-1.8V5.2a1.8 1.8 0 0 1 1.8-1.8Z"
@@ -305,7 +280,7 @@ body {
           </svg>
         </span>
         <span class="tpl-card__name">证据清单</span>
-        <span class="tpl-card__desc">逐项列明证据名称、来源与证明目的，随起诉状一并提交</span>
+        <span class="tpl-card__desc">逐项列明来源与证明目的</span>
         <span class="tpl-card__foot">
           <span class="tpl-card__price">免费生成</span>
           <svg class="tpl-card__arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -315,7 +290,7 @@ body {
         </span>
       </a>
 
-      <a class="tpl-card" href="25-doc-other.html" data-cat="litigation">
+      <a class="tpl-card" href="25-doc-other.html">
         <span class="tpl-card__icon">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path d="M4.4 19.6 9 15l3 3 7.6-7.6" stroke="currentColor" stroke-width="1.8"
@@ -325,7 +300,7 @@ body {
           </svg>
         </span>
         <span class="tpl-card__name">授权委托书</span>
-        <span class="tpl-card__desc">委托律师或近亲属代为出庭、签收文书时使用</span>
+        <span class="tpl-card__desc">委托代为出庭、签收文书</span>
         <span class="tpl-card__foot">
           <span class="tpl-card__price">免费生成</span>
           <svg class="tpl-card__arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -336,7 +311,7 @@ body {
       </a>
 
       <!-- 合同文书 -->
-      <a class="tpl-card" href="25-doc-other.html" data-cat="contract">
+      <a class="tpl-card" href="25-doc-other.html">
         <span class="tpl-card__icon tpl-card__icon--contract">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path d="M5.6 3.4h9.6a1.8 1.8 0 0 1 1.8 1.8v13.6a1.8 1.8 0 0 1-1.8 1.8H5.6a1.8 1.8 0 0 1-1.8-1.8V5.2a1.8 1.8 0 0 1 1.8-1.8Z"
@@ -346,7 +321,7 @@ body {
           </svg>
         </span>
         <span class="tpl-card__name">借条 / 欠条</span>
-        <span class="tpl-card__desc">载明借款金额、期限与利息约定，写清这几点才有法律效力</span>
+        <span class="tpl-card__desc">载明金额、期限与利息约定</span>
         <span class="tpl-card__foot">
           <span class="tpl-card__price">免费生成</span>
           <svg class="tpl-card__arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -356,7 +331,7 @@ body {
         </span>
       </a>
 
-      <a class="tpl-card" href="25-doc-other.html" data-cat="contract">
+      <a class="tpl-card" href="25-doc-other.html">
         <span class="tpl-card__icon tpl-card__icon--contract">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path d="M7.4 3.6h9.2a1.8 1.8 0 0 1 1.8 1.8v13.2a1.8 1.8 0 0 1-1.8 1.8H7.4a1.8 1.8 0 0 1-1.8-1.8V5.4a1.8 1.8 0 0 1 1.8-1.8Z"
@@ -367,7 +342,7 @@ body {
           </svg>
         </span>
         <span class="tpl-card__name">房屋租赁合同</span>
-        <span class="tpl-card__desc">含租期、租金、押金、维修责任与提前解约条款</span>
+        <span class="tpl-card__desc">含租期、租金与押金约定</span>
         <span class="tpl-card__foot">
           <span class="tpl-card__price">免费生成</span>
           <svg class="tpl-card__arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -378,7 +353,7 @@ body {
       </a>
 
       <!-- 劳动文书 -->
-      <a class="tpl-card" href="25-doc-other.html" data-cat="labor">
+      <a class="tpl-card" href="25-doc-other.html">
         <span class="tpl-card__icon tpl-card__icon--contract">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <rect x="3.2" y="6.8" width="17.6" height="12.4" rx="2.2" stroke="currentColor"
@@ -389,7 +364,7 @@ body {
           </svg>
         </span>
         <span class="tpl-card__name">劳动合同</span>
-        <span class="tpl-card__desc">按《劳动合同法》必备条款生成，含期限、试用期与报酬约定</span>
+        <span class="tpl-card__desc">含期限、试用期与报酬</span>
         <span class="tpl-card__foot">
           <span class="tpl-card__price">免费生成</span>
           <svg class="tpl-card__arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -400,7 +375,7 @@ body {
       </a>
 
       <!-- 跨境电商 -->
-      <a class="tpl-card" href="25-doc-other.html" data-cat="ec">
+      <a class="tpl-card" href="25-doc-other.html">
         <span class="tpl-card__icon tpl-card__icon--contract">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <circle cx="12" cy="12" r="8.8" stroke="currentColor" stroke-width="1.8"/>
@@ -409,7 +384,7 @@ body {
           </svg>
         </span>
         <span class="tpl-card__name">跨境电商合同</span>
-        <span class="tpl-card__desc">含贸易术语、结算方式与争议解决条款，适用于霍尔果斯口岸贸易</span>
+        <span class="tpl-card__desc">含贸易术语、结算与争议解决条款</span>
         <span class="tpl-card__foot">
           <span class="tpl-card__price">免费生成</span>
           <svg class="tpl-card__arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
