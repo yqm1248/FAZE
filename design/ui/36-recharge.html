@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390, initial-scale=1">
+<meta name="dsh-design" content="app">
+<title>充值</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* ==========================================================================
+   充值页（第 9 批补充 · 延展，无参考图）
+   ==========================================================================
+   职责：选金额、选渠道、确认充值。充值成功后钱进账户余额，用于平台内消费。
+   入口：35-balance「去充值」；05-profile「我的钱包 - 去充值」；31-pay 余额不足时
+   母版：**表单页母版**（同 15-lawyer-join / 33-refund：分组卡 + 选项 + 说明 + 底部提交栏）
+   数据来源：充值下单接口；渠道由后端配置（微信 / 支付宝）
+
+   ★ 为什么这一页要独立，不放在 31-pay 的浮层里：
+     31 的浮层是在「正要付款但钱不够」的焦急场景里弹出的，只能放最少的选项。
+     但充值本身是个独立目的 —— 用户可能就是想先充一点放着，跟哪一单无关，
+     他需要看到当前余额、充值档位、渠道、到账规则、发票怎么开。
+     把这些塞进一个 sheet，等于每次都让人在半屏里做决定。
+     所以：31 的「去充值」直接跳这一页，浮层删掉。
+
+   ★ 为什么按钮文案要跟着金额变：
+     选了 500 却看着「确认充值 ¥200」，是这类页面最常见也最贵的错。
+     app.js 里 refreshRechargeSubmit 负责这件事。
+
+   ★ 合规要点：
+     1. **余额不可提现**，只能消费 —— 这句必须在充值前说，不能充完才说。
+        用户以为能当钱包用、发现提不出来，是投诉和监管关注的双重来源。
+     2. 单用途预付卡备案：项目负责人负责（AGENTS.md §1.1），UI 侧只需把
+        「仅限平台内消费、不可提现、不可转让」写清楚。
+     3. 发票：充值属于预付款，实际消费后才产生服务费发票。这条写进须知，
+        比事后解释省事。
+   ========================================================================== */
+
+body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-canvas);
+}
+
+.navbar {
+  background: transparent;
+}
+
+.screen {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding: 0 var(--sp-xl) var(--sp-xl);
+  background: linear-gradient(to bottom, var(--banner-start) 0, var(--bg-canvas) 240px);
+}
+.screen::-webkit-scrollbar {
+  display: none;
+}
+
+.screen > section + section {
+  margin-block-start: var(--sp-md);
+}
+
+/* ---------- 当前余额 ---------- */
+.bal-strip {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-md);
+  padding-block: var(--sp-sm) var(--sp-md);
+}
+
+.bal-strip__label {
+  font-size: var(--fs-md);
+  color: var(--text-secondary);
+}
+
+.bal-strip__value {
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+}
+
+/* ---------- 卡片 ---------- */
+.card-block {
+  padding: var(--sp-md) var(--sp-lg) var(--sp-lg);
+  border-radius: var(--r-md);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.block-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-sm);
+  padding-block: var(--sp-xs) var(--sp-md);
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.block-title__note {
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-regular);
+  color: var(--text-muted);
+}
+
+/* ---------- 金额档位 ----------
+   三列网格：一屏看全六档，比横向滚动好 —— 充值金额是要比较的，
+   藏一半在右边等于让人猜后面还有没有更划算的 */
+.amount-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--sp-sm);
+}
+
+.amount-chip {
+  min-height: 56px;
+  padding: 4px;
+  border: 1px solid var(--border-outline);
+  border-radius: var(--r-sm);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-family: var(--font-num);
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-medium);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.amount-chip.is-active {
+  border-color: var(--brand-primary);
+  background: var(--brand-primary-soft);
+  color: var(--brand-primary-pressed);
+}
+
+/* 「其他」这一档不是金额，字体回到中文字体 */
+.amount-chip--other {
+  font-family: inherit;
+  font-size: var(--fs-md);
+  color: var(--text-secondary);
+}
+
+.amount-chip--other.is-active {
+  color: var(--brand-primary-pressed);
+}
+
+/* ---------- 自定义金额 ---------- */
+.custom-amount {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  margin-block-start: var(--sp-sm);
+  padding: 0 var(--sp-md);
+  border: 1px solid var(--border-outline);
+  border-radius: var(--r-sm);
+  background: var(--bg-surface);
+}
+
+.custom-amount:focus-within {
+  border-color: var(--brand-primary);
+}
+
+.custom-amount__sym {
+  font-family: var(--font-num);
+  font-size: var(--fs-h3);
+  color: var(--text-muted);
+}
+
+.custom-amount input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 50px;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: var(--font-num);
+  font-size: var(--fs-h3);
+  font-variant-numeric: tabular-nums;
+  outline: none;
+}
+
+.custom-amount input::placeholder {
+  font-family: var(--font-sans);
+  font-size: var(--fs-md);
+  color: #A3A9AE;
+}
+
+.amount-hint {
+  margin-block-start: var(--sp-sm);
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+/* ---------- 渠道 ---------- */
+.channel {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-md);
+  min-height: 56px;
+  padding: var(--sp-xs) var(--sp-md);
+  border: 1px solid var(--border-outline);
+  border-radius: var(--r-sm);
+  background: var(--bg-surface);
+  cursor: pointer;
+}
+
+.channel + .channel {
+  margin-block-start: var(--sp-sm);
+}
+
+.channel.is-active {
+  border-color: var(--brand-primary);
+  background: var(--brand-primary-soft);
+}
+
+.channel__radio {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  border: 1.5px solid var(--border-outline);
+  border-radius: 50%;
+  background: var(--bg-surface);
+}
+
+.channel.is-active .channel__radio {
+  border-color: var(--brand-primary);
+  background: radial-gradient(circle at center,
+    var(--brand-primary) 0 4px, var(--bg-surface) 4.5px);
+}
+
+.channel__name {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: var(--fs-lg);
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+/* 渠道图标用色块 + 首字，不复刻微信/支付宝的标志 ——
+   第三方商标的使用要授权，设计稿里用中性表示法，实现时由品牌方提供素材 */
+.channel__badge {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--r-sm);
+  background: var(--bg-canvas);
+  color: var(--text-secondary);
+}
+
+.channel__badge svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* ---------- 充值须知 ---------- */
+.notice {
+  margin-block-start: var(--sp-md);
+  padding: var(--sp-md) var(--sp-lg);
+  border-radius: var(--r-sm);
+  background: var(--bg-surface);
+}
+
+.notice__title {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-xs);
+  font-size: var(--fs-md);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+
+.notice__title svg {
+  width: 15px;
+  height: 15px;
+  color: var(--text-muted);
+}
+
+.notice__list {
+  margin-block-start: var(--sp-xs);
+  padding-inline-start: 15px;
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1.8;
+}
+
+.notice__list li {
+  margin-block-start: 2px;
+}
+
+/* 不可提现单独加重 —— 这是用户最容易误解、事后最难解释的一条 */
+.notice__list b {
+  font-weight: var(--fw-medium);
+  color: var(--state-warning-deep);
+}
+</style>
+</head>
+<body>
+
+<header class="statusbar">
+  <span>9:41</span>
+  <span class="statusbar__icons">
+    <svg width="17" height="11" viewBox="0 0 17 11" fill="none" aria-hidden="true">
+      <rect x="0" y="7" width="3" height="4" rx="1" fill="currentColor"/>
+      <rect x="4.5" y="5" width="3" height="6" rx="1" fill="currentColor"/>
+      <rect x="9" y="2.5" width="3" height="8.5" rx="1" fill="currentColor"/>
+      <rect x="13.5" y="0" width="3" height="11" rx="1" fill="currentColor"/>
+    </svg>
+    <svg width="16" height="11" viewBox="0 0 16 11" fill="none" aria-hidden="true">
+      <path d="M1 3.2A10.5 10.5 0 0 1 15 3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M3.6 5.9a7 7 0 0 1 8.8 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M6.2 8.6a3.4 3.4 0 0 1 3.6 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden="true">
+      <rect x="0.6" y="0.6" width="21" height="10.8" rx="3" stroke="currentColor" stroke-opacity="0.4" stroke-width="1.2"/>
+      <rect x="2.2" y="2.2" width="15" height="7.6" rx="1.8" fill="currentColor"/>
+      <path d="M23.4 4.2v3.6" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+  </span>
+</header>
+
+<div class="navbar">
+  <a class="navbar__back" href="35-balance.html" aria-label="返回账户余额">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M15.2 4.6 7.8 12l7.4 7.4" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </a>
+  <h1 class="navbar__title">充值</h1>
+</div>
+
+<main class="screen">
+
+  <section class="bal-strip">
+    <span class="bal-strip__label">当前可用余额</span>
+    <span class="money bal-strip__value"><span class="money__sym">¥</span>1,280.00</span>
+  </section>
+
+  <section class="card-block">
+    <h3 class="block-title">
+      充值金额
+      <span class="block-title__note">仅限平台内消费</span>
+    </h3>
+    <div class="amount-grid" data-recharge-group>
+      <button class="amount-chip" type="button" data-recharge="100">¥100</button>
+      <button class="amount-chip is-active" type="button" data-recharge="200">¥200</button>
+      <button class="amount-chip" type="button" data-recharge="500">¥500</button>
+      <button class="amount-chip" type="button" data-recharge="1000">¥1,000</button>
+      <button class="amount-chip" type="button" data-recharge="2000">¥2,000</button>
+      <button class="amount-chip amount-chip--other" type="button" data-recharge="0">其他金额</button>
+    </div>
+    <div class="custom-amount">
+      <span class="custom-amount__sym">¥</span>
+      <input type="text" inputmode="decimal" placeholder="输入充值金额，单笔 10 元起"
+             aria-label="自定义充值金额">
+    </div>
+    <p class="amount-hint">单笔最低 10 元，单日累计上限以实名校验结果为准。</p>
+  </section>
+
+  <section class="card-block">
+    <h3 class="block-title">支付方式</h3>
+    <div class="channel is-active" data-recharge-channel="wechat">
+      <span class="channel__radio" aria-hidden="true"></span>
+      <span class="channel__name">微信支付</span>
+      <span class="channel__badge" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none">
+          <path d="M4.2 6.2a2.2 2.2 0 0 1 2.2-2.2h11.2a2.2 2.2 0 0 1 2.2 2.2v7.6a2.2 2.2 0 0 1-2.2 2.2H10l-4.4 3.6a.6.6 0 0 1-1.4-.5Z"
+                stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+        </svg>
+      </span>
+    </div>
+    <div class="channel" data-recharge-channel="alipay">
+      <span class="channel__radio" aria-hidden="true"></span>
+      <span class="channel__name">支付宝</span>
+      <span class="channel__badge" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="8.4" stroke="currentColor" stroke-width="1.8"/>
+          <path d="M8 13.6c2.4 2 6 2.8 8.4 1.6M9.6 8.8h4.8M12 8.8v5.2"
+                stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+      </span>
+    </div>
+  </section>
+
+  <section class="notice">
+    <p class="notice__title">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <circle cx="12" cy="12" r="8.6" stroke="currentColor" stroke-width="1.8"/>
+        <path d="M12 11.2v5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        <circle cx="12" cy="8" r="1" fill="currentColor"/>
+      </svg>
+      充值须知
+    </p>
+    <ul class="notice__list">
+      <li><b>充值的钱只能用于平台内消费，不可提现或转让。</b></li>
+      <li>支付成功后立刻到账，可在余额明细里核对。</li>
+      <li>充值失败或扣款了但没到账，先不要重复支付，联系客服核对流水。</li>
+      <li>充值属于预付款。实际消费后才会产生服务费，发票在消费后开具。</li>
+    </ul>
+  </section>
+
+</main>
+
+<div class="actionbar">
+  <button class="btn-primary actionbar__cta" type="button" data-recharge-submit>立即充值 ¥200.00</button>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

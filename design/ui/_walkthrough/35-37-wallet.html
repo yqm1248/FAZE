@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>走查 · 余额 / 充值 / 支付密码</title>
+<style>
+/* ==========================================================================
+   走查页：第 9 批补充的三页（35 / 36 / 37）的非主态
+   ==========================================================================
+   用途：画布一屏只显示主态，其余状态集中在这里看。
+
+   注意：
+     1. 不是交付屏，放在 _walkthrough/，不上画布、不计入交付屏
+     2. 状态靠 data-state 切换（#state-empty / #state-error / #state-confirm / #state-manage）
+     3. 必须用 HTTP 打开（端口 8123），file:// 下 iframe 的 hash 不生效
+
+   核对要点：
+     empty   —— 空的是余额，不是服务，所以引导去充值而不是去逛律师
+     error   —— 说明里加一句「没加载出来就不显示任何数字」，
+                避免用户对着过期余额做判断
+     confirm —— 六位密码再输一次，两次不一致要能看见错误
+     manage  —— 已设置后的管理态：修改 / 忘记，以及锁定规则
+   ========================================================================== */
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 28px;
+  background: #EDEFF3;
+  font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  color: #1A1A1A;
+}
+
+.walk {
+  display: grid;
+  grid-template-columns: repeat(2, 390px);
+  gap: 24px 28px;
+  justify-content: center;
+}
+
+.walk__item {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.walk__head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.walk__name {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.walk__tag {
+  font-size: 11px;
+  font-weight: 500;
+  color: #4A66EE;
+  background: #EEF2FF;
+  padding: 2px 7px;
+  border-radius: 4px;
+  line-height: 1.5;
+}
+
+.walk__note {
+  font-size: 12px;
+  color: #63696E;
+  line-height: 1.6;
+  max-width: 390px;
+}
+
+iframe {
+  width: 390px;
+  height: 844px;
+  border: 0;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.1);
+}
+</style>
+</head>
+<body>
+
+<div class="walk">
+
+  <section class="walk__item">
+    <div class="walk__head">
+      <h2 class="walk__name">账户余额 · 还没充过值</h2>
+      <span class="walk__tag">empty</span>
+    </div>
+    <p class="walk__note">
+      空态引导去充值，不是去逛服务 —— 这一页空的时候，用户真正缺的是余额，不是律师。
+    </p>
+    <iframe src="../35-balance.html#state-empty" title="账户余额 · 空态"></iframe>
+  </section>
+
+  <section class="walk__item">
+    <div class="walk__head">
+      <h2 class="walk__name">账户余额 · 加载失败</h2>
+      <span class="walk__tag">error</span>
+    </div>
+    <p class="walk__note">
+      金额类页面加载失败时一个字都不能显示。说明里直接写清「没加载出来就不显示数字」，免得用户拿一个过期余额去下单。
+    </p>
+    <iframe src="../35-balance.html#state-error" title="账户余额 · 错误态"></iframe>
+  </section>
+
+  <section class="walk__item">
+    <div class="walk__head">
+      <h2 class="walk__name">支付密码 · 再输一次</h2>
+      <span class="walk__tag">confirm</span>
+    </div>
+    <p class="walk__note">
+      第一步输满 6 位自动进这一步。两次不一致时必须给明确的错误文案，不能只是清空重来 —— 清空重来用户会以为是自己手抖，反复输到被锁。
+    </p>
+    <iframe src="../37-pay-password.html#state-confirm" title="支付密码 · 确认"></iframe>
+  </section>
+
+  <section class="walk__item">
+    <div class="walk__head">
+      <h2 class="walk__name">支付密码 · 已设置</h2>
+      <span class="walk__tag">manage</span>
+    </div>
+    <p class="walk__note">
+      已设置后的管理态。锁定规则写在这里：连错 5 次锁 30 分钟，锁定期间不能付款但不影响浏览。
+    </p>
+    <iframe src="../37-pay-password.html#state-manage" title="支付密码 · 管理"></iframe>
+  </section>
+
+</div>
+
+</body>
+</html>

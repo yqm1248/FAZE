@@ -1570,11 +1570,22 @@
      ========================================================================== */
   var payConfirmOpen = document.querySelector("[data-open-confirm]");
   var payConfirmMask = document.querySelector("[data-confirm-mask]");
-  var payConfirmDialog = document.querySelector("[data-confirm-dialog]");
+  var payConfirmSheet = document.querySelector("[data-confirm-sheet]");
 
+  /* 支付密码面板：打开时清空上次输入并聚焦，否则第二次付款会看到残留的圆点 */
   function setPayConfirm(open) {
     toggleLayer(payConfirmMask, open);
-    toggleLayer(payConfirmDialog, open);
+    toggleLayer(payConfirmSheet, open);
+
+    if (!open || !payConfirmSheet) return;
+
+    var payPwd = payConfirmSheet.querySelector("[data-pwd-input]");
+    if (!payPwd) return;
+
+    payPwd.value = "";
+    payPwd.focus();
+    /* 用一次 input 事件把六格同步回空态，避免两处各写一份同步逻辑 */
+    payPwd.dispatchEvent(new Event("input"));
   }
 
   if (payConfirmOpen) {
@@ -1599,18 +1610,17 @@
   }
 
   /* ==========================================================================
-     34. 充值面板（第 9 批：31-pay）
+     34. 充值页（第 9 批：36-recharge）
      ==========================================================================
-     预设 6 档，最后一档「其他」清空选中让用户自己填。选了自定义金额后，
-     预设档位要全部取消选中，否则界面上会同时亮着两个金额。
-     按钮文案跟着金额走，免得用户选了 500 却看着「确认充值 ¥200」。
+     第 9 批一开始把充值做成 31-pay 里的浮层，后来补了独立充值页 36，浮层就删掉
+     改成跳转 —— 同一件事摆两套界面，早晚分叉。
+     这段逻辑现在只服务 36：预设 6 档，最后一档「其他金额」清空选中让用户自己填。
+     选了自定义金额后预设要全部取消选中，否则界面上会同时亮着两个金额。
+     按钮文案跟着金额走，免得用户选了 500 却看着「立即充值 ¥200」。
      ========================================================================== */
-  var rechargeOpen = document.querySelector("[data-open-recharge]");
-  var rechargeMask = document.querySelector("[data-recharge-mask]");
-  var rechargeSheet = document.querySelector("[data-recharge-sheet]");
   var rechargeChips = document.querySelectorAll("[data-recharge]");
   var rechargeSubmit = document.querySelector("[data-recharge-submit]");
-  var rechargeInput = document.querySelector(".recharge-custom input");
+  var rechargeInput = document.querySelector(".custom-amount input");
   var rechargeAmount = 200;
 
   /* 元转千分位两位小数。设计稿这里只做展示；实现层金额全程用整数分，
@@ -1624,34 +1634,11 @@
 
   function refreshRechargeSubmit() {
     if (!rechargeSubmit) return;
-    rechargeSubmit.textContent = "确认充值 ¥" + fmtYuan(rechargeAmount);
+    rechargeSubmit.textContent = "立即充值 ¥" + fmtYuan(rechargeAmount);
   }
 
-  function setRechargeSheet(open) {
-    toggleLayer(rechargeMask, open);
-    toggleLayer(rechargeSheet, open);
-    if (open) refreshRechargeSubmit();
-  }
-
-  if (rechargeOpen) {
-    rechargeOpen.addEventListener("click", function () {
-      setRechargeSheet(true);
-    });
-
-    if (rechargeMask) {
-      rechargeMask.addEventListener("click", function () {
-        setRechargeSheet(false);
-      });
-    }
-
-    Array.prototype.forEach.call(
-      document.querySelectorAll("[data-close-recharge]"),
-      function (btn) {
-        btn.addEventListener("click", function () {
-          setRechargeSheet(false);
-        });
-      }
-    );
+  if (rechargeSubmit) {
+    refreshRechargeSubmit();
 
     Array.prototype.forEach.call(rechargeChips, function (chip) {
       chip.addEventListener("click", function () {
@@ -1663,7 +1650,7 @@
         });
 
         if (value === 0) {
-          /* 「其他」：清掉选中，把焦点给输入框 */
+          /* 「其他金额」：清掉选中，把焦点交给输入框 */
           chip.classList.remove("is-active");
           if (rechargeInput) {
             rechargeInput.value = "";
@@ -1692,7 +1679,7 @@
       });
     }
 
-    /* 充值渠道：单选，作用域限定在面板内 */
+    /* 充值渠道：单选，作用域限定在这一页 */
     var rechargeChannels = document.querySelectorAll("[data-recharge-channel]");
     Array.prototype.forEach.call(rechargeChannels, function (row) {
       row.addEventListener("click", function () {
@@ -1703,16 +1690,14 @@
       });
     });
 
-    if (rechargeSubmit) {
-      rechargeSubmit.addEventListener("click", function () {
-        if (rechargeAmount <= 0) {
-          showToast("请先选择或输入充值金额");
-          return;
-        }
-        setRechargeSheet(false);
-        showToast("充值 ¥" + fmtYuan(rechargeAmount) + " 成功，余额已到账");
-      });
-    }
+    rechargeSubmit.addEventListener("click", function () {
+      /* 10 元是页面上写的最低金额，这里不能用 0 —— 0 能过的话那句提示就白写了 */
+      if (rechargeAmount < 10) {
+        showToast("单笔最低充值 10 元");
+        return;
+      }
+      showToast("充值 ¥" + fmtYuan(rechargeAmount) + " 成功，余额已到账");
+    });
   }
 
   /* ==========================================================================
@@ -1859,6 +1844,116 @@
      ========================================================================== */
   if (walkHash === "open-cancel") setCancelDialog(true);
   if (walkHash === "open-confirm") setPayConfirm(true);
-  if (walkHash === "open-recharge") setRechargeSheet(true);
   if (walkHash === "open-refund") setRefundDialog(true);
+
+  /* ==========================================================================
+     39. 余额明细筛选（第 9 批：35-balance）
+     ==========================================================================
+     四档直接对应 data-bill-type（recharge / consume / refund），不做归并 ——
+     和订单筛选不同，这里的类型互不重叠，不需要「退款中并进进行中」那种处理。
+     ========================================================================== */
+  var billChips = document.querySelectorAll("[data-bill-filter]");
+  var billItems = document.querySelectorAll(".bill[data-bill-type]");
+
+  Array.prototype.forEach.call(billChips, function (chip) {
+    chip.addEventListener("click", function () {
+      var key = chip.getAttribute("data-bill-filter");
+
+      Array.prototype.forEach.call(billChips, function (other) {
+        if (other === chip) other.classList.add("filter__chip--active");
+        else other.classList.remove("filter__chip--active");
+      });
+
+      Array.prototype.forEach.call(billItems, function (item) {
+        var hit = key === "all" || item.getAttribute("data-bill-type") === key;
+        if (hit) item.removeAttribute("hidden");
+        else item.setAttribute("hidden", "");
+      });
+    });
+  });
+
+  /* ==========================================================================
+     40. 六位支付密码输入（第 9 批：37-pay-password）
+     ==========================================================================
+     真实 input 铺满整块并透明，视觉靠 6 个格子。每次输入同步三件事：
+     哪些格子已填、当前格高亮、满 6 位之后走哪一步。
+
+     ★ 满 6 位不直接发请求：设置态只切到「再输一次」那一步。
+       真实实现要等服务端返回，而且「输满就提交」在弱网下会重试出一堆脏数据。
+     ========================================================================== */
+  var pwdFields = document.querySelectorAll("[data-pwd-field]");
+
+  Array.prototype.forEach.call(pwdFields, function (field) {
+    var pwdInput = field.querySelector("[data-pwd-input]");
+    var pwdCells = field.querySelectorAll(".pwd-cell");
+    if (!pwdInput || !pwdCells.length) return;
+
+    function syncCells() {
+      var len = (pwdInput.value || "").length;
+
+      Array.prototype.forEach.call(pwdCells, function (cell, i) {
+        if (i < len) cell.classList.add("is-filled");
+        else cell.classList.remove("is-filled");
+
+        /* 当前格就是下一个待输入的格子：索引恰好等于已输入长度 */
+        if (i === len) cell.classList.add("is-current");
+        else cell.classList.remove("is-current");
+      });
+    }
+
+    pwdInput.addEventListener("focus", function () {
+      field.classList.add("is-focus");
+      syncCells();
+    });
+
+    pwdInput.addEventListener("blur", function () {
+      field.classList.remove("is-focus");
+    });
+
+    pwdInput.addEventListener("input", function () {
+      /* 只留数字：输入法可能塞进全角字符，不过滤会把格子数搞乱 */
+      pwdInput.value = (pwdInput.value || "").replace(/\D/g, "").slice(0, 6);
+      syncCells();
+
+      if (pwdInput.value.length !== 6) return;
+
+      var kind = pwdInput.getAttribute("data-pwd-input");
+
+      if (kind === "set") {
+        applyState("confirm");
+      } else if (kind === "pay") {
+        /* 输满就走。设计稿不校验密码，真实实现必须等服务端返回结果再跳，
+           客户端自己判断「对了」等于把安全边界放在前端 */
+        window.location.href = "32-pay-result.html";
+      } else {
+        showToast("支付密码已设置");
+      }
+    });
+
+    /* 点格子也能聚焦（透明 input 虽然铺满了，补一条更稳的路径） */
+    field.addEventListener("click", function () {
+      pwdInput.focus();
+    });
+
+    syncCells();
+  });
+
+  /* 已设置的管理态：修改回设置流程；忘记走短信验证 */
+  Array.prototype.forEach.call(
+    document.querySelectorAll("[data-pwd-modify]"),
+    function (btn) {
+      btn.addEventListener("click", function () {
+        applyState("set");
+      });
+    }
+  );
+
+  Array.prototype.forEach.call(
+    document.querySelectorAll("[data-pwd-forget]"),
+    function (btn) {
+      btn.addEventListener("click", function () {
+        showToast("先发短信验证码，验证通过后重设");
+      });
+    }
+  );
 })();

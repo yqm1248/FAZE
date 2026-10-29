@@ -23,7 +23,7 @@
      fail  —— 第一句先说「钱没扣」，再说原因
      open-cancel —— 说清取消的后果（档期释放、价格不保留）
      open-confirm —— 一句话里给齐金额、方式、扣完余额
-     open-recharge —— 六个金额档 + 自定义 + 两个渠道
+     36-recharge —— 独立充值页（原 31 的充值浮层已删，改为跳转这里）
      open-refund —— 退款金额与去向，以及「审核期间不能重复提交」
    ========================================================================== */
 * { box-sizing: border-box; }
@@ -149,24 +149,24 @@ iframe {
 
   <section class="walk__item">
     <div class="walk__head">
-      <h2 class="walk__name">确认支付 · 二次确认</h2>
+      <h2 class="walk__name">确认支付 · 输入支付密码</h2>
       <span class="walk__tag">open-confirm</span>
     </div>
     <p class="walk__note">
-      余额支付没有外部收银台的输密码环节，点下去就直接扣。框里给齐三个数：扣多少、从哪扣、扣完剩多少。
+      原来的二次确认框在补了支付密码之后删掉了：输密码本身就是在确认，再套一层要点三次才付得出去。面板里仍然给齐三个数（金额 / 从哪扣 / 扣完剩多少）。
     </p>
-    <iframe src="../31-pay.html#open-confirm" title="确认支付 · 二次确认"></iframe>
+    <iframe src="../31-pay.html#open-confirm" title="确认支付 · 输入支付密码"></iframe>
   </section>
 
   <section class="walk__item">
     <div class="walk__head">
-      <h2 class="walk__name">确认支付 · 充值面板</h2>
-      <span class="walk__tag">open-recharge</span>
+      <h2 class="walk__name">充值页（独立页）</h2>
+      <span class="walk__tag">36-recharge</span>
     </div>
     <p class="walk__note">
-      六档预设 + 自定义金额，渠道只有微信与支付宝。按钮文案跟着金额变，选了 500 就不会还看着「确认充值 ¥200」。
+      这里原本是 31-pay 里的充值浮层。补了独立充值页 36 之后浮层删掉、改为跳转 —— 同一件事摆两套界面早晚分叉。按钮文案跟着金额变，选了 500 就不会还看着「立即充值 ¥200」。
     </p>
-    <iframe src="../31-pay.html#open-recharge" title="确认支付 · 充值面板"></iframe>
+    <iframe src="../36-recharge.html" title="充值页"></iframe>
   </section>
 
   <section class="walk__item">

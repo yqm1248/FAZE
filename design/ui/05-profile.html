@@ -58,6 +58,83 @@
   gap: var(--sp-md);
 }
 
+/* ---------- 我的钱包（v1.6 新增，余额制的入口） ----------
+   为什么放用户卡正下方第一块，而不是塞进「我的服务」宫格：
+   余额是用户在这个产品里最实在的资产，宫格里的四项都是「去做一件事」，
+   余额是「我有什么」，性质不同，混在一起就不显眼了。
+   底色沿用顶部 hero 的品牌渐变，不引入第四种底色。 */
+.wallet {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-md);
+  padding: var(--sp-md) var(--sp-lg);
+  border-radius: var(--r-md);
+  background: linear-gradient(to bottom right, var(--profile-start), var(--profile-end));
+  color: var(--text-on-brand);
+  box-shadow: var(--shadow-raised);
+}
+
+.wallet__main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: block;
+  text-decoration: none;
+  color: inherit;
+}
+
+.wallet__label {
+  display: block;
+  font-size: var(--fs-caption);
+  opacity: 0.84;
+  line-height: 1.4;
+}
+
+.wallet__amount {
+  display: block;
+  margin-block-start: 2px;
+  font-size: var(--fs-h1);
+  font-weight: var(--fw-bold);
+  line-height: 1.2;
+  color: var(--text-on-brand);
+}
+
+.wallet__amount .money__sym {
+  color: var(--text-on-brand);
+}
+
+.wallet__hint {
+  display: block;
+  margin-block-start: 2px;
+  font-size: var(--fs-micro);
+  opacity: 0.78;
+  line-height: 1.4;
+}
+
+/* 深底上的按钮：白底蓝字。视觉 36 高，热区靠 ::after 补到 44 */
+.wallet__btn {
+  position: relative;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 76px;
+  height: 36px;
+  padding-inline: var(--sp-md);
+  border-radius: var(--r-pill);
+  background: var(--bg-surface);
+  color: var(--brand-primary-pressed);
+  font-size: var(--fs-md);
+  font-weight: var(--fw-medium);
+  text-decoration: none;
+}
+
+.wallet__btn::after {
+  content: "";
+  position: absolute;
+  inset-block: -4px;
+  inset-inline: 0;
+}
+
 /* ---------- 用户卡 ---------- */
 .user-card {
   display: flex;
@@ -352,7 +429,16 @@
       </div>
     </section>
 
-    <a class="notice" href="45-verify-real.html">
+    <section class="wallet">
+      <a class="wallet__main" href="35-balance.html">
+        <span class="wallet__label">账户余额</span>
+        <span class="money wallet__amount"><span class="money__sym">¥</span>1,280.00</span>
+        <span class="wallet__hint">查看余额明细</span>
+      </a>
+      <a class="wallet__btn" href="36-recharge.html">去充值</a>
+    </section>
+
+    <a class="notice" href="48-verify-real.html">
       <span class="notice__text">完成实名认证后可使用在线立案</span>
       <svg class="notice__arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <path d="m9.5 5.5 6.5 6.5-6.5 6.5" stroke="currentColor" stroke-width="2"
@@ -361,7 +447,7 @@
     </a>
 
     <section class="card quick-links">
-      <a class="quick-links__item" href="46-verify-company.html">
+      <a class="quick-links__item" href="49-verify-company.html">
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path d="M12 2.9 4.4 5.8v6.1c0 4.4 3.1 8.2 7.6 9.2 4.5-1 7.6-4.8 7.6-9.2V5.8L12 2.9Z"
                 fill="#4E8DF2" fill-opacity="0.16" stroke="#4E8DF2" stroke-width="1.9" stroke-linejoin="round"/>
@@ -370,14 +456,14 @@
         </svg>
         <span class="quick-links__label">企业认证</span>
       </a>
-      <a class="quick-links__item" href="48-favorites.html">
+      <a class="quick-links__item" href="51-favorites.html">
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path d="M12 20.6C7.2 17.4 3.4 14.2 3.4 10.2a4.6 4.6 0 0 1 8.6-2.3 4.6 4.6 0 0 1 8.6 2.3c0 4-3.8 7.2-8.6 10.4Z"
                 fill="#4E8DF2" fill-opacity="0.16" stroke="#4E8DF2" stroke-width="1.9" stroke-linejoin="round"/>
         </svg>
         <span class="quick-links__label">我的收藏</span>
       </a>
-      <a class="quick-links__item" href="49-following.html">
+      <a class="quick-links__item" href="52-following.html">
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <circle cx="12" cy="8.2" r="3.6" fill="#8A2BE2" fill-opacity="0.16" stroke="#8A2BE2" stroke-width="1.9"/>
           <path d="M4.9 20.3c0-3.7 3.2-6.3 7.1-6.3s7.1 2.6 7.1 6.3" stroke="#8A2BE2"
@@ -399,14 +485,14 @@
           </svg>
           <span class="services__label">我的订单</span>
         </a>
-        <a class="services__item" href="50-my-cases.html">
+        <a class="services__item" href="53-my-cases.html">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path d="M3.2 7.6a1.8 1.8 0 0 1 1.8-1.8h4l2 2.2h7.8a1.8 1.8 0 0 1 1.8 1.8v9.6a1.8 1.8 0 0 1-1.8 1.8H5a1.8 1.8 0 0 1-1.8-1.8V7.6Z"
                   stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
           </svg>
           <span class="services__label">我的案件</span>
         </a>
-        <a class="services__item" href="51-case-progress.html">
+        <a class="services__item" href="54-case-progress.html">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <circle cx="12" cy="12" r="8.8" stroke="currentColor" stroke-width="1.8"/>
             <path d="M12 7.4V12l3.1 1.9" stroke="currentColor" stroke-width="1.8"
@@ -426,7 +512,7 @@
     </section>
 
     <section class="card menu">
-      <a class="menu__row" href="35-messages.html">
+      <a class="menu__row" href="38-messages.html">
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path d="M3.4 6.6a2 2 0 0 1 2-2h13.2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-7.3l-4.3 3.4v-3.4H5.4a2 2 0 0 1-2-2v-9Z"
                 fill="#8A2BE2" fill-opacity="0.14" stroke="#8A2BE2" stroke-width="1.9" stroke-linejoin="round"/>
@@ -436,7 +522,7 @@
           <path d="m9.5 5.5 6.5 6.5-6.5 6.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </a>
-      <a class="menu__row" href="52-support.html">
+      <a class="menu__row" href="55-support.html">
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path d="M20.4 12.2c0 4-3.8 7.2-8.4 7.2-1 0-2-.15-2.9-.42L4.1 20.4l1.3-3.5a7 7 0 0 1-1.9-4.7c0-4 3.8-7.2 8.5-7.2s8.4 3.2 8.4 7.2Z"
                 fill="#8A2BE2" fill-opacity="0.14" stroke="#8A2BE2" stroke-width="1.9" stroke-linejoin="round"/>
@@ -457,7 +543,7 @@
           <path d="m9.5 5.5 6.5 6.5-6.5 6.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </a>
-      <a class="menu__row" href="53-faq.html">
+      <a class="menu__row" href="56-faq.html">
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <circle cx="12" cy="12" r="9.1" stroke="#EE0A24" stroke-width="1.9"/>
           <path d="M9.6 9.3a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 1.8-2.4 3.4" stroke="#EE0A24"
@@ -469,7 +555,7 @@
           <path d="m9.5 5.5 6.5 6.5-6.5 6.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </a>
-      <a class="menu__row" href="54-complaint.html">
+      <a class="menu__row" href="57-complaint.html">
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path d="M12 3.6v10.2" stroke="#8A2BE2" stroke-width="2.2" stroke-linecap="round"/>
           <circle cx="12" cy="18.6" r="1.35" fill="#8A2BE2"/>
@@ -479,7 +565,7 @@
           <path d="m9.5 5.5 6.5 6.5-6.5 6.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </a>
-      <a class="menu__row" href="38-settings.html">
+      <a class="menu__row" href="41-settings.html">
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <circle cx="12" cy="12" r="3.1" stroke="#8A2BE2" stroke-width="1.9"/>
           <path d="M19.5 14.9a1.7 1.7 0 0 0 .35 1.9l.06.06a2.1 2.1 0 1 1-2.95 2.95l-.06-.06a1.7 1.7 0 0 0-1.9-.35 1.7 1.7 0 0 0-1 1.55v.16a2.1 2.1 0 1 1-4.2 0v-.09a1.7 1.7 0 0 0-1.09-1.55 1.7 1.7 0 0 0-1.9.35l-.06.06a2.1 2.1 0 1 1-2.95-2.95l.06-.06a1.7 1.7 0 0 0 .35-1.9 1.7 1.7 0 0 0-1.55-1H2.5a2.1 2.1 0 1 1 0-4.2h.09a1.7 1.7 0 0 0 1.55-1.09 1.7 1.7 0 0 0-.35-1.9l-.06-.06a2.1 2.1 0 1 1 2.95-2.95l.06.06a1.7 1.7 0 0 0 1.9.35h.08a1.7 1.7 0 0 0 1-1.55V2.5a2.1 2.1 0 1 1 4.2 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.9-.35l.06-.06a2.1 2.1 0 1 1 2.95 2.95l-.06.06a1.7 1.7 0 0 0-.35 1.9v.08a1.7 1.7 0 0 0 1.55 1h.16a2.1 2.1 0 1 1 0 4.2h-.09a1.7 1.7 0 0 0-1.55 1Z"

@@ -1358,3 +1358,100 @@
 .status-hero--pending .status-hero__icon {
   color: var(--state-warning);
 }
+
+/* ==========================================================================
+   22. 列表 meta 分隔点（第 9 批从 27-doc-mine 收到这里，35-balance 复用）
+   ==========================================================================
+   用法：<span class="bill__meta">微信支付<i class="dot"></i>2026-10-28 09:12</span>
+
+   ★ 用细圆点不用竖线：竖线在 RTL 下要额外处理方向（`|` 在阿拉伯语环境
+     里读起来是反向的），圆点是旋转对称的，翻不翻都一样。
+   ★ 用 <i> 承载是因为它没有语义、不进入朗读顺序；分隔符不该被读屏念出来。
+   ========================================================================== */
+.dot {
+  display: inline-block;
+  width: 3px;
+  height: 3px;
+  margin-inline: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  vertical-align: middle;
+  font-style: normal;
+}
+
+/* ==========================================================================
+   23. 六位数字密码格（第 9 批：37-pay-password 先写，31-pay 支付面板复用）
+   ==========================================================================
+   结构：
+     <div class="pwd-field" data-pwd-field>
+       <input class="pwd-input" type="tel" inputmode="numeric" maxlength="6"
+              data-pwd-input="set">
+       <div class="pwd-cells" aria-hidden="true">
+         <span class="pwd-cell"></span> × 6
+       </div>
+     </div>
+
+   ★ 真实的 input 铺满整块并设为透明，键盘、粘贴、删除都由它承担；
+     视觉上的六个格子是纯装饰，所以整组给 aria-hidden。
+     不要反过来做（六个 contenteditable 或六个 input）—— 焦点会在格子之间跳，
+     退格删不掉、粘贴只进一格，用户会以为是 bug。
+
+   ★ input 字号必须是 16：小于 16 时 iOS Safari 聚焦会自动放大整个页面，
+     输完不缩回去，页面就歪了。
+   ========================================================================== */
+.pwd-field {
+  position: relative;
+}
+
+.pwd-input {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: transparent;
+  color: transparent;
+  caret-color: transparent;
+  font-size: 16px;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.pwd-cells {
+  display: flex;
+  gap: var(--sp-sm);
+}
+
+.pwd-cell {
+  flex: 1 1 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 52px;
+  border: 1px solid var(--border-outline);
+  border-radius: var(--r-sm);
+  background: var(--bg-surface);
+  transition: border-color 140ms ease;
+}
+
+/* 正在输入的那一格高亮，用户才知道自己输到第几个了 */
+.pwd-field.is-focus .pwd-cell.is-current {
+  border-color: var(--brand-primary);
+}
+
+.pwd-cell.is-filled {
+  border-color: var(--text-primary);
+}
+
+.pwd-cell::after {
+  content: "";
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: transparent;
+}
+
+.pwd-cell.is-filled::after {
+  background: var(--text-primary);
+}
