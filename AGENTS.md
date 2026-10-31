@@ -55,7 +55,7 @@
 > 3. 前端用 RuoYi-Vue3 **3.9.2**（Vue 3.5.26 / Element Plus 2.13.1）。
 > 4. **判版本看 `pom.xml` 的 `ruoyi.version` / `spring-boot.version` 与 `package.json` 的 `version`**；tag 只标识发行点。注意 `springboot3` 分支的 tag 停在 `v3.8.7`，与官方发行线不是一回事。
 > 5. 所有涉及 RuoYi 的文档、代码、示例、命令、截图一律按 **3.9.2 / Spring Boot 4.0** 写。发现引用 3.8.7、3.5.x 或 `springboot3` 分支的地方，按**缺陷**处理并要求改正。
-> 6. **✅ 已实测（2026-11-01）：MP 必须用 `mybatis-plus-spring-boot4-starter`，版本 ≥ 3.5.13；本项目定 `3.5.18.1`。** `mybatis-plus-spring-boot3-starter:3.5.12` 在 SB4 下会**静默失效**——它的 `@AutoConfigureAfter` 引用的旧包名 `org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration` 在 SB4 已被移到 `org.springframework.boot.jdbc.autoconfigure`，类不存在导致排序丢失、整个自动配置被跳过；**报错只是「Mapper 注入失败」，不报缺类**。证据见 `docs/acceptance/seg1/A3-mp-probe.md`。**禁止再用 `-spring-boot3-` starter。**
+> 6. **✅ 已实测（2026-11-01）：MP 必须用 `mybatis-plus-spring-boot4-starter`，版本 ≥ 3.5.13；本项目定 `3.5.18.1`。** `mybatis-plus-spring-boot3-starter:3.5.12` 在 SB4 下会**静默失效**——它的 `@AutoConfigureAfter` 引用的旧包名 `org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration` 在 SB4 已被移到 `org.springframework.boot.jdbc.autoconfigure`，类不存在导致排序丢失、整个自动配置被跳过；**报错只是「Mapper 注入失败」，不报缺类**。证据见 `docs/acceptance/seg1/A3-mp-probe.md`。**禁止再用 `-spring-boot3-` starter。** **分页还要单独加 `mybatis-plus-jsqlparser:3.5.18.1`**——`PaginationInnerInterceptor` 在 3.5.18.1 已拆出 starter，不加会**编译失败**（找不到符号），见同一证据文件第七节。
 > 7. 本条优先级**高于其他任何文档中的 RuoYi 版本描述**；与本条冲突的表述以本条为准。
 
 ---
@@ -163,7 +163,7 @@ services/faze-api/src/main/java/com/faze/
 | --- | --- |
 | **开发计划总纲（段与段之间的顺序、每段边界、验收锚点、页面归属，9 段串行）** | `docs/architecture/法泽FAZE_开发计划总纲_v1.0.md` |
 | **第 0 段怎么落地（单线，从第一行读到最后一行为止）** | `docs/architecture/法泽FAZE_第0段工作流_v1.0.md`（**已产出，2026-10-31**：12 任务 / 4 组 / 8 条锚点逐条可执行验收；§零 记开工前实测的 4 个环境缺口） |
-| **第 1 段怎么落地（单线）** | `docs/architecture/法泽FAZE_第1段工作流_v1.0.md`（**已产出，2026-11-01**：8 组 29 任务 / 10 条锚点 / 12 张表 / 24+20 个接口；**§零之二 是负责人拍板的 12 项**，§三 A3 是可能一票否决的 MP 适配验证） |
+| **第 1 段怎么落地（单线）** | `docs/architecture/法泽FAZE_第1段工作流_v1.0.md`（**已产出，2026-11-01**：8 组 29 任务 / 10 条锚点 / 12 张表 / 24+20 个接口；**§零之二 是负责人拍板的 12 项**；§三 **A3 的 MP 适配已实测通过**——依赖是 `-spring-boot4-starter:3.5.18.1` + `mybatis-plus-jsqlparser:3.5.18.1` 两个，见 `docs/acceptance/seg1/A3-mp-probe.md`） |
 | 技术路线（最新） | `docs/architecture/法泽FAZE_技术路线_v2.3.md` |
 | **数据表规范（表名/字段/索引/软删/迁移/种子 + 49 张表准确清单）** | `docs/architecture/法泽FAZE_数据表规范_v1.0.md`（建表前必读；技术路线 §5.1 的 30 行清单已作废） |
 | **接口规范（契约怎么产生、URL/请求/响应/分页/金额/时间/脱敏/幂等/限流、5 组冻结契约的字段级定义）** | `docs/architecture/法泽FAZE_接口规范_v1.0.md`（写接口前必读；技术路线 §4.4 的 11 行表格已被取代） |

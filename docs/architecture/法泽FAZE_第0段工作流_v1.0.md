@@ -847,7 +847,7 @@ services/faze-api/
 |---|---|---|---|
 | `spring-boot-starter-parent` | **4.0.10** | ✅ 有（4.0.5 / 4.0.10 / 4.1.0） | 取 4.0.x 最新缓存版本；与 RuoYi 发行版的 4.0.3 **同一大版本**；Java 17 编译目标由 parent 管 |
 | `spring-boot-starter-web` / `-validation` / `-security` / `-aop` / `-test` | parent 管 | ✅ 有 | 版本一律不写，交给 parent |
-| `mybatis-plus-spring-boot4-starter` | **3.5.18.1** | ❌ 需联网（首次） | **必须用 `-spring-boot4-` 这个 artifact**。实测：`-spring-boot3-starter:3.5.12` 在 SB4 下**静默失效**——它 `@AutoConfigureAfter` 的 `org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration` 已被 SB4 移到 `org.springframework.boot.jdbc.autoconfigure`，旧类不存在 → 排序丢失 → MP 自动配置整体跳过 → 只报「Mapper 注入失败」。**不报缺类，最难查**。SB4 starter 从 MP **3.5.13** 起提供 |
+| `mybatis-plus-spring-boot4-starter` **+ `mybatis-plus-jsqlparser`** | **3.5.18.1**（两个都要，版本一致） | ❌ 需联网（首次） | **必须用 `-spring-boot4-` 这个 artifact**。实测：`-spring-boot3-starter:3.5.12` 在 SB4 下**静默失效**——它 `@AutoConfigureAfter` 的 `org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration` 已被 SB4 移到 `org.springframework.boot.jdbc.autoconfigure`，旧类不存在 → 排序丢失 → MP 自动配置整体跳过 → 只报「Mapper 注入失败」。**不报缺类，最难查**。SB4 starter 从 MP **3.5.13** 起提供。**分页插件 `PaginationInnerInterceptor` 已拆到 `mybatis-plus-jsqlparser`，不加会编译失败**（2026-11-01 实测） |
 | `mysql-connector-j` | **8.0.33** | ✅ 有（另 9.2.0 / 9.7.0） | 与 MySQL 8.0.44 服务端同代；不用 9.x（驱动 9 对 8.0 服务端虽兼容，但本项目未验证，段 0 不引入变量） |
 | `flyway-core` + **`flyway-mysql`** | 由 parent 决定（**Spring Boot 4.0 管的 Flyway 版本未实测**；SB 3.5 管的是 11.x） | ❌ **本地无缓存，必须联网** | Flyway 10+ 把数据库支持拆成独立模块；**只加 `flyway-core` 会报 `Unsupported Database: MySQL`** |
 | `jjwt-api` / `-impl` / `-jackson` | **0.12.3** | ✅ 有 | 三件套都要；只加 `jjwt-api` 能编译，但运行时找不到实现类（`NoClassDefFoundError: io/jsonwebtoken/impl/...`） |

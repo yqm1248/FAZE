@@ -1,18 +1,18 @@
-# 法泽 FAZE 文档基线 v1.23
+# 法泽 FAZE 文档基线 v1.24
 
 > # 后续一切文档从这里开始
 
 | 项 | 值 |
 | --- | --- |
-| 基线编号 | **v1.23** |
+| 基线编号 | **v1.24** |
 | 确立日期 | 2026-11-01 |
-| 上一版 | v1.22（2026-11-01，30 份资产） |
+| 上一版 | v1.23（2026-11-01，30 份资产） |
 | 所在分支 | `UI设计`（v1.2 及以前在 `docs` 分支） |
-| Git 标签 | `v1.13-docs-baseline`（v1.3~v1.10 当时未打标签，见 §7.13；v1.14~v1.23 亦未打标签，见 §7.27 末尾） |
+| Git 标签 | `v1.13-docs-baseline`（v1.3~v1.10 当时未打标签，见 §7.13；v1.14~v1.24 亦未打标签，见 §7.28 末尾） |
 | 基线资产数 | **30**（29 份 Markdown + 1 份令牌 JSON） |
 | 本版新增 | **0 份** |
 | 本版删除 | **0 份** |
-| 本版内容变更 | **6 份**（AGENTS、README、技术路线、后端代码规范、第 0 段工作流、第 1 段工作流；见 §7.27） |
+| 本版内容变更 | **5 份**（AGENTS、技术路线、后端代码规范、第 0 段工作流、第 1 段工作流；见 §7.28） |
 
 ---
 
@@ -98,7 +98,7 @@
 
 | # | 文件 | 行数 | 字节 | SHA256 前 16 位 |
 |---|---|---|---|---|
-| 1 | `AGENTS.md` | 199 | 17185 | `22b3a0e92f5cee41` 📝 |
+| 1 | `AGENTS.md` | 199 | 17524 | `47a33e85ad08584a` 📝 |
 | 2 | `README.md` | 109 | 5021 | `1ad2ee2572b6c7af` |
 | 3 | `docs/README.md` | 149 | 16889 | `68a48a46803e042f` 📝 |
 
@@ -107,16 +107,16 @@
 | # | 文件 | 行数 | 字节 | SHA256 前 16 位 |
 |---|---|---|---|---|
 | 4 | `docs/architecture/法泽FAZE_开发计划总纲_v1.0.md` | 970 | 76022 | `0f78e57b28a77625` 📝 |
-| 5 | `docs/architecture/法泽FAZE_技术路线_v2.3.md` | 4044 | 182571 | `46dc5a069a84c7b7` 📝 |
+| 5 | `docs/architecture/法泽FAZE_技术路线_v2.3.md` | 4044 | 182605 | `6e91cb69232bcc2e` 📝 |
 | 6 | `docs/architecture/法泽FAZE_V1基线表结构_v1.0.md` | 233 | 15747 | `bb145078f551730e` 📝 |
 | 7 | `docs/architecture/法泽FAZE_错误码规范_v1.0.md` | 271 | 14251 | `e3cf6107c8610fce` |
 | 24 | `docs/architecture/法泽FAZE_数据表规范_v1.0.md` | 621 | 37322 | `45bc948526161392` 📝 |
 | 25 | `docs/architecture/法泽FAZE_接口规范_v1.0.md` | 963 | 60732 | `d26d188d41325ddd` 📝 |
-| 26 | `docs/architecture/法泽FAZE_后端代码规范_v1.0.md` | 1609 | 93903 | `bb335ea3d7fb5eb1` 🆕 |
+| 26 | `docs/architecture/法泽FAZE_后端代码规范_v1.0.md` | 1609 | 93985 | `03573f955af80606` 🆕 |
 | 27 | `docs/architecture/法泽FAZE_i18n规范_v1.0.md` | 567 | 26414 | `04204a6b72b454c8` 🆕 |
 | 28 | `docs/architecture/法泽FAZE_审计与日志规范_v1.0.md` | 374 | 19879 | `54200141b24ce03f` 🆕 |
-| 29 | `docs/architecture/法泽FAZE_第0段工作流_v1.0.md` | 2887 | 260082 | `7847be6e03d50a8f` 🆕 |
-| 30 | `docs/architecture/法泽FAZE_第1段工作流_v1.0.md` | 1249 | 77061 | `168d527315358051` 🆕 |
+| 29 | `docs/architecture/法泽FAZE_第0段工作流_v1.0.md` | 2887 | 260278 | `42c8d0ea42c7279a` 🆕 |
+| 30 | `docs/architecture/法泽FAZE_第1段工作流_v1.0.md` | 1252 | 77893 | `74d9474b7102b4ec` 🆕 |
 
 > **分工（v1.18 更新）**：第 4 份定**段与段之间的顺序、每段边界、页面归属（68+28）、验收锚点、段的门禁**；第 5 份定**做什么、怎么做**；第 6 份是 **V1（段 0）两张表的 DDL**；第 7 份是**78 个错误码**；第 24 份定**建表规则 + 49 张表的准确清单**（含类别/域/建表段），并取代技术路线 §5.1 的表清单、§5.2 的文字条款；第 25 份定**接口契约的产生方式（混合 OpenAPI 三级）、URL/请求/响应/横切能力的全部条款、5 组冻结契约的字段级定义**，并取代技术路线 §4.4、§4.8.1、§4.8.4.2；第 26 份定**服务端代码规范**并给出每条规则的「承接手段」矩阵；**第 27 份定四语言的 key 命名、文件组织、缺译降级、服务端通知的语言选择与完整性门禁**，取代技术路线 §13.2 的 5 个 json 划分；**第 28 份定「审计 ≠ 日志」的分界、必须审计的动作清单、留存期（含法律依据）、不可篡改与可查询性**；**第 29 份是第 0 段的唯一施工文档**——12 个任务 / 4 组 / 8 条锚点逐条可执行（含命令、判定标准、证据形式、可能假通过），把「照总纲的 12 个任务名硬猜怎么施工」变成单线可执行。
 >
@@ -697,6 +697,61 @@ MP 3.5.12 的 `MybatisPlusAutoConfiguration` 上 `@AutoConfigureAfter` 引用的
 **本版交叉验证结果**：30 份资产逐份重算 LF 数 / 字节 / SHA256 前 16，6 份变更已更新；探针工程 `E:\dshcode\tmp\mp-sb4-probe` 可复现（`mvn -B spring-boot:run` → `[PROBE] MP_OK`）；`E:\dshcode` 下已无 RuoYi 目录。
 
 **本版没做的事**：第 1 段仍未施工；`mybatis-plus-jsqlparser` 在 3.5.18.1 下是否自动带入（分页插件依赖它）未验——D2 开工前必须先验。
+
+---
+
+### 7.28 v1.24 内容变更 5 份（分页插件 `mybatis-plus-jsqlparser` 同批验证通过）
+
+> 起因：v1.23 末尾留了一条「`mybatis-plus-jsqlparser` 是否被 starter 自动带入未验——D2 开工前必验」。本版**同批验掉**，结果又是一个坑。
+
+**实测结论**
+
+| 项 | 结果 |
+|---|---|
+| 只加 `mybatis-plus-spring-boot4-starter:3.5.18.1`，写 `new PaginationInnerInterceptor(...)` | ❌ **编译失败**：`找不到符号: 类 PaginationInnerInterceptor`（包 `com.baomidou.mybatisplus.extension.plugins.inner`） |
+| 再加 `mybatis-plus-jsqlparser:3.5.18.1` | ✅ 编译通过；分页 SQL 实测为 `LIMIT ?` 与 `LIMIT ? OFFSET ?`，数据正确 |
+
+**根因**
+
+`PaginationInnerInterceptor` 在 3.5.18.1 已**从 `mybatis-plus-extension` 拆到 `mybatis-plus-jsqlparser`**；解压 `mybatis-plus-extension-3.5.18.1.jar` 的 `plugins/inner/` 下只有 `DynamicTableName` / `OptimisticLocker` / `ReplacePlaceholder` / `Sharding` / `InnerInterceptor`，**没有分页拦截器**。SB4 starter 也不传递依赖 jsqlparser。
+
+**验证输出**
+
+```
+[PROBE] selectCount=5
+[PROBE] selectById=u1/active
+[PROBE] page1 total=5 size=2 names=[u1, u2]
+[PROBE] page3 total=5 size=1 names=[u5]
+[PROBE] MP_OK
+BUILD SUCCESS
+```
+
+**分页 SQL**（`log-impl: StdOutImpl`）：
+
+```
+==> Preparing: SELECT COUNT(*) AS total FROM tmp_user
+==> Preparing: SELECT id,user_name,status FROM tmp_user LIMIT ?
+==> Preparing: SELECT COUNT(*) AS total FROM tmp_user
+==> Preparing: SELECT id,user_name,status FROM tmp_user LIMIT ? OFFSET ?
+```
+
+**这证明分页是「真的加了 LIMIT」，不是「查全量再内存截断」**——后者是最常见的假分页，数据量一大就拖垮服务。
+
+**内容变更 5 份**
+
+| 文件 | 改了什么 | 为什么 |
+|---|---|---|
+| `AGENTS.md` | 第 6 条补「分页还要单独加 `mybatis-plus-jsqlparser:3.5.18.1`，不加会编译失败」；§8 索引第 1 段描述从「A3 可能一票否决」改为「已实测通过，依赖是两个」 | 这是强制约束 |
+| 技术路线 | §2.2 ORM 行注明「`-spring-boot4-starter` + 分页插件 `mybatis-plus-jsqlparser`，两个都要」 | 同上 |
+| 后端代码规范 | §1.1 ORM 行同步 | 同上 |
+| 第 0 段工作流 | 依赖表把 starter 与 jsqlparser 合成一行，注明「两个都要，版本一致」并补「不加会编译失败」 | 段 0 的 A3 复验会第一个撞上 |
+| 第 1 段工作流 | §零.2 MP 行、A3 节正文与风险表都补上 jsqlparser 这条 | 段 1 的 D2/F 组直接用 |
+
+**证据**：`docs/acceptance/seg1/A3-mp-probe.md` 第七节（含失败日志、jar 内容取证、分页 SQL、对法泽的处置）。
+
+**本版交叉验证结果**：30 份资产逐份重算 LF 数 / 字节 / SHA256 前 16，5 份变更已更新；探针工程可复现（`mvn -B spring-boot:run` → `[PROBE] MP_OK`）。
+
+**本版没做的事**：第 1 段仍未施工。A3 相关的两个坑（starter 选错、分页插件缺失）都已在文档里闭环，段 0/1 施工时不需要再排查。
 
 ---
 

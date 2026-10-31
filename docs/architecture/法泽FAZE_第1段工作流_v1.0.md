@@ -30,7 +30,7 @@
 | MySQL | 8.0.44 服务 Running；**root（或有建库权账号）凭据仍缺**（段 0 §二 第 16 项） | **要** | 建 12 张表、建 `faze_admin` 库 |
 | OSS | 负责人确认「有服务器，可以存，不用管」（2026-11-01） | 要 | 证件影像、资质材料。**凭据不进本文档、不进仓库** |
 | 短信 | **只做开关**（负责人 2026-11-01 裁决） | 要 | 开发期固定码；上线前换真实通道 |
-| MyBatis-Plus | **已定 `3.5.18.1` + `mybatis-plus-spring-boot4-starter`**（2026-11-01 实测通过：`3.5.12` 的 SB3 starter 在 SB4 下会**静默失效**） | **要** | 证据 `docs/acceptance/seg1/A3-mp-probe.md`。**禁止再用 `-spring-boot3-` starter** |
+| MyBatis-Plus | **已定 `3.5.18.1`：`mybatis-plus-spring-boot4-starter` + `mybatis-plus-jsqlparser`（两个都要）**（2026-11-01 实测通过：`3.5.12` 的 SB3 starter 在 SB4 下会**静默失效**；分页插件在 jsqlparser 里，缺了**编译失败**） | **要** | 证据 `docs/acceptance/seg1/A3-mp-probe.md`（第三、七节）。**禁止再用 `-spring-boot3-` starter** |
 | 前端包管理器 | `apps/mobile-app` 用 npm（AGENTS §六 已验证口径）；RuoYi-Vue3 侧**同时有 `package-lock.json` 与 `pnpm-lock.yaml`**（上游就带） | 要 | RuoYi 侧**只用 npm**，不要再引入第三份锁文件 |
 
 ### 零.3 两条已经收口的旧冲突（本段不要再讨论）
@@ -164,6 +164,8 @@
 4. MP 在 DataSource 之前评估 → `@ConditionalOnSingleCandidate(DataSource)` 查不到 bean → **整个自动配置跳过**
 5. 现象只有一句 `Property 'sqlSessionFactory' or 'sqlSessionTemplate' are required`，**没有 `NoClassDefFoundError`**
 
+**本次还一并验掉了分页插件**（2026-11-01 同批）：`PaginationInnerInterceptor` 在 3.5.18.1 已从 `mybatis-plus-extension` 拆到 **`mybatis-plus-jsqlparser`**，只加 starter 会**编译失败**。加上后分页 SQL 实测为 `SELECT ... LIMIT ?` 与 `LIMIT ? OFFSET ?`（**不是查全量再内存截断**），数据也正确（5 条 / 第 1 页 2 条 / 第 3 页 1 条）。证据见同一文件的第七节。
+
 **本任务现在做什么**（复验，不是探索）：
 
 1. `services/faze-api/pom.xml`：
@@ -192,6 +194,7 @@
 | 有人图省事把 `-spring-boot3-` starter 加回来 | 它**不报错，只是 Mapper 注入失败**。pom 行加注释说明，代码审查列为必查项 |
 | `mybatis-plus-jsqlparser` 在 3.5.18.1 是独立 artifact，分页插件可能没被自动带入 | D2（流水分页）开工前验一次 `PaginationInnerInterceptor` 是否可用 |
 | 版本从 3.5.12 跨到 3.5.18.1（6 个小版本） | MP 3.5.x 内部 API 稳定；若遇 `Wrapper` 方法签名变化，以编译错误为准逐处修，**不许降回 3.5.12** |
+| **只加了 starter 没加 `mybatis-plus-jsqlparser`** | 写分页拦截器时会**编译失败**（`找不到符号: PaginationInnerInterceptor`）。2026-11-01 实测：该插件已从 `mybatis-plus-extension` 拆到 `mybatis-plus-jsqlparser`，starter 不传递它 |
 
 ---
 

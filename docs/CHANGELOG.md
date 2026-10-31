@@ -4,6 +4,48 @@
 
 ---
 
+## 2026-11-01 · 分页插件同批验掉：`mybatis-plus-jsqlparser` 必须单独加（基线 v1.24）
+
+**又一个坑。**
+
+### 一、结论
+
+| 做法 | 结果 |
+|---|---|
+| 只加 `-spring-boot4-starter:3.5.18.1`，写 `new PaginationInnerInterceptor(...)` | ❌ **编译失败**：`找不到符号: 类 PaginationInnerInterceptor` |
+| 再加 `mybatis-plus-jsqlparser:3.5.18.1` | ✅ 编译通过，分页 SQL 实测 `LIMIT ?` / `LIMIT ? OFFSET ?`，数据正确 |
+
+**根因**：3.5.18.1 把 `PaginationInnerInterceptor` 从 `mybatis-plus-extension` 拆到了 `mybatis-plus-jsqlparser`，SB4 starter **不传递依赖它**。解压 `mybatis-plus-extension-3.5.18.1.jar` 的 `plugins/inner/` 下只剩 `DynamicTableName` / `OptimisticLocker` / `ReplacePlaceholder` / `Sharding` / `InnerInterceptor`——**没有分页拦截器**。
+
+### 二、验证输出
+
+```
+[PROBE] selectCount=5
+[PROBE] page1 total=5 size=2 names=[u1, u2]
+[PROBE] page3 total=5 size=1 names=[u5]
+[PROBE] MP_OK
+BUILD SUCCESS
+
+==> Preparing: SELECT COUNT(*) AS total FROM tmp_user
+==> Preparing: SELECT id,user_name,status FROM tmp_user LIMIT ?
+==> Preparing: SELECT COUNT(*) AS total FROM tmp_user
+==> Preparing: SELECT id,user_name,status FROM tmp_user LIMIT ? OFFSET ?
+```
+
+**分页是真的加了 LIMIT**，不是「查全量再内存截断」——后者是最常见的假分页，数据量一大就拖垮服务。第 3 页（current=3, size=2）正确返回 1 条，说明 OFFSET 也生效。
+
+### 三、改了 5 份文档
+
+`AGENTS.md`（第 6 条 + §8 索引）/ 技术路线 §2.2 / 后端代码规范 §1.1 / 第 0 段工作流依赖表 / 第 1 段工作流（§零.2、A3 节正文、A3 风险表）。
+
+证据：`docs/acceptance/seg1/A3-mp-probe.md` 第七节（失败日志、jar 内容取证、分页 SQL、对法泽的处置）。
+
+### 四、没做的
+
+第 1 段仍未施工。A3 相关的**两个坑都已闭环**（starter 选错 → 静默失效；分页插件缺失 → 编译失败），段 0/1 施工时不需要再排查。
+
+---
+
 ## 2026-11-01 · A3 实测：MP 必须换 SB4 starter；冗余副本已清理（基线 v1.23）
 
 **两个动作，一个反转结论。**
