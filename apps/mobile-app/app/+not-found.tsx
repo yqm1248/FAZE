@@ -19,7 +19,7 @@ export default function NotFoundPage() {
       <View style={styles.body}>
         <Text style={styles.title}>页面不存在</Text>
         <Text style={styles.description}>该页面可能已调整，请返回首页继续使用。</Text>
-        <PrimaryButton label="回到首页" onPress={() => router.replace('/home')} />
+        <PrimaryButton label="回到首页" onPress={() => router.replace('/')} />
       </View>
     </Screen>
   );
