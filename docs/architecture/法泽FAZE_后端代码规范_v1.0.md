@@ -20,7 +20,7 @@
 | JDK 声明 | **17**（`pom.xml:15`） | 1.8（`pom.xml:24`） | 17 | — |
 | Java 文件 / 行 | 324 / 30,244 | 342 / 60,857 | 672 / 52,738 | — |
 | 后端形态 | 单体 Spring Boot | 单体 Spring Boot | **RuoYi 二次开发，Maven 多模块** | jxyd200 与法泽的 PC 后台同源 |
-| ORM | MyBatis-Plus 3.5.12 BOM，但**真实业务 100% 自定义 XML，Wrapper 零使用** | MyBatis + PageHelper，全 XML | MyBatis-Plus | 法泽用 MP **3.5.18.1 + `mybatis-plus-spring-boot4-starter`**（3.5.12 在 SB4 下静默失效，2026-11-01 实测，见 `docs/acceptance/seg1/A3-mp-probe.md`） |
+| ORM | MyBatis-Plus 3.5.12 BOM，但**真实业务 100% 自定义 XML，Wrapper 零使用** | MyBatis + PageHelper，全 XML | MyBatis-Plus | 法泽用 MP **3.5.18.1**：`mybatis-plus-spring-boot4-starter` **加** `mybatis-plus-jsqlparser`（分页插件在后者里，缺了编译失败）。3.5.12 在 SB4 下静默失效，2026-11-01 实测，见 `docs/acceptance/seg1/A3-mp-probe.md` |
 | `@Aspect` 数量 | **0** | **0** | 未用 | **三个项目都没有操作日志切面** |
 | `${}` 在 XML 中 | **0 处**（177 个 select 全 `#{}`） | **49 处**（全是 `ORDER BY t.${orderBy} ${orderType}`） | — | 一个正例、一个反例 |
 | `@Operation` 覆盖 | **46 / 46 = 100%** | 0 | — | — |
