@@ -23,7 +23,7 @@
 | 交付物 | PC 管理后台的页面（HTML 设计稿）+ 本计划书 |
 | 页面数 | **28 页**（含登录页，不含 RuoYi 框架自带页） |
 | 角色 | **只做 1 个角色：管理员**。不做超管 / 运营 / 审核 / 财务的权限细分，所有菜单对管理员可见 |
-| 技术底座 | RuoYi-Vue3 3.8.7（`E:\itheima\vue\ry_vue3\RuoYi-Vue3`），业务页在 `src/views/biz/<domain>/`，API 在 `src/api/biz/<domain>/` |
+| 技术底座 | **RuoYi-Vue 3.9.2 官方发行版**（`E:\itheima\SSM\3、SSM框架（…）\文件\RuoYi-Vue`，分支 `release-3.9.2` = tag `v3.9.2`，**Spring Boot 4.0.3**）；前端 RuoYi-Vue3 3.9.2。业务页在 `src/views/biz/<domain>/`，API 在 `src/api/biz/<domain>/` |
 | 部署 | 独立域 `admin.faze.com`，仅 admin 角色可登录（技术路线 §15.2） |
 | 画幅 | 1440×900 固定 |
 | 语言 | 简体中文（与 APP 设计稿同口径：多语言与 RTL 放代码层） |

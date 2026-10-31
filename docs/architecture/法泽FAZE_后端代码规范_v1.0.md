@@ -1,9 +1,9 @@
 # 法泽 FAZE · 后端代码规范（V1.0）
 
-> **用途**：`services/faze-api`（Spring Boot 3.5 / Java 17）的代码规范。三端之中**只有服务端**适用本文件；移动端看《代码注释规范》与 `docs/standards/`，PC 后台看 RuoYi 约束。
-> **定稿日期**：2026-10-30
+> **用途**：`services/faze-api`（Spring Boot 4.0 / Java 17）的代码规范。三端之中**只有服务端**适用本文件；移动端看《代码注释规范》与 `docs/standards/`，PC 后台看 RuoYi 约束。
+> **定稿日期**：2026-10-30（2026-11-01 修订：Spring Boot 3.5 → 4.0）
 > **参考来源**：`D:\gitzxz\zxz-bi-server`（Spring Boot **3.5.3** / JDK 17，324 个 java / 30,244 行）、`C:\Users\14541\Desktop\2026.7.13实习\wgcloud`（Spring Boot 2.7.12，342 个 java / 60,857 行）、`E:\项目文件\jxyd200`（monorepo，后端 RuoYi 二次开发，Spring Boot **3.5.14** / Java 17，672 个 java / 52,738 行）。
-> **三个参考项目的后端全部是 Spring Boot 3.5 同代（ZXZ 3.5.3 / jxyd200 3.5.14）**，所以本节大部分是**零成本直搬**，不是「改造后移植」。
+> **三个参考项目的后端全部是 Spring Boot 3.5 同代（ZXZ 3.5.3 / jxyd200 3.5.14），而法泽已升到 Spring Boot 4.0**——分层、注释、异常、事务、安全这些**业务级规则仍可直搬**；但**框架级 API 必须逐条核对**（Spring Security 6→7 的授权写法与 `SecurityFilterChain` 配置、自动配置类名、Jakarta 包路径）。**不能再声称「零成本直搬」。**
 > **不重复的内容**：接口契约见《[法泽FAZE_接口规范_v1.0.md](法泽FAZE_接口规范_v1.0.md)》；表结构见《[法泽FAZE_数据表规范_v1.0.md](法泽FAZE_数据表规范_v1.0.md)》；错误码见《[法泽FAZE_错误码规范_v1.0.md](法泽FAZE_错误码规范_v1.0.md)》。
 >
 > **⚠️ 先读 §十四**：本文件的每条规则都配了「承接手段」。**答不上「谁在拦住违反它的人」的规则，就不该写进来**——这是从 jxyd200 的 1,138 行规范只有 7 条真落地中学到的。
@@ -16,11 +16,11 @@
 
 | 项 | ZXZ | wgcloud | jxyd200（后端） | 说明 |
 |---|---|---|---|---|
-| Spring Boot | **3.5.3**（`pom.xml:8`） | 2.7.12（`pom.xml:16`） | **3.5.14**（`services/ruoyi-api/pom.xml:19-21`） | 三个都是 3.5 同代或接近 |
+| Spring Boot | **3.5.3**（`pom.xml:8`） | 2.7.12（`pom.xml:16`） | **3.5.14**（`services/ruoyi-api/pom.xml:19-21`） | 参考项目均为 3.5；**法泽已升 4.0**，跨一个大版本 |
 | JDK 声明 | **17**（`pom.xml:15`） | 1.8（`pom.xml:24`） | 17 | — |
 | Java 文件 / 行 | 324 / 30,244 | 342 / 60,857 | 672 / 52,738 | — |
 | 后端形态 | 单体 Spring Boot | 单体 Spring Boot | **RuoYi 二次开发，Maven 多模块** | jxyd200 与法泽的 PC 后台同源 |
-| ORM | MyBatis-Plus 3.5.12 BOM，但**真实业务 100% 自定义 XML，Wrapper 零使用** | MyBatis + PageHelper，全 XML | MyBatis-Plus | 法泽用 MP，两者都不能直接照搬 |
+| ORM | MyBatis-Plus 3.5.12 BOM，但**真实业务 100% 自定义 XML，Wrapper 零使用** | MyBatis + PageHelper，全 XML | MyBatis-Plus | 法泽用 MP；**但 MP 3.5.12 在 Spring Boot 4 下没有 starter，适配待验**（见《第0段工作流》A3） |
 | `@Aspect` 数量 | **0** | **0** | 未用 | **三个项目都没有操作日志切面** |
 | `${}` 在 XML 中 | **0 处**（177 个 select 全 `#{}`） | **49 处**（全是 `ORDER BY t.${orderBy} ${orderType}`） | — | 一个正例、一个反例 |
 | `@Operation` 覆盖 | **46 / 46 = 100%** | 0 | — | — |

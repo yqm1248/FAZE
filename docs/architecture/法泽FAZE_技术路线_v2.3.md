@@ -64,7 +64,7 @@
 | 项 | V2.1 | V2.2 |
 | --- | --- | --- |
 | 项目定位 | 正式上线 | **保持正式上线**，与 `AGENTS.md` v2.0 统一 |
-| PC 管理后台 | 自选 Vue3 + Element Plus | **改用 RuoYi-Vue3 低代码平台**（`E:\itheima\vue\ry_vue3\RuoYi-Vue3`，已在 `jxyd200` 验证） |
+| PC 管理后台 | 自选 Vue3 + Element Plus | **改用 RuoYi 低代码平台**（后端 RuoYi-Vue 3.9.2 官方发行版 tag `v3.9.2` / Spring Boot 4.0.3；前端 RuoYi-Vue3 3.9.2），已在 `jxyd200` 验证 |
 | 支付 | 微信/支付宝直连 + 分账 | **改为平台账户余额制**：界面「账户余额」，充值走微信/支付宝，消费用余额抵扣 |
 | AI 备案 | 拟做（2–3 个月） | **不做**。依据《生成式人工智能服务管理暂行办法》第 2 条第 3 款 |
 | 法条 | 不建法条库，依赖模型知识 | **建本地法条库**（民法典、民诉法等，约 2000–3000 条）+ MySQL 全文检索 + 引用校验 |
@@ -201,7 +201,7 @@
 | 项 | 选型 | 版本 |
 |---|---|---|
 | 语言 | Java | 17（LTS） |
-| 框架 | Spring Boot | 3.5.3 |
+| 框架 | Spring Boot | 4.0.10 |
 | Web 容器 | Undertow（替换 Tomcat） | 随 Boot |
 | ORM | MyBatis-Plus | 3.5.12 |
 | 数据库 | MySQL | 8.0（utf8mb4） |
@@ -232,7 +232,7 @@
 
 ## 2.3 管理后台
 
-**采用 RuoYi-Vue3 低代码平台**，本地位置 `E:\itheima\vue\ry_vue3\RuoYi-Vue3`。已在 `jxyd200` 项目验证过完整落地。
+**采用 RuoYi 低代码平台**：后端 RuoYi-Vue **3.9.2 官方发行版（tag `v3.9.2`，Spring Boot 4.0.3）**，本地位置 `E:\itheima\SSM\3、SSM框架（…）\文件\RuoYi-Vue`（分支 `release-3.9.2`）；前端 RuoYi-Vue3 3.9.2。已在 `jxyd200` 项目验证过完整落地。
 
 | 项 | 选型 | 说明 |
 |---|---|---|
@@ -3344,7 +3344,7 @@ export function formatRelative(date: Date, lang: Lang): string;
 
 ## 15.2 技术实现（V2.2 改为 RuoYi-Vue3）
 
-- **基础平台：RuoYi-Vue3**（`E:\itheima\vue\ry_vue3\RuoYi-Vue3`），已在 `jxyd200` 项目验证
+- **基础平台：RuoYi 3.9.2**（后端 RuoYi-Vue **官方 tag `v3.9.2`** / Spring Boot 4.0.3，前端 RuoYi-Vue3 3.9.2；本地 `E:\itheima\SSM\3、SSM框架（…）\文件\RuoYi-Vue`），已在 `jxyd200` 项目验证
 - 内置 Vue 3 + Vite + TS + Element Plus + Pinia + ECharts，**不另起框架**
 - 业务代码隔离：页面放 `src/views/biz/<domain>/`，API 放 `src/api/biz/<domain>/`
 - 权限复用 RuoYi 的菜单权限 + `@PreAuthorize` + `@DataScope`，**不另建权限模型**

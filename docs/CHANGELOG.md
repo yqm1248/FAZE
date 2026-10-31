@@ -4,6 +4,58 @@
 
 ---
 
+## 2026-11-01 · RuoYi 锁 3.9.2 官方发行版，法泽全仓 Spring Boot 3.5 → 4.0（基线 v1.20）
+
+**起因**：负责人要求「强制使用 3.9.2」，随后要求「把法泽的 SB3.5 全部改成 SB4」。执行时撞到两条硬事实，改变了原来的判断。
+
+### 一、两条硬事实
+
+1. **RuoYi 官方 tag `v3.9.2`（2026-03-26）的 `pom.xml` 就是 `spring-boot.version=4.0.3`。** 官方**不存在**「3.9.2 + Spring Boot 3.5」这个发行版——之前以为可以「3.9.2 版本号 + SB 3.5」并存，是把**开发分支**当成了发行版。
+2. **`springboot3` 分支的 tag 停在 `v3.8.7`**，其后 265 个提交都没有 v3.9.x 的 tag。所以「判版本看 pom 不看 tag」这条规则恰好说明：`springboot3` 不是发行版。
+
+**结论**：PC 后台定为 **RuoYi-Vue 3.9.2 官方发行版（tag `v3.9.2` / Spring Boot 4.0.3）**，`faze-api` 同步升 **Spring Boot 4.0**。
+
+### 二、源码动作（不在本仓库）
+
+把官方发行版切到 `E:\itheima\SSM\…\文件\RuoYi-Vue`：
+
+- 新建分支 `release-3.9.2`，HEAD `0e2d75c2` = tag `v3.9.2`
+- `git status` 干净；638 个源码文件（265 java / 101 vue）
+- SQL：`sql/ry_20260320.sql` + `sql/quartz.sql`
+- **切之前先把原课程作业的 4 处未提交改动备份**到同级 `_RuoYi课程作业备份_20261101\`（8 个文件：course 模块 6 个 + `application-druid.yml` + `MyTask.java`），否则 `git clean` 会永久删掉
+
+### 三、文档变更 9 份
+
+| 文件 | 改了什么 |
+|---|---|
+| `AGENTS.md` | §2 服务端 SB 3.5 → **4.0**；强制约束第 2 条从「必须用 `springboot3` 分支」**翻转为「必须用 tag `v3.9.2`，`springboot3` 废止」**；新增 MP 在 SB4 下无 starter 的待验项 |
+| `README.md` | 技术栈两行同步 |
+| 技术路线 | §2.2 `SB 3.5.3` → `4.0.10`；三处 RuoYi 路径与版本 |
+| 后端代码规范 | 「三个参考项目 3.5 同代 → 零成本直搬」**改为「业务级可直搬、框架级 API 须逐条核对」** |
+| 接口规范 | 硬证据来源改 3.9.2；**「待实测 LoginUser 序列化」→「已实测 JSON 可读」**，补 Jackson 需设 `FAIL_ON_UNKNOWN_PROPERTIES=false`；裁决 9 行号更新 |
+| 第0段工作流 | §零之四 整节从「版本断层 + 待拍板」重写为「已裁决」；坏消息从「不可能通过」改为「被 A2 的 Redis 阻塞」；依赖表 `3.5.16` → `4.0.10` |
+| PC后台开发计划 | 技术底座 3.8.7 → 3.9.2 官方发行版 |
+| PC后台UI设计说明 | 补实测：3.9.2 把 `.el-menu-item` 写死 `44px !important`，50/46 压不住；但 44px 让 11 组菜单约 810px < 900，原「装不下」顾虑消失 |
+| 未完成需备注 | §六 事实来源 3.8.7 → 3.9.2 |
+
+### 四、顺手验掉的一个待实测项
+
+`LoginUser` 在 Redis 里的序列化：读 `RedisConfig.java` L29–33 确认 value 用 `FastJson2JsonRedisSerializer`，**是 JSON 不是 JDK 序列化**。faze-api 用 Jackson 可读，但 `serialize()` 带 `JSONWriter.Feature.WriteClassName`，JSON 里有 `@type`，必须设 `FAIL_ON_UNKNOWN_PROPERTIES=false`。
+
+**这条原本是方案 A「可能被强制降级到方案 B」的风险，现在消除了。**
+
+### 五、新增的未验证项（唯一一条）
+
+`MyBatis-Plus 3.5.12` 在 Spring Boot 4 下**没有对应 starter**——本机 `.m2` 只有 `mybatis-plus-spring-boot3-starter`，全盘无 `*spring-boot4*` 构件；RuoYi 官方发行版用的是原生 MyBatis + PageHelper。**段 0 的 A3 必须先实测**，不通则 ORM 选型由负责人拍板。
+
+### 六、没做的事
+
+- RuoYi **前端**（RuoYi-Vue3 3.9.2）本机只有 `D:\aiCodeProject\projects\ruoyi-admin` 且被改过 12 处，**尚未切出纯净副本**
+- `docs/analysis/ruoyi-patches.md` 仍未创建
+- Spring Boot 4 下 Spring Security 6→7 的授权写法未逐条核对
+
+---
+
 ## 2026-10-31 · 新增《第 0 段工作流》，开工前实测出 4 个环境缺口（基线 v1.19）
 
 **起因**：总纲 §11.2 的 9 份段工作流里，第 0 段是唯一「待产出」，而 §5.1 又写着「施工细节见《第 0 段工作流》」——没有它，第 0 段只能照 12 个任务名硬猜怎么写。这份文档要解决的是「**拿着它就能施工、施工完能二值判定**」。

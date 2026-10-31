@@ -35,8 +35,8 @@
 | 层 | 选型 |
 |---|---|
 | 移动端 | Expo SDK 54 / React Native 0.81 / React 19 / expo-router 6 / TypeScript strict |
-| 服务端 | Java 17 / Spring Boot 3.5 / MyBatis-Plus 3.5.12 / MySQL 8.0 / Redis |
-| PC 后台 | RuoYi-Vue3（业务代码隔离在 `src/views/biz/`） |
+| 服务端 | Java 17 / Spring Boot 4.0 / MyBatis-Plus 3.5.12 / MySQL 8.0 / Redis |
+| PC 后台 | RuoYi 3.9.2（后端 RuoYi-Vue tag `v3.9.2` / Spring Boot 4.0.3，前端 RuoYi-Vue3 3.9.2；业务代码隔离在 `src/views/biz/`） |
 | 实时通信 | 自建 WebSocket + 第三方离线推送 |
 | AI | 豆包 API（SSE 流式）+ 本地法条库检索（MySQL ngram 全文索引，**不用向量库**） |
 | 文书 | `poi-tl`（Word）+ LibreOffice headless / Chromium 打印（PDF） |

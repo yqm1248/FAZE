@@ -40,22 +40,23 @@
 | 层 | 选型 |
 | --- | --- |
 | 移动端 | Expo SDK 54 / React Native 0.81 / React 19 / expo-router 6 / TypeScript strict |
-| 服务端 | Java 17 / Spring Boot 3.5 / MyBatis-Plus 3.5.12 / MySQL 8.0 / Redis 7 |
-| PC 后台 | **RuoYi 3.9.2（强制版本）**：后端 RuoYi-Vue **3.9.2 · `springboot3` 分支**（Spring Boot 3.5.14）/ 前端 RuoYi-Vue3 **3.9.2**（Vue 3.5.26 / Element Plus 2.13.1） |
+| 服务端 | Java 17 / Spring Boot **4.0** / MyBatis-Plus 3.5.12 / MySQL 8.0 / Redis 7 |
+| PC 后台 | **RuoYi 3.9.2（强制版本）**：后端 RuoYi-Vue **3.9.2 官方发行版 tag `v3.9.2`**（Spring Boot **4.0.3**）/ 前端 RuoYi-Vue3 **3.9.2**（Vue 3.5.26 / Element Plus 2.13.1） |
 | 实时通信 | 自建 WebSocket（`spring-boot-starter-websocket`）+ 第三方离线推送 |
 | AI | 豆包 API（SSE 流式）+ 本地法条库检索 |
 | 文书 | `poi-tl`（Word）+ **LibreOffice headless 或 Chromium 打印**（PDF）——`openhtmltopdf` 无法排阿拉伯系连写，不得使用 |
 
 禁用清单见技术路线 **2.4 节**（版本以 `docs/architecture/` 下的最新版为准，当前为 v2.3）。
 
-> **RuoYi 版本强制约束（2026-11-01 定）**
+> **RuoYi 版本强制约束（2026-11-01 定；同日修订：改用 Spring Boot 4 官方发行版）**
 >
 > 1. PC 后台**一律使用 RuoYi 3.9.2**。**3.8.7 已废止**——不再引用、不再兼容、不再作为参考实现或验证基线。
-> 2. 后端必须用 RuoYi-Vue 3.9.2 的 **`springboot3` 分支**（Spring Boot 3.5.14）。**`master` 分支禁止使用**：它带 Spring Boot 4.0.6，与本节锁定的 Spring Boot 3.5 冲突。
+> 2. 后端一律使用 **RuoYi-Vue 3.9.2 官方发行版（tag `v3.9.2`，2026-03-26）**：其 `pom.xml` 为 `ruoyi.version=3.9.2` / `spring-boot.version=4.0.3` / `mybatis-spring-boot.version=4.0.1`。**`springboot3` 分支（Spring Boot 3.5.14）已废止**，不得再作为实现基线。
 > 3. 前端用 RuoYi-Vue3 **3.9.2**（Vue 3.5.26 / Element Plus 2.13.1）。
-> 4. **判版本只看 `pom.xml` 的 `ruoyi.version` 与 `package.json` 的 `version`，不看 git tag**——`springboot3` 分支的 tag 停在 `v3.8.7`，落后于实际版本，按 tag 判断会得出错误结论。
-> 5. 所有涉及 RuoYi 的文档、代码、示例、命令、截图一律按 **3.9.2** 写。发现引用 3.8.7 或 `master` 分支的地方，按**缺陷**处理并要求改正。
-> 6. 本条优先级**高于其他任何文档中的 RuoYi 版本描述**；与本条冲突的表述以本条为准。
+> 4. **判版本看 `pom.xml` 的 `ruoyi.version` / `spring-boot.version` 与 `package.json` 的 `version`**；tag 只标识发行点。注意 `springboot3` 分支的 tag 停在 `v3.8.7`，与官方发行线不是一回事。
+> 5. 所有涉及 RuoYi 的文档、代码、示例、命令、截图一律按 **3.9.2 / Spring Boot 4.0** 写。发现引用 3.8.7、3.5.x 或 `springboot3` 分支的地方，按**缺陷**处理并要求改正。
+> 6. **⚠️ 待验证：`MyBatis-Plus 3.5.12` 在 Spring Boot 4 下的 starter 适配**。RuoYi 官方发行版用的是原生 `mybatis-spring-boot-starter 4.0.1` + `pagehelper-spring-boot-starter`，不是 MP；本机 `.m2` 只有 `mybatis-plus-spring-boot3-starter`，**没有 boot4 版**。段 0 必须实测；若不可用，ORM 方案由负责人重新拍板，**不得自行换成原生 MyBatis**。
+> 7. 本条优先级**高于其他任何文档中的 RuoYi 版本描述**；与本条冲突的表述以本条为准。
 
 ---
 

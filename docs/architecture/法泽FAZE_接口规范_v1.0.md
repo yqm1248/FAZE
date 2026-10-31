@@ -40,7 +40,7 @@
 
 **问题**：PC 登录走 RuoYi 后端（§4.8.4.1 冻结：A-01 走 RuoYi 的 `/captchaImage`、`/login`），但**业务接口由 faze-api 提供**（`/api/v1/admin/**`）。两个独立 Spring Boot 应用，各自的 JWT secret 不同。**文档全仓 0 处定义两者如何互认身份。**
 
-**硬证据**（读的是本机 `E:\itheima\vue\ry_vue3\RuoYi-Vue3\src`）：
+**硬证据**（读的是 RuoYi-Vue3 **3.9.2** 源码 `D:\aiCodeProject\projects\ruoyi-admin\src`；该 clone 有 12 处本地改动，但 `auth.js` 与 `request.js` 的 401 分支均未受影响，与 3.8.7 逐行比对语义一致）：
 
 | 文件 | 行 | 内容 | 推论 |
 |---|---|---|---|
@@ -67,10 +67,10 @@
 | 2 | **同一个 Redis 库，但 key 前缀隔离** | RuoYi 用 `login_tokens:`；faze-api 的业务缓存放 `faze:` 前缀。否则清业务缓存会误伤登录态 |
 | 3 | **复刻 `JwtAuthenticationTokenFilter` 的校验链** | 解 JWT → 取 `login_user_key`（UUID）→ 查 `login_tokens:<uuid>` → 反序列化出 userId / username / permissions → 放进 SecurityContext |
 | 4 | **只取必要字段** | faze-api 不需要完整的 `SysUser`。解析时**只读 userId、username、permissions**，其余忽略——降低对 RuoYi 版本的耦合 |
-| 5 | **⚠️ 待实测：`LoginUser` 在 Redis 里怎么序列化** | 若用 `FastJson2JsonRedisSerializer`（RuoYi-Vue3 常见默认），faze-api 用 Jackson 或 Fastjson2 都能读；**若用 JDK 序列化**，faze-api 必须能加载同一个类才能读出来。**开段 1 的 PC 部分前必须先验这一条** |
+| 5 | **✅ 已实测（2026-11-01）：`LoginUser` 用 JSON 序列化，跨服务可读** | RuoYi-Vue 3.9.2 的 `ruoyi-framework/.../config/RedisConfig.java` L29–33：value 用 `FastJson2JsonRedisSerializer`，**不是 JDK 序列化**；`TokenService` L155 `redisCache.setCacheObject(loginUser)` 直写 `login_tokens:<uuid>`。faze-api 用任意 JSON 库都能读。**但 `serialize()` 带 `JSONWriter.Feature.WriteClassName`，JSON 里会出现 `@type` 字段**——faze-api 用 Jackson 解析必须设 `FAIL_ON_UNKNOWN_PROPERTIES=false`，否则报错 |
 | 6 | **登记耦合点** | 在 `docs/analysis/ruoyi-patches.md` 记一条：faze-api 依赖 RuoYi 的 `login_tokens:<uuid>` 结构与 `LoginUser` 字段。RuoYi 升级时要回归 |
 
-**失败时的退路**：若第 5 条实测不通（序列化不兼容），**降级为方案 B**——faze-api 自签管理端 token，PC 侧新建独立 axios 实例（不改 RuoYi 框架层）。会变成双登录，但不至于卡死段 1。
+**退路口径变更（2026-11-01）**：方案 A **不再因「序列化不兼容」降级**——第 5 条已实测通过（JSON 可读）。方案 B 只作为「faze-api 无法兼容 `LoginUser` 结构」时的备选。
 
 ---
 
@@ -599,10 +599,10 @@ export async function expireStoredSession(rejectedToken: string): Promise<boolea
 
 **裁决 9：管理端鉴权失败返回 HTTP 200 + `body.code = 401`（唯一例外）**
 
-**依据（实测）**：`RuoYi-Vue3/src/utils/request.js`：
-- 第 78 行 `const code = res.data.code || 200;`
-- 第 81 行 `if (code === 401) { ...弹重新登录... }` —— 判断的是 **body 里的 code**
-- 第 110–122 行是 HTTP 非 2xx 的错误分支，**只弹「系统接口 XXX 异常」，没有任何跳登录逻辑**
+**依据（实测，RuoYi-Vue3 3.9.2）**：`src/utils/request.js`：
+- 第 78 行 `const code = res.data.code || 200`
+- 第 85 行 `if (code === 401) { ...弹重新登录... }` —— 判断的是 **body 里的 code**
+- 第 111–123 行是 HTTP 非 2xx 的错误分支，**只弹「系统接口 XXX 异常」，没有任何跳登录逻辑**
 
 所以：若 faze-api 按《错误码规范》§2.2 返回 **HTTP 401 + body `{code:402002}`**，RuoYi 前端会走 error 分支，用户看到「系统接口401异常」而**不会被引导重新登录**，页面卡死。
 
