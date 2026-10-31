@@ -300,7 +300,7 @@ public class OpenApiConfig {
 | `Authorization` | 除 `pub` 外必选 | `Bearer <token>` | **禁止放 URL query**（会进日志、进 Referer） |
 | `Content-Type` | 有 body 时必选 | `application/json;charset=UTF-8` | 文件上传除外 |
 | `X-Request-Id` | **必选** | 客户端生成 UUIDv4 | 客户端重试时**复用同一个值**，服务端据此串联；响应头 `X-Trace-Id` 回填服务端链路 id |
-| `Idempotency-Key` | 写操作必选 | 见 §5.4 | |
+| `Idempotency-Key` | 写操作必选 | 见 §6.4 | |
 | `Accept-Language` | App 必选 | `zh-Hans` / `bo` / `ug-Arab-CN` / `kk-Arab-CN` | 服务端据此返回该语言的**通知模板、错误 msgKey**（数据本身不带语言，语言在查询时定） |
 | `X-Client-Version` | App / PC 必选 | `1.0.0` | 用于版本闸门（强更）、兼容分支 |
 | `X-Client-Platform` | 必选 | `ios` / `android` / `web` | 用于统计与差异化（如推送、支付拉起） |
@@ -737,15 +737,20 @@ if (o == null) throw new BusinessException(TRADE_ORDER_NOT_FOUND);
 
 # 七、每段要交付的接口
 
-## 7.1 段 0（3 个，全部 `pub` + 非生产 profile）
+## 7.1 段 0（6 个）
 
-| 方法与路径 | 用途 | 鉴权 | 响应 | 锚点 |
-|---|---|---|---|---|
-| `GET /api/v1/pub/ping` | 首页数据来源，验「真接口」 | 无 | `{appName, version, serverTime, env}` | `0-A2` |
-| `POST /api/v1/pub/probe/ai` | 触发豆包 SSE 探针，验首字节 | 无（仅 dev） | SSE 流 | `0-A5` |
-| `GET /api/v1/pub/probe/law?kw=` | 用 ngram 检索 `law_item`，验命中 | 无（仅 dev） | `{hits: [{id, lawCode, articleNo, snippet, score}]}` | `0-A5` |
+| # | 方法与路径 | 用途 | 鉴权 | 响应 | 锚点 |
+|---|---|---|---|---|---|
+| 1 | `GET /api/v1/pub/ping` | 首页数据来源，验「真接口」 | 无 | `{appName, version, serverTime, env}` | `0-A2` |
+| 2 | `POST /api/v1/pub/auth/login/password` | 手机号 + 密码登录，签发 access + refresh | 无 | 见附录 A.1.1 | `0-A2` |
+| 3 | `POST /api/v1/app/auth/refresh` | 用 refreshToken 换新 accessToken | refresh token | 见附录 A.1.2 | `0-A2` |
+| 4 | `GET /api/v1/app/account/profile` | **唯一目的是提供一个「需鉴权资源」，让 `0-A2` 能验 401** | access token | 见 §7.2 资料组 | `0-A2` |
+| 5 | `POST /api/v1/pub/probe/ai` | 触发豆包 SSE 探针，验首字节 | 无（`@Profile("!prod")`） | SSE 流 | `0-A5` |
+| 6 | `GET /api/v1/pub/probe/law?kw=` | 用 ngram 检索 `law_item`，验命中 | 无（`@Profile("!prod")`） | `{hits: [{id, lawCode, articleNo, snippet, score}]}` | `0-A5` |
 
-**段 0 明确不做的接口**：除上述 3 个 + RuoYi 自带的登录相关接口外，**不实现任何业务接口**。段 0 的出口是「能装、能连、能出字」，不是「有接口」。
+**2026-10-31 修正（本节原写「3 个」，是漏项，不是契约变更）**：原文只列了 3 个 `pub` 探针接口，并写「除上述 3 个 + RuoYi 自带登录外不实现任何业务接口」。这与本文件 §2.2 第 1 组「登录组 **落段 = 0**、覆盖锚点 `0-A2`」直接矛盾；也不满足 `0-A2` 的判据——它要求「token 失效后请求**任一需鉴权接口**，自动清 token 回登录页」，而原 3 个接口**全部是 `pub`（无鉴权）**，物理上无法验出 401。`POST /pub/auth/login/sms` **段 0 不做**（短信通道未定，段 1 才允许固定码）。结论：**以 §2.2 为准补回登录组，并补一个受保护资源作为 401 的验证载体**。
+
+**段 0 明确不做的接口**：除上述 6 个外，**不实现任何业务接口**（`sms/code`、注册、忘记密码、实名、入驻、余额流水等全部属段 1）。段 0 的出口是「能装、能连、能出字」，不是「有接口」。
 
 ## 7.2 段 1（C 端 20 个 + PC 端 20 个）
 
