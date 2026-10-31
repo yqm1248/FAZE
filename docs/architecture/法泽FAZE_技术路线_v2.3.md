@@ -201,9 +201,9 @@
 | 项 | 选型 | 版本 |
 |---|---|---|
 | 语言 | Java | 17（LTS） |
-| 框架 | Spring Boot | 4.0.10 |
+| 框架 | Spring Boot | **4.0.6**（注：4.0.10 在 Maven Central **不存在**，实测 4.0.6 可用） |
 | Web 容器 | Undertow（替换 Tomcat） | 随 Boot |
-| ORM | MyBatis-Plus | 3.5.12 |
+| ORM | MyBatis-Plus（**必须用 `mybatis-plus-spring-boot4-starter`**） | 3.5.18.1 |
 | 数据库 | MySQL | 8.0（utf8mb4） |
 | 缓存 | Redis | 7.x |
 | 分布式锁 | **Redisson** | 3.35.x |
