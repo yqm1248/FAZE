@@ -253,26 +253,27 @@ git switch UI设计
 **物理方向属性的分布**：12 个待删页面占约 50 处，`shared/components/` 占 5 处，其余在 `app/+not-found.tsx`。**删页面后 B3 只需修 5 处左右**——这就是「删比改便宜」的量化依据（改：101 次 `<Text>` + 50 处方向 + 7,984 个中文字符 ≈ 800 个 key；删：0）。
 
 
-## 零之四、PC 后台的版本断层（影响 `0-A6` 与 A1 的归属裁决）
+## 零之四、PC 后台的版本（2026-11-01 已裁决，不再是待决项）
 
-`0-A6` 要求「RuoYi 能登录并看到 `biz` 菜单页」——这需要**后端**能起来。实测发现后端缺失且版本对不上：
+`0-A6` 要求「RuoYi 能登录并看到 `biz` 菜单页」——这需要**后端**能起来。
 
-| 实测对象 | 路径 | 版本 | 内容 |
-|---|---|---|---|
-| 项目登记的前端 | `E:\itheima\vue\ry_vue3\RuoYi-Vue3` | **3.8.7**（Vue 3.4.0 / Element Plus 2.4.3 / Vite 5.0.4） | **只有前端**：`src/`、`vite/`、`public/`、`package.json`，**没有 `pom.xml`、没有 Java 源码** |
-| 本机另一份全栈 | `E:\itheima\SSM\3、SSM框架（…）\文件\RuoYi-Vue` | **3.9.2** | 完整后端（`ruoyi-admin` / `ruoyi-system` / `ruoyi-framework` / `ruoyi-common` / `ruoyi-generator` / `ruoyi-quartz`）+ 前端 `ruoyi-ui` 3.9.2 + `sql/ry_20260417.sql`；**Spring Boot 4.0.6** / Java 17 |
+**裁决结果**：PC 后台统一到 **RuoYi-Vue 3.9.2 官方发行版（tag `v3.9.2`，Spring Boot 4.0.3）+ 前端 RuoYi-Vue3 3.9.2**。原先的 3.8.7 方案作废，`faze-api` 同步从 Spring Boot 3.5 升到 **4.0**。
 
-**问题**：项目锁定的是 3.8.7（AGENTS.md 与《PC后台开发计划》都按它写，且在 `jxyd200` 项目验证过）。本机**没有 3.8.7 的后端**；能找到的后端是 3.9.2，而它带 **Spring Boot 4.0.6**——与 faze-api 锁定的 **Spring Boot 3.5** 差一个大版本，且 3.9.2 前端与 3.8.7 前端也不是同一份。
+**已落地的源码**（2026-11-01 实测）：
 
-**裁决建议（A1 执行，需负责人确认）**：
+| 项 | 值 |
+|---|---|
+| 路径 | `E:\itheima\SSM\3、SSM框架（…）\文件\RuoYi-Vue` |
+| 分支 / HEAD | `release-3.9.2` / `0e2d75c2`（**= tag `v3.9.2` 指向的提交**，2026-03-26「若依 3.9.2」） |
+| 版本 | `ruoyi.version=3.9.2`、`spring-boot.version=4.0.3`、`mybatis-spring-boot.version=4.0.1`、Java 17 |
+| 状态 | `git status` 干净；638 个源码文件（265 java / 101 vue）；SQL = `sql/ry_20260320.sql` + `sql/quartz.sql` |
+| 原课程作业 | 切出前已备份至同级 `_RuoYi课程作业备份_20261101\`（8 个文件：`course` 模块 6 个 + `application-druid.yml` + `MyTask.java`） |
 
-| 方案 | 做法 | 评价 |
-|---|---|---|
-| **A（推荐）** | 下载 **RuoYi-Vue 3.8.7 后端**官方源码，配本机 3.8.7 前端 | 版本与项目登记一致、与 `jxyd200` 验证环境一致；代价是一次下载 |
-| B | 整体升级到 3.9.2（前后端都换） | 打破 AGENTS 锁定的技术栈（Spring Boot 4.0.6 vs 3.5），且 `jxyd200` 的验证结论失效 → **必须负责人重新拍板**，技术侧不得自行升级 |
-| C | 3.9.2 后端 + 3.8.7 前端混搭 | **不可用**：跨两个小版本，接口与权限模型都可能不兼容 |
+**由此产生的新约束**：
 
-**无论选哪个**：RuoYi 代码不进 `E:\dshcode\FAZE` 仓库（它是第三方框架，且 AGENTS §3.3 禁止改框架层）；A1 只登记**外部路径 + 版本 + 初始化 SQL 位置 + 启动方式**，写进 `deploy/README.md` 与 `docs/analysis/ruoyi-patches.md`。
+- `faze-api` 同步升到 **Spring Boot 4.0**（原锁定的 3.5 作废），见 `AGENTS.md` §2。
+- **⚠️ 唯一未验证项**：`MyBatis-Plus 3.5.12` 在 Spring Boot 4 下**没有对应的 starter**——本机 `.m2` 只有 `mybatis-plus-spring-boot3-starter`，全盘无 `*spring-boot4*` 构件。RuoYi 官方发行版本身用的是原生 `mybatis-spring-boot-starter 4.0.1` + `pagehelper-spring-boot-starter`。**任务 A3 必须先实测 MP 的 SB4 适配**；不通则 ORM 方案由负责人拍板，不得自行换成原生 MyBatis。
+- RuoYi 代码**不进** `E:\dshcode\FAZE` 仓库（第三方框架，且 AGENTS §3.3 禁止改框架层）。A1 只登记**外部路径 + 版本 + 初始化 SQL 位置 + 启动方式**，写进 `deploy/README.md` 与 `docs/analysis/ruoyi-patches.md`。
 
 **顺带查到的事实**（A1/A3 直接用）：
 - RuoYi 前端 vite 代理目标 = `http://localhost:8080`（读 `vite.config.js`）→ 后端默认端口 8080，与 faze-api 的端口规划**必须错开**（faze-api 建议 8081；具体见 A3）。
@@ -308,7 +309,7 @@ git switch UI设计
 | 10 | 段 0 需要的接口契约已定 | 《接口规范》§7.1 已给出 3 个探针接口的路径 / 方法 / 鉴权 / 响应字段（`ping` → `{appName, version, serverTime, env}`；`probe/law` → `{hits:[{id, lawCode, articleNo, snippet, score}]}`；`probe/ai` → SSE 流），并裁决归 `pub` 且 `@Profile("!prod")` | **字段有了，但 SSE 的事件协议没有**（event 名、data 结构、结束标记、错误帧），`probe/law` 的 `kw` 长度限制与 `score` 算法也没有 → 任务 A3 先补这三项再写代码，否则前端无法按契约实现流式接收 |
 | 11 | `law_item` 探针数据来源已定 | 50 条手工录入条文的来源与录入人 | 段 3 才全量入库。没有 50 条 → 探针只能验「表能查」，验不了「ngram 能命中」，`0-A5` 作废 |
 | 12 | RuoYi 后端（`faze_admin` 侧）可启动、能登录 | 账号密码、启动方式 | PC 端 `0-A6` 要「RuoYi 能登录并看到 biz 菜单页」，后端起不来这一半过不了 |
-| 13 | PC 后台源码的仓库归属已裁决 | 任务 A1 的裁决（RuoYi 当前在仓库外 `E:\itheima\vue\ry_vue3\RuoYi-Vue3`） | 未裁决不得开工 A1；否则 A1 的目录骨架会白做 |
+| 13 | PC 后台源码的仓库归属已裁决 | **✅ 已裁决（2026-11-01）**：源码在仓库外 `E:\itheima\SSM\3、SSM框架（…）\文件\RuoYi-Vue`（分支 `release-3.9.2` = tag `v3.9.2`），不进本仓库；仓库内只建 `pc/README.md` 指针（详见 §零之四 与「裁决 2」） | 已裁决，A1 可开工 |
 | 14 | 包管理器口径已裁决 | 任务 A1 的裁决（现有 `package-lock.json` = npm，本机也装了 pnpm 11.5.0）。**实测补充**：`README.md` L43 已明文写「包管理器：npm」，`apps/mobile-app` 无 `node_modules/.pnpm` → 文档与事实都指向 npm | 未裁决则 `0-A7` 的 `npm run lint` 与锁文件会出现双轨 |
 | 15 | **施工用的 shell 具备管理员权限** | `([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole('Administrator')` 返回 `True` | **实测当前为 `False`**。`Start-Service` / `Stop-Service` 需要管理员 → `0-A6` 的验收必须在**管理员 PowerShell** 里跑。脚本**不做自动提权**，检测到非管理员时以退出码 3 退出并给出提示 |
 | 16 | **MySQL root（或有建库权的账号）凭据可用** | `mysql -u<user> -p -e "select 1"` 能返回 | **实测 `mysql -uroot` 返回 `ERROR 1045 (28000): Access denied`**——没有凭据就建不了 `faze` 库、建不了应用账号、也查不到 `ngram_token_size` 实际值。这条不解决，A3 的一半验收卡死 |
@@ -392,7 +393,7 @@ git switch UI设计
 
 | 项 | 裁决 |
 |---|---|
-| 源码位置 | 保持在 `E:\itheima\vue\ry_vue3\RuoYi-Vue3`，**不进本仓库** |
+| 源码位置 | `E:\itheima\SSM\3、SSM框架（…）\文件\RuoYi-Vue`（分支 `release-3.9.2` = tag `v3.9.2`，Spring Boot 4.0.3），**不进本仓库** |
 | 仓库内新增 | `pc/README.md`（获取方式、启动命令、路径约定、验收入口）；`docs/analysis/ruoyi-patches.md`（**实测当前不存在，需在段 0 创建**） |
 | 业务代码落点 | 仍在 RuoYi 源码树内 `src/views/biz/<domain>/`、`src/api/biz/<domain>/`（AGENTS §3.3），由 `pc/README.md` 用相对路径登记 |
 | 框架层 | **不改**；确需改时记 `docs/analysis/ruoyi-patches.md` |
@@ -400,31 +401,31 @@ git switch UI设计
 
 **依据（全部为本机实测）**
 
-1. `E:\itheima\vue\ry_vue3` 下**只有** `RuoYi-Vue3` 一个目录，`Get-ChildItem -Recurse -Include pom.xml,*.jar,*.sql` **零命中**。也就是说：**本机只有 RuoYi 的 Vue 前端（v3.8.7，Vue 3.4 + Vite 5），没有 RuoYi 的 Java 后端。** 这是 `0-A6`「RuoYi 能登录」的**硬阻断**，与代码放哪里无关——见下文「必须先说的坏消息」。
-2. 该前端目录自带 `.git`、`node_modules`、`bin/`、`html/`、`vite/`，且 `.env.development` 里 `VITE_APP_TITLE = 外卖管理系统`、`vite.config.js` 里 `server.port: 80` 且代理 `/dev-api → http://localhost:8080`。它是**被人改过的本地副本**，不是干净上游。
+1. 2026-11-01 已把官方发行版切到 `E:\itheima\SSM\3、SSM框架（…）\文件\RuoYi-Vue`（分支 `release-3.9.2`，= tag `v3.9.2`，Spring Boot 4.0.3）。**前后端与 SQL 齐全**：`ruoyi-admin`~`ruoyi-quartz` 6 个 Maven 模块 + `ruoyi-ui`（Vue 2.6.12 + element-ui 2.15.14，**vue-cli 不是 vite**）+ `sql/ry_20260320.sql` + `sql/quartz.sql`。此前「本机只有前端、没有 Java 后端」的阻断**已消除**。
+2. 该发行版的默认配置（实测读 `application.yml` / `application-druid.yml` / `.env.development`）：后端端口 **8080**、context-path `/`；数据源 `jdbc:mysql://localhost:3306/ry-vue`（root/password）；**Redis 强依赖**——`localhost:6379` database 0；上传目录 `D:/ruoyi/uploadPath`；`token.secret` 是默认值 `abcdefghijklmnopqrstuvwxyz`（**生产必须换，且它是 A 方案的共享 secret 落点**）。前端 `ruoyi-ui` 走 vue-cli，`VUE_APP_BASE_API = '/dev-api'`。
 3. AGENTS §3.3 要求「不得修改 RuoYi 框架层代码；确需改动时记 `docs/analysis/ruoyi-patches.md`」——而实测 `docs/analysis/` 只有 3 个文件（原项目技术债清单、参考项目规范提取、README），**`ruoyi-patches.md` 不存在**。`docs/design/未完成需备注.md` L145 也写明「该文件目前不存在，第一次 patch 时创建」。
 4. 段 0 对 PC 的要求只有三件：**能启动、能登录、能显示一个 `biz` 菜单页**（总纲 §5.1 交付物「后台」行 + `0-A6`）。这是「1 个占位页 + 4 个 RuoYi 自带契约接口」的量，**不产生需要版本管理的自研源码**。
 
 **必须先说的坏消息（这条比「代码放哪」重要）**
 
-`0-A6` 里的「RuoYi 能登录」在当前机器上**不可能通过**：
+`0-A6` 里的「RuoYi 能登录」在当前机器上**仍然不能通过**，但原因变了——**不是缺后端，而是缺 Redis**：
 
-- RuoYi 前端登录要打 `/dev-api/login`、`/getInfo`、`/getRouters`、`/captchaImage`，代理目标是 `http://localhost:8080`；
-- 本机 8080 无监听（实测），且**没有任何 RuoYi 后端 jar / 源码 / 初始化 SQL**；
-- 因此即使 Redis 装好、Flyway 建表成功，`0-A6` 仍会在「RuoYi 能登录」这一步失败。
+- RuoYi 后端（v3.9.2 / Spring Boot 4.0.3）已就位（见 §零之四），前端登录要打 `/dev-api/login`、`/getInfo`、`/getRouters`、`/captchaImage`，代理目标是 `http://localhost:8080`；
+- 但 RuoYi 的登录态**存在 Redis 里**（`login_tokens:<uuid>`，`TokenService` 直写 `RedisTemplate`），本机 6379 无监听（实测），且没有 docker、WSL 无已安装分发版（见 A2）；
+- 所以 `0-A6` 的通过顺序是：**A2 把 Redis 起来 → 建 `faze_admin` 库 → 执行 `sql/ry_20260320.sql` 与 `sql/quartz.sql` → 起 RuoYi 后端 → 才能验「能登录」**。
 
-两条出路（都要人拍板）：
+`0-A6` 从「不可能」变成「**被 A2 阻塞**」。两条出路：
 
 | 出路 | 内容 | 代价 |
 |---|---|---|
-| A. 补齐 RuoYi 后端 | 取 RuoYi-Vue 后端（`ruoyi-admin`）+ 建 `faze_admin` 库 + 执行 `sql/ry_*.sql` 与 `quartz.sql`，端口 8080 | **待确认**：后端包来源与版本、能否在 Java 17 上跑（Spring Boot 2.5.x 的官方支持上限是 Java 16，Java 17 的正式支持从 2.6 起；RuoYi-Vue 升 SB3 是 3.9 的事——版本号需后端包到手后核实）；且会引入第二套 Spring Boot 运行时 |
-| B. 降锚点 | 把「RuoYi 能登录」降为「RuoYi 前端能启动、能打开登录页（后端未就绪）」 | 改锚点，**必须负责人签字**；且 `0-A6` 的「后台可用」实际顺延到段 1 |
+| A. 按 A2 装 Redis | 装 Memurai（Windows 原生发行版）或 Docker/WSL 分发版，6379 起来后起 RuoYi 后端 | 一次安装；A2 本来就要做 |
+| B. 降锚点 | 把「RuoYi 能登录」降为「RuoYi 前端能启动、能打开登录页（后端未就绪）」 | 改锚点，**必须负责人签字**；`0-A6` 的「后台可用」顺延到段 1 |
 
 **备选为何不行**
 
 | 候选 | 为什么不行 |
 |---|---|
-| **git submodule** | ② 确定事实：它自带 `.git` 且已被本地改动，submodule 会显示永久 dirty，而我们无权提交它；③ 确定事实：`.git` 嵌套会让主仓的 `git status` / `git clean` 行为变得难解释。① 补充：它自己的 `package.json` 里 `repository` 指向 `https://gitee.com/y_project/RuoYi-Vue.git`，说明它来自那个仓库的前端子目录，因此很可能没有可直接引用的「RuoYi-Vue3」独立仓库 URL（该仓库的实际目录结构我**未核实**，但②③已足以排除）。 |
+| **git submodule** | ② 确定事实：它自带 `.git` 且工作区可能被本地改动，submodule 会显示永久 dirty，而我们无权提交它；③ 确定事实：`.git` 嵌套会让主仓的 `git status` / `git clean` 行为变得难解释。 |
 | **复制进 `pc/`** | ① 28 页 PC 设计稿对应源码立刻变两份，改一处要改两处，且没有机制发现漂移；② `node_modules`、`.env.*`、`package-lock.json`+`pnpm-lock.yaml` 会混入本仓；③ 「不许改框架层」这条约束在「框架层就在自己仓里」时几乎守不住。 |
 | **git subtree** | 会把 RuoYi 全量历史（含大量与本项目无关的提交）塞进本仓，仓库体积与 clone 时间不可逆上升；段 0 只需要 1 个占位页，收益为负。 |
 | **只留外部路径、什么都不登记** | 换机器就复现不了（`0-A6` 的「环境可复现」本意），且 patch 无处记录 → 违反 AGENTS §3.3。 |
@@ -813,11 +814,11 @@ services/faze-api/
 
 | 依赖 | 版本 | 本地 `.m2` | 说明 |
 |---|---|---|---|
-| `spring-boot-starter-parent` | **3.5.16** | ✅ 有（3.5.0 / 3.5.3 / 3.5.13 / 3.5.16） | 取 3.5.x 最新缓存版本；Java 17 编译目标由 parent 管 |
+| `spring-boot-starter-parent` | **4.0.10** | ✅ 有（4.0.5 / 4.0.10 / 4.1.0） | 取 4.0.x 最新缓存版本；与 RuoYi 发行版的 4.0.3 **同一大版本**；Java 17 编译目标由 parent 管 |
 | `spring-boot-starter-web` / `-validation` / `-security` / `-aop` / `-test` | parent 管 | ✅ 有 | 版本一律不写，交给 parent |
-| `mybatis-plus-spring-boot3-starter` | **3.5.12** | ✅ 有 | **必须用 `-spring-boot3-` 这个 artifact**；`mybatis-plus-boot-starter` 是面向 Spring Boot 2 的自动装配，混进 SB3 会在启动阶段失败（典型是 `FactoryBean` 的 `factoryBeanObjectType` 类型解析报错）。本地 `.m2` 里 `mybatis-plus-boot-starter` 与 `mybatis-plus-spring-boot3-starter` 同时在，选错很容易，写进 README 醒目位置 |
+| `mybatis-plus-spring-boot3-starter` | **3.5.12** | ✅ 有 | **⚠️ 这是 Spring Boot 3 专用 artifact，SB4 下没有对应版本**（本机 `.m2` 全盘搜不到 `*spring-boot4*` 构件）。A3 必须先验：① 该 starter 在 SB4 下能否启动；② 不能则查 MP 是否已发布 SB4 适配版。**改用原生 MyBatis 属架构变更，须负责人拍板**，不得技术侧自行决定 |
 | `mysql-connector-j` | **8.0.33** | ✅ 有（另 9.2.0 / 9.7.0） | 与 MySQL 8.0.44 服务端同代；不用 9.x（驱动 9 对 8.0 服务端虽兼容，但本项目未验证，段 0 不引入变量） |
-| `flyway-core` + **`flyway-mysql`** | 由 parent 决定（Spring Boot 3.5 管的是 11.x，**具体版本未实测**） | ❌ **本地无缓存，必须联网** | Flyway 10+ 把数据库支持拆成独立模块；**只加 `flyway-core` 会报 `Unsupported Database: MySQL`** |
+| `flyway-core` + **`flyway-mysql`** | 由 parent 决定（**Spring Boot 4.0 管的 Flyway 版本未实测**；SB 3.5 管的是 11.x） | ❌ **本地无缓存，必须联网** | Flyway 10+ 把数据库支持拆成独立模块；**只加 `flyway-core` 会报 `Unsupported Database: MySQL`** |
 | `jjwt-api` / `-impl` / `-jackson` | **0.12.3** | ✅ 有 | 三件套都要；只加 `jjwt-api` 能编译，但运行时找不到实现类（`NoClassDefFoundError: io/jsonwebtoken/impl/...`） |
 | `lombok` | **1.18.38** | ✅ 有 | `provided` scope |
 | `spring-boot-starter-data-redis` | **不加** | — | 段 0 服务端不使用 Redis；加了就是「配了没人读的死开关」（后端规范 §11.4）。Redis 连通性由 A2 的 `memurai-cli ping` 证明，服务端接入留到段 1 的第一个使用点 |
@@ -977,7 +978,7 @@ docs/acceptance/seg0/                           命令输出 + 截图
 1. **`mvn verify` 下载失败 / 超时** → ① 确认 `repo.maven.apache.org:443` 可达（实测可达）；② 在 `~/.m2/settings.xml` 配阿里云镜像 `https://maven.aliyun.com/repository/public` 重试；③ 仍不行则 `mvn -o` 只验证已缓存的编译（**Flyway 不在缓存，必然失败**，此时把「Flyway 通道」拆成独立验收项挂账，不要伪造通过）。
 2. **Flyway 报 `Unsupported Database: MySQL`** → 确认 `pom.xml` 里有 `flyway-mysql`（只加 `flyway-core` 必报这个错）。
 3. **Flyway 报 `Unknown database 'faze'`** → 建库 SQL 没执行，回到 `database/00-create-database.sql`，用 root 跑一次（凭据见不确定项 #1）。
-4. **MyBatis-Plus 与 Spring Boot 3.5.16 启动冲突**（`NoSuchMethodError` / `NoClassDefFoundError`）→ ① 确认用的是 `mybatis-plus-spring-boot3-starter`（不是 `mybatis-plus-boot-starter`）；② 降到 parent `3.5.13`（本地有缓存）重试；③ 仍冲突则查 MyBatis-Plus 3.5.12 的 issue，**不许为此改架构或降 Java 版本**。
+4. **MyBatis-Plus 与 Spring Boot 4.0.x 启动冲突**（`NoSuchMethodError` / `NoClassDefFoundError`）→ ① 确认用的是 `mybatis-plus-spring-boot3-starter`（不是 `mybatis-plus-boot-starter`）；② SB4 下该 starter 是**跨大版本使用**，先查 MP 官方是否已发布 SB4 适配版；③ 仍不通则把 ORM 选型挂起，交负责人拍板（原始 MyBatis + PageHelper 是 RuoYi 官方发行版的方案，但会推翻后端规范里全部 Wrapper 相关条款）。**不许为此降 Java 版本或退回 Spring Boot 3.5**。
 5. **`ngram_token_size` ≠ 2** → 按 (7) 的条件分支改 `my.ini` + 重启 + 重建 `ft_law_content`；**不许**把 `probe/law` 改成 `LIKE` 绕过（那会让探针失去「验证 ngram 索引可用」的意义）。
 6. **探针在 dev 下也 404** → 检查 `@Profile("!prod")` 是否被写在类上但该类没被组件扫描到（`FazeApiApplication` 的扫描根必须是 `com.faze`）。
 7. **审计四要素被要求「写进 `operation_log`」** → 拒绝并回到本文 A3 第 (4) 节第 5 件：表在段 1 建，段 0 写库就是越界；把需求记进段 1 的开工前置。
@@ -2331,7 +2332,7 @@ curl.exe -sS "http://localhost:8080/api/v1/pub/probe/law?kw=离婚" | Tee-Object
 > | `-Stop` 能停 Redis | 无 Redis 可停 | **不可能满足** |
 > | `.env.example` | 仓库无 | 不满足 |
 > | Flyway 建出 2 张表 | `services/` 不存在、无 `pom.xml` | 不满足 |
-> | RuoYi 登录 + `biz` 菜单 | 源码在仓库外（`E:\itheima\vue\ry_vue3\RuoYi-Vue3`），归属未裁决 | 未验 |
+> | RuoYi 登录 + `biz` 菜单 | 源码已就位（`release-3.9.2` = tag `v3.9.2` / SB 4.0.3），但 **Redis 未装**（A2 阻塞） | 未验 |
 >
 > **缺口性质**：这不是「脚本写得不对」，是**机器上根本没有 Redis**。而且三条常见替代路径当前都不通（实测）：本机**没有 docker**；`wsl.exe` 在，但 `wsl -l -v` 返回「**没有已安装的分发版**」（exit 1）；`redis-server` / `redis-cli` 均不在 PATH。
 >
@@ -2815,7 +2816,7 @@ docs/acceptance/seg0/
 |---|---|---|---|
 | 1 | **存量 15 个页面的删除授权** | 开工第 0 步；不删则 `0-A7` 与 `0-A3` 都无法验（见 §零之三） | 同意删，先打 `ui-reference` 分支保底 |
 | 2 | **MySQL root（或有建库权的账号）凭据** | A3 的建库、建应用账号、查 `ngram_token_size`（实测 `mysql -uroot` 返回 `ERROR 1045 Access denied`） | 提供凭据，或给一个能建库的账号 |
-| 3 | **RuoYi 后端的版本选型** | `0-A6` 的「RuoYi 能登录」；A1 的 PC 归属裁决（见 §零之四） | 推荐**方案 A**：下载 RuoYi-Vue **3.8.7 后端**配现有 3.8.7 前端；若坚持用本机 3.9.2 全栈，必须接受 Spring Boot 4.0.6 与「锁定的 3.5」不一致 |
+| 3 | ~~RuoYi 后端版本选型~~ **已裁决（2026-11-01）** | — | 定为 **RuoYi-Vue 3.9.2 官方发行版（tag `v3.9.2` / Spring Boot 4.0.3）**，`faze-api` 同步升 Spring Boot 4.0。**新的未决项**：`MyBatis-Plus 3.5.12` 在 SB4 下无 starter，见 §零之四 |
 | 4 | **藏文字体来源与商用授权** | `0-A4`；段 4 的文书 PDF 也依赖它 | 给授权结论。若 Noto Sans Tibetan 覆盖不足，「藏文改用图片」或「放弃 `bo`」是**产品范围决策**，不许技术侧自行降级 |
 
 ### 10.2 段内可实测，但结果会改锚点（3 条）
