@@ -40,7 +40,7 @@
 | 层 | 选型 |
 | --- | --- |
 | 移动端 | Expo SDK 54 / React Native 0.81 / React 19 / expo-router 6 / TypeScript strict |
-| 服务端 | Java 17 / Spring Boot **4.0** / MyBatis-Plus 3.5.12 / MySQL 8.0 / Redis 7 |
+| 服务端 | Java 17 / Spring Boot **4.0** / MyBatis-Plus **3.5.18.1**（`mybatis-plus-spring-boot4-starter`）/ MySQL 8.0 / Redis 7 |
 | PC 后台 | **RuoYi 3.9.2（强制版本）**：后端 RuoYi-Vue **3.9.2 官方发行版 tag `v3.9.2`**（Spring Boot **4.0.3**）/ 前端 RuoYi-Vue3 **3.9.2**（Vue 3.5.26 / Element Plus 2.13.1） |
 | 实时通信 | 自建 WebSocket（`spring-boot-starter-websocket`）+ 第三方离线推送 |
 | AI | 豆包 API（SSE 流式）+ 本地法条库检索 |
@@ -55,7 +55,7 @@
 > 3. 前端用 RuoYi-Vue3 **3.9.2**（Vue 3.5.26 / Element Plus 2.13.1）。
 > 4. **判版本看 `pom.xml` 的 `ruoyi.version` / `spring-boot.version` 与 `package.json` 的 `version`**；tag 只标识发行点。注意 `springboot3` 分支的 tag 停在 `v3.8.7`，与官方发行线不是一回事。
 > 5. 所有涉及 RuoYi 的文档、代码、示例、命令、截图一律按 **3.9.2 / Spring Boot 4.0** 写。发现引用 3.8.7、3.5.x 或 `springboot3` 分支的地方，按**缺陷**处理并要求改正。
-> 6. **⚠️ 待验证：`MyBatis-Plus 3.5.12` 在 Spring Boot 4 下的 starter 适配**。RuoYi 官方发行版用的是原生 `mybatis-spring-boot-starter 4.0.1` + `pagehelper-spring-boot-starter`，不是 MP；本机 `.m2` 只有 `mybatis-plus-spring-boot3-starter`，**没有 boot4 版**。段 0 必须实测；若不可用，ORM 方案由负责人重新拍板，**不得自行换成原生 MyBatis**。
+> 6. **✅ 已实测（2026-11-01）：MP 必须用 `mybatis-plus-spring-boot4-starter`，版本 ≥ 3.5.13；本项目定 `3.5.18.1`。** `mybatis-plus-spring-boot3-starter:3.5.12` 在 SB4 下会**静默失效**——它的 `@AutoConfigureAfter` 引用的旧包名 `org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration` 在 SB4 已被移到 `org.springframework.boot.jdbc.autoconfigure`，类不存在导致排序丢失、整个自动配置被跳过；**报错只是「Mapper 注入失败」，不报缺类**。证据见 `docs/acceptance/seg1/A3-mp-probe.md`。**禁止再用 `-spring-boot3-` starter。**
 > 7. 本条优先级**高于其他任何文档中的 RuoYi 版本描述**；与本条冲突的表述以本条为准。
 
 ---

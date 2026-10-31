@@ -30,7 +30,7 @@
 | MySQL | 8.0.44 服务 Running；**root（或有建库权账号）凭据仍缺**（段 0 §二 第 16 项） | **要** | 建 12 张表、建 `faze_admin` 库 |
 | OSS | 负责人确认「有服务器，可以存，不用管」（2026-11-01） | 要 | 证件影像、资质材料。**凭据不进本文档、不进仓库** |
 | 短信 | **只做开关**（负责人 2026-11-01 裁决） | 要 | 开发期固定码；上线前换真实通道 |
-| MyBatis-Plus | 3.5.12；本机 `.m2` 只有 `mybatis-plus-spring-boot3-starter`，全盘无 `*spring-boot4*` 构件 | **要，且未验证** | **A3 必须先验**，不通则 ORM 选型由负责人拍板 |
+| MyBatis-Plus | **已定 `3.5.18.1` + `mybatis-plus-spring-boot4-starter`**（2026-11-01 实测通过：`3.5.12` 的 SB3 starter 在 SB4 下会**静默失效**） | **要** | 证据 `docs/acceptance/seg1/A3-mp-probe.md`。**禁止再用 `-spring-boot3-` starter** |
 | 前端包管理器 | `apps/mobile-app` 用 npm（AGENTS §六 已验证口径）；RuoYi-Vue3 侧**同时有 `package-lock.json` 与 `pnpm-lock.yaml`**（上游就带） | 要 | RuoYi 侧**只用 npm**，不要再引入第三份锁文件 |
 
 ### 零.3 两条已经收口的旧冲突（本段不要再讨论）
@@ -116,7 +116,7 @@
 | 7 | **Redis 可启动**：`E:\Redis-x64-5.0.14.1\redis-server.exe` 能起，`redis-cli ping` 返回 `PONG` | 双击或命令行启动；`.\redis-cli.exe -p 6379 ping` | 若起不来：查 6379 是否被占、`redis.windows.conf` 的 `bind`/`protected-mode`。**A2 就是干这个的，可先做完再回来勾** |
 | 8 | **MySQL root（或建库权账号）凭据可用** | `mysql -u<user> -p -e "select 1"` 返回 | **实测当前缺**（段 0 §二 第 16 项）。没有就建不了 12 张表 → 向负责人要凭据，不许用「假设有」推进 |
 | 9 | `faze` 库已建，字符集 `utf8mb4` / `utf8mb4_0900_ai_ci`，`ngram_token_size=2` | `SHOW VARIABLES LIKE 'ngram_token_size'` | 回段 0 `0-A5` |
-| 10 | **MyBatis-Plus 在 Spring Boot 4 下可用**（**成败可能一票否决**） | A3 的验证脚本：一个最小 Mapper + `@TableName` + `IService` 能启动并查出一行 | **不通 → 停工上报负责人**。备选是换原生 MyBatis + PageHelper（RuoYi 用的就是它），但那会推翻《后端代码规范》里全部 Wrapper 相关条款，**技术侧不得自行决定** |
+| 10 | **MyBatis-Plus 在 Spring Boot 4 下可用**（**已于 2026-11-01 实测通过，不再是阻断项**） | A3 的复验：`mybatis-plus-spring-boot4-starter:3.5.18.1` + 一个 Mapper 能查出一行 | 若复验失败 → 检查是不是用回了 `-spring-boot3-` starter（它不报错、只是不工作） |
 | 11 | OSS 凭据可用：能上传一个 1 KB 文件并拿到 key，能生成 60 秒有效的签名 URL | A 组的 OSS 连通性脚本 | 向负责人要凭据。凭据只进环境变量 / 本地 `.env`，不进仓库 |
 | 12 | 短信开关机制已实现且**在生产 profile 下强制关闭固定码** | 读代码 + 起 `prod` profile 实测一次 | B1 未完成则此项不勾 |
 | 13 | RuoYi 前端纯净副本可启动（`npm i && npm run dev`） | `E:\itheima\SSM\…\文件\RuoYi-Vue3` 下执行；能打开登录页 | 若依赖装不上：确认 npm 版本、`node_modules` 是否复制自别处（**必须新装，不许拷**） |
@@ -152,36 +152,46 @@
 
 ### A 组：数据与地基（4 个任务）
 
-#### A3 · MyBatis-Plus 在 Spring Boot 4 下的可用性验证（**先做这个**）
+#### A3 · MyBatis-Plus 在 Spring Boot 4 下的可用性（**2026-11-01 已实测通过，本任务降为「复验」**）
 
-**目标**：用最小代价回答一个二值问题——MP 3.5.12 能不能在 SB 4.0.10 下启动并发出一条 SQL。
+**结论先行**：`mybatis-plus-spring-boot3-starter:3.5.12` 在 SB 4.0.6 下**静默失效**；换成 **`mybatis-plus-spring-boot4-starter:3.5.18.1`** 后完全可用（启动 + `selectCount` + `selectById` + `@TableName` 全通过）。完整证据：`docs/acceptance/seg1/A3-mp-probe.md`。
 
-**前置**：`services/faze-api` 能启动（段 0 出口）。
+**为什么 3.5.12 会静默失效**（「启动没报错」不等于「能用」）：
 
-**步骤**：
+1. MP 3.5.12 的 `MybatisPlusAutoConfiguration` 上有 `@AutoConfigureAfter(org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration)`
+2. Spring Boot 4.0 把这个类移到了 `org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration`
+3. 旧类不存在 → Spring 用 ASM 读注解时**静默丢弃**这个 class 值 → 排序约束丢失
+4. MP 在 DataSource 之前评估 → `@ConditionalOnSingleCandidate(DataSource)` 查不到 bean → **整个自动配置跳过**
+5. 现象只有一句 `Property 'sqlSessionFactory' or 'sqlSessionTemplate' are required`，**没有 `NoClassDefFoundError`**
 
-1. `pom.xml` 加最小依赖（**先只加这一个**，不要一次把全家桶加上）：
+**本任务现在做什么**（复验，不是探索）：
+
+1. `services/faze-api/pom.xml`：
    ```xml
    <dependency>
      <groupId>com.baomidou</groupId>
-     <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
-     <version>3.5.12</version>
+     <artifactId>mybatis-plus-spring-boot4-starter</artifactId>
+     <version>3.5.18.1</version>
    </dependency>
    ```
-2. 写一个临时实体 `TmpProbe`（映射已存在的 `app_user`）+ `BaseMapper<TmpProbe>` + 一个 `@SpringBootTest`
-3. `mvn -o test -Dtest=TmpProbeTest`（离线，本机 `.m2` 有 3.5.12）
-4. 失败时**保存完整异常栈**到 `docs/acceptance/seg1/A3-mp-probe.log`
+2. 写一个临时实体（映射已存在的 `app_user`）+ `BaseMapper` + `@SpringBootTest`
+3. `mvn -o test -Dtest=TmpProbeTest`
+4. 把结果追加进 `docs/acceptance/seg1/A3-mp-probe.md` 的「复验记录」
 
 **验收（二值）**：
 
-| 结果 | 判定 | 下一步 |
-|---|---|---|
-| 启动成功 + `selectById` 返回数据 | **通过** | 进 A1；版本组合写进 `pom.xml` 注释 |
-| 失败，异常含 `NoClassDefFoundError` 且指向 `org/springframework/boot/...` | **不通过** | 停工上报：MP 3.5.12 绑的是 SB3 自动配置 |
-| 失败，`NoSuchMethodError` 或 `mybatis-spring` 版本冲突 | **不通过** | 先试排除传递依赖里的 `mybatis-spring-boot-starter`；仍不行则上报 |
-| 能启动但 `@TableName` 不生效 / 雪花 ID 不生成 | **部分通过** | 记入风险表，继续但标注「MP 能力受限」 |
+- [ ] 启动成功，无 `sqlSessionFactory` 缺失
+- [ ] `selectCount` / `selectById` 返回正确
+- [ ] `@TableName` 生效
+- [ ] **pom 里没有 `-spring-boot3-` 字样**（用了不会报错，只会不工作）
 
-**风险**：这是全项目**唯一可能推翻《后端代码规范》§三（持久层）全部条款**的验证。**禁止**「先按 MP 写，跑不通再说」——A1 之后的 Mapper 代码必须先有 A3 的结论。
+**风险**：
+
+| 风险 | 出口 |
+|---|---|
+| 有人图省事把 `-spring-boot3-` starter 加回来 | 它**不报错，只是 Mapper 注入失败**。pom 行加注释说明，代码审查列为必查项 |
+| `mybatis-plus-jsqlparser` 在 3.5.18.1 是独立 artifact，分页插件可能没被自动带入 | D2（流水分页）开工前验一次 `PaginationInnerInterceptor` 是否可用 |
+| 版本从 3.5.12 跨到 3.5.18.1（6 个小版本） | MP 3.5.x 内部 API 稳定；若遇 `Wrapper` 方法签名变化，以编译错误为准逐处修，**不许降回 3.5.12** |
 
 ---
 

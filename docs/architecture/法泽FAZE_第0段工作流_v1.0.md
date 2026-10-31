@@ -303,7 +303,7 @@ git switch UI设计
 **由此产生的新约束**：
 
 - `faze-api` 同步升到 **Spring Boot 4.0**（原锁定的 3.5 作废），见 `AGENTS.md` §2。
-- **⚠️ 唯一未验证项**：`MyBatis-Plus 3.5.12` 在 Spring Boot 4 下**没有对应的 starter**——本机 `.m2` 只有 `mybatis-plus-spring-boot3-starter`，全盘无 `*spring-boot4*` 构件。RuoYi 官方发行版本身用的是原生 `mybatis-spring-boot-starter 4.0.1` + `pagehelper-spring-boot-starter`。**任务 A3 必须先实测 MP 的 SB4 适配**；不通则 ORM 方案由负责人拍板，不得自行换成原生 MyBatis。
+- **✅ 已实测（2026-11-01，原为「唯一未验证项」）**：`mybatis-plus-spring-boot3-starter:3.5.12` 在 SB4 下**静默失效**（`@AutoConfigureAfter` 引用的旧包名 `org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration` 已被 SB4 移到 `org.springframework.boot.jdbc.autoconfigure`，类不存在 → 排序丢失 → 自动配置跳过，且**不报缺类**）。改用 **`mybatis-plus-spring-boot4-starter:3.5.18.1`** 后完全可用（启动 + `selectCount` + `selectById` + `@TableName` 全通过）。证据 `docs/acceptance/seg1/A3-mp-probe.md`。**因此 A3 从「可能一票否决」降为「复验」**，ORM 方案不需要换。
 - RuoYi 代码**不进** `E:\dshcode\FAZE` 仓库（第三方框架，且 AGENTS §3.3 禁止改框架层）。A1 只登记**外部路径 + 版本 + 初始化 SQL 位置 + 启动方式**，写进 `deploy/README.md` 与 `docs/analysis/ruoyi-patches.md`。
 
 **顺带查到的事实**（A1/A3 直接用）：
@@ -847,7 +847,7 @@ services/faze-api/
 |---|---|---|---|
 | `spring-boot-starter-parent` | **4.0.10** | ✅ 有（4.0.5 / 4.0.10 / 4.1.0） | 取 4.0.x 最新缓存版本；与 RuoYi 发行版的 4.0.3 **同一大版本**；Java 17 编译目标由 parent 管 |
 | `spring-boot-starter-web` / `-validation` / `-security` / `-aop` / `-test` | parent 管 | ✅ 有 | 版本一律不写，交给 parent |
-| `mybatis-plus-spring-boot3-starter` | **3.5.12** | ✅ 有 | **⚠️ 这是 Spring Boot 3 专用 artifact，SB4 下没有对应版本**（本机 `.m2` 全盘搜不到 `*spring-boot4*` 构件）。A3 必须先验：① 该 starter 在 SB4 下能否启动；② 不能则查 MP 是否已发布 SB4 适配版。**改用原生 MyBatis 属架构变更，须负责人拍板**，不得技术侧自行决定 |
+| `mybatis-plus-spring-boot4-starter` | **3.5.18.1** | ❌ 需联网（首次） | **必须用 `-spring-boot4-` 这个 artifact**。实测：`-spring-boot3-starter:3.5.12` 在 SB4 下**静默失效**——它 `@AutoConfigureAfter` 的 `org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration` 已被 SB4 移到 `org.springframework.boot.jdbc.autoconfigure`，旧类不存在 → 排序丢失 → MP 自动配置整体跳过 → 只报「Mapper 注入失败」。**不报缺类，最难查**。SB4 starter 从 MP **3.5.13** 起提供 |
 | `mysql-connector-j` | **8.0.33** | ✅ 有（另 9.2.0 / 9.7.0） | 与 MySQL 8.0.44 服务端同代；不用 9.x（驱动 9 对 8.0 服务端虽兼容，但本项目未验证，段 0 不引入变量） |
 | `flyway-core` + **`flyway-mysql`** | 由 parent 决定（**Spring Boot 4.0 管的 Flyway 版本未实测**；SB 3.5 管的是 11.x） | ❌ **本地无缓存，必须联网** | Flyway 10+ 把数据库支持拆成独立模块；**只加 `flyway-core` 会报 `Unsupported Database: MySQL`** |
 | `jjwt-api` / `-impl` / `-jackson` | **0.12.3** | ✅ 有 | 三件套都要；只加 `jjwt-api` 能编译，但运行时找不到实现类（`NoClassDefFoundError: io/jsonwebtoken/impl/...`） |
@@ -1009,7 +1009,7 @@ docs/acceptance/seg0/                           命令输出 + 截图
 1. **`mvn verify` 下载失败 / 超时** → ① 确认 `repo.maven.apache.org:443` 可达（实测可达）；② 在 `~/.m2/settings.xml` 配阿里云镜像 `https://maven.aliyun.com/repository/public` 重试；③ 仍不行则 `mvn -o` 只验证已缓存的编译（**Flyway 不在缓存，必然失败**，此时把「Flyway 通道」拆成独立验收项挂账，不要伪造通过）。
 2. **Flyway 报 `Unsupported Database: MySQL`** → 确认 `pom.xml` 里有 `flyway-mysql`（只加 `flyway-core` 必报这个错）。
 3. **Flyway 报 `Unknown database 'faze'`** → 建库 SQL 没执行，回到 `database/00-create-database.sql`，用 root 跑一次（凭据见不确定项 #1）。
-4. **MyBatis-Plus 与 Spring Boot 4.0.x 启动冲突**（`NoSuchMethodError` / `NoClassDefFoundError`）→ ① 确认用的是 `mybatis-plus-spring-boot3-starter`（不是 `mybatis-plus-boot-starter`）；② SB4 下该 starter 是**跨大版本使用**，先查 MP 官方是否已发布 SB4 适配版；③ 仍不通则把 ORM 选型挂起，交负责人拍板（原始 MyBatis + PageHelper 是 RuoYi 官方发行版的方案，但会推翻后端规范里全部 Wrapper 相关条款）。**不许为此降 Java 版本或退回 Spring Boot 3.5**。
+4. **Mapper 注入失败（`Property 'sqlSessionFactory' or 'sqlSessionTemplate' are required`）** → ① **最常见原因**：pom 里用的是 `mybatis-plus-spring-boot3-starter`。它在 SB4 下**能启动但不工作**（见 §零之四 与 A3 证据）；② 改用 `mybatis-plus-spring-boot4-starter:3.5.18.1`；③ 若用了 SB4 starter 仍失败，跑 `--debug` 看 `MybatisPlusAutoConfiguration` 的 `Did not match` 条件。**不许为此降 Java 版本或退回 Spring Boot 3.5**。
 5. **`ngram_token_size` ≠ 2** → 按 (7) 的条件分支改 `my.ini` + 重启 + 重建 `ft_law_content`；**不许**把 `probe/law` 改成 `LIKE` 绕过（那会让探针失去「验证 ngram 索引可用」的意义）。
 6. **探针在 dev 下也 404** → 检查 `@Profile("!prod")` 是否被写在类上但该类没被组件扫描到（`FazeApiApplication` 的扫描根必须是 `com.faze`）。
 7. **审计四要素被要求「写进 `operation_log`」** → 拒绝并回到本文 A3 第 (4) 节第 5 件：表在段 1 建，段 0 写库就是越界；把需求记进段 1 的开工前置。
@@ -2847,7 +2847,7 @@ docs/acceptance/seg0/
 |---|---|---|---|
 | 1 | **存量 15 个页面的删除授权** | 开工第 0 步；不删则 `0-A7` 与 `0-A3` 都无法验（见 §零之三） | 同意删，先打 `ui-reference` 分支保底 |
 | 2 | **MySQL root（或有建库权的账号）凭据** | A3 的建库、建应用账号、查 `ngram_token_size`（实测 `mysql -uroot` 返回 `ERROR 1045 Access denied`） | 提供凭据，或给一个能建库的账号 |
-| 3 | ~~RuoYi 后端版本选型~~ **已裁决（2026-11-01）** | — | 定为 **RuoYi-Vue 3.9.2 官方发行版（tag `v3.9.2` / Spring Boot 4.0.3）**，`faze-api` 同步升 Spring Boot 4.0。**新的未决项**：`MyBatis-Plus 3.5.12` 在 SB4 下无 starter，见 §零之四 |
+| 3 | ~~RuoYi 后端版本选型~~ **已裁决（2026-11-01）** | — | 定为 **RuoYi-Vue 3.9.2 官方发行版（tag `v3.9.2` / Spring Boot 4.0.3）**，`faze-api` 同步升 Spring Boot 4.0。**原未决项已关闭（2026-11-01）**：MP 用 `mybatis-plus-spring-boot4-starter:3.5.18.1`，见 §零之四 与 `docs/acceptance/seg1/A3-mp-probe.md` |
 | 4 | **藏文字体来源与商用授权** | `0-A4`；段 4 的文书 PDF 也依赖它 | 给授权结论。若 Noto Sans Tibetan 覆盖不足，「藏文改用图片」或「放弃 `bo`」是**产品范围决策**，不许技术侧自行降级 |
 
 ### 10.2 段内可实测，但结果会改锚点（3 条）

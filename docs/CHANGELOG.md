@@ -4,6 +4,39 @@
 
 ---
 
+## 2026-11-01 · A3 实测：MP 必须换 SB4 starter；冗余副本已清理（基线 v1.23）
+
+**两个动作，一个反转结论。**
+
+### 一、A3 验掉了，结论是反转的
+
+| 组合 | 结果 |
+|---|---|
+| MP **3.5.12** + `mybatis-plus-spring-boot3-starter` + SB 4.0.6 | ❌ **能启动，但 MP 自动配置静默跳过** |
+| MP **3.5.18.1** + `mybatis-plus-spring-boot4-starter` + SB 4.0.6 | ✅ **启动 + `selectCount` + `selectById` + `@TableName` 全通过** |
+
+**根因**：MP 3.5.12 的 `MybatisPlusAutoConfiguration` 上 `@AutoConfigureAfter` 引用的 `org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration`，在 Spring Boot 4.0 已被移到 `org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration`。**旧类不存在** → Spring 用 ASM 读注解时静默丢弃该 class 值 → 排序约束丢失 → MP 在 DataSource 之前评估 → `@ConditionalOnSingleCandidate(DataSource)` 查不到 bean → **整个自动配置跳过**。
+
+**现象只有一句 `Property 'sqlSessionFactory' or 'sqlSessionTemplate' are required`，不报 `NoClassDefFoundError`。** 这类失败最难查——所以「启动没报错」绝不能当作「能用」的证据。
+
+**处置**：`AGENTS.md` §2 / 技术路线 §2.2 / 后端代码规范 §1.1 / 第 0 段工作流依赖表 / 第 1 段工作流 A3 全部改掉；A3 从「可能一票否决」降为「复验」。证据 `docs/acceptance/seg1/A3-mp-probe.md`（含复现命令、条件评估报告、字节码取证）。
+
+### 二、冗余副本已清理
+
+删掉 `E:\dshcode\ruoyi-392`（9.3 MB）与 `E:\dshcode\ruoyi-vue3-392`（3.2 MB）。删前复核过：两套 HEAD 与保留副本完全一致（后端 `0e2d75c2`、前端 `9baaff7`），工作区干净。
+
+保留（负责人指定位置）：`E:\itheima\SSM\…\文件\RuoYi-Vue` + `RuoYi-Vue3`；课程作业备份 `_RuoYi课程作业备份_20261101\` 未动。
+
+### 三、顺手修一个 v1.22 的错误
+
+技术路线原写「Spring Boot **4.0.10**」——**这个版本在 Maven Central 不存在**（本机 `.m2` 的 4.0.10 目录只有一个 `.lastUpdated` 失败标记）。实测可用的是 **4.0.6**，已改。
+
+### 四、没做的
+
+第 1 段仍未施工；`mybatis-plus-jsqlparser` 在 3.5.18.1 下是否自动带入（分页插件依赖它）未验——**D2 分页任务开工前必须先验**。
+
+---
+
 ## 2026-11-01 · 新增《第 1 段工作流》：8 组 29 任务 / 10 条锚点 / 12 张表（基线 v1.22）
 
 **起因**：第 0 段施工文档已产出，但第 1 段只有总纲 §5.2 的边界定义，没有可执行的工作流。而第 1 段是「人」和「钱」的地基（18 APP 页 + 7 PC 页 + 12 张表 + 44 个接口），没有施工文档只能照任务名硬猜。
