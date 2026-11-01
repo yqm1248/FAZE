@@ -84,7 +84,7 @@
 | A-15 | 文章编辑 | 内容管理 | 富文本正文 + 4 语言字段 + 法条引用绑定 | `law_article`、`law_article_translation`、`law_item` | **缺** | `14-article-edit.html` |
 | A-16 | 案例库 | 内容管理 | 公开案例录入、4 语言、上下架 | `case_library`、`case_library_translation` | **缺** | `15-case-library.html` |
 | A-17 | 多语言翻译管理 | 内容管理 | 译文待更新列表、术语表（`i18n_glossary`）、机翻辅助入口 | `law_article_translation`、`i18n_glossary` | **缺** | `16-translation.html` |
-| A-18 | 文书模板 | 内容管理 | 模板列表、启停、4 语言版本、字段定义 | `document_template` | **缺** | `17-doc-template.html` |
+| A-18 | 文书模板 | 内容管理 | 模板列表、启停、**单语言（`zh-Hans`）**、字段定义 | `doc_template` | **缺** | `17-doc-template.html`（**设计稿的「适用法条」列、「导入模板」「批量导出模板」两个按钮，段 4 不实现**，见《第4段工作流》§三 B1） |
 | A-27 | 法条库 | 内容管理 | 本地法条库的查询、逐条查看、修正、批量导入与上下架；AI 只能引用这里存在的条文 | `law_item` | **缺** | `26-law-library.html` |
 
 ### 2.6 案件与审核（2 页）
@@ -178,7 +178,7 @@
 | 项 | 内容 |
 |---|---|
 | 页面 | A-14 文章列表、A-15 文章编辑、A-16 案例库、A-17 翻译管理、A-18 文书模板、A-27 法条库 |
-| 后端前置 | `law_article` / `law_article_translation` / `case_library` / `document_template` / `i18n_glossary` 建表；`law_item` 已有数据 |
+| 后端前置 | `law_article` / `law_article_translation` / `case_library` / `doc_template` / `i18n_glossary` 建表；`law_item` 已有数据 |
 | 验收 | 后台录入一篇文章（4 语言字段填齐）→ App 首页可见；案例库录入 → App 案例列表可见；翻译管理能列出「待更新」译文 |
 | 按页交付到 | A-14 / A-15 → 段 2；A-27 → 段 3；A-18 → 段 4；A-16 → 段 5；A-17 → 段 8（译文全量在段 8）。**本批次跨了 5 个段，最需要拆开做** |
 
