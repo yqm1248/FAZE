@@ -539,7 +539,7 @@ COMMENT='订单主表；状态枚举：created/paid/accepted/completed/cancelled
 | 22 | `case_progress` | B | 9 | caseflow | 段 5 | 进度节点，只追加（**v1.30 补 `node_code`** + 唯一键 `(case_id, step)`） |
 | 23 | `article` | A | 14 | content | 段 2 | 文章，简体源内容 |
 | 24 | `article_translation` | A | 12 | content | 段 2 | 非中文译文 |
-| 25 | `case_library` | A | 20 | content | 段 5 | 案例库主表（**v1.30 补 `category`** 细分分类） |
+| 25 | `case_library` | A | 21 | content | 段 5 | 案例库主表（**v1.30 补 2 字段**：`category` 细分分类、`court_case_no` 法院案号；`case_no` 存平台编号 `CL`） |
 | 26 | `case_library_translation` | A | 13 | content | 段 5 | 案例译文 |
 | 27 | `law_item` | D | 12 | content | 段 0 | 法条库；AI 只能引用本表条文 |
 | 28 | `social_action` | A | 8 | content | 段 2 | 收藏/关注（合并表） |

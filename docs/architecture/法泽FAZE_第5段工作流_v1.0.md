@@ -2,7 +2,7 @@
 
 > **上位文档**：《[开发计划总纲](法泽FAZE_开发计划总纲_v1.0.md)》[§5.6](法泽FAZE_开发计划总纲_v1.0.md)（本段边界与锚点）、§4.1 / §4.2（页面归属）、§10（待拍板）。
 > **位置**：本段是段 5 的**唯一施工文档**。从第一行读到最后一行即可施工，不需要翻别的文档（技术路线除外）。
-> **本段规模**：APP **13 页** / PC **4 页**（A-10、A-13、A-16、A-19）/ 建表 **8 张**（7 张有页面 + `reconciliation_diff` 只写不展示）/ 接口 **40 个**（App 23 + PC 17）/ 锚点 **8 条** / 任务 **8 组 37 个**。
+> **本段规模**：APP **13 页** / PC **4 页**（A-10、A-13、A-16、A-19）/ 建表 **8 张**（7 张有页面 + `reconciliation_diff` 只写不展示）/ 接口 **41 个**（App 23 + PC 18）/ 锚点 **8 条** / 任务 **8 组 37 个**。
 > **写作依据**：仓库 HEAD `f45187d`（分支 `UI设计`），2026-11-01 23:0x 实测；17 屏设计稿逐屏读过（调研记录见本文档 §附）。
 
 ---
@@ -92,7 +92,7 @@
 | 1 | 结算 vs 提现 | `balance_flow` 是唯一资金真相；A-13 结算**只做批次记录**，不碰钱、不转账 | §三 E 组、§四 `5-A4`、§五 5.1 |
 | 2 | 送达范围 | 只做**平台自有文书**送达；法院转达不做；「电子送达范围」仍挂 §十 | §三 C 组、§四 `5-A3`、§七 |
 | 3 | 表总数 | 51 → **53**（新增 `lawyer_income_settlement`、`case_delivery`）；`lawyer_service_config` 并入 `lawyer` | §五 5.1、§九 第 3 项 |
-| 4 | 最低提现 | **0.1 元（10 分）**，做成 `sys_config` 可配项，上线前由负责人调整 | §三 F 组、§十 第 4 项 |
+| 4 | 最低提现 | **0.1 元（10 分）**，做成 `sys_config` 可配项，上线前由负责人调整 | §三 F 组、§十 第 3 项 |
 | 5 | 提现手续费 | **0.6%**，保留；计算到分，不足 1 分记 0（所以 10 分提现时手续费为 0） | §三 F 组 |
 | 6 | AI 转律师 | 段 3 跳转保持原样；本段**不做上下文转交**；`5-A9` **移除**（段 5 锚点 9 → 8 条，全项目 79 → 78） | §四 顶部说明、§七 第 9 项 |
 | 7 | 申诉页 | 移到**段 7**；`DISPUTED` / `SETTLED` 两态**不在本段做** | §七 第 1 项、§八.2、§九 第 1 项 |
@@ -133,7 +133,7 @@
 4. **结算与提现不重复付钱**：走完一次「结算确认」后，`lawyer_balance` 与 `balance_flow` 的数值**一个字节都没变**（这是 `5-A4` 的反向验证）。
 5. 四语言：本段涉及的 `case` / `content` / `workbench` / `trade` / `lawyer` 五个 namespace 的 `zh-Hans` + `ug-Arab-CN` key 齐全，RTL 下无布局错乱（`letterSpacing` = 0、无手动反转）。
 6. `npm run lint` 与 `mvn -q verify` 全绿；ArchUnit 断言（管理端写接口必须有 `@OperationLog`）通过。
-7. 上游回写 7 项（§九）全部完成，文档基线出新版本。
+7. 上游回写（§九 共 **11 行 / 8 组**）全部完成，文档基线出新版本。**这 11 行已在 v1.31 提前做完**，收口时只需复核一遍是否还有新的漂移。
 
 ### 一.2 反向定义（什么不算出口）
 
@@ -196,13 +196,13 @@
   1. **新建 8 张**（DDL 全文写在迁移文件里，不贴本文档）：
      | 版本 | 表 | 说明 |
      |---|---|---|
-     | `V500` | `legal_case` | 案件主表，14 字段基线 + `form_snapshot JSON` + `case_type`（5 类）+ `status`（5 态） |
+     | `V500` | `legal_case` | 案件主表，14 字段基线 + **3 个新字段**（`form_snapshot` / `court_case_no` / `reject_reason`）= **17 字段**；`status` 改 5 态 |
      | `V501` | `case_progress` | 进度节点，只追加；**8 字段基线 + `node_code`**（节点编码，用于幂等与去重） |
-     | `V502` | `case_delivery` | **新表**：`case_id` / `document_id` / `method`(platform_sms_mail) / `sent_at` / `signed_at` / `receipt_no` / `sign_device` / `ip` / `status` |
-     | `V503` | `case_library` | 案例主表，19 字段基线（`case_no` 留空——**案例不显示案号**，见 G1） |
+     | `V502` | `case_delivery` | **新表**（DDL 已在《技术路线》§5.7 末尾补登）：`case_id` / `document_id` / `user_id` / `method`（`platform` / `sms_pickup` / `mail`）/ `sent_at` / `signed_at` / `receipt_no` / `sign_device` / `ip` / `status`，共 **13 字段** |
+     | `V503` | `case_library` | 案例主表，19 字段基线 + **2 个新字段**（`category` 细分分类 / `court_case_no` 法院案号）= **21 字段**；`case_no` 存**平台案例编号 `CL`**（对外唯一标识），法院案号在 `court_case_no`（**APP 不展示**） |
      | `V504` | `case_library_translation` | 案例译文，13 字段基线 |
      | `V505` | `withdraw_record` | 提现单，15 字段基线 + **7 个新字段**：`withdraw_no`（业务单号，`WD` 开头，唯一索引）/ `fee_cents` / `actual_cents` / `voucher_file_id` / `bank_name` / `bank_account_tail` → 共 **21 字段** |
-     | `V506` | `lawyer_income_settlement` | **新表**：`settlement_no` / `lawyer_id` / `period`(yyyy-MM) / `order_count` / `income_cents` / `fee_cents` / `settle_cents` / `status`(pending/settled/rejected) / `settled_by` / `settled_at` / `remark` |
+     | `V506` | `lawyer_income_settlement` | **新表**（DDL 已在《技术路线》§5.5 末尾补登）：`settlement_no` / `lawyer_id` / `period`(yyyy-MM) / `order_count` / `income_cents` / `fee_cents` / `settle_cents` / `status`(pending/settled/rejected) / `settled_by` / `settled_at` / `remark` |
      | `V507` | `reconciliation_diff` | 对账差错，14 字段基线；**只写不展示**（`5-A4` 之外，见 H1） |
   2. **补字段 3 张**（用 `V5xx_1__fix_xxx.sql` 修正迁移，不改已进 main 的迁移）：
      - `legal_case`：加 `form_snapshot JSON`、`case_no` 唯一索引（已有）、状态值改 5 个
@@ -647,7 +647,7 @@
   6. 执行前后各跑一次恒等式校验，把数字记进证据文件。
 - **产出**：核对 SQL + `POST /admin/settlements/backfill`（管理员触发，标 `@OperationLog`）+ `docs/acceptance/seg5/E2-backfill.txt`（前后余额与流水数）。
 - **算做完**：核对 SQL 跑出的待补订单数，与回补后新增的 `income` 流水数**完全相等**；回补前后总余额差 = 待补订单的 `lawyer_income_cents` 合计；跑第二遍新增 0 条。
-- **卡住怎么办**：若历史订单的 `lawyer_income_cents` 是 0（段 2 早期没算），**不要**用现在的费率重算——记录到 §十 第 5 项，人工决定这些订单怎么处理。
+- **卡住怎么办**：若历史订单的 `lawyer_income_cents` 是 0（段 2 早期没算），**不要**用现在的费率重算——记录到 §十 第 4 项，人工决定这些订单怎么处理。
 
 #### E3 · 解冻定时任务（7 天后转可提现）
 
@@ -796,7 +796,7 @@
   5. 设计稿 A-10 有「已出款」状态与「通过」两个动作，所以**必须**有 `approved → paid` 这一步，不能合并。
 - **产出**：`WithdrawService.approve / reject / markPaid` + 状态机单测（5 条合法 + 4 条非法）。
 - **算做完**：`5-A5` 全流程可验（申请 → 冻结正确 → 通过 → 出款 → `available` 按规则减少、流水完整）；驳回后 `frozen` 归零、`available` 恢复；恒等式两条都成立。
-- **卡住怎么办**：若财务希望「点通过就等于出款完成」（少一步），改成 `applying → paid` 一条直达，但**必须**在页面提示「点通过表示已在银行完成转账」，且状态机少一个态——这要回到负责人（§十 第 6 项）。
+- **卡住怎么办**：若财务希望「点通过就等于出款完成」（少一步），改成 `applying → paid` 一条直达，但**必须**在页面提示「点通过表示已在银行完成转账」，且状态机少一个态——这要回到负责人（§十 第 5 项）。
 
 #### F4 · 收款账户绑定
 
@@ -826,8 +826,8 @@
      | 细分 | `category` | `marriage` 婚姻家事 / `labor` 劳动纠纷 / `contract` 合同纠纷 / `traffic` 交通事故 / `criminal` 刑事 / `policy` 民族政策（**6 类**） | PC 案例库的筛选下拉 |
      - 设计稿 A-16 的筛选是 6 类，APP `04-case` 的分组是 3 类——**不是矛盾，是两级**。
      - 大类由细分**映射得到**（`marriage|labor|contract|traffic → civil`、`criminal → criminal`、`policy → administrative`），在服务端写死映射，**不许**让运营两处都填。
-  3. **案例编号**：`CL` + 日期 + 序号（§零之二 第 17 项）。设计稿的 `CASE-2026-031` 作废。
-  4. **案号与法院名不对外**：`case_library.case_no` / `court_name` 两个字段**后台可见、APP 不展示**（设计稿 `19-case-detail` 的红线：「不显示案号、不显示审理法院全名」；来源写「已脱敏改编」）。
+  3. **案例编号**：`case_no` 存**平台案例编号** `CL` + 日期 + 序号（§零之二 第 17 项），是对外唯一标识。设计稿的 `CASE-2026-031` 作废。
+  4. **法院案号与法院名不对外**：`case_library.court_case_no` / `court_name` 两个字段**后台可见、APP 不展示**（设计稿 `19-case-detail` 的红线：「不显示案号、不显示审理法院全名」；来源写「已脱敏改编」）。
   5. PC 列表 8 列（设计稿原文）：案例编号 / 标题 + 当事人 / 分类 / 适用法条 / 语言 / 状态 / 更新时间 / 操作。
      - 状态 4 种：已上线 / 待审核 / 审核驳回 / 已下架
      - 语言列显示 `x/4`（缺的用 warning 色）
@@ -902,7 +902,7 @@
   3. RTL：详情页正文在 `ug-Arab-CN` 下必须镜像（用 `start/end`），法条引用块里的中文条号走 `LtrText`，`letterSpacing = 0`。
 - **产出**：门禁逻辑 + 缺译登记 + RTL 走查截图。
 - **算做完**：只填中文能上线；切到乌尔都方向（`ug-Arab-CN`）时版式不错乱；`.i18n-pending.json` 有登记项且格式合法。
-- **卡住怎么办**：若业务方坚持「4/4 才上线」，则段 5 **一条案例都上不了线**（没有译文），`5-A7` 无法验收——这要回到负责人（§十 第 7 项）。
+- **卡住怎么办**：若业务方坚持「4/4 才上线」，则段 5 **一条案例都上不了线**（没有译文），`5-A7` 无法验收——这要回到负责人（§十 第 6 项）。
 
 **G 组检查点**：`5-A7` / `5-A8` 可验；案例的四语言 Tab 能切；四域搜索分域返回。
 
@@ -973,7 +973,7 @@
   2. 节点名、时间（精确到分）正确；
   3. **显示操作人**（§零之二 第 18 项，UI 上有一行「操作人：X」）；
   4. 节点顺序与 `step` 升序一致，**不可乱**；
-  5. `accepted → in_progress` 迁移成功，且法院案号已写入 `legal_case.court_name`/`case_no` 之一（本段存 `court_case_no`，见 A1）。
+  5. `accepted → in_progress` 迁移成功，且法院案号已写入 **`legal_case.court_case_no`**（它和平台单号 `case_no` 是两个字段，不要混）。
 - **失败长什么样**：节点出现了但没有操作人 → 不过（这是 §零之二 第 18 项明确要补的）；或两个节点时间相同看不出先后 → 时间精度不够，改到秒。
 
 ### `5-A3` 案件送达
@@ -1063,13 +1063,13 @@
 | 1 | `legal_case` | `V500` | ✅ |
 | 2 | `case_progress` | `V501` | ✅ |
 | 3 | `case_delivery`（新） | `V502` | ✅ |
-| 4 | `case_library` | `V503` + `V503_1`（补 `category`） | ✅ |
+| 4 | `case_library` | `V503` + `V503_1`（补 `category` / `court_case_no`，共 **21 字段**） | ✅ |
 | 5 | `case_library_translation` | `V504` | ✅ |
 | 6 | `withdraw_record` | `V505`（**21 字段**：基线 15 + 7 新字段，其中含 `withdraw_no` 单号） | ✅ |
 | 7 | `lawyer_income_settlement`（新） | `V506` | ✅ |
 | 8 | `reconciliation_diff` | `V507` | ❌ 只写不展示 |
 
-**补字段 3 张**：`legal_case`（`form_snapshot`、`court_case_no`、`status` 5 值）、`lawyer`（4 个布尔 + 2 个银行卡字段）、`case_library`（`category`）。`orders` 不改。
+**补字段 3 张**：`legal_case`（+`form_snapshot` / `court_case_no` / `reject_reason`，**17 字段**；`status` 改 5 值）、`lawyer`（+4 个布尔 + 2 个银行卡字段，**29 字段**）、`case_library`（+`category` / `court_case_no`，**21 字段**）。`orders` 不改。
 
 ### 5.2 接口（41 个：App 23 + PC 18）
 
@@ -1139,7 +1139,7 @@ A-10 提现审核（F2）、A-13 律师结算（E5）、A-16 案例库（G1）�
 | R5 | **专长修改不触发审核**：`specialties` 是展示标签，改它不重新审核 | 但运营可能认为改专长要审 | 本段裁决不触发，写进 `lawyer_application_log` 留痕；要改口径回 §十 |
 | R6 | **`payment_record` 语义被再次用错**：有人图省事把服务费塞进去 | 设计稿画了「3 条」 | B5 已明确改写；`5-A4` 不依赖 `payment_record`，即使被塞也不影响对账 |
 | R7 | **银行卡实名无法核验**：设计稿写「必须与实名一致」，平台没这能力 | 需要银行鉴权接口 | 只做格式校验 + 提示；记 §八.2 |
-| R8 | **案例四语言门禁与段 8 冲突** | 设计稿要 4/4 才上线，段 8 才全量译文 | 本段按「源语言齐全 + 缺译登记」；若坚持 4/4，`5-A7` 无法验收 → §十 第 7 项 |
+| R8 | **案例四语言门禁与段 8 冲突** | 设计稿要 4/4 才上线，段 8 才全量译文 | 本段按「源语言齐全 + 缺译登记」；若坚持 4/4，`5-A7` 无法验收 → §十 第 6 项 |
 | R9 | **律师文书双视角归属**：`document` 一个表两个所有者 | 律师代写时 owner 是委托人，查询者是律师 | `user_id` = 委托人、`lawyer_id` = 律师；两侧查询各自带归属条件，`5-A7` 之外单测覆盖越权 |
 | R10 | **解冻任务把已提现的钱又解冻** | `unfreeze` 靠 `NOT EXISTS` 判断，逻辑写错会重复 | 单测：已提现的 income 流水不再产生 `unfreeze`；`uk_flow_biz` 唯一键兜底 |
 
