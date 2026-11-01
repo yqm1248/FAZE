@@ -160,7 +160,7 @@
 4. **字体已嵌入**：PDF 的 `/FontDescriptor` 里有 `FontFile2`/`FontFile3`，**换台没装仿宋的机器打开字形不变**。
 5. **失败路径已验**：至少 3 种失败（模板占位符不匹配 / 字体文件缺失 / OSS 上传超时）都能给出明确错误码，且 `document` 不留 `generated` 记录、临时文件被清理。
 6. **A-18 可用**：运营能在后台新建模板 → 编辑 HTML → 填字段定义 → 启用 → App 端立刻出现该模板（**不改代码、不重启服务、不发版**）。
-7. **本段的文档回写完成**：§九 的 8 项，缺一条即未收口（总纲 §6.2 收口五件套）。
+7. **本段的文档回写完成**：§九 的 11 项，缺一条即未收口（总纲 §6.2 收口五件套）。
 
 ### 一.2 反向定义（什么不算出口）
 
@@ -1090,10 +1090,10 @@ try (OutputStream os = new FileOutputStream("out.pdf")) {
 
 #### G2 · 证据归档与文档回写
 
-**做什么**：`docs/acceptance/seg4/` 下的 8 条证据 + §九 的 8 项回写。
+**做什么**：`docs/acceptance/seg4/` 下的 8 条证据 + §九 的 11 项回写。
 
 **产出物**：`docs/acceptance/seg4/4-A1.md` ~ `4-A8.md`
-**自查**：8 个文件都在；每个含命令输出/SQL、截图、判定结论；§九 8 项全部完成
+**自查**：8 个文件都在；每个含命令输出/SQL、截图、判定结论；§九 11 项全部完成
 
 ---
 
@@ -1338,7 +1338,7 @@ try (OutputStream os = new FileOutputStream("out.pdf")) {
 | 验收脚本 | `deploy/verify-seg4.ps1` | G1 |
 | 证据 | `docs/acceptance/seg4/`（8 条 + A1~A4 的过程证据） | G2 |
 | 模板源文件 | `assets/doc-templates/*.html`（5 份） | B3 |
-| 回写 | §九 的 8 项 | G2 |
+| 回写 | §九 的 11 项 | G2 |
 
 ---
 
@@ -1385,7 +1385,7 @@ try (OutputStream os = new FileOutputStream("out.pdf")) {
 
 1. **文书产物是标准 PDF**：任何能读 PDF 的工具都能处理。段 5 的「案件送达文书」直接引用 `document` 表即可。
 2. **PDF 里的中文可选中、可搜索、字体已嵌入**（`4-A2`/`4-A3` 验过）：段 5 若要把文书打包寄给法院/律师，不需要再处理编码问题。
-3. **`document` 的三个 `*_oss_key` 与 `file_record` 一一对应**：`biz_type='document'`、`biz_id=document.id`。段 7 做存储清理时按这个口径统计。
+3. **`document` 的两个 `*_oss_key`（`pdf_oss_key` / `signed_pdf_oss_key`）与 `file_record` 一一对应**：`biz_type='document'`、`biz_id=document.id`。段 7 做存储清理时按这个口径统计。
 4. **`task_queue` 的 `DOC_GENERATE` 已注册，handler 可复用**：段 5 的「批量生成送达文书」照这个 handler 写。
 5. **`signature` 表的双重语义已定**（`document_id` 空/非空），段 5 若要给文书加律师签名，用同一个表。
 6. **`doc_template` 的版本机制可靠**（`4-A4` 验过）：段 5 的案例库若要做模板化文书，照这个模式（每次改版插新行，旧行不动）。
@@ -1421,11 +1421,23 @@ try (OutputStream os = new FileOutputStream("out.pdf")) {
 | 3 | 《技术路线》§10.1/§10.2 整节 | 生成链路图从 `模板.docx → poi-tl → .docx → LibreOffice → .pdf` 改为 `模板.html → 占位符替换 → openhtmltopdf → .pdf`；模板机制表（占位符、动态字段、多语言）改 HTML 口径；删「草稿」「多语言每种一份」的 Word 说法 | **开工前** |
 | 4 | 《技术路线》§10.3 | 加「2026-11-01 起本节不被段 4 使用」的标注（保留本节，因为「为什么不能用 openhtmltopdf 排民族文字」这条结论仍有效） | **开工前** |
 | 5 | 《技术路线》§2.3 依赖表 | LibreOffice 那行标注「段 4 不使用」；`poi-tl` 那行标注「段 4 不使用」；新增 `openhtmltopdf` 行；LibreOffice 版本「7.x」过时，若保留则注明「版本号已改日历式，以官网 Still 版为准」 | **开工前** |
-| 6 | 《数据表规范》附录 A | `doc_template` 字段数 12→13（`template_url`/`oss_key` → `template_html`）；`document` 17→16（删 `word_url`→`word_oss_key` 的路径）；若 task_queue/order_status_log 未补则一并补 | **开工前** |
+| 6 | 《数据表规范》附录 A | `doc_template` **12→13 字段**（`template_url`/`oss_key` 换成 `template_html`，HTML 存库）；`document` **17→16 字段**（**整个删掉 `word_oss_key`**——不是改名，`word_url`→`word_oss_key` 是 v1.27 的事，v1.28 把它删了才是现状）；`task_queue`/`order_status_log` 两行已在 v1.27 补齐，此项只差复核 | **开工前** |
 | 7 | 《数据表规范》§4.1 + 附录 C | `doc_template` 不用 `is_enabled` 而用 `status` 三态 → 登记这条偏离 | 收口时 |
 | 8 | 《PC 后台开发计划》A-18 | 数据表名 `document_template` → `doc_template`；「4 语言版本」→ 单语言；补「设计稿的适用法条列、导入/导出按钮、上传 .docx 本段不实现」 | **开工前** |
 | 9 | 《法泽PC后台UI设计说明》 | 记录 A-18 的 4 处不实现 | 收口时 |
 | 10 | 《CHANGELOG》+ `docs/BASELINE.md` + `docs/README.md` | 新增本文档的登记与索引 | 收口时 |
+| 11 | **《技术路线》§12.3.2** | **加一句限定**：那 5 个「隐式标识字段」只适用于 **AI 生成内容**；法泽的文书是「用户填表 + 运营配 HTML 模板 + 占位符替换」，**不是 AIGC**，**不得**打 `Faze-Content-Type: AIGenerated`（见 §零.3 第 14 项）。**不改的话，施工的人会照 §12.3.2 把 `AIGenerated` 写进文书 PDF，`4-A6` 直接失败** | **开工前** |
+
+**截至基线 v1.29 的完成情况（2026-11-01，这一天做了两次范围变更）**
+
+| 项 | 状态 | 说明 |
+|---|---|---|
+| 1 / 2 / 3 / 4 / 5 / 8 | ✅ **已完成** | 随提交 `a070974` 落地：`AGENTS.md` §2+§5、总纲 §5.5、技术路线 §2.3/§10.1/§10.2/§10.3/§10.5/§10.5.1、数据表规范附录 A、PC 计划 A-18 |
+| 6 | ✅ **已完成** | 附录 A 的 `doc_template` 12→13、`document` 17→16 已改；`task_queue`/`order_status_log` 两行已在 v1.27 补齐 |
+| 7 | ⏳ 未做 | `doc_template` 偏离 `is_enabled` 的登记，属「收口时」 |
+| 9 | ⏳ 未做 | PC 设计说明的 A-18 不实现记录，属「收口时」 |
+| 10 | ⏳ 未做 | 本次（v1.29）只做本文档的登记，属「收口时」 |
+| 11 | ⏳ **未做（本次新发现）** | 技术路线 §12.3.2 仍写着 `Faze-Content-Type: AIGenerated`，是**开工前**必须清掉的硬矛盾 |
 
 ---
 
