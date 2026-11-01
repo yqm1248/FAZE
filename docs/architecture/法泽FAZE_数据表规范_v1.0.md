@@ -23,9 +23,9 @@
 | §5.1 表清单行数 | **30 行** | 技术路线 L986–L1015 |
 | V2.3 增量说法 | 17 张 / 15 张 / 15 张 | §5.1 正文、§5.11 标题、V2.3 变更记录 —— **三处不同** |
 
-**裁决**：**以本文件附录 A 为准**（v1.27 起为 51 张；**v1.30 起为 53 张**——段 5 补 `lawyer_income_settlement` / `case_delivery`，见附录 A 末注）。§5.1 的 30 行清单作废（它里面还有 3 个已改名或已合并的表名：`case` → `legal_case`、`favorite` / `follow` → `social_action`；另有 31 张表从未进过清单）。
+**裁决**：**以本文件附录 A 为准**（v1.27 起为 51 张；v1.30 起为 53 张——段 5 补 `lawyer_income_settlement` / `case_delivery`；**v1.34 起为 55 张**——段 7 补 `sensitive_word_appeal` / `announcement`，见附录 A 末注）。§5.1 的 30 行清单作废（它里面还有 3 个已改名或已合并的表名：`case` → `legal_case`、`favorite` / `follow` → `social_action`；另有 31 张表从未进过清单）。
 
-**要建的是 52 张**：`invoice`（发票）按总纲「V1 明确不做」不建表；若要建，按本规范补建，编号顺延不插号。
+**要建的是 54 张**：`invoice`（发票）按总纲「V1 明确不做」不建表；`share_poster` 段 7 不做、暂不建；若要建，按本规范补建，编号顺延不插号。
 
 > **v1.27 补正（2026-11-01）**：段 2 新增了 `order_status_log`（第 50 张）与 `task_queue`（第 51 张），当时本附录漏登记，导致「49 张」与段 2 的产物对不上——段 2 工作流 §九 第 1 项已把「补两行」列为**开工前**必办。本次补上：总数 **49 → 51**，要建 **48 → 50**，段 2 的 **10 → 12**，类别 B 追加型 **12 → 14**。
 
@@ -556,9 +556,9 @@ COMMENT='订单主表；状态枚举：created/paid/accepted/completed/cancelled
 | 39 | `lawyer_application_log` | B | 10 | lawyer | 段 1 | 入驻审核流水 |
 | 40 | `sys_config` | D | 9 | ops | 段 1 | 平台参数 |
 | 41 | `notify_template` | D | 9 | ops | 段 7 | 通知模板，按语言分条 |
-| 42 | `sensitive_word` | D | 11 | ops | 段 7 | 敏感词库 |
-| 43 | `content_review` | B | 10 | ops | 段 7 | 审核命中记录，原文不改 |
-| 44 | `service_ticket` | C | 9 | ops | 段 7 | 客服工单 |
+| 42 | `sensitive_word` | D | **12** | ops | 段 7 | 敏感词库（**v1.34 补 `last_hit_at`**，A-25「最近命中」列用） |
+| 43 | `content_review` | B | **12** | ops | 段 7 | 审核命中记录，原文不改（**v1.34 补 `hit_snippet` 命中片段 / `biz_user_id` 内容作者**） |
+| 44 | `service_ticket` | C | **13** | ops | 段 7 | 客服工单（**v1.34 补 4 字段**：`ticket_no` 工单号前缀 `TK` / `title` / `priority` / `sla_due_at` 落库的 24h 受理时限） |
 | 45 | `reconciliation_diff` | B | 14 | trade | 段 5 | 对账差错 |
 | 46 | `invoice` | C | 15 | trade | **不建** | 发票；V1 明确不做 |
 | 47 | `file_record` | A | 14 | infra | 段 4 | 上传文件登记 |
@@ -568,9 +568,13 @@ COMMENT='订单主表；状态枚举：created/paid/accepted/completed/cancelled
 | 51 | `task_queue` | B | 12 | infra | 段 2 | 异步任务表：CAS 领取 + 租约回收 + 指数退避（段 2 新增，此前漏登记） |
 | 52 | `lawyer_income_settlement` | C | 14 | trade | **段 5** | 结算批次：一位律师 × 一个账期一条；**只是状态记录，不是资金真相**（真相永远是 `balance_flow`）；确认结算不改余额、不写流水 |
 | 53 | `case_delivery` | C | 13 | caseflow | **段 5** | 文书送达记录：方式 / 发起时间 / 签收时间 / 回执号 / 签收设备 / IP；**只送平台自有文书**，不做法院转达 |
+| 54 | `sensitive_word_appeal` | C | 10 | ops | **段 7** | 敏感词误判申诉：`user_id` / `content_review_id`（唯一键，一条命中只能申诉一次）/ `appeal_reason` / `status`（pending/accepted/rejected）/ `handler_id` / `handle_reason` / `handled_at` / 时间戳（**v1.34 新建**） |
+| 55 | `announcement` | C | 15 | ops | **段 7** | 公告批次主表：`announcement_no` 前缀 `AN` / `title` / `content` / `target_type` + `target_value`（JSON 人群）/ `channels`（JSON 渠道）/ `status`（draft/scheduled/sending/sent/failed）/ `scheduled_at` / `sent_at` / `reach_count` / `open_count` / `created_by` / 时间戳（**v1.34 新建**；A-23「触达/打开率」的唯一落点） |
 
-**合计 53 张，要建 52 张。** 段分布：段 0 = 2、段 1 = 12、段 2 = 12、段 3 = 3、段 4 = 4、**段 5 = 8**、段 6 = 1、段 7 = 10、段 8 = 0。
-类别分布：A 业务实体 21、B 追加型 14、**C 状态机 11**、D 基础数据 7。
+**合计 55 张，要建 54 张。** 段分布：段 0 = 2、段 1 = 12、段 2 = 12、段 3 = 3、段 4 = 4、**段 5 = 8**、段 6 = 1、**段 7 = 11**（10 张在册 − `share_poster` 1 张 + 新增 2 张）、段 8 = 0。
+类别分布：A 业务实体 21、B 追加型 14、**C 状态机 13**、D 基础数据 7。
+
+> **v1.34 补登记（2026-11-02，段 7 定稿）**：新增第 54 张 `sensitive_word_appeal`（上游有 2 个申诉接口 + A-25 设计稿画了申诉复核，但表从未登记）、第 55 张 `announcement`（A-23 要「触达/打开率」，而 `notification` 是每人一行的通知，没有公告批次概念）。同时 `share_poster` **段 7 不做**（总纲 §5.8 未列、无对应页面、无验收锚点）。详见《[法泽FAZE_第7段工作流_v1.0.md](法泽FAZE_第7段工作流_v1.0.md)》§零之二 第 3~5 项、第 11 项。
 
 > **第 50/51 张是 v1.27 补登记的**：段 2 工作流 §五.1 已把它们算作「本段新增（第 50 张 / 第 51 张）」，但本附录当时漏了，导致「49 张」这个总数与段 2 的产物对不上。本次一并补正，总数 49 → 51，段 2 的 10 → 12。`task_queue` 的 11 个规范字段见《[法泽FAZE_后端代码规范_v1.0.md](法泽FAZE_后端代码规范_v1.0.md)》§9.2，另有 `trace_id` 共 12 个。
 
