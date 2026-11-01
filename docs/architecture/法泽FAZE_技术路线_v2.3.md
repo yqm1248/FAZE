@@ -716,7 +716,7 @@ public class R<T> implements Serializable {
 | | `POST /pub/auth/reset-password` | 忘记密码三步 |
 | | `GET /app/account/profile` · `PUT /app/account/profile` | 资料 |
 | | `POST /app/account/realname` · `GET /app/account/realname` | 实名认证 |
-| | `POST /app/account/enterprise` | 企业认证 |
+| | `POST /app/account/enterprise` · `GET /app/account/enterprise` | 企业认证提交与**状态查询**（GET 为段 7 新增，四态） |
 | | `POST /app/account/logout` · `DELETE /app/account` | 退出 / 注销申请 |
 | | `GET /app/account/devices` | 登录设备列表 |
 | **lawyer** | `GET /app/lawyers` | 列表（分类、搜索、游标分页） |
@@ -776,10 +776,17 @@ public class R<T> implements Serializable {
 | | `GET /app/ai/stream?sessionId=&fromSeq=` | SSE 订阅 |
 | | `GET /app/ai/sessions` · `GET /{id}/messages` | 历史 |
 | | `DELETE /app/ai/sessions/{id}` | 会话删除 |
-| **ops** | `GET /app/notifications` · `POST /{id}/read` | 消息中心 |
-| | `POST /app/complaints` · `POST /app/feedback` | 投诉 / 反馈 |
-| | `GET /pub/faq` | 常见问题 |
+| **ops** | `GET /app/notifications` · `POST /{id}/read` | 消息中心（段 2）；read 时**公告的 `open_count` +1**（段 7） |
+| | `POST /app/complaints` · `GET /app/complaints` | 投诉提交与我的列表（**GET 为段 7 新增**） |
+| | `POST /app/feedback` · `GET /app/feedback` | 反馈提交与我的列表（**GET 为段 7 新增**） |
+| | `POST /app/content-appeals` | **敏感词误判申诉**（段 7 新增） |
+| | `GET /pub/faq` | 常见问题（段 7 建 `faq` 表并提供数据） |
 | | `GET /pub/app/version` | 版本检查 |
+| | `GET /pub/app/config` | **公开配置**：客服时段 / 客服电话 / 最低版本（段 7 新增） |
+| **social** | `GET /app/social/favorites?targetType=` | **收藏列表**（三类型：article / lawyer / case，段 7 新增） |
+| | `DELETE /app/social/favorites` | **取消收藏**（段 7 新增） |
+| | `GET /app/social/follows` | **关注律师列表**（段 7 新增） |
+| | `GET /app/social/follow-count` | **关注数**（个人页角标，段 7 新增） |
 | **infra** | `POST /app/upload/token` | 获取 OSS 直传凭证 |
 | | `GET /app/upload/url?key=` | 获取私有资源签名 URL |
 
@@ -848,11 +855,14 @@ HTTP 状态码：**成功一律 200**（含业务失败也返回 200 + code）�
 
 | 方法与路径 | 用途 | 主要表 |
 |---|---|---|
-| `GET /admin/dashboard/summary?range=7d\|30d` | 核心指标（DAU / 新增 / 订单量 / 收入 / 留存） | 跨域聚合 |
-| `GET /admin/dashboard/online` | 实时在线数 | Redis |
-| `GET /admin/dashboard/trends?metric=orders\|revenue&range=` | 趋势序列（折线图数据） | 跨域聚合 |
+| `GET /admin/dashboard/summary?range=today\|7d\|30d` | 4 个核心指标 + 环比 + `onlineCount`（实时在线，Redis） | 跨域聚合 |
+| `GET /admin/dashboard/trends?metric=orders\|revenue&range=14d` | 趋势序列（折线图数据） | 跨域聚合 |
+| `GET /admin/dashboard/regions` | **用户地区分布**（按注册地，前 5 + 其他） | `app_user.region` |
+| `GET /admin/dashboard/todos` | **待我处理**（实名 / 入驻 / 提现 / 工单 / 内容审核 五类计数 + 副文案） | 跨域聚合 |
+| `GET /admin/dashboard/export?range=` | 导出报表（CSV） | 跨域聚合 |
 
-> **A-02 的口径仍未定**：DAU、留存、转化怎么算没有业务定义，接口形状先冻结，数字口径由项目负责人拍板后补进本表。
+> **A-02 的口径已定（v1.34，2026-11-02）**：DAU / 新增 / 留存 / 收入 / 时间范围的算法与数据来源，见《[法泽FAZE_第7段工作流_v1.0.md](法泽FAZE_第7段工作流_v1.0.md)》§零之二 第 1 项与 `docs/acceptance/seg7/A-02-指标口径.md`。要点：DAU = 当日登录或有任意业务请求的去重用户；留存 = 次日留存（分母当日新增）；**平台收入 = 当日订单服务费合计，不含充值**；时间按自然日、`Asia/Shanghai`。
+> 原 `GET /admin/dashboard/online`（实时在线）**并入 `summary`**，不再单独开接口（段 7 裁决 21）。
 
 #### 4.8.4.4 用户与资质（A-03、A-04、A-06）
 
@@ -867,6 +877,7 @@ HTTP 状态码：**成功一律 200**（含业务失败也返回 200 + code）�
 | `GET /admin/lawyers` | 律师列表（分类 / 状态 / 评分） | `lawyer` |
 | `GET /admin/lawyers/{id}` | 律师详情（含资质、服务设置、违规记录） | `lawyer`、`lawyer_audit`、`user_violation` |
 | `POST /admin/lawyers/{id}/violations` | 违规处理（警告 / 限流 / 下架 / 清退） | `user_violation` |
+| `GET /admin/users/{id}/violations` | **违规记录列表**（用户详情页用，段 7 新增） | `user_violation` |
 
 > A-05 的两个接口（`GET /admin/lawyer-applications`、`POST /admin/lawyer-applications/{id}/audit`）已在 4.8.2 定义，沿用。
 > **A-04 承载两种认证**：设计稿只画了实名影像，企业认证审核开发时按 A-04 加一个 `type` 切换（见《未完成需备注》§九）。
@@ -948,7 +959,8 @@ HTTP 状态码：**成功一律 200**（含业务失败也返回 200 + code）�
 | `POST /admin/cases/{id}/progress` | 推进进度节点 | `case_progress` |
 | `GET /admin/cases/{id}/deliveries` | 送达记录 | `case_delivery`（原文写 `case_service_record`，v1.30 改名） |
 | `POST /admin/cases/{id}/deliveries` | 发起送达（**只送平台自有文书**，不做法院转达） | `case_delivery`、`document` |
-| `GET /admin/content-reviews?status=&type=` | 命中记录列表（IM / 评价 / 评论） | `content_review` |
+| `GET /admin/content-reviews?status=&type=&level=&bizUserId=` | 命中记录列表（IM / 评价 / 评论 / AI 回答 / 投诉反馈） | `content_review` |
+| `GET /admin/content-reviews/{id}` | **命中详情**：`hit_snippet` + 前后各 3 条上下文摘要（**不返回全量会话**，段 7 新增） | `content_review` |
 | `POST /admin/content-reviews/{id}/audit` | 复核处置（忽略 / 警告 / 封禁） | `content_review`、`user_violation` |
 
 > **审核接口不得改写原文**：`content_review` 只记录命中位置与分级，原文保留在 `conversation_message` / `review` 里。这是第 7 段验收「原文完整不被替换」的要求。
@@ -961,7 +973,9 @@ HTTP 状态码：**成功一律 200**（含业务失败也返回 200 + code）�
 | `GET /admin/tickets/{id}` | 工单详情（正文、截图、处理记录） | `service_ticket`、`file_record` |
 | `POST /admin/tickets/{id}/assign` | 分配 | `service_ticket` |
 | `POST /admin/tickets/{id}/reply` | 回复（用户端消息中心可见） | `service_ticket`、`notify_template` |
-| `POST /admin/tickets/{id}/close` | 关闭 | `service_ticket` |
+| `POST /admin/tickets/{id}/close` | 关闭（**`close_reason` 必填**） | `service_ticket` |
+| `GET /admin/tickets/{id}/timeline` | **处理记录时间线**（数据源 = `operation_log` 的 `target_type='TICKET'`，段 7 新增） | `operation_log` |
+| `GET /admin/tickets/export` | 导出工单（CSV，审计 `LOG_EXPORT`，段 7 新增） | `service_ticket` |
 
 #### 4.8.4.10 消息（A-23、A-24）
 
@@ -969,7 +983,9 @@ HTTP 状态码：**成功一律 200**（含业务失败也返回 200 + code）�
 |---|---|---|
 | `GET /admin/announcements?status=` | 公告列表（含触达 / 打开率） | `notify_template`、`notification` |
 | `POST /admin/announcements` | 新建公告（人群 / 渠道 / 定时） | 同上 |
-| `POST /admin/announcements/{id}/push` | 立即推送 / 取消定时 | 同上 |
+| `GET /admin/announcements/{id}` | **公告详情**（含目标人群解析结果，段 7 新增） | `announcement` |
+| `POST /admin/announcements/{id}/push` | 立即推送 / 取消定时（**`sent` 后不可撤回**） | 同上 |
+| `GET /admin/announcements/estimate` | **预计触达人数**（建公告时实时算，段 7 新增） | `app_user` |
 | `GET /admin/notify-templates?scene=` | 通知模板列表 | `notify_template` |
 | `POST /admin/notify-templates` | 新建模板 | `notify_template` |
 | `PUT /admin/notify-templates/{id}` | 保存模板（变量占位符校验） | `notify_template` |
@@ -982,11 +998,20 @@ HTTP 状态码：**成功一律 200**（含业务失败也返回 200 + code）�
 | `POST /admin/sensitive-words` | 新增词条 | `sensitive_word` |
 | `PUT /admin/sensitive-words/{id}` | 修改词条 | `sensitive_word` |
 | `DELETE /admin/sensitive-words/{id}` | 删除词条（**词库可删，法条库不可删**） | `sensitive_word` |
+| `POST /admin/sensitive-words/import` | **批量导入**（CSV，幂等键 `(word,lang)`，段 7 新增） | `sensitive_word` |
+| `GET /admin/sensitive-words/export` | **导出词库**（CSV，审计 `LOG_EXPORT`，段 7 新增） | `sensitive_word` |
 | `GET /admin/sensitive-word-appeals?status=` | 申诉复核队列 | `sensitive_word_appeal` |
 | `POST /admin/sensitive-word-appeals/{id}/audit` | 申诉处置（维持 / 撤销 / 降级） | 同上 |
 | `GET /admin/operation-logs?adminId=&action=&beginTime=&endTime=` | 操作日志 | `operation_log` |
 | `GET /admin/login-logs?adminId=&ip=&beginTime=&endTime=` | 登录日志 | `login_log` |
-| `GET /admin/ai-sessions?userId=&beginTime=&endTime=&refStatus=` | AI 会话检索 | `ai_conversation` |
+| `PUT /admin/notify-templates/{id}` | （见 4.8.4.10，此处不重复） | — |
+| `DELETE /admin/notify-templates/{id}` | **停用模板**（不物理删，已发通知会断链，段 7 新增） | `notify_template` |
+| `POST /admin/notify-templates/{id}/test` | **测试发送**（发到当前管理员消息中心，段 7 新增） | `notify_template`、`notification` |
+| `GET /admin/operation-logs/export` | **导出操作日志**（CSV，审计 `LOG_EXPORT`，段 7 新增） | `operation_log` |
+| `GET /admin/login-logs/export` | **导出登录日志**（CSV，审计 `LOG_EXPORT`，段 7 新增） | `login_log` |
+| `GET /admin/ops/health-report` | **每日巡检报告**（5xx / P95 / 备份 / 磁盘 / 待处理数，段 7 新增） | 跨域聚合 |
+| `GET /admin/exports/{taskId}/download` | **异步导出下载**（> 5000 行时走任务，段 7 新增） | `task_queue` |
+| `GET /admin/ai-sessions?userId=&beginTime=&endTime=&refStatus=` | AI 会话检索（**A-28，归段 3 实现**，列在此组仅为按页面编号归位） | `ai_conversation` |
 | `GET /admin/ai-sessions/{id}/messages` | 问答原文 + 生成时冻结的 `refs` 快照 | `ai_message` |
 | `POST /admin/ai-sessions/{id}/review` | 标记已复核（只写复核状态，不改原文） | `ai_conversation` |
 | `GET /admin/ai-sessions/{id}/export` | 导出本条记录（合规追溯留档） | 同上 |
@@ -996,6 +1021,7 @@ HTTP 状态码：**成功一律 200**（含业务失败也返回 200 + code）�
 #### 4.8.4.12 覆盖核对与明确不做
 
 **覆盖核对**：28 页里 **26 页**有契约（A-01 走 RuoYi 自带登录；A-05 沿用 4.8.2 已有的 2 个接口）。本节表格列出 **85 个**接口（其中 2 个是原有接口，行内标「已有」），加上 4.8.2 里沿用、未在本节重复列出的 2 个律师入驻审核接口，**admin 接口合计 87 个，本轮新补 83 个**。
+> **v1.34（段 7）再补 17 个**：看板 `regions` / `todos` / `export`；词库 `import` / `export`；审核 `{id}` 详情；违规记录列表；工单 `timeline` / `export`；公告 `{id}` / `estimate`；模板 `DELETE` / `test`；日志 `export`×2；`ops/health-report`；`exports/{taskId}/download`。**admin 接口合计 104 个**。
 
 **明确不做**：
 
@@ -1012,7 +1038,7 @@ HTTP 状态码：**成功一律 200**（含业务失败也返回 200 + code）�
 
 > **2026-10-30 实测：本文档共 51 条 `CREATE TABLE`，唯一表名只有 49 张**（`login_log`、`operation_log` 各被定义两遍）；**下面这张清单只有 30 行**，其中还含 3 个已改名或已合并的表名（`case` → `legal_case`、`favorite` / `follow` → `social_action`），另有 **31 张实际存在的表从未进过清单**。
 >
-> **表清单的唯一准据改为《[法泽FAZE_数据表规范_v1.0.md](法泽FAZE_数据表规范_v1.0.md)》附录 A（51 张，含类别、域、建表段）**；要建 50 张（`invoice` 按「V1 明确不做」不建）。下面这张清单保留为历史记录，**不要再拿它排建表计划**——照它排会同时漏建 31 张、又找不到 3 张表。
+> **表清单的唯一准据改为《[法泽FAZE_数据表规范_v1.0.md](法泽FAZE_数据表规范_v1.0.md)》附录 A**。**表总数口径（v1.34，2026-11-02 段 7 定稿）：55 张，要建 54 张**（`invoice` 按「V1 明确不做」不建、`share_poster` 段 7 不做、`sensitive_word_appeal` 与 `announcement` 为段 7 新增的第 54/55 张）。此前 51 / 53 两个数均已被取代。下面这张清单保留为历史记录，**不要再拿它排建表计划**——照它排会同时漏建 31 张、又找不到 3 张表。
 >
 > 「V2.3 新增 17 张」与 §5.11 标题的「新增 15 张」、变更记录的「15 张」三处不一致，均以规范附录 A 为准。
 
@@ -2057,6 +2083,7 @@ CREATE TABLE sensitive_word (
   source     VARCHAR(50),
   enabled    TINYINT NOT NULL DEFAULT 1,
   hit_count  BIGINT NOT NULL DEFAULT 0,
+  last_hit_at DATETIME,                          -- v1.34 段 7 补：最近一次命中时间（A-25「最近命中」列）
   created_by BIGINT,
   created_at DATETIME NOT NULL,
   updated_at DATETIME NOT NULL,
@@ -2070,8 +2097,10 @@ CREATE TABLE content_review (
   biz_type      VARCHAR(30) NOT NULL,
   biz_id        BIGINT      NOT NULL,
   hit_words     JSON,
+  hit_snippet   VARCHAR(500),                    -- v1.34 段 7 补：命中词前后各 40 字的片段（不是原文全文）
   level         VARCHAR(20) NOT NULL,
   engine        VARCHAR(30),
+  biz_user_id   BIGINT,                          -- v1.34 段 7 补：被审核内容的作者（A-20 按用户筛选）
   reviewer_id   BIGINT,
   review_result VARCHAR(20) DEFAULT 'pending',
   reviewed_at   DATETIME,
@@ -2083,17 +2112,40 @@ CREATE TABLE content_review (
 -- 38. 客服工单
 CREATE TABLE service_ticket (
   id              BIGINT PRIMARY KEY AUTO_INCREMENT,
+  ticket_no       VARCHAR(32) NOT NULL,           -- v1.34 段 7 补：对外单号，前缀 TK
   user_id         BIGINT NOT NULL,
   agent_id        BIGINT,
   conversation_id BIGINT,
   category        VARCHAR(30),
+  title           VARCHAR(200) NOT NULL,          -- v1.34 段 7 补：A-21 列表「标题」列
+  priority        VARCHAR(10) NOT NULL DEFAULT 'normal',  -- v1.34 段 7 补：low/normal/high/urgent
   status          VARCHAR(20) NOT NULL DEFAULT 'waiting',
+  sla_due_at      DATETIME NOT NULL,              -- v1.34 段 7 补：= created_at + 24h，落库便于索引与超时扫描
   closed_at       DATETIME,
   created_at      DATETIME NOT NULL,
   updated_at      DATETIME NOT NULL,
+  UNIQUE KEY uk_ticket_no (ticket_no),
   KEY idx_ticket_status (status, created_at),
-  KEY idx_ticket_agent (agent_id, status)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='客服工单';
+  KEY idx_ticket_agent (agent_id, status),
+  KEY idx_ticket_sla (status, sla_due_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='客服工单；v1.34 段 7 补 4 字段';
+```
+
+-- 54. 敏感词误判申诉（v1.34 段 7 新增；上游有 2 个申诉接口与 A-25 申诉复核，但表从未登记）
+CREATE TABLE sensitive_word_appeal (
+  id                BIGINT PRIMARY KEY AUTO_INCREMENT,
+  user_id           BIGINT NOT NULL,
+  content_review_id BIGINT NOT NULL,              -- 指向被误判的那条 content_review
+  appeal_reason     VARCHAR(500) NOT NULL,
+  status            VARCHAR(20) NOT NULL DEFAULT 'pending',  -- pending / accepted / rejected
+  handler_id        BIGINT,
+  handle_reason     VARCHAR(500),
+  handled_at        DATETIME,
+  created_at        DATETIME NOT NULL,
+  updated_at        DATETIME NOT NULL,
+  UNIQUE KEY uk_appeal_review (content_review_id),  -- 一条命中只能申诉一次
+  KEY idx_appeal_status (status, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='敏感词误判申诉';
 ```
 
 ### 5.11.4 交易支撑
@@ -2140,6 +2192,29 @@ CREATE TABLE invoice (
   KEY idx_invoice_user (user_id, created_at),
   KEY idx_invoice_status (status, created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='发票申请与开具记录';
+```
+
+-- 55. 公告批次主表（v1.34 段 7 新增；A-23 的「触达 / 打开率」唯一落点）
+CREATE TABLE announcement (
+  id              BIGINT PRIMARY KEY AUTO_INCREMENT,
+  announcement_no VARCHAR(32)  NOT NULL,          -- 前缀 AN
+  title           VARCHAR(200) NOT NULL,
+  content         TEXT         NOT NULL,
+  target_type     VARCHAR(20)  NOT NULL DEFAULT 'all',   -- all / role / region / user_ids
+  target_value    JSON,                                   -- {"role":"lawyer"} / {"regions":[...]} / {"userIds":[...]}
+  channels        JSON         NOT NULL,                  -- ["inapp","push"] / ["inapp","push","sms"]
+  status          VARCHAR(20)  NOT NULL DEFAULT 'draft',  -- draft / scheduled / sending / sent / failed
+  scheduled_at    DATETIME,
+  sent_at         DATETIME,
+  reach_count     INT NOT NULL DEFAULT 0,
+  open_count      INT NOT NULL DEFAULT 0,
+  created_by      BIGINT NOT NULL,
+  created_at      DATETIME NOT NULL,
+  updated_at      DATETIME NOT NULL,
+  UNIQUE KEY uk_announcement_no (announcement_no),
+  KEY idx_announcement_status (status, scheduled_at),
+  KEY idx_announcement_sent (sent_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='公告批次主表；一条公告一行，触达/打开数在此累计';
 ```
 
 ### 5.11.5 基础设施
@@ -3525,7 +3600,7 @@ export function formatRelative(date: Date, lang: Lang): string;
 |---|---|
 | 入口 | App 内"客服中心"，在线客服 + 工单 |
 | 工单系统 | 问题分类、优先级、分配、跟踪、SLA（24 小时响应） |
-| 客服时段 | 在线客服 9:00-21:00，非时段留言 |
+| 客服时段 | 在线客服 **9:00-20:00**，非时段留言（**v1.34 以 APP 55/56 设计稿为准**，原写 21:00 作废；存 `sys_config.service.online_hours`） |
 | 知识库 | 客服共享 FAQ，快速回复 |
 
 ## 16.5 黑名单与违规
@@ -3572,7 +3647,8 @@ export function formatRelative(date: Date, lang: Lang): string;
 
 - 应用日志统一 JSON 格式，带 traceId
 - Filebeat 采集 → Elasticsearch → Kibana 查询
-- 日志保留 30 天，错误日志 90 天
+- 文件日志保留 30 天，错误日志 90 天
+- **审计日志是另一套口径**（v1.34 段 7 补）：`operation_log` **≥ 3 年**、`login_log` **≥ 180 天**，以《审计与日志规范》§5.2 为准；页面上的留存文案不得低于该期限
 - 敏感字段脱敏
 
 ## 17.4 发布策略

@@ -632,8 +632,8 @@ AGENTS.md 写的是「9 个段严格串行，不许两段并行」。这句要�
 | APP 页（10） | 见 §4.1 |
 | PC 页（8） | A-02、A-20、A-21、A-22、A-23、A-24、A-25、A-26 |
 | 服务端 | `ops` 全量：内容审核、敏感词、投诉工单、黑名单、违规记录、公告；风控：频率限制、异常行为检测、账号风控；客服工单 `service_ticket`；监控：Prometheus 指标 + Grafana 面板 + 告警规则；结构化日志与链路追踪；备份与灾备演练 |
-| 数据库 | `content_review`、`sensitive_word`、`service_ticket`、`user_violation`、`notify_template`、`operation_log`、`login_log` |
-| 接口 | §4.8.4「看板」「案件与内容审核」「投诉工单」「消息」「系统」各组 |
+| 数据库 | **本段建 11 张**（2026-11-02 定，见《[法泽FAZE_第7段工作流_v1.0.md](法泽FAZE_第7段工作流_v1.0.md)》§零之二 第 3~5 项）：`notification`、`complaint`、`feedback`、`faq`、`user_violation`、`notify_template`、`sensitive_word`、`content_review`、`service_ticket` + **新增第 54 张 `sensitive_word_appeal`**、**第 55 张 `announcement`**。`operation_log` / `login_log` **段 1 已建，本段只读不建**；`share_poster` **本段不做**。另补字段：`service_ticket` 9→13、`sensitive_word` 11→12、`content_review` 10→12 |
+| 接口 | §4.8.4「看板」「案件与内容审核」「投诉工单」「消息」「系统」各组，合计 **54 个**（其中 **新增 26 个**需回写登记、已列 28 个）。完整清单见《[法泽FAZE_第7段工作流_v1.0.md](法泽FAZE_第7段工作流_v1.0.md)》§五 5.2 |
 
 **必须做**
 
@@ -922,7 +922,7 @@ AGENTS.md 写的是「9 个段严格串行，不许两段并行」。这句要�
 | 4 | `docs/architecture/法泽FAZE_第4段工作流_v1.0.md` | **已产出（2026-11-01，基线 v1.27）**：7 组 24 任务 / 8 条锚点 / 4 张表 / 17 个接口；**范围已变更为「只做中文」** |
 | 5 | `docs/architecture/法泽FAZE_第5段工作流_v1.0.md` | **已产出（2026-11-01，基线 v1.30）**：8 组 37 任务 / 8 条锚点（`5-A9` 已删）/ 建 8 张表 / 41 个接口；**18 项负责人裁决**，其中「结算不碰钱」「送达不做法院转达」「`payment_record` 不写服务费行」三条改变了资金与送达口径 |
 | 6 | `docs/architecture/法泽FAZE_第6段工作流_v1.0.md` | **已产出（2026-11-02，基线 v1.32）**：5 组 19 任务 / 7 条锚点（**3 条挂账**）/ 建 1 张表（`recharge_record` 13 字段）/ 8 个接口 / 改造 A-09 1 页；**18 项负责人裁决**，其中「渠道手续费平台承担」「未实名充值额度 0 = 拦截（`405020`）」「单笔 0.1~5000 元、单日上限 5000 元」「A-09 加渠道对账 Tab」四条改变了资金与页面口径 |
-| 7 | `docs/architecture/法泽FAZE_第7段工作流_v1.0.md` | 待产出 |
+| 7 | `docs/architecture/法泽FAZE_第7段工作流_v1.0.md` | **已产出（2026-11-02，基线 v1.34）**：8 组 41 任务 / 10 条锚点 / 建 11 张表（新增第 54 张 `sensitive_word_appeal`、第 55 张 `announcement`）/ 54 个接口（新增 26）/ APP 10 页 + PC 8 页；**26 项负责人裁决**，其中「看板口径」「告警走钉钉」「表数 53→55」「A-20 只看命中片段」四条改变了全局口径 |
 | 8 | `docs/architecture/法泽FAZE_第8段工作流_v1.0.md` | 待产出 |
 
 ## 11.3 段 0 的任务分组（预览，详细五段式在工作流文档里）

@@ -105,6 +105,7 @@ NNN = 3 位：域内序号，从 001 起
 | `402008` | 200 | `error.auth.account-cancelled` | 账号已注销 |
 | `402009` | 200 | `error.auth.guardian-required` | 未成年人需监护人同意 |
 | `402010` | 200 | `error.auth.password-weak` | 密码强度不足 |
+| `402011` | **403** | `error.auth.account-banned` | **账号已被封禁**（段 7 新增；与「密码错误」必须可区分，提示含客服电话或申诉入口） |
 | `502001` | 200 | `error.auth.sms-send-failed` | 短信发送失败 |
 | `502002` | 200 | `error.auth.realname-service-down` | 实名核验服务不可用 |
 
@@ -219,8 +220,22 @@ NNN = 3 位：域内序号，从 001 起
 | `510001` | 200 | `error.ops.probe-not-configured` | 探针未配置（第 0 段用） |
 | `510002` | 200 | `error.ops.job-failed` | 后台任务执行失败 |
 | `510003` | 200 | `error.ops.export-failed` | 导出失败 |
+| `410005` | 200 | `error.ops.sensitive-word-exists` | 词条已存在（同词同语言，段 7） |
+| `410006` | 200 | `error.ops.content-blocked` | 内容命中 block 级敏感词，未发送/未提交（段 7） |
+| `410007` | 200 | `error.ops.review-not-found` | 审核记录不存在（段 7） |
+| `410008` | 409 | `error.ops.review-already-handled` | 该条审核记录已处置过（段 7） |
+| `410009` | 200 | `error.ops.appeal-exists` | 该条命中已申诉过（段 7） |
+| `410010` | 409 | `error.ops.appeal-handled` | 申诉已处置（段 7） |
+| `410011` | 200 | `error.ops.ticket-not-found` | 工单不存在（段 7） |
+| `410012` | 409 | `error.ops.ticket-status-invalid` | 工单状态不允许该操作（段 7） |
+| `410013` | 200 | `error.ops.announcement-sent` | 公告已发出，不可撤回（段 7） |
+| `410014` | 400 | `error.ops.import-format` | 导入文件格式错误（段 7） |
+| `410015` | 200 | `error.ops.export-too-large` | 导出行数超限，已转后台任务（段 7） |
+| `410016` | 200 | `error.ops.retention-archive-failed` | 归档失败，已停止清理（段 7） |
 
-**合计 78 个码**（各域：01=14、02=12、03=6、04=6、05=10、06=7、07=5、08=7、09=4、10=7），覆盖第 0～8 段会出现的全部业务失败。
+**合计 91 个码**（各域：01=14、**02=13**、03=6、04=6、05=10、06=7、07=5、08=7、09=4、**10=19**），覆盖第 0～8 段会出现的全部业务失败。
+
+> **v1.34 补 13 个（2026-11-02，段 7）**：账户域 `402011`（账号已封禁，`7-A4` 要求「提示不能只是密码错误」）；运营域 `410005`~`410016` 共 12 个。**段 8 从 `410017` 起编**。
 
 ---
 

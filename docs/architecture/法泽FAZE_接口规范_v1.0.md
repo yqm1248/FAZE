@@ -807,6 +807,44 @@ if (o == null) throw new BusinessException(TRADE_ORDER_NOT_FOUND);
 
 > **第 1 项的路径变化**：技术路线原来写的是 `POST /app/wallet/recharge`（单数、动词式），且 `recharge` 不在 §3.3 的动词白名单里——v1.32 改为资源复数 `recharges`。
 
+### 7.3.2 段 7 的 54 个接口（v1.34 新增，2026-11-02）
+
+> **本段合计 54 个**：新增 **26 个**（下表逐条列出）+ 已列 **28 个**（技术路线 §4.8.2 / §4.8.4 已有，本段实现）。
+> 字段级契约写在《[法泽FAZE_第7段工作流_v1.0.md](法泽FAZE_第7段工作流_v1.0.md)》§三 各任务与 §五 5.2；本表只管「有哪些、怎么鉴权、怎么幂等」。
+
+**新增的 26 个**：
+
+| # | 方法 + 路径 | 用途 | 鉴权 | 幂等 | 主要错误码 |
+|---|---|---|---|---|---|
+| 1 | `GET /admin/dashboard/regions` | 用户地区分布 | PC token | 只读 | — |
+| 2 | `GET /admin/dashboard/todos` | 待我处理 5 类计数 | PC token | 只读（不缓存） | — |
+| 3 | `GET /admin/dashboard/export` | 导出报表 | PC token | 只读 + 审计 `LOG_EXPORT` | `410015` |
+| 4 | `POST /admin/sensitive-words/import` | 批量导入词库 | PC token | **幂等**：`(word,lang)` 存在则更新 | `410014` |
+| 5 | `GET /admin/sensitive-words/export` | 导出词库 | PC token | 只读 + 审计 | `410015` |
+| 6 | `GET /admin/content-reviews/{id}` | 命中详情 + 上下文 | PC token | 只读 | `410007` |
+| 7 | `GET /admin/users/{id}/violations` | 违规记录列表 | PC token | 只读 | — |
+| 8 | `GET /admin/tickets/{id}/timeline` | 工单处理时间线 | PC token | 只读 | `410011` |
+| 9 | `GET /admin/tickets/export` | 导出工单 | PC token | 只读 + 审计 | `410015` |
+| 10 | `GET /admin/announcements/{id}` | 公告详情 | PC token | 只读 | — |
+| 11 | `GET /admin/announcements/estimate` | 预计触达人数 | PC token | 只读 | — |
+| 12 | `DELETE /admin/notify-templates/{id}` | 停用模板（软停用） | PC token | 幂等 | — |
+| 13 | `POST /admin/notify-templates/{id}/test` | 测试发送 | PC token | 非幂等（发一条通知） | — |
+| 14 | `GET /admin/operation-logs/export` | 导出操作日志 | PC token | 只读 + 审计 | `410015` |
+| 15 | `GET /admin/login-logs/export` | 导出登录日志 | PC token | 只读 + 审计 | `410015` |
+| 16 | `GET /admin/ops/health-report` | 每日巡检报告 | PC token | 只读 | — |
+| 17 | `GET /admin/exports/{taskId}/download` | 异步导出下载（带过期） | PC token | 只读 | — |
+| 18 | `POST /app/content-appeals` | 提交误判申诉 | App JWT + 归属校验 | `uk_appeal_review` 唯一键 | `410009` / `410007` |
+| 19 | `GET /app/complaints` | 我的投诉列表 | App JWT | 只读（cursor 分页） | — |
+| 20 | `GET /app/feedback` | 我的反馈列表 | App JWT | 只读（cursor 分页） | — |
+| 21 | `GET /app/social/favorites` | 收藏列表（三类型） | App JWT | 只读（cursor 分页） | — |
+| 22 | `DELETE /app/social/favorites` | 取消收藏 | App JWT + 归属校验 | 幂等 | — |
+| 23 | `GET /app/social/follows` | 关注律师列表 | App JWT | 只读（cursor 分页） | — |
+| 24 | `GET /app/social/follow-count` | 关注数 | App JWT | 只读 | — |
+| 25 | `GET /app/account/enterprise` | 企业认证状态（四态） | App JWT | 只读 | — |
+| 26 | `GET /pub/app/config` | 客服时段 / 电话 / 最低版本 | 公开 | 只读 | — |
+
+> **路径命名说明**：第 17 项 `/admin/exports/{taskId}/download` 用的是「任务」资源而非文件资源；若后续统一到 `/admin/files/**`，只需改这一处（段 7 工作流 §附 已知局限 第 4 条已登记待复核）。
+
 ---
 
 # 八、待决事项（不拍板不许假装已定）

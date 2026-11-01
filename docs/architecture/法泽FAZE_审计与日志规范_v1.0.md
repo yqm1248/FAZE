@@ -110,6 +110,12 @@
 | 7 | 公告推送 | `ANNOUNCEMENT_PUSH` | ✅ 必须（触达全量用户） |
 | 7 | 内容审核处置 | `CONTENT_REVIEW_*` | ✅ 必须 |
 | 7 | 工单分配/关闭 | `TICKET_*` | ⚠️ 建议 |
+| **7** | **内容审核处置（忽略/警告/封禁）** | `CONTENT_REVIEW_IGNORE` / `CONTENT_REVIEW_WARN` / `CONTENT_REVIEW_BAN` | ✅ **必须**（改用户状态，`7-A2`） |
+| 7 | 敏感词增 / 改 / 删 / 批量导入 | `SENSITIVE_WORD_CREATE` / `_UPDATE` / `_DELETE` / `_IMPORT` | ✅ **必须**（改全平台判定口径） |
+| 7 | 误判申诉处置 | `APPEAL_HANDLE` | ✅ 必须（撤销一次拦截） |
+| 7 | 公告创建 / 推送 | `ANNOUNCEMENT_CREATE` / `ANNOUNCEMENT_PUSH` | ✅ **必须**（触达全量用户，`7-A1`） |
+| 7 | 工单分配 / 回复 / 关闭 | `TICKET_ASSIGN` / `TICKET_REPLY` / `TICKET_CLOSE` | ✅ 必须（`7-A5`） |
+| 7 | **日志导出**（任一导出） | `LOG_EXPORT` | ✅ **必须**（查日志这个动作也要留痕） |
 | 8 | 系统参数修改 | `SYS_CONFIG_EDIT` | ✅ 必须（抽成比例在这里） |
 | **全部** | **登录 / 登出 / 登录失败** | — | ✅ 必须（走 `login_log`，不是 `operation_log`） |
 
@@ -249,6 +255,8 @@ logback pattern：
 | `balance_flow` / `payment_record` | 数据库 | **≥ 5 年**（资金） | `audit.finance-log-days` |
 | `reconciliation_diff` | 数据库 | ≥ 5 年 | — |
 
+> **页面文案约束（v1.34 段 7 补）**：PC A-26 日志中心页面上写的留存天数**不得低于本表期限**。设计阶段 A-26 稿写的是「操作日志保留 90 天」，**低于本表 `operation_log` ≥ 3 年的要求，该文案作废**，实现时改为「按合规要求长期保留（≥ 3 年）」。另：启动时若 `audit.operation-log-days` < 1095 或 `audit.login-log-days` < 180，服务应拒绝启动。
+
 ## 5.3 归档与删除（不是直接 DELETE）
 
 ```text
@@ -290,6 +298,8 @@ logback pattern：
 | | `idx_login_log_ip_created_at` | 查同 IP 的多账号（撞库特征） |
 
 **「查这条订单被谁改过」**是最常用的取证查询（`target_type='ORDER' AND target_id=?`），必须有索引。
+
+> **段 7 追加（v1.34）**：`operation_log` 的 `target_type` 还要覆盖 `TICKET` / `CONTENT_REVIEW` / `ANNOUNCEMENT` / `SENSITIVE_WORD` 四类——PC A-22 工单详情的「处理记录时间线」就是查 `target_type='TICKET' AND target_id=?`，该索引必须存在。
 
 ## 6.3 导出
 
