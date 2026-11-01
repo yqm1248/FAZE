@@ -1432,6 +1432,29 @@ CREATE TABLE recharge_record (
   UNIQUE KEY uk_recharge_channel_txn (channel, channel_txn_id),
   KEY idx_recharge_user (user_id, created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 12e. 律师结算批次（v1.30 段 5 新增）
+-- ⚠️ 这是「结算批次状态记录」，**不是资金真相**。真相永远是 balance_flow。
+-- 确认结算只改本表 status，不改 lawyer_balance、不写 balance_flow（防与提现重复打款）
+CREATE TABLE lawyer_income_settlement (
+  id            BIGINT PRIMARY KEY AUTO_INCREMENT,
+  settlement_no VARCHAR(32) NOT NULL,        -- JS+yyyyMMdd+6位
+  lawyer_id     BIGINT NOT NULL,
+  period        VARCHAR(7) NOT NULL,         -- 账期 yyyy-MM
+  order_count   INT NOT NULL DEFAULT 0,      -- 该账期完成订单数（来自 orders）
+  income_cents  BIGINT NOT NULL DEFAULT 0,   -- 订单收入合计（来自 orders.amount_cents）
+  fee_cents     BIGINT NOT NULL DEFAULT 0,   -- 平台服务费合计（来自 orders.platform_fee_cents）
+  settle_cents  BIGINT NOT NULL DEFAULT 0,   -- 应结金额（来自 balance_flow 的 income 净额）
+  status        VARCHAR(20) NOT NULL DEFAULT 'pending',  -- pending 待结算 / settled 已结算 / rejected 已驳回
+  settled_by    BIGINT,
+  settled_at    DATETIME,
+  remark        VARCHAR(500),
+  created_at    DATETIME NOT NULL,
+  updated_at    DATETIME NOT NULL,
+  UNIQUE KEY uk_settlement_no (settlement_no),
+  UNIQUE KEY uk_settlement_lawyer_period (lawyer_id, period),  -- 一位律师一个账期只能有一张
+  KEY idx_settlement_status (status, period)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='结算批次状态记录，非资金真相';
 ```
 
 > **注**：`payment_record`（第 9 张表）在余额制下仅记录**充值**的渠道支付，`channel` 增加 `mock` 值用于沙箱；
@@ -1556,6 +1579,28 @@ CREATE TABLE case_progress (
   UNIQUE KEY uk_progress_case_step (case_id, step),  -- v1.30（段 5）：顺序不可乱，并发插入冲突即重试
   KEY idx_progress_case (case_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 17a. 文书送达（v1.30 段 5 新增）
+-- 只送「平台自有文书」，不做法院文书转达；回执是平台凭证，不是法院《送达回证》
+CREATE TABLE case_delivery (
+  id          BIGINT PRIMARY KEY AUTO_INCREMENT,
+  case_id     BIGINT NOT NULL,
+  document_id BIGINT NOT NULL,                 -- 指向 document.id（该文书必须有 PDF）
+  user_id     BIGINT NOT NULL,                 -- 冗余一列：按用户查送达列表时不必 join legal_case
+  method      VARCHAR(20) NOT NULL,            -- platform 平台内电子送达 / sms_pickup 短信通知自行查看 / mail 邮寄纸质
+  sent_at     DATETIME NOT NULL,               -- 发起送达时间
+  signed_at   DATETIME,                        -- 签收时间；未签收为 NULL
+  receipt_no  VARCHAR(32) NOT NULL,            -- 回执号 SD+yyyyMMdd+6位，发起送达时就生成
+  sign_device VARCHAR(100),                    -- 签收设备（型号 + OS），签收时写入
+  ip          VARCHAR(45),                     -- 签收 IP（兼容 IPv6）
+  status      VARCHAR(20) NOT NULL DEFAULT 'pending',  -- pending 待签收 / signed 已签收
+  created_at  DATETIME NOT NULL,
+  updated_at  DATETIME NOT NULL,
+  UNIQUE KEY uk_delivery_receipt (receipt_no),
+  KEY idx_delivery_user (user_id, status, sent_at),
+  KEY idx_delivery_case (case_id),
+  KEY idx_delivery_doc (document_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='文书送达记录；只送平台自有文书';
 ```
 
 ## 5.8 内容
@@ -1619,7 +1664,8 @@ CREATE TABLE article_translation (
 -- 20. 公开案例库主表（源语言中文）
 CREATE TABLE case_library (
   id                BIGINT PRIMARY KEY AUTO_INCREMENT,
-  case_no           VARCHAR(50),                  -- 案号
+  case_no           VARCHAR(50) NOT NULL,         -- v1.30（段 5）：平台案例编号 CL+yyyyMMdd+6位，对外唯一标识
+  court_case_no     VARCHAR(64),                  -- v1.30（段 5）：法院案号，只供后台内部核对，**APP 不展示**
   title             VARCHAR(200) NOT NULL,
   court_name        VARCHAR(100),
   case_type         VARCHAR(30),                  -- 大类 3 值：civil / administrative / criminal（App 列表按它分三组）
@@ -1638,6 +1684,7 @@ CREATE TABLE case_library (
   created_at        DATETIME NOT NULL,
   updated_at        DATETIME NOT NULL,
   deleted_at        DATETIME,
+  UNIQUE KEY uk_case_library_no (case_no),
   KEY idx_caselib_type (case_type, status),
   KEY idx_caselib_pub (status, published_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='案例库主表，存简体中文源内容';
