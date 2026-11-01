@@ -80,6 +80,7 @@
 4. **不许**为 AI 转律师传递任何 AI 对话内容。段 3 的跳转保持原样，本段不加参数、不做上下文。
 5. **不许**建 `lawyer_service_config` 表（并入 `lawyer`）；**不许**把 `lawyer_income_settlement` 当收入真相（真相永远是 `balance_flow`）。
 6. **不许**改 A-09 对账报表页（`reconciliation_diff` 只建表写数据，不做页面、不改段 1 的页面）。
+   > **段 6 例外（2026-11-02 定）**：段 6 按总纲 §5.7 原文「差异在 PC A-09 可见」，可在 A-09 上**新增一个「渠道对账」Tab**；**Tab1「恒等式巡检」仍原样不动**。本段（段 5）施工时仍按本条执行，例外只对段 6 生效。详见《[法泽FAZE_第6段工作流_v1.0.md](法泽FAZE_第6段工作流_v1.0.md)》§三 B4。
 
 ---
 
@@ -97,7 +98,7 @@
 | 6 | AI 转律师 | 段 3 跳转保持原样；本段**不做上下文转交**；`5-A9` **移除**（段 5 锚点 9 → 8 条，全项目 79 → 78） | §四 顶部说明、§七 第 9 项 |
 | 7 | 申诉页 | 移到**段 7**；`DISPUTED` / `SETTLED` 两态**不在本段做** | §七 第 1 项、§八.2、§九 第 1 项 |
 | 8 | `payment_record` | **不写服务费行**；PC 订单详情显示 `orders.platform_fee_cents` 金额 | §三 B 组 B5、§六 R6 |
-| 9 | `reconciliation_diff` | 建表 + 写入差异，**不做页面**，不改 A-09 | §三 H 组 H1、§七 第 5 项 |
+| 9 | `reconciliation_diff` | 建表 + 写入差异，**不做页面**，不改 A-09（**段 6 例外：段 6 在其上加「渠道对账」Tab**，见 §零.4 第 6 条注） | §三 H 组 H1、§七 第 5 项 |
 | 10 | 结算回补 | 写幂等回补脚本：扫 `status=completed` 但无 `income` 流水的订单，逐笔补 `balance_flow` + `lawyer_balance` | §三 E 组 E2 |
 | 11 | 立案驳回 | `legal_case.status` **加 `rejected`**；设计稿 A-19 的「已驳回」有据 | §三 A 组 A2、§四 `5-A1` |
 | 12 | 案件状态 | 按设计稿 4 态 + `rejected`：`filed`(待立案审核) / `accepted`(立案中) / `in_progress`(审理中) / `closed`(已结案) / `rejected`(已驳回)；**删 `waiting_judgment`** | §三 A 组 A2 |
@@ -203,7 +204,7 @@
      | `V504` | `case_library_translation` | 案例译文，13 字段基线 |
      | `V505` | `withdraw_record` | 提现单，15 字段基线 + **7 个新字段**：`withdraw_no`（业务单号，`WD` 开头，唯一索引）/ `fee_cents` / `actual_cents` / `voucher_file_id` / `bank_name` / `bank_account_tail` → 共 **21 字段** |
      | `V506` | `lawyer_income_settlement` | **新表**（DDL 已在《技术路线》§5.5 末尾补登）：`settlement_no` / `lawyer_id` / `period`(yyyy-MM) / `order_count` / `income_cents` / `fee_cents` / `settle_cents` / `status`(pending/settled/rejected) / `settled_by` / `settled_at` / `remark` |
-     | `V507` | `reconciliation_diff` | 对账差错，14 字段基线；**只写不展示**（`5-A4` 之外，见 H1） |
+     | `V507` | `reconciliation_diff` | 对账差错，14 字段基线；本段**只写不展示**（段 6 补 A-09 Tab2 展示）。**⚠️ 本表没有去重唯一键**（只有 `idx_diff_date` / `idx_diff_status`），建议补 `UNIQUE KEY uk_diff_day_channel_txn_type (bill_date, channel, channel_txn_id, diff_type)`；不补则段 6 的比对逻辑要「先查后插」兜底（见《第 6 段工作流》§九 第 7 项） |
   2. **补字段 3 张**（用 `V5xx_1__fix_xxx.sql` 修正迁移，不改已进 main 的迁移）：
      - `legal_case`：加 `form_snapshot JSON`、`case_no` 唯一索引（已有）、状态值改 5 个
      - `lawyer`：加 `service_text_on TINYINT` / `service_phone_on TINYINT` / `service_doc_on TINYINT` / `auto_accept TINYINT` / `withdraw_bank_name VARCHAR(50)` / `withdraw_bank_account VARCHAR(100)`
@@ -913,7 +914,7 @@
 - **做什么**：把对账巡检发现的差异写进表，供排查留档；**不做页面**。
 - **怎么做**：
   1. 在段 1 的巡检逻辑里追加：每发现一条差异，写 `reconciliation_diff` 一行（`check_type` / `biz_type` / `biz_id` / `expected_cents` / `actual_cents` / `diff_cents` / `status='open'` / `found_at`）。
-  2. **不改 A-09 对账报表页**（段 1 建的页面仍显示恒等式巡检结果）。
+  2. **不改 A-09 对账报表页**（段 1 建的页面仍显示恒等式巡检结果）。**段 6 例外**：段 6 可加「渠道对账」Tab，但 Tab1 恒等式巡检不动。
   3. 巡检触发：复用段 1 的现有触发方式（手动 `POST /admin/reconciliation/run` + 定时任务），**不新增任务表 handler**。
   4. 差异处置：V1 **只记录不处置**（没有 `handled_by` / `handled_at` 的写入口），`status` 保持 `open`。段 7 治理时再加。
 - **产出**：巡检逻辑的一处追加 + 表。
@@ -1067,7 +1068,7 @@
 | 5 | `case_library_translation` | `V504` | ✅ |
 | 6 | `withdraw_record` | `V505`（**21 字段**：基线 15 + 7 新字段，其中含 `withdraw_no` 单号） | ✅ |
 | 7 | `lawyer_income_settlement`（新） | `V506` | ✅ |
-| 8 | `reconciliation_diff` | `V507` | ❌ 只写不展示 |
+| 8 | `reconciliation_diff` | `V507` | ❌ 本段只写不展示（段 6 补 A-09 Tab2） |
 
 **补字段 3 张**：`legal_case`（+`form_snapshot` / `court_case_no` / `reject_reason`，**17 字段**；`status` 改 5 值）、`lawyer`（+4 个布尔 + 2 个银行卡字段，**29 字段**）、`case_library`（+`category` / `court_case_no`，**21 字段**）。`orders` 不改。
 
@@ -1163,7 +1164,7 @@ A-10 提现审核（F2）、A-13 律师结算（E5）、A-16 案例库（G1）�
 | 12 | 文书批量生成（一次多份） | 不做（段 4 也未做） |
 | 13 | 案件材料在线公证 / 司法存证 | 不做 |
 | 14 | 结算单 PDF 下载 | 不做（导 CSV） |
-| 15 | 修改 A-09 对账报表页 | 不做 |
+| 15 | 修改 A-09 对账报表页 | 本段不做（**段 6 例外**：段 6 加「渠道对账」Tab，Tab1 不动） |
 
 ---
 

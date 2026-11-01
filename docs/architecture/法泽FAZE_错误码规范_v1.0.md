@@ -146,6 +146,14 @@ NNN = 3 位：域内序号，从 001 起
 | `405010` | 200 | `error.trade.withdraw-state-invalid` | 提现单状态非法，当前操作不允许（非法迁移一律 403 语义走 200 + 本码） |
 | `405011` | 200 | `error.trade.settlement-mismatch` | 结算数据不一致（流水净额 ≠ 订单收入 − 服务费，**发现即停**，不许写结算单） |
 | `405012` | 200 | `error.trade.withdraw-too-frequent` | 提现过于频繁（单日笔数超限） |
+| `405013` | 200 | `error.trade.channel-disabled` | 支付渠道未启用（`sys_config.pay.*.enabled=false`）；**不许静默回退到 Mock** |
+| `405014` | 200 | `error.trade.recharge-amount-invalid` | 充值金额超出单笔区间（`recharge.min_cents` ~ `recharge.max_amount_cents`，当前 0.1~5000 元） |
+| `405015` | 200 | `error.trade.recharge-state-invalid` | 充值单状态非法，当前操作不允许（非法迁移一律 200 + 本码） |
+| `405016` | 200 | `error.trade.recharge-daily-limit` | 超出单日充值限额或笔数（`recharge.max_daily_cents` / `max_daily_count`）；**不区分维度，避免被试探** |
+| `405017` | 200 | `error.trade.callback-sign-invalid` | 支付回调验签失败（安全事件，必须写审计） |
+| `405018` | 200 | `error.trade.reconcile-diff-pending` | 对账存在未处理差异，相关操作需先处理差异 |
+| `405019` | 200 | `error.trade.channel-prepay-failed` | 渠道下单失败（`prepay` 调用失败） |
+| `405020` | **200** | `error.trade.recharge-realbame-required` | **未实名用户不可充值**（`sys_config.recharge.unverified_daily_cents = 0`，2026-11-02 定：是拦截不是限额） |
 | `505001` | 200 | `error.trade.channel-down` | 支付渠道不可用 |
 | `505002` | 200 | `error.trade.reconcile-diff` | 对账存在差异，需人工处理 |
 | `505003` | 200 | `error.trade.flow-write-failed` | 流水写入失败（资金链路致命错误） |

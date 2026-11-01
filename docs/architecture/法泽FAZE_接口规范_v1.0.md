@@ -211,10 +211,23 @@ public class OpenApiConfig {
 
 | 前缀 | 鉴权 | 谁调用 | 说明 |
 |---|---|---|---|
-| `/api/v1/pub/**` | 无 | App、前端 mock、探针 | 公开：验证码、协议文本、版本检查、法条检索 |
+| `/api/v1/pub/**` | 无 | App、前端 mock、探针、**支付渠道** | 公开：验证码、协议文本、版本检查、法条检索、**支付渠道异步回调（`/pub/pay/callback/{wechat|alipay}`）** |
 | `/api/v1/app/**` | App JWT | 移动端 | |
 | `/api/v1/admin/**` | PC（RuoYi）token | PC 后台 | |
 | `/api/v1/internal/**` | 内网白名单 | 定时任务、服务间 | 不暴露到公网 |
+
+**支付回调虽然归 `pub`，但约束比 `pub` 其他接口更严**（v1.32 段 6 补，2026-11-02）：
+
+| 约束 | 规则 |
+|---|---|
+| 方法 | **只允许 POST** |
+| 鉴权 | **不用 JWT、不用 session，唯一信任来源是验签**（微信 APIv3 / 支付宝 RSA2） |
+| 来源 IP | 白名单 `sys_config.pay.callback_ips`（逗号分隔）；留空表示不校验，此时只靠验签兜住 |
+| 报文大小 | 应用层限 64KB，超限 413 |
+| 频率 | 同 IP 每秒上限，超限 429、不落库 |
+| 时间戳 | 与服务器时间相差超过 5 分钟的报文拒绝（防重放第一道） |
+| **响应体** | **必须是渠道要求的格式，不是 `R<T>`**（微信是 `{"code":"SUCCESS"}` 一类，支付宝是纯文本 `success`）。返回错渠道会无限重试 |
+| 幂等 | 靠数据库两把唯一键（`uk_recharge_channel_txn` / `uk_flow_biz`）+ 状态 CAS，**不额外加 Redis 去重**（Redis 挂了会丢单） |
 
 **裁决 1：段 0 的 3 个探针接口改路径**
 
@@ -776,6 +789,23 @@ if (o == null) throw new BusinessException(TRADE_ORDER_NOT_FOUND);
 ## 7.3 段 2~8
 
 接口数量与归属见技术路线 §4.8.2 / §4.8.4，**不由本规范重复列**。本规范只规定「长什么样」，不管「有哪些」。
+
+### 7.3.1 段 6 的 8 个接口（v1.32 新增，2026-11-02）
+
+> 字段级契约写在《[法泽FAZE_第6段工作流_v1.0.md](法泽FAZE_第6段工作流_v1.0.md)》§三 B1 / C1 / C2 / D4 与 §五 5.2；本表只管「有哪些、怎么鉴权、怎么幂等」。
+
+| # | 方法 + 路径 | 用途 | 鉴权 | 幂等 | 主要错误码 |
+|---|---|---|---|---|---|
+| 1 | `POST /app/wallet/recharges` | 充值下单 | App JWT | `Idempotency-Key` + Redis 24h | `405013` / `405014` / `405016` / `405019` / `405020` |
+| 2 | `GET /app/wallet/recharges/{orderNo}` | 单笔查询（含现查渠道） | App JWT + 归属校验 | 只读 | `405002` / `405007` |
+| 3 | `GET /app/wallet/recharges` | 充值记录（cursor 分页） | App JWT | 只读 | — |
+| 4 | `POST /pub/pay/callback/wechat` | 微信异步回调 | **无 JWT，只靠验签** | DB 唯一键 + 状态 CAS | 渠道要求格式（非 `R<T>`） |
+| 5 | `POST /pub/pay/callback/alipay` | 支付宝异步回调 | **无 JWT，只靠验签** | 同上 | 同上 |
+| 6 | `POST /admin/recharges/{orderNo}/sync` | 人工触发补单 | PC token + `finance:recharge:sync` | 状态 CAS | `405015` |
+| 7 | `PUT /admin/reconciliation/diffs/{id}` | 差异工单处理 | PC token + `finance:reconcile:handle` | 状态 CAS | `405018` |
+| 8 | `GET /admin/reconciliation/diffs` | 差异列表（复用） | PC token + `finance:reconcile:list` | 只读 | — |
+
+> **第 1 项的路径变化**：技术路线原来写的是 `POST /app/wallet/recharge`（单数、动词式），且 `recharge` 不在 §3.3 的动词白名单里——v1.32 改为资源复数 `recharges`。
 
 ---
 

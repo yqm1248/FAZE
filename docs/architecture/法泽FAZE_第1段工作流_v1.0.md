@@ -711,7 +711,11 @@
 
 1. 接口：`POST /admin/wallet/recharge`（手工充值）、`POST /admin/wallet/adjust`（调账）——形状按《接口规范》§4.8.4.5
 2. **必须带幂等键**（`Idempotency-Key` 头），重放不重复入账
-3. 写 `balance_flow`（`biz_type='recharge'` 或 `'adjust'`，`biz_id` 用生成的内部单号）
+3. 写 `balance_flow`（`biz_type='recharge'` 或 `'adjust'`）。**`biz_id` 有一个类型坑（v1.32 实测，2026-11-02 补）**：
+   - `balance_flow.biz_id` 是 **`BIGINT`**（技术路线 L1407），**存不下 `VARCHAR(32)` 的业务单号**（如 `RC20261101000045`）；
+   - `uk_flow_biz(owner_type, owner_id, biz_type, biz_id)` 在 **`biz_id` 为 NULL 时不会拦重复**（MySQL 唯一索引不约束多行 NULL），幂等直接失效；
+   - **处置：手工充值必须给 `biz_id` 一个非空整数。** 本段最简做法——先插入占位再回填，或用一个自增的「手工充值单号」；引入独立的「手工充值单」表属遗留，本段不做；
+   - **段 6 的真实充值不受影响**：它用 `biz_id = recharge_record.id`（真实主键，天然非空且唯一）。见《[法泽FAZE_第6段工作流_v1.0.md](法泽FAZE_第6段工作流_v1.0.md)》§零之二 第 6 项。
 4. 写 `operation_log`（`detail` 存 before/after 余额、操作人、原因）
 5. 调账允许负数（扣减），但**必须有原因**（必填 `remark`）
 
