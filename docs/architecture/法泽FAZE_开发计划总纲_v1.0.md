@@ -905,9 +905,9 @@ AGENTS.md 写的是「9 个段严格串行，不许两段并行」。这句要�
 | 段 | 工作流文档 | 状态 |
 |---|---|---|
 | 0 | `docs/architecture/法泽FAZE_第0段工作流_v1.0.md` | **已产出（2026-10-31，基线 v1.19）** |
-| 1 | `docs/architecture/法泽FAZE_第1段工作流_v1.0.md` | 待产出 |
-| 2 | `docs/architecture/法泽FAZE_第2段工作流_v1.0.md` | 待产出 |
-| 3 | `docs/architecture/法泽FAZE_第3段工作流_v1.0.md` | 待产出 |
+| 1 | `docs/architecture/法泽FAZE_第1段工作流_v1.0.md` | **已产出（2026-11-01，基线 v1.22）** |
+| 2 | `docs/architecture/法泽FAZE_第2段工作流_v1.0.md` | **已产出（2026-11-01，基线 v1.25）** |
+| 3 | `docs/architecture/法泽FAZE_第3段工作流_v1.0.md` | **已产出（2026-11-01，基线 v1.26）** |
 | 4 | `docs/architecture/法泽FAZE_第4段工作流_v1.0.md` | 待产出 |
 | 5 | `docs/architecture/法泽FAZE_第5段工作流_v1.0.md` | 待产出 |
 | 6 | `docs/architecture/法泽FAZE_第6段工作流_v1.0.md` | 待产出 |
