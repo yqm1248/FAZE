@@ -477,7 +477,7 @@ COMMENT='订单主表；状态枚举：created/paid/accepted/completed/cancelled
 | **L1 加密存储** | AES-256-GCM（Jasypt 密钥） | `realname_auth.id_card_number`、`realname_auth.real_name`、`enterprise_auth.legal_person_id_card` |
 | **L2 脱敏展示** | 接口出参脱敏（`138****8888`、`110***********1234`），**完整值只在审核页可见** | `app_user.phone`、`realname_auth.id_card_number`、`realname_auth.real_name` |
 | **L3 私有 OSS** | 私有桶 + 签名 URL（≤10 分钟） | `realname_auth.id_card_oss_key`（正反面）、`enterprise_auth.license_oss_key`、`signature.sign_oss_key`、`document.pdf_oss_key` |
-| **L4 禁止入日志** | 日志、错误上报、APM 一律不得出现 | 密码、验证码、token、支付密码、`id_card_number`、`conversation_message.content`、`ai_message.content`、`signature` 笔迹、`payment_record.raw_payload` |
+| **L4 禁止入日志** | 日志、错误上报、APM 一律不得出现 | 密码、验证码、token、支付密码、`id_card_number`、`conversation_message.content`、`ai_message.content`、`signature` 笔迹、`payment_record.raw_payload`、`recharge_record.raw_payload`（渠道回调原始报文，含 `openid` / 卡号尾号；段 6） |
 | **L5 仅审计可查** | 只有 `operation_log` 与审核页能看 | 封禁原因、驳回理由、投诉原文 |
 
 **裁决：手机号不加密**。
@@ -531,7 +531,7 @@ COMMENT='订单主表；状态枚举：created/paid/accepted/completed/cancelled
 | 14 | `user_balance` | A | 7 | trade | 段 1 | 用户余额缓存（balance_flow 为真相） |
 | 15 | `lawyer_balance` | A | 8 | trade | 段 1 | 律师余额缓存 |
 | 16 | `balance_flow` | B | 10 | trade | 段 1 | 流水，唯一真相 |
-| 17 | `recharge_record` | C | 11 | trade | 段 6 | 充值单 |
+| 17 | `recharge_record` | C | **13** | trade | 段 6 | 充值单（**v1.32 补 2 字段**：`expire_at` 超时关单扫描用 / `channel_prepay_id` 渠道预支付单号；`channel` 取值补 `mock`；补索引 `idx_recharge_status_expire`） |
 | 18 | `doc_template` | D | 13 | document | 段 4 | 文书模板；**v1.28 起 `template_html` 存库**（原 `template_url`/`oss_key` 存文件的做法作废——文书改 HTML 模板） |
 | 19 | `document` | C | 16 | document | 段 4 | 文书实例；**v1.28 删 `word_oss_key`**（不出 Word） |
 | 20 | `signature` | B | 15 | document | 段 4 | 签章笔迹，敏感 |

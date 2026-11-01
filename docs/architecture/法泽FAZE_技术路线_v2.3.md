@@ -742,7 +742,10 @@ public class R<T> implements Serializable {
 | | `POST /app/conversations/{id}/read` | 标记已读（REST 兜底） |
 | **trade** | `GET /app/wallet/balance` | 账户余额 |
 | | `GET /app/wallet/flows` | 资金流水 |
-| | `POST /app/wallet/recharge` | 发起充值 → 返回支付参数 |
+| | `POST /app/wallet/recharges` | **充值下单**（返回渠道支付参数）。**v1.32 段 6 修正**：原写作 `/app/wallet/recharge` 是动词式，且 `recharge` 不在《接口规范》§3.3 的动词白名单里，改为资源复数 |
+| | `GET /app/wallet/recharges/{orderNo}` | 充值单单笔查询（段 6）。**本地 `pending` 且距下单超过 5 秒时，接口内部先向渠道现查一次**——用户付了钱不能因回调丢失就一直显示待支付 |
+| | `GET /app/wallet/recharges` | 充值单列表（段 6），C 端 `cursor` 分页 |
+| | `POST /pub/pay/callback/wechat` · `POST /pub/pay/callback/alipay` | **支付渠道异步回调**（段 6）。**免 JWT、免登录、只靠验签**；限来源 IP（`sys_config.pay.callback_ips`）+ 限报文大小 + 限频；**响应体是渠道要求的格式，不是 `R<T>`** |
 | | `POST /pub/pay/callback/{channel}` | 支付回调（微信/支付宝） |
 | | `GET /app/orders` · `GET /app/orders/{id}` | 订单 |
 | | `POST /app/orders` | 下单（扣余额或拉起充值） |
@@ -880,7 +883,9 @@ HTTP 状态码：**成功一律 200**（含业务失败也返回 200 + code）�
 | `PUT /admin/sys-configs` | 系统参数保存（抽成比例、充值上下限、提现限额、AI 开关） | `sys_config` |
 | `GET /admin/reconciliation/summary` | 恒等式巡检结果（余额 = SUM(流水)） | `balance_flow` |
 | `GET /admin/reconciliation/diffs` | 差异列表 | `reconciliation_diff` |
-| `POST /admin/reconciliation/run` | 手动触发巡检 | 同上 |
+| `POST /admin/reconciliation/run` | 手动触发巡检（**v1.32 起跑两条恒等式**，不只一条） | `balance_flow` |
+| `POST /admin/recharges/{orderNo}/sync` | **人工触发单笔充值查询补单**（段 6，`6-A3` 的人工兜底；审计 `RECHARGE_SYNC`） | `recharge_record` |
+| `PUT /admin/reconciliation/diffs/{id}` | **差异工单处理**（标记 `handled` + 处理备注；审计 `RECONCILE_HANDLE`）。段 6 的 A-09「渠道对账」Tab 调它 | `reconciliation_diff` |
 | `GET /admin/withdrawals?status=` | 提现队列 | `withdraw_record`（原文写 `withdraw_order` 是错的，v1.30 改） |
 | `POST /admin/withdrawals/{id}/audit` | 提现审核（通过 / 驳回；通过必传凭证） | `withdraw_record`、`balance_flow`、`file_record` |
 | `POST /admin/withdrawals/{id}/voucher` | 上传出款凭证（先转账再点通过） | `withdraw_record`、`file_record` |
@@ -1420,17 +1425,20 @@ CREATE TABLE recharge_record (
   id            BIGINT PRIMARY KEY AUTO_INCREMENT,
   user_id       BIGINT NOT NULL,
   order_no      VARCHAR(32) NOT NULL,        -- 平台充值单号
-  channel       VARCHAR(20) NOT NULL,        -- wechat / alipay
+  channel       VARCHAR(20) NOT NULL,        -- wechat / alipay / mock（mock 见 v1.32 段 6）
   channel_txn_id VARCHAR(64),                -- 渠道交易号
+  channel_prepay_id VARCHAR(64),             -- 渠道预支付单号（微信 prepay_id / 支付宝 trade_no）。v1.32 段 6 补
   amount_cents  BIGINT NOT NULL,
   status        VARCHAR(20) NOT NULL,        -- pending / success / failed / closed
   paid_at       DATETIME,
+  expire_at     DATETIME NOT NULL,           -- 充值单过期时间，超时关单任务按它扫。v1.32 段 6 补
   raw_payload   TEXT,
   created_at    DATETIME NOT NULL,
   updated_at    DATETIME NOT NULL,
   UNIQUE KEY uk_recharge_order_no (order_no),
   UNIQUE KEY uk_recharge_channel_txn (channel, channel_txn_id),
-  KEY idx_recharge_user (user_id, created_at)
+  KEY idx_recharge_user (user_id, created_at),
+  KEY idx_recharge_status_expire (status, expire_at)   -- 超时关单任务扫描。v1.32 段 6 补
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- 12e. 律师结算批次（v1.30 段 5 新增）
@@ -1457,7 +1465,9 @@ CREATE TABLE lawyer_income_settlement (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='结算批次状态记录，非资金真相';
 ```
 
-> **注**：`payment_record`（第 9 张表）在余额制下仅记录**充值**的渠道支付，`channel` 增加 `mock` 值用于沙箱；
+> **注（v1.32 修订，2026-11-02）**：`payment_record`（第 9 张表）**只记「订单」的余额支付与退款**（`channel='balance'`），**不记充值**——
+> 充值走 `recharge_record`（它自带 `raw_payload` / `channel_txn_id` / `paid_at`，功能完整）。
+> **原文「仅记录充值的渠道支付」作废**：段 2 已把 `payment_record` 用作订单余额支付记录，两处各按一句施工会写重（见《[法泽FAZE_第6段工作流_v1.0.md](法泽FAZE_第6段工作流_v1.0.md)》§零之二 第 5 项）。
 > `orders` 的支付方式字段 `pay_method` 取值改为 `balance`（余额抵扣）/ `recharge`（直接拉起充值）。
 
 ## 5.6 文书与签章
@@ -2642,7 +2652,7 @@ data: {"code":80001,"msg":"AI 服务暂时不可用，请稍后重试"}
 
 ```java
 public interface PaymentGateway {
-    PrepayResult prepay(Order order, PayChannel channel);
+    PrepayResult prepay(Order order, PayChannel channel);   // 充值场景传 RechargeOrder 视图，不传订单实体（v1.32）
     CallbackResult parseCallback(String rawBody, Map<String, String> headers);
     RefundResult refund(RefundRequest request);
     QueryResult query(String orderNo);
@@ -2653,7 +2663,10 @@ public interface PaymentGateway {
 |---|---|
 | `WechatPaymentGateway` | 微信支付（生产） |
 | `AlipayPaymentGateway` | 支付宝（生产） |
-| `MockPaymentGateway` | 开发/测试，1 秒回调成功 |
+| `MockPaymentGateway` | 开发/测试，1 秒回调成功；**段 6 的 4 条可验锚点全在它上面验**（`mock.result` 可配 `success` / `fail` / `callback_lost`，用于造掉单与失败态） |
+
+> **v1.32 补充（2026-11-02）**：本接口**只服务充值**。段 2 的订单支付走余额抵扣（`channel='balance'`），不经过渠道，所以 `prepay()` 的 `order` 参数在充值场景传 `RechargeOrder` 视图（`orderNo` / `amountCents` / `channel` / `expireAt`），不传 `legal_order` 实体。
+> `refund()` 在段 6 **只实现「重复支付自动原路退回」一个用途**，不做用户主动退款（退款走段 2 的余额体系）。
 
 ## 9.2 订单状态机（V2.2 补全出边）
 
@@ -2752,6 +2765,8 @@ public interface PaymentGateway {
 | 支付成功但回调没到 | 客户端支付后主动查询订单状态，服务端定时（每 5 分钟）主动向支付渠道查询 PENDING 订单，补单 |
 | 重复支付 | 同一订单只认第一笔成功支付，其余自动原路退回 |
 | 回调验签 | 每个回调必须验签（微信/支付宝签名），验签失败拒绝并告警 |
+| **晚到回调** | 单已 `closed` / `failed` 但渠道确实收了钱 → **新开一张补偿单入账，不许原地改状态**（否则状态机形同虚设）。见《[法泽FAZE_第6段工作流_v1.0.md](法泽FAZE_第6段工作流_v1.0.md)》§三 A2 第 4 条 |
+| **回调不可达时** | 客户端支付后主动查询 + 定时任务每 5 分钟扫 `pending` 单主动向渠道查；补单与正常回调**走同一份入账代码** |
 
 ## 9.5 对账系统
 
@@ -2761,9 +2776,11 @@ public interface PaymentGateway {
 |---|---|
 | 对账频率 | 每日凌晨 2 点拉取前一日微信/支付宝账单，与本地 `recharge_record` 逐笔比对 |
 | 差错类型 | 本地有渠道无（掉单）、渠道有本地无（漏单）、金额不一致 |
-| 差错处理 | 自动补记/冲正，无法自动处理的生成 `reconciliation_diff` 工单，财务人工处理 |
+| 差错处理 | 自动补记/冲正，无法自动处理的生成 `reconciliation_diff` 工单，财务人工处理。**自动处理只限 `channel_only`（渠道有、本地无）**；`local_only` / `amount_mismatch` / `identity_mismatch` 一律不自动改账 |
+| 差异字段映射 | `reconciliation_diff` 的 14 字段怎么填（`diff_type` 4 类 / `detail` JSON / `status` 三态）见《[法泽FAZE_第6段工作流_v1.0.md](法泽FAZE_第6段工作流_v1.0.md)》§三 D4 |
+| 展示位置 | **PC A-09「渠道对账」Tab**（段 6 新增）；A-09 的 Tab1「恒等式巡检」由段 1 交付、原样不动 |
 | 对账报表 | 每日生成，留存 3 年 |
-| 余额校验 | 每日校验 `sum(recharge) - sum(consume) - sum(refund) == user_balance.balance_cents`，不平则告警 |
+| 余额校验 | **按两条恒等式校验**（段 1 §三 D 组定、段 5 §三 E0 复用）：① `available + frozen == 该账户最后一条 balance_flow 的 balance_after`；② `available + frozen == SUM(delta_cents)`（`delta=0` 的行是冻结/解冻转移，不影响求和）。不平则告警 + 写 `reconciliation_diff`（`diff_type='identity_mismatch'`）。**原文那条 `sum(recharge) - sum(consume) - sum(refund)` 作废**（漏了 frozen，且 `balance_after` 记的是总余额） |
 
 ## 9.6 账户余额与资金（V2.2 重写）
 

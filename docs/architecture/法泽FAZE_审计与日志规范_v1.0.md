@@ -100,6 +100,10 @@
 | 5 | 案件进度纠错（PC 端） | `CASE_PROGRESS_CORRECT` | ✅ 必须（改别人能看到的进度） |
 | 5 | 发起文书送达 | `DELIVERY_SEND` | ✅ 必须（送达时间就是证据） |
 | 5 | 提现收款账户变更 | `WITHDRAW_ACCOUNT_CHANGE` | ✅ **必须**（改钱打到哪） |
+| **6** | **人工触发充值补单** | `RECHARGE_SYNC` | ✅ 必须（动钱：补一笔入账） |
+| 6 | 充值单人工关闭 | `RECHARGE_CLOSE` | ✅ 必须（改不可逆状态） |
+| 6 | 手动触发对账 | `RECONCILE_RUN` | ⚠️ 建议（不改钱，但会产生差异工单） |
+| 6 | 对账差异处理（标记已处理） | `RECONCILE_HANDLE` | ✅ **必须**（等于确认「这笔差异不用管了」） |
 | 7 | 文章上架 / 下架 | `ARTICLE_PUBLISH` / `ARTICLE_OFFLINE` | ✅ 必须 |
 | 7 | 法条修订 | `LAW_ITEM_EDIT` | ✅ 必须（AI 引用它） |
 | 7 | 敏感词增删改 | `SENSITIVE_WORD_*` | ✅ 必须 |
