@@ -96,6 +96,10 @@
 | 2 | 律师违规处理 | `LAWYER_VIOLATION` | ✅ 必须 |
 | 5 | 提现审核（出款） | `WITHDRAW_APPROVE` / `WITHDRAW_REJECT` | ✅ **必须**（钱出去） |
 | 5 | 结算单确认 | `SETTLEMENT_CONFIRM` | ✅ 必须 |
+| 5 | 立案审核通过 / 驳回 | `CASE_AUDIT` | ✅ 必须（改不可逆状态） |
+| 5 | 案件进度纠错（PC 端） | `CASE_PROGRESS_CORRECT` | ✅ 必须（改别人能看到的进度） |
+| 5 | 发起文书送达 | `DELIVERY_SEND` | ✅ 必须（送达时间就是证据） |
+| 5 | 提现收款账户变更 | `WITHDRAW_ACCOUNT_CHANGE` | ✅ **必须**（改钱打到哪） |
 | 7 | 文章上架 / 下架 | `ARTICLE_PUBLISH` / `ARTICLE_OFFLINE` | ✅ 必须 |
 | 7 | 法条修订 | `LAW_ITEM_EDIT` | ✅ 必须（AI 引用它） |
 | 7 | 敏感词增删改 | `SENSITIVE_WORD_*` | ✅ 必须 |

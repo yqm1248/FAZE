@@ -23,9 +23,9 @@
 | §5.1 表清单行数 | **30 行** | 技术路线 L986–L1015 |
 | V2.3 增量说法 | 17 张 / 15 张 / 15 张 | §5.1 正文、§5.11 标题、V2.3 变更记录 —— **三处不同** |
 
-**裁决**：**以本文件附录 A 为准**（v1.27 起为 **51 张**）。§5.1 的 30 行清单作废（它里面还有 3 个已改名或已合并的表名：`case` → `legal_case`、`favorite` / `follow` → `social_action`；另有 31 张表从未进过清单）。
+**裁决**：**以本文件附录 A 为准**（v1.27 起为 51 张；**v1.30 起为 53 张**——段 5 补 `lawyer_income_settlement` / `case_delivery`，见附录 A 末注）。§5.1 的 30 行清单作废（它里面还有 3 个已改名或已合并的表名：`case` → `legal_case`、`favorite` / `follow` → `social_action`；另有 31 张表从未进过清单）。
 
-**要建的是 50 张**：`invoice`（发票）按总纲「V1 明确不做」不建表；若要建，按本规范补建，编号顺延不插号。
+**要建的是 52 张**：`invoice`（发票）按总纲「V1 明确不做」不建表；若要建，按本规范补建，编号顺延不插号。
 
 > **v1.27 补正（2026-11-01）**：段 2 新增了 `order_status_log`（第 50 张）与 `task_queue`（第 51 张），当时本附录漏登记，导致「49 张」与段 2 的产物对不上——段 2 工作流 §九 第 1 项已把「补两行」列为**开工前**必办。本次补上：总数 **49 → 51**，要建 **48 → 50**，段 2 的 **10 → 12**，类别 B 追加型 **12 → 14**。
 
@@ -78,7 +78,7 @@
 | **长度 ≤ 32** | 便于索命名与实体映射 | 计数 |
 | **不用 SQL 保留字** | `order`、`group`、`key`、`desc` 等不能裸用 | 建表前查保留字表 |
 
-**唯一例外**：`orders`（复数）。原因：`order` 是 SQL 保留字，加反引号能建但到处要转义，风险大于收益。**已建的 51 张表一律不改名**（改名会波及实体类、Mapper、接口路径、PC 页字段，收益不抵风险）；`orders` 登记为唯一例外，**新表不得再出现复数名**。
+**唯一例外**：`orders`（复数）。原因：`order` 是 SQL 保留字，加反引号能建但到处要转义，风险大于收益。**已建的 53 张表一律不改名**（改名会波及实体类、Mapper、接口路径、PC 页字段，收益不抵风险）；`orders` 登记为唯一例外，**新表不得再出现复数名**。
 
 ## 2.2 字段名
 
@@ -251,6 +251,9 @@ is_minor TINYINT NOT NULL DEFAULT 0 COMMENT '是否未成年：0 否 1 是'
 | 充值 | `RC` | `RC20261030000045` |
 | 提现 | `WD` | `WD20261030000003` |
 | 退款 | `RF` | `RF20261030000011` |
+| 结算 | `JS` | `JS20261101000024`（段 5） |
+| 送达回执 | `SD` | `SD20261101000042`（段 5） |
+| 案例 | `CL` | `CL20261101000031`（段 5） |
 
 > 序号用「当日递增」需要额外计数表；若不想维护计数表，改用「时间戳毫秒 + 3 位随机」也可，但**必须保证长度 ≤ 32 且唯一索引能兜住**。这一条等你定。
 
@@ -278,7 +281,7 @@ is_minor TINYINT NOT NULL DEFAULT 0 COMMENT '是否未成年：0 否 1 是'
 3. 这张表的生命周期由 `status` 表达，且**不允许用户物理删除**吗？→ 是 → **C 状态机**
 4. 以上都不是 → **A 业务实体**
 
-> 51 张表的分类结果见附录 A，不必每次重判。
+> 53 张表的分类结果见附录 A，不必每次重判。
 
 ## 4.3 软删与唯一键的冲突（必须提前想清楚）
 
@@ -505,7 +508,7 @@ COMMENT='订单主表；状态枚举：created/paid/accepted/completed/cancelled
 
 ---
 
-# 附录 A：表清单（51 张，v1.27 补正：原 49 张 + 段 2 的 `order_status_log` / `task_queue`）
+# 附录 A：表清单（**53 张**，v1.27 补正：原 49 张 + 段 2 的 `order_status_log` / `task_queue`；v1.30 补：段 5 的 `lawyer_income_settlement` / `case_delivery`）
 
 > 「建表段」是这张表在哪一段交付（与《开发计划总纲》§五 的段边界一致）。`invoice` 按总纲「V1 明确不做」不建表。
 > 类别：A 业务实体 / B 追加型 / C 状态机 / D 基础数据。
@@ -513,7 +516,7 @@ COMMENT='订单主表；状态枚举：created/paid/accepted/completed/cancelled
 | # | 表名 | 类别 | 字段数 | 域 | 建表段 | 用途 |
 |---|---|---|---|---|---|---|
 | 1 | `app_user` | A | 19 | account | 段 0 | C 端用户主表；律师身份在 lawyer 扩展 |
-| 2 | `lawyer` | A | 23 | lawyer | 段 1 | 律师扩展表 |
+| 2 | `lawyer` | A | 29 | lawyer | 段 1 | 律师扩展表（**v1.30 段 5 补 6 字段**：3 个服务开关 + 自动接单 + 2 个收款银行字段） |
 | 3 | `lawyer_application` | C | 16 | lawyer | 段 1 | 入驻申请，四步流程 |
 | 4 | `realname_auth` | A | 12 | account | 段 1 | 实名认证 |
 | 5 | `enterprise_auth` | A | 13 | account | 段 1 | 企业认证 |
@@ -524,7 +527,7 @@ COMMENT='订单主表；状态枚举：created/paid/accepted/completed/cancelled
 | 10 | `payment_record` | B | 9 | trade | 段 2 | 支付记录 |
 | 11 | `refund_record` | C | 11 | trade | 段 2 | 退款单 |
 | 12 | `review` | A | 11 | trade | 段 2 | 评价 |
-| 13 | `withdraw_record` | C | 15 | trade | 段 5 | 律师提现申请 |
+| 13 | `withdraw_record` | C | 21 | trade | 段 5 | 律师提现申请（**v1.30 补 6 字段**：`withdraw_no` / `fee_cents` / `actual_cents` / `voucher_file_id` / `bank_name` / `bank_account_tail`） |
 | 14 | `user_balance` | A | 7 | trade | 段 1 | 用户余额缓存（balance_flow 为真相） |
 | 15 | `lawyer_balance` | A | 8 | trade | 段 1 | 律师余额缓存 |
 | 16 | `balance_flow` | B | 10 | trade | 段 1 | 流水，唯一真相 |
@@ -532,11 +535,11 @@ COMMENT='订单主表；状态枚举：created/paid/accepted/completed/cancelled
 | 18 | `doc_template` | D | 13 | document | 段 4 | 文书模板；**v1.28 起 `template_html` 存库**（原 `template_url`/`oss_key` 存文件的做法作废——文书改 HTML 模板） |
 | 19 | `document` | C | 16 | document | 段 4 | 文书实例；**v1.28 删 `word_oss_key`**（不出 Word） |
 | 20 | `signature` | B | 15 | document | 段 4 | 签章笔迹，敏感 |
-| 21 | `legal_case` | C | 14 | caseflow | 段 5 | 案件 |
-| 22 | `case_progress` | B | 8 | caseflow | 段 5 | 进度节点，只追加 |
+| 21 | `legal_case` | C | 17 | caseflow | 段 5 | 案件（**v1.30 补 3 字段**：`form_snapshot` / `court_case_no` / `reject_reason`；状态改 5 值） |
+| 22 | `case_progress` | B | 9 | caseflow | 段 5 | 进度节点，只追加（**v1.30 补 `node_code`** + 唯一键 `(case_id, step)`） |
 | 23 | `article` | A | 14 | content | 段 2 | 文章，简体源内容 |
 | 24 | `article_translation` | A | 12 | content | 段 2 | 非中文译文 |
-| 25 | `case_library` | A | 19 | content | 段 5 | 案例库主表 |
+| 25 | `case_library` | A | 20 | content | 段 5 | 案例库主表（**v1.30 补 `category`** 细分分类） |
 | 26 | `case_library_translation` | A | 13 | content | 段 5 | 案例译文 |
 | 27 | `law_item` | D | 12 | content | 段 0 | 法条库；AI 只能引用本表条文 |
 | 28 | `social_action` | A | 8 | content | 段 2 | 收藏/关注（合并表） |
@@ -563,11 +566,21 @@ COMMENT='订单主表；状态枚举：created/paid/accepted/completed/cancelled
 | 49 | `i18n_glossary` | D | 9 | content | 段 3 | 法律术语对照表 |
 | 50 | `order_status_log` | B | 8 | trade | 段 2 | 订单状态迁移流水，只追加（段 2 新增，此前漏登记） |
 | 51 | `task_queue` | B | 12 | infra | 段 2 | 异步任务表：CAS 领取 + 租约回收 + 指数退避（段 2 新增，此前漏登记） |
+| 52 | `lawyer_income_settlement` | C | 14 | trade | **段 5** | 结算批次：一位律师 × 一个账期一条；**只是状态记录，不是资金真相**（真相永远是 `balance_flow`）；确认结算不改余额、不写流水 |
+| 53 | `case_delivery` | C | 13 | caseflow | **段 5** | 文书送达记录：方式 / 发起时间 / 签收时间 / 回执号 / 签收设备 / IP；**只送平台自有文书**，不做法院转达 |
 
-**合计 51 张，要建 50 张。** 段分布：段 0 = 2、段 1 = 12、段 2 = 12、段 3 = 3、段 4 = 4、段 5 = 6、段 6 = 1、段 7 = 10、段 8 = 0。
-类别分布：A 业务实体 21、B 追加型 14、C 状态机 9、D 基础数据 7。
+**合计 53 张，要建 52 张。** 段分布：段 0 = 2、段 1 = 12、段 2 = 12、段 3 = 3、段 4 = 4、**段 5 = 8**、段 6 = 1、段 7 = 10、段 8 = 0。
+类别分布：A 业务实体 21、B 追加型 14、**C 状态机 11**、D 基础数据 7。
 
 > **第 50/51 张是 v1.27 补登记的**：段 2 工作流 §五.1 已把它们算作「本段新增（第 50 张 / 第 51 张）」，但本附录当时漏了，导致「49 张」这个总数与段 2 的产物对不上。本次一并补正，总数 49 → 51，段 2 的 10 → 12。`task_queue` 的 11 个规范字段见《[法泽FAZE_后端代码规范_v1.0.md](法泽FAZE_后端代码规范_v1.0.md)》§9.2，另有 `trace_id` 共 12 个。
+
+> **第 52/53 张是 v1.30 补登记的（2026-11-01，段 5 定稿）**：总纲 §5.6 原来列了 8 张表，其中 `case_service_record` / `lawyer_service_config` / `lawyer_income_settlement` 三个名字在本附录里**不存在**、`withdraw_order` 写错（应为 `withdraw_record`）、还漏列了 `reconciliation_diff`。段 5 定稿时逐个裁决：
+> - **不建** `lawyer_service_config`——`lawyer` 表已有三个价格字段 + `region`，段 5 只给它补 4 个布尔开关（三类服务上下架 + 自动接单）；
+> - **建** `lawyer_income_settlement`（第 52 张）——但明确定位为**结算批次状态记录**，**不是收入真相**。总纲说「不允许另建一张收入表当真相」，这张表不违反：删掉它，律师的钱一分不少；
+> - `case_service_record` → 改名为 **`case_delivery`**（第 53 张），因为设计稿画的是「文书送达 + 签收」，不是「案件服务记录」；
+> - `withdraw_order` → **`withdraw_record`**（本就在册，只是总纲写错）。
+>
+> 明细见《[法泽FAZE_第5段工作流_v1.0.md](法泽FAZE_第5段工作流_v1.0.md)》§零之二 第 3/15 项、§五 5.1。
 
 ---
 

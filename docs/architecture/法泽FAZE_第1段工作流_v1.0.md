@@ -607,7 +607,18 @@
 
 ### D 组：账务内核（5 个任务）
 
-> **本组是整个平台的地基。** 三条铁律：① `balance_flow` 是唯一真相；② 任何余额变动必须先写流水；③ 幂等靠 `uk_flow_biz` 唯一键，不靠应用层判断。
+**本组是整个平台的地基。** 三条铁律：① `balance_flow` 是唯一真相；② 任何余额变动必须先写流水；③ 幂等靠 `uk_flow_biz` 唯一键，不靠应用层判断。
+
+> **④ `balance_flow.balance_after` 记「账户总余额」，不是「可用余额」（2026-11-01 补；段 5 定稿时发现本段漏写这条口径）**
+>
+> - 用户侧总余额 = `user_balance.balance_cents + user_balance.frozen_cents`
+> - 律师侧总余额 = `lawyer_balance.available_cents + lawyer_balance.frozen_cents`
+>
+> 由此得**两条恒等式**，段 5 的 `5-A4`、段 6 的充值、段 7 的治理都要跑：
+> 1. `available + frozen == 该账户最后一条 balance_flow 的 balance_after`
+> 2. `available + frozen == SUM(delta_cents)`（`delta = 0` 的行是「冻结 / 解冻」的**转移记录**，只作状态证据、不影响求和）
+>
+> **为什么要写死这条**：段 5 的结算引擎要同时处理「收入入账（钱进 frozen）」「7 天解冻（frozen → available）」「提现（available → frozen → 出账）」三件事，`balance_after` 记哪个余额直接决定恒等式写不写得出来。段 1 当时没定，段 5 定为**总余额**。明细见《[法泽FAZE_第5段工作流_v1.0.md](法泽FAZE_第5段工作流_v1.0.md)》§三 E0。
 
 #### D1 · 账户与余额查询（**余额以流水汇总为准**）
 

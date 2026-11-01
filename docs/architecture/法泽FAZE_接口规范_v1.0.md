@@ -640,8 +640,9 @@ if (o == null) throw new BusinessException(TRADE_ORDER_NOT_FOUND);
 | 入驻 | `GET /app/lawyer-applications/current` | `applicant_user_id` |
 | 会话 | 全部 `conversation` 接口 | `(user_id, lawyer_id)` 成员校验 |
 | 订单 | `GET /app/orders/{id}` 及全部动作接口 | `user_id` / `lawyer_id` |
-| 文书 | `document` 全部 | `user_id` |
-| 案件 | `caseflow` 全部 | `client_id` / `lawyer_id` |
+| 文书 | `document` 全部（**用户侧**：`GET/POST /app/documents/**`） | `user_id` |
+| 文书（**律师侧**，段 5 补） | `GET /app/workbench/documents`、`POST /app/documents/{id}/send` | `lawyer_id`——律师代写时 `document.user_id` 是**委托人**、`document.lawyer_id` 是**律师本人**，**同一张表两个视角**，两侧查询各自带自己的归属条件，不许只按 `id` 查 |
+| 案件 | `caseflow` 全部 | `user_id`（案件所有者，DDL 里就叫 `user_id`；**原写 `client_id` 是错的**，2026-11-01 改）/ `lawyer_id`（承办律师） |
 | 资金 | `GET /app/wallet/*`、提现 | `user_id` |
 
 **管理端例外**：管理员可见全部数据，但**必须写 `operation_log`**（谁、何时、从哪 IP、做了什么、对哪条记录）——这就是数据表规范 §1.3「审计四要素」的用法。
