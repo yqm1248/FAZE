@@ -529,8 +529,8 @@ COMMENT='订单主表；状态枚举：created/paid/accepted/completed/cancelled
 | 15 | `lawyer_balance` | A | 8 | trade | 段 1 | 律师余额缓存 |
 | 16 | `balance_flow` | B | 10 | trade | 段 1 | 流水，唯一真相 |
 | 17 | `recharge_record` | C | 11 | trade | 段 6 | 充值单 |
-| 18 | `doc_template` | D | 12 | document | 段 4 | 文书模板 |
-| 19 | `document` | C | 17 | document | 段 4 | 文书实例 |
+| 18 | `doc_template` | D | 13 | document | 段 4 | 文书模板；**v1.28 起 `template_html` 存库**（原 `template_url`/`oss_key` 存文件的做法作废——文书改 HTML 模板） |
+| 19 | `document` | C | 16 | document | 段 4 | 文书实例；**v1.28 删 `word_oss_key`**（不出 Word） |
 | 20 | `signature` | B | 15 | document | 段 4 | 签章笔迹，敏感 |
 | 21 | `legal_case` | C | 14 | caseflow | 段 5 | 案件 |
 | 22 | `case_progress` | B | 8 | caseflow | 段 5 | 进度节点，只追加 |

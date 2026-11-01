@@ -44,7 +44,7 @@
 | PC 后台 | **RuoYi 3.9.2（强制版本）**：后端 RuoYi-Vue **3.9.2 官方发行版 tag `v3.9.2`**（Spring Boot **4.0.3**）/ 前端 RuoYi-Vue3 **3.9.2**（Vue 3.5.26 / Element Plus 2.13.1） |
 | 实时通信 | 自建 WebSocket（`spring-boot-starter-websocket`）+ 第三方离线推送 |
 | AI | 豆包 API（SSE 流式）+ 本地法条库检索 |
-| 文书 | `poi-tl`（Word）+ **LibreOffice headless 或 Chromium 打印**（PDF）——`openhtmltopdf` 无法排阿拉伯系连写，不得使用 |
+| 文书 | **HTML 模板 + `openhtmltopdf` 1.0.10**（LGPL，内部就是 PDFBox）——**不做 Word 导出**。`openhtmltopdf` 不做 GSUB/GPOS，**含少数民族文字的 PDF 仍不得使用它**（中文场景可用，见《第 4 段工作流》） |
 
 禁用清单见技术路线 **2.4 节**（版本以 `docs/architecture/` 下的最新版为准，当前为 v2.3）。
 
@@ -125,7 +125,7 @@ services/faze-api/src/main/java/com/faze/
 - 禁止使用 `alert()`；统一 `AppToast` 或 `Alert.alert`。
 - 禁止在业务代码里手写 `U+2066` 等 BiDi 控制符；一律走 `shared/components/LtrText`。
 - 禁止把敏感信息（身份证影像、手写签名、聊天原文）放进日志、错误上报或公开可读的 OSS 路径。
-- 禁止使用 `openhtmltopdf` 生成含少数民族文字的 PDF（不做 shaping）。
+- 禁止使用 `openhtmltopdf` 生成**含少数民族文字**的 PDF（不做 shaping）。中文场景可用（文书只做中文，见《第 4 段工作流》）。
 - 禁止为了让编译通过而放宽 `tsconfig` 的 `strict`。
 - 禁止提交 `node_modules/`、`.expo/`、`dist/`、构建产物、`logs/`、真实凭据。
 
