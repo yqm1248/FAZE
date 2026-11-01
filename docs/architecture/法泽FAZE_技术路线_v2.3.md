@@ -214,9 +214,10 @@
 | 构建 | Maven | 3.9+ |
 | 工具库 | Hutool | 5.8.24 |
 | Excel | EasyExcel | 4.0.3 |
-| Word 模板 | poi-tl | 1.12.2 |
-| **PDF 生成** | **LibreOffice headless（`soffice --convert-to pdf`）** | 7.x |
-| PDF 叠图/水印 | Apache PDFBox | 2.0.x |
+| Word 模板 | poi-tl | 1.12.2（**段 4 起不使用**——文书改为 HTML 模板，见 §10.1） |
+| **PDF 生成** | **`openhtmltopdf` 1.0.10**（HTML/CSS → PDF，LGPL，内部 PDFBox 2.x） | 1.0.10（项目 2023 年归档，锁版本） |
+| ~~PDF 生成（旧）~~ | ~~LibreOffice headless（`soffice --convert-to pdf`）~~ | **段 4 起不使用**（只在需要 GSUB/GPOS shaping 的少数民族文字场景才需要；已记入 §10.3 的溯源说明） |
+| PDF 叠图/水印 | Apache PDFBox | 2.0.x（由 openhtmltopdf 间接引入，不单独声明） |
 | JWT | jjwt | 0.12.6 |
 | 加密 | BouncyCastle | 1.76 |
 | 配置加密 | Jasypt | 3.0.5 |
@@ -2752,30 +2753,41 @@ public interface PaymentGateway {
 
 ## 10.1 生成链路
 
+> **⚠️ 2026-11-01 整节改写（段 4 范围两次变更后）。** 原链路是 `模板.docx → poi-tl → .docx → LibreOffice → .pdf`。两份决策把它换掉了：①**只做中文**（负责人拍板）——LibreOffice 唯一不可替代的能力（GSUB/GPOS shaping，排阿拉伯系连写与藏文叠字）用不上了；②**不出 Word**（负责人拍板）——`.docx` 模板就没有存在理由了。现行链路见下。
+
 ```text
-模板(template) ──► 动态字段定义(field_schema JSON)
+模板(HTML 片段 + CSS 子集) ──► 动态字段定义(field_schema JSON)
 用户填表 ──► 表单数据(form_data JSON)
                     ▼
-        1) Word 渲染：poi-tl 填充 {{field}} → .docx
-        2) PDF 渲染：LibreOffice headless（soffice --convert-to pdf）
-           └─ 或 Chromium 打印 HTML→PDF
-           ★ 不用 openhtmltopdf：PDFBox 2 不做 GSUB/GPOS shaping，
-             阿拉伯文会出孤立字形、藏文叠字错位
+        1) 占位符替换：{{field}} / {{#array}}{{/array}}
+           ★ 用户输入必须 HTML 转义，否则一个 & 就能破坏结构
+        2) PDF 渲染：openhtmltopdf 1.0.10（LGPL，内部 PDFBox 2.x）
+           ├─ 读 HTML/CSS，自己算换行与分页
+           ├─ useFont() 注册中文字体（仿宋 simfang.ttf，400 + 700 两个字重）
+           └─ 输出 PDDocument
                     ▼
-              OSS 私有存储 ──► 返回 5 分钟签名 URL
+              OSS 私有存储 ──► 返回 60 秒签名 URL
 用户签章 ──► PDFBox 叠加签名图到 (page_no, x_pt, y_pt) ──► 生成带章 PDF
 ```
+
+**为什么不用回 LibreOffice**：它要装 700MB、单次 1–2 秒、并发要 `-env:UserInstallation` 隔离、Windows 上杀软会拦它写临时文件、首次启动要手工跑一次建 profile。这些成本**只在需要 shaping 时才值得付**，中文不需要。
+
+**为什么不用裸 PDFBox 直接画**：PDFBox 是按坐标画字的库，换行、分页、对齐全要自己实现。正文排版交给 openhtmltopdf（它底层就是 PDFBox），只在**签名叠图**和**预览图渲染**这两个「不涉及排版」的地方直接用 PDFBox 的坐标 API。
+
+**一个已知的坑**：openhtmltopdf 用 XML 解析器，要求模板是 **well-formed XHTML**（`<br/>` 不能写 `<br>`），且 **CSS 支持停在 2.1 + 少量 3**——`flex` / `grid` 完全不支持，写了会被静默忽略、不报错。模板的标签与 CSS 白名单见《[法泽FAZE_第4段工作流_v1.0.md](法泽FAZE_第4段工作流_v1.0.md)》§三 B2。
 
 ## 10.2 模板机制
 
 | 项 | 方案 |
 |---|---|
-| 模板存储 | `doc_template` 表，OSS 上的 .docx 模板 |
-| 占位符 | Word 用 `{{field}}`，poi-tl 替换 |
+| 模板存储 | `doc_template.template_html`（`MEDIUMTEXT`，**存库不存 OSS**）。HTML 通常 5–50KB，入库便于版本管理与占位符扫描 |
+| 占位符 | `{{field}}`；array 用 `{{#field}}...{{/field}}`，块内 `{{item.xxx}}` |
 | 动态字段 | `field_schema` JSON 定义字段名、类型、校验、必填 |
-| 多原告/被告 | `field_schema` 支持 `array`，前端渲染可增删行 |
-| 多语言 | 每种语言一份模板 |
+| 多原告/被告 | `field_schema` 支持 `type: array`，前端渲染可增删行 |
+| 多语言 | **本阶段只做 `zh-Hans`**（2026-11-01 拍板）。`lang` 字段保留，取值收敛 |
+| 版本 | 改模板**不原地改**：插一条 `version+1` 的新行、旧行置 `inactive`。历史文书按 `(template_id, template_version)` 找旧行重渲染 |
 | 草稿 | 表单自动保存 |
+| 字体 | 仿宋 `C:\Windows\Fonts\simfang.ttf`（**不用「仿宋_GB2312」**，系统不自带会静默回退） |
 
 ## 10.3 PDF 少数民族文字（V2.2 重写）
 
@@ -2826,7 +2838,7 @@ public interface PaymentGateway {
 | 功能 | 实现 |
 |---|---|
 | 下载 PDF | `GET /app/documents/{id}/export?format=pdf` → 5 分钟签名 URL → `expo-file-system` 下载 |
-| 下载 Word | 同上 `format=docx`（用户可能需要自己改） |
+| ~~下载 Word~~ | **不做**（2026-11-01 负责人拍板「不要 Word」）。模板已改为 HTML，Word 没有来源 |
 | 保存到相册 | 仅图片格式；PDF 走系统分享面板 |
 | 打印 | `expo-print` 调系统打印面板，A4 边距在生成时已处理好 |
 | 分享给律师 | 直接发到 IM 会话（走文件消息），或生成分享链接 |
@@ -2842,7 +2854,7 @@ public interface PaymentGateway {
 | 下边距 | 72 pt |
 | 左边距 | 90 pt（装订侧） |
 | 右边距 | 72 pt |
-| 正文 | 仿宋_GB2312 三号（16pt），行距 28pt |
+| 正文 | 仿宋（`simfang.ttf`）三号（16pt），行距 28pt。**不用「仿宋_GB2312」**——Windows 不自带，会静默回退到别的字形 |
 
 > 司法文书有格式惯例（可参考《党政机关公文格式》GB/T 9704-2012）。**建议找一份真实的起诉状样例对齐**，不要凭感觉排版。
 
