@@ -524,7 +524,7 @@ formatAmount(cents, lang)       // "¥100.00"（金额始终从分转换）
 
 | # | 事项 | 影响 |
 |---|---|---|
-| 1 | **`app_user` 需要增加 `preferred_lang` 字段** | 《数据表规范》附录 A 的 49 张表里没有这个字段；不改则服务端不知道该发哪种语言的通知 |
+| 1 | **`app_user` 需要增加 `preferred_lang` 字段** | 《数据表规范》附录 A 的 51 张表里没有这个字段；不改则服务端不知道该发哪种语言的通知 |
 | 2 | **`notify_template` 需要按 `(scene, lang)` 唯一** | 数据表规范里该表的唯一键未含 `lang` |
 | 3 | 技术路线 §13.2 的 5 个 json → 本文件的 **14 个 namespace** | 技术路线 §13.2 需回写指向本文件 |
 | 4 | ESLint 两条规则（`no-raw-text`、`no-dynamic-i18n-key`）未实现 | 第 0 段的 lint 规则集里做 |
