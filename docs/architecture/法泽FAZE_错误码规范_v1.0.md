@@ -141,6 +141,11 @@ NNN = 3 位：域内序号，从 001 起
 | `405005` | 200 | `error.trade.refund-exceeds` | 退款金额超出可退上限 |
 | `405006` | 200 | `error.trade.amount-invalid` | 金额非法（负数、超限、非整数分） |
 | `405007` | **403** | `error.trade.not-order-owner` | 非本人订单 |
+| `405008` | 200 | `error.trade.withdraw-below-min` | 提现金额低于最低限额（`sys_config.withdraw.min_amount_cents`，当前 10 分） |
+| `405009` | 200 | `error.trade.withdraw-insufficient` | 可提现余额不足（`lawyer_balance.available_cents`） |
+| `405010` | 200 | `error.trade.withdraw-state-invalid` | 提现单状态非法，当前操作不允许（非法迁移一律 403 语义走 200 + 本码） |
+| `405011` | 200 | `error.trade.settlement-mismatch` | 结算数据不一致（流水净额 ≠ 订单收入 − 服务费，**发现即停**，不许写结算单） |
+| `405012` | 200 | `error.trade.withdraw-too-frequent` | 提现过于频繁（单日笔数超限） |
 | `505001` | 200 | `error.trade.channel-down` | 支付渠道不可用 |
 | `505002` | 200 | `error.trade.reconcile-diff` | 对账存在差异，需人工处理 |
 | `505003` | 200 | `error.trade.flow-write-failed` | 流水写入失败（资金链路致命错误） |
@@ -165,6 +170,10 @@ NNN = 3 位：域内序号，从 001 起
 | `407002` | 200 | `error.case.state-invalid` | 案件状态非法 |
 | `407003` | **403** | `error.case.forbidden` | 无权访问该案件 |
 | `407004` | 200 | `error.case.already-filed` | 已立案，不能重复提交 |
+| `407005` | 200 | `error.case.no-document` | 本案没有可送达的文书（或该文书未生成 PDF） |
+| `407006` | 200 | `error.case.delivery-not-found` | 送达记录不存在 |
+| `407007` | 200 | `error.case.delivery-already-signed` | 该文书已签收，不可重复签收（首次结果不变，不覆盖签收时间） |
+| `407008` | 200 | `error.case.delivery-method-invalid` | 送达方式非法（只允许 `platform` / `sms_pickup` / `mail`） |
 | `507001` | 200 | `error.case.transition-failed` | 案件状态推进失败 |
 
 ## 3.8 AI 域 `08`
@@ -187,6 +196,9 @@ NNN = 3 位：域内序号，从 001 起
 | `409002` | 200 | `error.content.case-not-found` | 案例不存在或未发布 |
 | `409003` | 200 | `error.content.review-rejected` | 内容审核未通过 |
 | `409004` | 200 | `error.content.sensitive-word` | 内容含敏感词（原文落库，展示层拦截） |
+| `409005` | 200 | `error.content.case-no-law-ref` | 案例未填法条引用（上线前必填；条号须经 `ArticleNoValidator` 校验） |
+| `409006` | 200 | `error.content.case-lang-incomplete` | 案例语言版本不齐（门禁口径见《第 5 段工作流》§三 G4） |
+| `409007` | 200 | `error.content.case-published` | 案例已上线，不能直接删除（须先下架） |
 
 ## 3.10 运营与后台域 `10`
 

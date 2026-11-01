@@ -730,6 +730,11 @@ public class R<T> implements Serializable {
 | | `GET /app/workbench/conversations` | 律师侧会话列表 |
 | | `PUT /app/workbench/online-status` | 在线状态 |
 | | `PUT /app/workbench/service-settings` | 服务开关与定价 |
+| | `GET /app/workbench/documents?status=` | 律师代写文书列表（**段 5**；按 `lawyer_id` 归属，与用户侧 `document` 双视角） |
+| | `GET /app/workbench/income?range=week\|month\|total` | 收入概览三档（**段 5**） |
+| | `GET /app/workbench/income/flows?cursor=&range=` | 收入明细（**段 5**；**每行必须带订单号**，否则对账只能对总额） |
+| | `PUT /app/workbench/profile` | 律师资料编辑（**段 5**；只许改 `bio`/`specialties`/`law_firm`/`avatar_url`） |
+| | `GET /app/workbench/withdraw-account` · `PUT` | 提现收款账户（**段 5**；对外只返回银行名 + 尾 4 位） |
 | **conversation** | `GET /app/conversations` | 会话列表 |
 | | `POST /app/conversations` | 创建/获取会话（按 user+lawyer 唯一） |
 | | `GET /app/conversations/{id}/messages` | 历史（`cursor` = seq） |
@@ -758,6 +763,8 @@ public class R<T> implements Serializable {
 | | `GET /app/cases/{id}/progress` | 进度时间轴 |
 | | `POST /app/cases/{id}/materials` | 补充材料 |
 | | `GET /app/case-deliveries` · `POST /{id}/confirm` | 送达 |
+| | `POST /app/cases/{id}/progress` | 律师推进进度节点（**段 5**；服务端校验 from→to 合法 + 承办律师身份，CAS 更新） |
+| | `PUT /app/case-deliveries/{id}/method` | 选择送达方式（**段 5**；只允许未签收时改） |
 | **content** | `GET /app/articles` · `GET /app/articles/{id}` | 文章 |
 | | `GET /app/case-library` · `GET /app/case-library/{id}` | 案例库 |
 | | `GET /pub/law-items?kw=` | 法条检索（AI 与搜索共用） |
@@ -874,9 +881,9 @@ HTTP 状态码：**成功一律 200**（含业务失败也返回 200 + code）�
 | `GET /admin/reconciliation/summary` | 恒等式巡检结果（余额 = SUM(流水)） | `balance_flow` |
 | `GET /admin/reconciliation/diffs` | 差异列表 | `reconciliation_diff` |
 | `POST /admin/reconciliation/run` | 手动触发巡检 | 同上 |
-| `GET /admin/withdrawals?status=` | 提现队列 | `withdraw_order` |
-| `POST /admin/withdrawals/{id}/audit` | 提现审核 | `withdraw_order`、`balance_flow` |
-| `POST /admin/withdrawals/{id}/voucher` | 上传出款凭证（先转账再点通过） | `withdraw_order`、`file_record` |
+| `GET /admin/withdrawals?status=` | 提现队列 | `withdraw_record`（原文写 `withdraw_order` 是错的，v1.30 改） |
+| `POST /admin/withdrawals/{id}/audit` | 提现审核（通过 / 驳回；通过必传凭证） | `withdraw_record`、`balance_flow`、`file_record` |
+| `POST /admin/withdrawals/{id}/voucher` | 上传出款凭证（先转账再点通过） | `withdraw_record`、`file_record` |
 
 > **手工充值必须走 `balance_flow`**，禁止直接 UPDATE `account.balance` —— 第 1 段验收第 6 条就是「直接改余额字段后接口仍返回流水汇总值」。
 
@@ -891,7 +898,11 @@ HTTP 状态码：**成功一律 200**（含业务失败也返回 200 + code）�
 | `GET /admin/lawyer-settlements?lawyerId=&status=` | 结算单列表 | `lawyer_income_settlement` |
 | `POST /admin/lawyer-settlements/generate` | 生成结算单（按律师 + 账期） | 同上 |
 | `GET /admin/lawyer-settlements/{id}` | 结算单详情 | 同上 |
-| `POST /admin/lawyer-settlements/{id}/confirm` | 确认结算 | 同上、`balance_flow` |
+| `POST /admin/lawyer-settlements/{id}/confirm` | 确认结算（**只改批次状态，不转账、不改余额、不写流水**） | `lawyer_income_settlement` |
+
+> **v1.30（段 5 定）：这 4 个结算接口的「主要表」虽然都写 `lawyer_income_settlement`，但它是「结算批次状态记录」，不是资金真相**——真相永远是 `balance_flow`。**`confirm` 接口不许写 `balance_flow`、不许改 `lawyer_balance`**，这是「结算与提现重复打款」的唯一防线：设计稿 A-13 写「确认后金额入账」，真那么实现，A-13 与 A-10 就是两条独立打款链路。
+>
+> 结算批次的金额**从 `balance_flow` 的 `income` 净额汇总**（并断言 `净额 == 订单收入 − 服务费`，不成立则拒绝生成），实到账走 A-10 的提现链路记账。验收方法见《[法泽FAZE_第5段工作流_v1.0.md](法泽FAZE_第5段工作流_v1.0.md)》§四 `5-A4`、§三 E5。
 
 #### 4.8.4.7 内容（A-14 ~ A-18、A-27）
 
@@ -930,8 +941,8 @@ HTTP 状态码：**成功一律 200**（含业务失败也返回 200 + code）�
 | `GET /admin/cases/{id}` | 案件详情（材料、当事人、承办律师） | `legal_case`、`file_record` |
 | `POST /admin/cases/{id}/audit` | 立案审核 | `legal_case` |
 | `POST /admin/cases/{id}/progress` | 推进进度节点 | `case_progress` |
-| `GET /admin/cases/{id}/deliveries` | 送达记录 | `case_service_record` |
-| `POST /admin/cases/{id}/deliveries` | 发起送达 | `case_service_record` |
+| `GET /admin/cases/{id}/deliveries` | 送达记录 | `case_delivery`（原文写 `case_service_record`，v1.30 改名） |
+| `POST /admin/cases/{id}/deliveries` | 发起送达（**只送平台自有文书**，不做法院转达） | `case_delivery`、`document` |
 | `GET /admin/content-reviews?status=&type=` | 命中记录列表（IM / 评价 / 评论） | `content_review` |
 | `POST /admin/content-reviews/{id}/audit` | 复核处置（忽略 / 警告 / 封禁） | `content_review`、`user_violation` |
 
@@ -1124,12 +1135,18 @@ CREATE TABLE lawyer (
   consult_price_cents BIGINT DEFAULT 0,
   phone_price_cents   BIGINT DEFAULT 0,
   document_price_cents BIGINT DEFAULT 0,
+  service_text_on  TINYINT NOT NULL DEFAULT 1,  -- v1.30（段 5）：图文咨询上架开关
+  service_phone_on TINYINT NOT NULL DEFAULT 1,  -- v1.30（段 5）：电话咨询上架开关
+  service_doc_on   TINYINT NOT NULL DEFAULT 1,  -- v1.30（段 5）：文书代写上架开关
+  auto_accept      TINYINT NOT NULL DEFAULT 0,  -- v1.30（段 5）：自动接单开关
   rating          DECIMAL(2,1) DEFAULT 5.0,
   review_count    INT DEFAULT 0,
   order_count     INT DEFAULT 0,
   online_status   VARCHAR(20) DEFAULT 'offline', -- online / busy / offline
   audit_status    VARCHAR(20) DEFAULT 'pending', -- pending / approved / rejected
-  balance_cents   BIGINT DEFAULT 0,
+  withdraw_bank_name    VARCHAR(50),            -- v1.30（段 5）：提现收款开户行
+  withdraw_bank_account VARCHAR(100),           -- v1.30（段 5）：提现收款卡号（对外只返回尾 4 位）
+  balance_cents   BIGINT DEFAULT 0,             -- ⚠️ 冗余缓存，权威是 lawyer_balance；段 5 起禁止读写本字段
   created_at      DATETIME NOT NULL,
   updated_at      DATETIME NOT NULL,
   deleted_at      DATETIME,
@@ -1326,13 +1343,19 @@ CREATE TABLE review (
 -- 12. 律师提现
 CREATE TABLE withdraw_record (
   id              BIGINT PRIMARY KEY AUTO_INCREMENT,
+  withdraw_no     VARCHAR(32) NOT NULL,      -- v1.30（段 5）：业务单号 WD+yyyyMMdd+6位，对外只暴露它
   lawyer_id       BIGINT NOT NULL,
-  amount_cents    BIGINT NOT NULL,
+  amount_cents    BIGINT NOT NULL,           -- 申请金额
+  fee_cents       BIGINT NOT NULL DEFAULT 0, -- v1.30（段 5）：提现手续费 = floor(申请金额 × 0.6%)，10 分时记 0
+  actual_cents    BIGINT NOT NULL DEFAULT 0, -- v1.30（段 5）：实际到账 = 申请金额 − 手续费
   channel         VARCHAR(20),               -- wechat / alipay / bank / offline
+  bank_name       VARCHAR(50),               -- v1.30（段 5）：收款银行名称（列表展示用）
   account_name    VARCHAR(50),
   account_number  VARCHAR(100),
+  bank_account_tail VARCHAR(4),              -- v1.30（段 5）：卡号尾 4 位，列表展示；完整卡号不对任何接口返回
   status          VARCHAR(20) NOT NULL,       -- applying / approved / rejected / paid
   transaction_id  VARCHAR(64),
+  voucher_file_id BIGINT,                    -- v1.30（段 5）：出款凭证，指向 file_record.id（biz_type='withdraw'）
   audited_by      BIGINT,
   audited_at      DATETIME,
   paid_at         DATETIME,
@@ -1340,6 +1363,7 @@ CREATE TABLE withdraw_record (
   created_at      DATETIME NOT NULL,
   updated_at      DATETIME NOT NULL,
   deleted_at      DATETIME,
+  UNIQUE KEY uk_withdraw_no (withdraw_no),
   KEY idx_withdraw_lawyer (lawyer_id, created_at),   -- 律师工作台提现记录
   KEY idx_withdraw_status (status, created_at)       -- 后台审核队列
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -1503,8 +1527,11 @@ CREATE TABLE legal_case (
   case_type     VARCHAR(30),
   description   TEXT,
   evidence_urls JSON,
-  status        VARCHAR(20) NOT NULL DEFAULT 'filed', -- filed / accepted / in_progress / waiting_judgment / closed
+  status        VARCHAR(20) NOT NULL DEFAULT 'filed', -- v1.30（段 5）5 值：filed / accepted / in_progress / closed / rejected（原 waiting_judgment 作废）
   court_name    VARCHAR(100),
+  court_case_no VARCHAR(64),                -- v1.30（段 5）：法院案号（受理后由律师登记），与平台单号 case_no 是两回事
+  form_snapshot JSON,                       -- v1.30（段 5）：立案四步的原始表单快照（PC 立案审核要逐字段看）
+  reject_reason VARCHAR(500),               -- v1.30（段 5）：立案审核驳回理由（status='rejected' 时必填）
   amount_cents  BIGINT,
   created_at    DATETIME NOT NULL,
   updated_at    DATETIME NOT NULL,
@@ -1520,11 +1547,13 @@ CREATE TABLE case_progress (
   id          BIGINT PRIMARY KEY AUTO_INCREMENT,
   case_id     BIGINT NOT NULL,
   step        INT NOT NULL,
+  node_code   VARCHAR(30) NOT NULL,           -- v1.30（段 5）：节点编码（submitted/review/accepted/supplement/hearing/judgment/effective/closed），用于幂等与去重
   title       VARCHAR(100) NOT NULL,
   description TEXT,
   operator_id BIGINT,
   operator_role VARCHAR(20),
   created_at  DATETIME NOT NULL,
+  UNIQUE KEY uk_progress_case_step (case_id, step),  -- v1.30（段 5）：顺序不可乱，并发插入冲突即重试
   KEY idx_progress_case (case_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 ```
@@ -1593,7 +1622,8 @@ CREATE TABLE case_library (
   case_no           VARCHAR(50),                  -- 案号
   title             VARCHAR(200) NOT NULL,
   court_name        VARCHAR(100),
-  case_type         VARCHAR(30),                  -- civil / administrative / criminal
+  case_type         VARCHAR(30),                  -- 大类 3 值：civil / administrative / criminal（App 列表按它分三组）
+  category          VARCHAR(30),                  -- v1.30（段 5）：细分 6 值 marriage/labor/contract/traffic/criminal/policy（PC 筛选用）；大类由细分映射得到，不许两处都填
   judgment_date     DATE,
   keywords          VARCHAR(500),                 -- 关键词标签
   summary           TEXT,                         -- 案情简介
@@ -2724,7 +2754,7 @@ public interface PaymentGateway {
 | 计算时机 | 订单进入 `COMPLETED` 时计算并冻结，写入 `balance_flow` |
 | 冻结期 | **7 天**（防退款纠纷），`frozen_until = completed_at + 7d` |
 | 解冻 | 定时任务扫描 `frozen_until <= now()` 的流水，转 `available` |
-| 提现 | 最低 100 元，T+1 到账；提现需财务审核（管理后台） |
+| 提现 | 最低 **0.1 元**（10 分，读 `sys_config.withdraw.min_amount_cents`，上线前由负责人复核）；**手续费 0.6%** 从申请金额扣（`fee = floor(amount × 0.006)`，不足 1 分记 0，所以 10 分提现时手续费为 0）；**1~3 个工作日到账**（工作日 16:00 前提交当日处理，之后次日）；提现需财务审核（A-10），**人工出款 + 凭证上传**，不做自动打款 |
 | 发票 | 用户可申请电子发票，平台开「法律咨询服务费」 |
 
 ### 9.6.4 合规提醒（技术侧不决策，但必须记录）
@@ -4029,7 +4059,7 @@ volumes:
 | 1 | 首页 | #4E6EF2 |
 | 2 | 律师 | #4E6EF2 |
 | 3 | 智能体 | #4E6EF2 |
-| 4 | 案件 | #4E6EF2 |
+| 4 | 案例 | #4E6EF2 |
 | 5 | 我的 | #4E6EF2 |
 
 青绿 `#2C9696` 仅用于在线/进行中/成功状态。

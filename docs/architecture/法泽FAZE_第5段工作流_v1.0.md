@@ -201,7 +201,7 @@
      | `V502` | `case_delivery` | **新表**：`case_id` / `document_id` / `method`(platform_sms_mail) / `sent_at` / `signed_at` / `receipt_no` / `sign_device` / `ip` / `status` |
      | `V503` | `case_library` | 案例主表，19 字段基线（`case_no` 留空——**案例不显示案号**，见 G1） |
      | `V504` | `case_library_translation` | 案例译文，13 字段基线 |
-     | `V505` | `withdraw_record` | 提现单，15 字段基线 + `fee_cents` + `actual_cents` + `voucher_file_id` + `bank_name` + `bank_account_tail` |
+     | `V505` | `withdraw_record` | 提现单，15 字段基线 + **7 个新字段**：`withdraw_no`（业务单号，`WD` 开头，唯一索引）/ `fee_cents` / `actual_cents` / `voucher_file_id` / `bank_name` / `bank_account_tail` → 共 **21 字段** |
      | `V506` | `lawyer_income_settlement` | **新表**：`settlement_no` / `lawyer_id` / `period`(yyyy-MM) / `order_count` / `income_cents` / `fee_cents` / `settle_cents` / `status`(pending/settled/rejected) / `settled_by` / `settled_at` / `remark` |
      | `V507` | `reconciliation_diff` | 对账差错，14 字段基线；**只写不展示**（`5-A4` 之外，见 H1） |
   2. **补字段 3 张**（用 `V5xx_1__fix_xxx.sql` 修正迁移，不改已进 main 的迁移）：
@@ -1065,7 +1065,7 @@
 | 3 | `case_delivery`（新） | `V502` | ✅ |
 | 4 | `case_library` | `V503` + `V503_1`（补 `category`） | ✅ |
 | 5 | `case_library_translation` | `V504` | ✅ |
-| 6 | `withdraw_record` | `V505` | ✅ |
+| 6 | `withdraw_record` | `V505`（**21 字段**：基线 15 + 7 新字段，其中含 `withdraw_no` 单号） | ✅ |
 | 7 | `lawyer_income_settlement`（新） | `V506` | ✅ |
 | 8 | `reconciliation_diff` | `V507` | ❌ 只写不展示 |
 
@@ -1203,23 +1203,27 @@ A-10 提现审核（F2）、A-13 律师结算（E5）、A-16 案例库（G1）�
 ## 九、回写到哪些文档（本段结束必须完成，缺一条算未收口）
 
 > 按 `docs/BASELINE.md` §4 的「四件事」办：**落款 / 登记指纹 / `docs/README.md` 加索引 / `CHANGELOG.md` 说明**。只做一件等于没做。
-> 下表 **11 行归为 8 组**：第 1 组（总纲）**已在本文档定稿时改完**；第 2~7 组（第 2~7 行）必须在**段 5 开工前**改完（否则施工时两处口径打架）；第 8 行（段 1 的账务口径）随它们同批改；最后 3 行（README / CHANGELOG / BASELINE）在收口时补。
+> **11 行全部已落地（2026-11-01，基线 v1.31）**：第 1 行（总纲）随本文档定稿时改完；第 2~8 行（技术路线 / 数据表规范 / 接口规范 / PC 计划 / 错误码 + 审计规范 / 段 2 与段 3 工作流 / 段 1 账务口径）随后一并回写；第 9~11 行（README / CHANGELOG / BASELINE）随 v1.31 收口。**下表的「什么时候」列保留原计划值，状态以本行为准。**
 
 | # | 文档 | 改什么 | 什么时候 |
 |---|---|---|---|
 | 1 | ~~**《开发计划总纲》§5.6 + §11.2**~~ ✅ **已在定稿时改完（基线 v1.30）** | ①数据库清单 8 张 → 7 张（删 `case_service_record` / `lawyer_service_config` / `lawyer_income_settlement` 的错误写法，补 `case_delivery` / `case_library_translation` / `reconciliation_diff`）；②**删 `5-A9`**，锚点总数 79 → 78；③`5-A1` 的「立案成功」→「材料已提交」；④`5-A2` 补「显示操作人」；⑤`5-A4` 补「明细含订单号」；⑥`DISPUTED`/`SETTLED` 移段 7 的说明；⑦§11.2 清单里本文件状态改「已产出」 | **✅ 已完成** |
-| 2 | **《技术路线》** | ①§4.8.4.6 的 4 个结算接口「主要表」从 `lawyer_income_settlement` 改为「`lawyer_income_settlement`（批次记录，非资金真相）」；②§4.8.4.5 提现三接口的表名 `withdraw_order` → `withdraw_record`；③§4.8.4.8 案件送达两接口的表名 `case_service_record` → `case_delivery`；④§4.8.2 补 8 个本段新增 C 端接口；⑤**§9.6.3 提现规则改**：到账「T+1」→「1~3 个工作日，16:00 前当日处理」、最低 100 元 → **0.1 元**、加「手续费 0.6%」；⑥§5.7 `legal_case` 加 `form_snapshot` / `court_case_no`、状态改 5 值；⑦§5.5 `withdraw_record` 加 `fee_cents` / `actual_cents` / `voucher_file_id` / `bank_name` / `bank_account_tail`；⑧附录 D TabBar「案件」→「案例」 | **开工前** |
-| 3 | **《数据表规范》附录 A + §3.11** | ①表数 51 → **53**（加 `lawyer_income_settlement`、`case_delivery`）；②改 6 行的建表段（`withdraw_record`/`legal_case`/`case_progress`/`case_library`/`case_library_translation`/`reconciliation_diff` 已在段 5，核对字段数）；③§3.11 单号表补 `SD`（送达回执）/ `JS`（结算）/ `CL`（案例）三个前缀 | **开工前** |
-| 4 | **《接口规范》§6.3** | ①案件归属字段 `client_id` → **`user_id`**（`legal_case` 的 DDL 里叫 `user_id`）；②新增一行：**律师侧文书接口按 `lawyer_id` 归属**（与「document 全部按 `user_id`」并列，说明双视角规则） | **开工前** |
-| 5 | **《PC 后台开发计划》§2.3 / §2.4 / §2.5 / §2.6** | A-10 的「主要数据表」`withdraw_order` → `withdraw_record`；A-13 的 `lawyer_income_settlement` 标注「批次记录，非资金真相」；A-19 的 `case_service_record` → `case_delivery`；四页的「admin 接口」列从「缺」改为「已在技术路线 §4.8.4 定义」 | **开工前** |
-| 6 | **《错误码规范》+《审计与日志规范》** | ①错误码补：案件域 `407005`（无法送达：无文书/无 PDF）、`407006`（送达记录不存在）、`407007`（重复签收）、`407008`（送达方式非法）；交易域 `405008`（低于最低提现额）、`405009`（可提现余额不足）、`405010`（提现状态非法）、`405011`（结算数据不一致）、`405012`（提现过于频繁）；内容域 `409001`（案例无法条引用）、`409002`（案例语言不全）、`409003`（案例已上线不可删除）；②审计动作码补 7 个（§五 5.5 已列） | **开工前** |
-| 7 | **《第 2 段工作流》§零之二 拍板第 5 项 + 《第 3 段工作流》§八** | ①段 2 的「`payment_record` 服务费行留段 5」改为「**段 5 决定不写服务费行**，订单详情直接显示 `orders.platform_fee_cents`」；②段 3 §八 第 4 条「段 5 的全局搜索可以复用（跨域搜索里的『法条』一类）」**删除「法条一类」**——设计稿的四类里没有法条 | **开工前** |
-| 8 | **《第 1 段工作流》§三 D 组的账务说明** | 明确 `balance_flow.balance_after` 记的是**总余额**（`available + frozen`），不是单记 `available`；并补上本文档 §三 E0 的两条恒等式校验。段 1 当时没写这一条，段 6 接真实充值时会按错的口径再算一次 | **开工前**（与第 2~7 行同批） |
-| 9 | **`docs/README.md`** | 加本文件索引（一行：段 5 工作流，含 8 组 37 任务 / 8 锚点 / 7 表 / 41 接口） | **收口时** |
-| 10 | **`docs/CHANGELOG.md`** | 新增一条「2026-11-01 · 新增《第 5 段工作流 v1.0》」，写明 18 项裁决与 12 处冲突 | **收口时** |
-| 11 | **`docs/BASELINE.md`** | 基线 v1.29 → **v1.30**（资产 33 → 34）、登记指纹、写明新增 1 份 + 内容变更 1 份 | **收口时** |
+| 2 | **《技术路线》** | ①§4.8.4.6 的 4 个结算接口「主要表」从 `lawyer_income_settlement` 改为「`lawyer_income_settlement`（批次记录，非资金真相）」；②§4.8.4.5 提现三接口的表名 `withdraw_order` → `withdraw_record`；③§4.8.4.8 案件送达两接口的表名 `case_service_record` → `case_delivery`；④§4.8.2 补 8 个本段新增 C 端接口；⑤**§9.6.3 提现规则改**：到账「T+1」→「1~3 个工作日，16:00 前当日处理」、最低 100 元 → **0.1 元**、加「手续费 0.6%」；⑥§5.7 `legal_case` 加 `form_snapshot` / `court_case_no`、状态改 5 值；⑦§5.5 `withdraw_record` 加 `fee_cents` / `actual_cents` / `voucher_file_id` / `bank_name` / `bank_account_tail`；⑧附录 D TabBar「案件」→「案例」 | ✅ **已完成（v1.31）** |
+| 3 | **《数据表规范》附录 A + §3.11** | ①表数 51 → **53**（加 `lawyer_income_settlement`、`case_delivery`）；②改 6 行的建表段（`withdraw_record`/`legal_case`/`case_progress`/`case_library`/`case_library_translation`/`reconciliation_diff` 已在段 5，核对字段数）；③§3.11 单号表补 `SD`（送达回执）/ `JS`（结算）/ `CL`（案例）三个前缀 | ✅ **已完成（v1.31）** |
+| 4 | **《接口规范》§6.3** | ①案件归属字段 `client_id` → **`user_id`**（`legal_case` 的 DDL 里叫 `user_id`）；②新增一行：**律师侧文书接口按 `lawyer_id` 归属**（与「document 全部按 `user_id`」并列，说明双视角规则） | ✅ **已完成（v1.31）** |
+| 5 | **《PC 后台开发计划》§2.3 / §2.4 / §2.5 / §2.6** | A-10 的「主要数据表」`withdraw_order` → `withdraw_record`；A-13 的 `lawyer_income_settlement` 标注「批次记录，非资金真相」；A-19 的 `case_service_record` → `case_delivery`；四页的「admin 接口」列从「缺」改为「已在技术路线 §4.8.4 定义」 | ✅ **已完成（v1.31）** |
+| 6 | **《错误码规范》+《审计与日志规范》** | ①错误码补：案件域 `407005`（无法送达：无文书/无 PDF）、`407006`（送达记录不存在）、`407007`（重复签收）、`407008`（送达方式非法）；交易域 `405008`（低于最低提现额）、`405009`（可提现余额不足）、`405010`（提现状态非法）、`405011`（结算数据不一致）、`405012`（提现过于频繁）；内容域 `409001`（案例无法条引用）、`409002`（案例语言不全）、`409003`（案例已上线不可删除）；②审计动作码补 7 个（§五 5.5 已列） | ✅ **已完成（v1.31）** |
+| 7 | **《第 2 段工作流》§零之二 拍板第 5 项 + 《第 3 段工作流》§八** | ①段 2 的「`payment_record` 服务费行留段 5」改为「**段 5 决定不写服务费行**，订单详情直接显示 `orders.platform_fee_cents`」；②段 3 §八 第 4 条「段 5 的全局搜索可以复用（跨域搜索里的『法条』一类）」**删除「法条一类」**——设计稿的四类里没有法条 | ✅ **已完成（v1.31）** |
+| 8 | **《第 1 段工作流》§三 D 组的账务说明** | 明确 `balance_flow.balance_after` 记的是**总余额**（`available + frozen`），不是单记 `available`；并补上本文档 §三 E0 的两条恒等式校验。段 1 当时没写这一条，段 6 接真实充值时会按错的口径再算一次 | ✅ **已完成（v1.31）** |
+| 9 | **`docs/README.md`** | 加本文件索引（一行：段 5 工作流，含 8 组 37 任务 / 8 锚点 / 7 表 / 41 接口） | ✅ **已完成（v1.31）** |
+| 10 | **`docs/CHANGELOG.md`** | 新增一条「2026-11-01 · 新增《第 5 段工作流 v1.0》」，写明 18 项裁决与 12 处冲突 | ✅ **已完成（v1.31）** |
+| 11 | **`docs/BASELINE.md`** | 基线 v1.29 → v1.30（资产 33 → 34）→ **v1.31**（内容变更 10 份）、登记指纹 | ✅ **已完成（v1.31）** |
 
-> **第 2~7 组是开工前的硬前置**：不改完就开工，会出现「文档说 8 张表、代码建 7 张」的漂移。段 4 的教训（§九 有 6 项开工前改）同理。第 1 组已在定稿时改完，因为不改就会让同一份总纲自相矛盾。
+> **为什么这些必须在上游改而不是只写在这里**：不改完就开工，会出现「文档说 8 张表、代码建 7 张」的漂移。段 4 的教训（§九 有 6 项开工前改）同理。
+>
+> **回写过程中又发现两个缺陷**（不在原计划里，已一并修掉）：
+> 1. **`withdraw_record` 没有业务单号字段**——《数据表规范》§3.11 要求所有对外编号走 `xxx_no`，但提现单号 `WD` 无处存。已补 `withdraw_no`（字段数 15 → 21），本文档 §三 A1 的字段清单也同步补上。
+> 2. **内容域错误码 `409001`~`409004` 已被占用**（`article-not-found` / `case-not-found` / `review-rejected` / `sensitive-word`）。本文档原写「内容域 `409xxx` 三条」若按 001 起编会撞号，实际用 **`409005`~`409007`**。
 
 ---
 

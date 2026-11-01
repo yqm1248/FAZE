@@ -66,7 +66,7 @@
 | A-07 | 余额与充值 | 财务管理 | 手工充值、调账、按用户查流水；**第 1 段验收的硬依赖** | `account`、`balance_flow` | **缺** | `06-balance-recharge.html` |
 | A-08 | 系统参数 | 系统设置 | 平台抽成比例、充值上下限、提现限额、AI 开关等 `sys_config` 项 | `sys_config` | **缺** | `07-sys-config.html` |
 | A-09 | 对账报表 | 财务管理 | 余额恒等式巡检结果（余额 = SUM(流水)）、差异列表 | `balance_flow`、`reconciliation_diff` | **缺** | `08-reconcile.html` |
-| A-10 | 提现审核 | 财务管理 | 提现申请队列、审核、人工出款凭证上传 | `withdraw_order` | **缺** | `09-withdraw-audit.html` |
+| A-10 | 提现审核 | 财务管理 | 提现申请队列、审核、人工出款凭证上传 | `withdraw_record`（原文写 `withdraw_order` 是错的）、`balance_flow`、`file_record` | **有**（3 个：`GET /admin/withdrawals`、`POST .../{id}/audit`、`POST .../{id}/voucher`，见技术路线 §4.8.4.5） | `09-withdraw-audit.html` |
 
 ### 2.4 交易（3 页）
 
@@ -74,7 +74,7 @@
 |---|---|---|---|---|---|---|
 | A-11 | 订单列表 | 订单管理 | 订单查询、状态筛选、批量导出 | `legal_order`、`order_status_log` | **有**（`GET /admin/orders`） | `10-order-list.html` |
 | A-12 | 订单详情 | 订单管理 | 订单全量信息、状态流转记录、关联会话、**退款审批** | `legal_order`、`order_status_log`、`payment_record` | **有**（`POST /admin/refunds/{id}/audit`）+ 详情接口缺 | `11-order-detail.html` |
-| A-13 | 律师结算 | 律师管理 | 律师收入统计、结算单生成、结算状态 | `lawyer_income_settlement`、`balance_flow` | **缺** | `12-lawyer-settle.html` |
+| A-13 | 律师结算 | 律师管理 | 律师收入统计、**结算批次记录**（不改余额、不转账） | `lawyer_income_settlement`（**结算批次记录，不是资金真相；真相永远是 `balance_flow`**）、`balance_flow`、`orders` | **有**（4 个：`GET /admin/lawyer-settlements`、`POST .../generate`、`GET .../{id}`、`POST .../{id}/confirm`，见技术路线 §4.8.4.6） | `12-lawyer-settle.html` |
 
 ### 2.5 内容（6 页）
 
@@ -82,7 +82,7 @@
 |---|---|---|---|---|---|---|
 | A-14 | 文章列表 | 内容管理 | 每日学法文章查询、上下架、置顶 | `law_article` | **缺** | `13-article-list.html` |
 | A-15 | 文章编辑 | 内容管理 | 富文本正文 + 4 语言字段 + 法条引用绑定 | `law_article`、`law_article_translation`、`law_item` | **缺** | `14-article-edit.html` |
-| A-16 | 案例库 | 内容管理 | 公开案例录入、4 语言、上下架 | `case_library`、`case_library_translation` | **缺** | `15-case-library.html` |
+| A-16 | 案例库 | 内容管理 | 公开案例录入、4 语言、上下架、法条引用（经 `ArticleNoValidator` 校验） | `case_library`（加 `category` 细分分类）、`case_library_translation`、`law_item` | **有**（4 个：`GET/POST /admin/case-library`、`GET/PUT /admin/case-library/{id}`，见技术路线 §4.8.4.7） | `15-case-library.html`（**只有列表，录入表单/4 语言切换/法条录入均未画**，规格见《第 5 段工作流》§三 G1） |
 | A-17 | 多语言翻译管理 | 内容管理 | 译文待更新列表、术语表（`i18n_glossary`）、机翻辅助入口 | `law_article_translation`、`i18n_glossary` | **缺** | `16-translation.html` |
 | A-18 | 文书模板 | 内容管理 | 模板列表、启停、**单语言（`zh-Hans`）**、字段定义、**HTML 模板编辑 + 实时预览** | `doc_template` | **缺** | `17-doc-template.html`（**设计稿的「适用法条」列、「导入模板」「批量导出模板」两个按钮、上传 `.docx` 三处，段 4 都不实现**——模板改为 HTML 存库，见《第4段工作流》§三 B1） |
 | A-27 | 法条库 | 内容管理 | 本地法条库的查询、逐条查看、修正、批量导入与上下架；AI 只能引用这里存在的条文 | `law_item` | **缺** | `26-law-library.html` |
@@ -91,7 +91,7 @@
 
 | # | 页面 | 模块 | 职责 | 主要数据表 | admin 接口 | 设计稿 |
 |---|---|---|---|---|---|---|
-| A-19 | 案件管理 | （技术路线 §15.1 未列，本计划补） | 案件列表、立案材料审核、进度节点、送达记录 | `legal_case`、`case_progress`、`case_service_record` | **缺** | `18-case-manage.html` |
+| A-19 | 案件管理 | （技术路线 §15.1 未列，本计划补） | 案件列表、立案材料审核、进度节点、送达记录 | `legal_case`（加 `form_snapshot` / `court_case_no`）、`case_progress`、`case_delivery`（原文写 `case_service_record` 是错的） | **有**（6 个：`GET /admin/cases`、`GET .../{id}`、`POST .../{id}/audit`、`POST .../{id}/progress`、`GET/POST .../{id}/deliveries`，见技术路线 §4.8.4.8） | `18-case-manage.html`（**只有列表，详情页与材料/进度/送达三个 Tab、审核弹窗均未画**，规格见《第 5 段工作流》§三 B2/B4/C1） |
 | A-20 | 内容审核队列 | （技术路线 §15.1 未列，本计划补） | IM / 评价 / 评论的命中审核，原文不篡改、只标注 | `content_review` | **缺** | `19-review-queue.html` |
 
 ### 2.7 治理（7 页）
@@ -299,7 +299,7 @@ P1 底座 ──► P2 人投资质 ──► P3 账务 ──► P4 交易
 | 4 | 平台服务费比例（现占位 15%） | A-08 系统参数、A-13 结算都依赖 | 段 1 开工前（先占位；公式可写死但值不写死） |
 | 5 | 支付密码错误策略（连错 5 次锁 30 分钟是行业惯例，未定） | A-08 系统参数里有这一项 | 段 1 开工前 |
 | 6 | 单号格式 `FAZE-2026-0087` 是占位 | A-11 订单列表、A-19 案件列表的展示 | 段 1 结束前 |
-| 7 | 电子送达范围（判决书/裁定书/调解书能否电子送达） | A-19 案件管理的送达 tab | 段 5 开工前 |
+| 7 | ~~电子送达范围（判决书/裁定书/调解书能否电子送达）~~ **2026-11-01 已裁决**：段 5 **只做平台自有文书的送达**，**不做法院文书转达**，因此不存在「能否电子送达司法文书」的问题；设计稿 `22-service` 里的「报送人民法院」「《电子送达地址确认书》」「人民法院可调取回执」三处表述**不实现**。若将来有法院合作，这一页要整体重做 | A-19 的送达 tab 与 App 的送达页 | 已解决（《第 5 段工作流》§零之二 第 2 项、§七 第 2 项） |
 
 ---
 
