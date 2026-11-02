@@ -1,0 +1,119 @@
+﻿**********************
+Windows PowerShell 脚本开始
+开始时间: 20261102193304
+用户名: YQM\14541
+RunAs 用户: YQM\14541
+配置名称: 
+计算机: YQM (Microsoft Windows NT 10.0.26200.0)
+主机应用程序: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoProfile -ExecutionPolicy Bypass -File E:\dshcode\FAZE\tmp\a2-stepA.ps1 -Out E:\dshcode\FAZE\docs\acceptance\seg0\_artifacts\A2-accept-20261102-193302.txt
+进程 ID: 20516
+PSVersion: 5.1.26100.8655
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.26100.8655
+BuildVersion: 10.0.26100.8655
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+== A2 验收 Step A  2026-11-02T19:33:04.3655848+08:00  admin=False ==
+
+== 初始状态 ==
+
+Name     Status StartType
+----     ------ ---------
+MySQL80 Running Automatic
+redis   Running Automatic
+== 1) 停 MySQL80（制造起点：MySQL 停 + Redis 已停/未启动）==
+Stopped
+
+== 2) start-services.ps1（期望退出码 0）==
+法泽 FAZE 本地服务  |  env=E:\dshcode\FAZE\deploy\.env  admin=True
+
+警告: 正在等待服务“MySQL80 (MySQL80)”启动...
+[ OK ] MySQL80 已启动
+[ OK ] Redis 已运行，跳过启动
+
+连通状态（独立探测，不采信服务状态）
+项          判据                                             结果
+------------------------------------------------------------------------------
+MySQL      TCP + mysqladmin ping                          OK：mysqld is alive
+Redis      TCP + redis-cli PING == PONG                   OK：PONG
+PS>TerminatingError(Invoke-WebRequest):“无法连接到远程服务器”
+faze-api   GET http://127.0.0.1:8081/api/v1/pub/ping      未启动（A3 交付后可用）
+
+0-A6 判据：MySQL OK / Redis OK / Flyway（需 A3 后验）
+exit=0
+
+== 3) -Status（期望 0，且不改变任何服务状态）==
+法泽 FAZE 本地服务  |  env=E:\dshcode\FAZE\deploy\.env  admin=True
+
+
+连通状态（独立探测，不采信服务状态）
+项          判据                                             结果
+------------------------------------------------------------------------------
+MySQL      TCP + mysqladmin ping                          OK：mysqld is alive
+Redis      TCP + redis-cli PING == PONG                   OK：PONG
+PS>TerminatingError(Invoke-WebRequest):“无法连接到远程服务器”
+faze-api   GET http://127.0.0.1:8081/api/v1/pub/ping      未启动（A3 交付后可用）
+
+0-A6 判据：MySQL OK / Redis OK / Flyway（需 A3 后验）
+exit=0
+before=MySQL80=Running; redis=Running
+after =MySQL80=Running; redis=Running
+
+== 4) -Stop（期望 0；Redis Stopped、MySQL80 仍 Running）==
+法泽 FAZE 本地服务  |  env=E:\dshcode\FAZE\deploy\.env  admin=True
+
+[ OK ] Redis 已停；MySQL80 保持 Running（Automatic，停止会影响同实例的其他项目）
+exit=0
+
+Name     Status
+----     ------
+MySQL80 Running
+redis   Stopped
+
+== 5) -Stop 第二次（幂等，期望 0）==
+法泽 FAZE 本地服务  |  env=E:\dshcode\FAZE\deploy\.env  admin=True
+
+[ OK ] Redis 已停；MySQL80 保持 Running（Automatic，停止会影响同实例的其他项目）
+exit=0
+
+== 恢复 Redis ==
+Running
+
+== 留状态：停 MySQL80，供非管理员测退出码 3 ==
+Stopped
+**********************
+Windows PowerShell 脚本结束
+结束时间: 20261102193318
+**********************
+
+== 6) 库名守卫反证（-EnvFile 指向 faze_admin，期望退出码 9）==
+[FAIL] 检测到库名「faze_admin」，段 0 只允许「faze」——拒绝启动（不启停任何服务）
+       faze_admin 是 RuoYi 的库，写进去会与 sys_* 表混居；生产库更不行。
+
+exit=9
+
+== 7) 非管理员 + MySQL80 已停（期望退出码 3）==
+法泽 FAZE 本地服务  |  env=E:\dshcode\FAZE\deploy\.env  admin=False
+
+[FAIL] 启动 MySQL80 需要管理员：请用「管理员 PowerShell」运行本脚本
+
+exit=3
+
+== 8) 恢复（提权，start-services.ps1，期望退出码 0）==
+法泽 FAZE 本地服务  |  env=E:\dshcode\FAZE\deploy\.env  admin=True
+
+正在等待服务“MySQL80 (MySQL80)”启动...
+[ OK ] MySQL80 已启动
+[ OK ] Redis 已运行，跳过启动
+
+连通状态（独立探测，不采信服务状态）
+项          判据                                             结果
+------------------------------------------------------------------------------
+MySQL      TCP + mysqladmin ping                          OK：mysqld is alive
+Redis      TCP + redis-cli PING == PONG                   OK：PONG
+faze-api   GET http://127.0.0.1:8081/api/v1/pub/ping      未启动（A3 交付后可用）
+
+0-A6 判据：MySQL OK / Redis OK / Flyway（需 A3 后验）

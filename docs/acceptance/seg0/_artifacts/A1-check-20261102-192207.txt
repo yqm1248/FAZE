@@ -1,0 +1,18 @@
+﻿== A1 验收 2026-11-02T19:22:07.9668403+08:00 ==
+1) 五前缀命中：
+database/.gitkeep
+database/seed/.gitkeep
+deploy/.gitkeep
+docs/acceptance/seg0/README.md
+docs/acceptance/seg1/A3-mp-probe.md
+pc/README.md
+services/faze-api/.gitkeep
+2) target/ 被忽略：
+.gitignore:22:target/	services/faze-api/target/faze-api.jar
+3) .env.example 命中 ! 例外：
+.gitignore:28:!.env.example	deploy/.env.example
+4) docs vs UI设计：
+exit=1
+5) editorconfig [*.java]：
+[*.java]
+indent_size = 4
