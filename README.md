@@ -12,21 +12,20 @@
 | 想知道 | 看哪里 |
 |---|---|
 | 9 段怎么切、现在第几段、每段怎么算做完 | [docs/architecture/法泽FAZE_开发计划总纲_v1.0.md](docs/architecture/法泽FAZE_开发计划总纲_v1.0.md) |
-| **第 0 段具体怎么做**（单线，从第一行读到最后一行） | `docs/architecture/法泽FAZE_第0段工作流_v1.0.md`（**待产出**；未产出前按总纲 §5.1 + §11.3 施工） |
+| **第 0 段具体怎么做**（单线，从第一行读到最后一行） | `docs/architecture/法泽FAZE_第0段工作流_v1.0.md`（**已产出**，2026-10-31；12 任务 / 4 组 / 8 条锚点逐条可执行） |
 | 哪些文档是现行版 | [docs/BASELINE.md](docs/BASELINE.md) |
 
 ---
 
 ## ⚠️ 仓库当前状态（读代码前必看）
 
-`apps/mobile-app/` 里目前是**旧原型**——12 个页面的纯 UI 复刻，数据是本地假数据，只有简体中文。
+**第 0 段已开工：主线已裁剪到段 0 边界（提交 `9d589d3`）。**
 
-**它会在第 0 段的第一个任务（仓库骨架）被整体删除重建**（代码留在 git 历史里，可查）。在这个前提下：
+- 旧的 12 个 UI 复刻页面、12 个路由壳与全部 fixture **已从 `UI设计` 删除**，完整快照归档在**只读分支 `ui-reference`**（已推送远端）。该分支只用于对照设计稿，**不合并、不 rebase、不再接收提交**。
+- 设计权威仍是 `design/ui/` 的 71 个 HTML，RN 复刻只是它的一次性翻译产物，不作为实现基线。
+- 不要相信任何文档里的「已完成」字样，除非总纲 §5.1 的 8 条验收锚点已全绿（证据见 `docs/acceptance/seg0/`）。
 
-- 不要以 `apps/mobile-app/` 现有代码为工程范本——它的目录结构、假数据层、单语言假设都会消失；
-- 不要相信任何文档里的「已完成」字样，除非总纲 §5.1 的 8 条验收锚点已全绿。
-
-工程规范以 [AGENTS.md](AGENTS.md) 为准，不以现有代码为准。
+工程规范以 [AGENTS.md](AGENTS.md) 为准，不以任何历史代码为准。
 
 ---
 
@@ -39,7 +38,7 @@
 | PC 后台 | RuoYi 3.9.2（后端 RuoYi-Vue tag `v3.9.2` / Spring Boot 4.0.3，前端 RuoYi-Vue3 3.9.2；业务代码隔离在 `src/views/biz/`） |
 | 实时通信 | 自建 WebSocket + 第三方离线推送 |
 | AI | 豆包 API（SSE 流式）+ 本地法条库检索（MySQL ngram 全文索引，**不用向量库**） |
-| 文书 | `poi-tl`（Word）+ LibreOffice headless / Chromium 打印（PDF） |
+| 文书 | HTML 模板 + `openhtmltopdf` 1.0.10（LGPL；**不做 Word 导出**；含少数民族文字的 PDF 不得使用它，中文场景可用） |
 | 包管理器 | **npm** |
 | 容器 | **不用 docker**，本地依次启动服务 |
 
@@ -51,16 +50,29 @@
 apps/
   mobile-app/       APP（Expo + expo-router）；app/ 只放薄路由，页面实现在 features/
 services/
-  faze-api/         Spring Boot 服务端
-database/           建库脚本 + Flyway 迁移
-deploy/             start-services.ps1（按顺序起 MySQL / Redis，不用 docker）
+  faze-api/         Spring Boot 服务端（Flyway 迁移在 src/main/resources/db/migration/）
+database/           建库脚本 + 种子数据（**Flyway 迁移不在这里**，见上一行）
+deploy/             start-services.ps1（按顺序起 MySQL / Redis，不用 docker）、.env.example、verify-all.ps1
 design/             设计令牌唯一来源
 docs/               全部文档，入口是 docs/README.md
+pc/                 PC 后台指针（RuoYi 源码在仓库外，见 pc/README.md）
 scripts/            静态检查与验证脚本
-tools/              取证、字体检查等工具脚本
+tools/              取证、字体检查等工具脚本（段 0 暂不创建）
 ```
 
 > 除 `apps/`、`design/`、`docs/` 外，其余目录在第 0 段逐步建立（见《第 0 段工作流》）。
+
+## 目录职责（谁能改、产物是什么、什么不进仓库）
+
+| 目录 | 负责人 | 产物 | 不进仓库 |
+|---|---|---|---|
+| `apps/mobile-app/` | 移动端 | APK / JS bundle / 四语言资源 | `node_modules/`、`.expo/`、`dist/`、`*.apk` |
+| `services/faze-api/` | 服务端 | `faze-api` jar、Flyway 迁移、接口 | `target/`、`*.class`、本地口令配置 |
+| `database/` | 服务端 | 建库脚本、种子数据（可重复执行） | 真实凭据 |
+| `deploy/` | 运维 / 服务端 | `start-services.ps1`、`verify-all.ps1`、`.env.example` | `deploy/.env`（含口令）、运行日志 |
+| `pc/` | PC 后台 | 只放 README 指针与 patch 记录 | RuoYi 源码本体（在仓库外） |
+| `docs/acceptance/` | 全体 | 验收证据（截图 / 命令输出 / `_meta.md`） | APK / AAB / `*.log` 等构建产物 |
+| `design/` | 设计（**只读**） | 71 个 HTML 设计稿 + 令牌 | — |
 
 ---
 
@@ -80,16 +92,23 @@ tools/              取证、字体检查等工具脚本
 
 ---
 
-## 启动（旧原型，第 0 段删除前的临时说明）
+## 启动
 
-```bash
-cd apps/mobile-app
-npm install
-npm run web        # 浏览器预览，无需 Android SDK
-npm run lint       # tsc --noEmit + eslint
+```powershell
+# 1) 起本地服务（MySQL / Redis），需要管理员 PowerShell（见 deploy/README.md）
+.\deploy\start-services.ps1
+
+# 2) 起服务端（段 0 A3 交付后可用；端口 8081，不是 8080）
+cd services\faze-api
+mvn spring-boot:run -Dspring-boot.run.profiles=dev
+
+# 3) 起移动端（真机验收用 EAS 云构建的 preview 包，见 docs/standards/构建路径.md）
+cd apps\mobile-app
+npm ci
+npx expo start
 ```
 
-第 0 段完成后的启动方式以届时 `deploy/start-services.ps1` 与各子目录 README 为准。
+具体步骤与故障排查见 `deploy/README.md`（A2 产出）；APK 构建路径见 `docs/standards/构建路径.md`（D1 产出）。
 
 ---
 

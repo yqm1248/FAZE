@@ -18,6 +18,10 @@ ios/
 *.keystore
 *.jks
 
+# Java / Maven 构建产物（第 0 段 A1 追加；不加 *.jar 全局忽略，避免误伤将来的 libs/*.jar）
+target/
+*.class
+
 # 环境与密钥
 .env
 .env.*

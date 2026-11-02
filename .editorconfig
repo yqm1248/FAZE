@@ -16,3 +16,14 @@ indent_size = 2
 
 [*.json]
 indent_size = 2
+
+# Java 惯例 4 空格（第 0 段 A1 追加）
+[*.java]
+indent_size = 4
+
+# XML / SQL / YAML 统一 2 空格（第 0 段 A1 追加）
+[*.{xml,sql}]
+indent_size = 2
+
+[*.{yml,yaml}]
+indent_size = 2
