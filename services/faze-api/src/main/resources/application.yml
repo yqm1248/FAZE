@@ -1,0 +1,55 @@
+# ══════════════════════════════════════════════════════════════════
+# 法泽 FAZE 服务端主配置（段 0）
+# 口令与密钥一律走环境变量，本文件不写任何真实凭据
+# 启动方式：deploy/start-api.ps1（读 deploy/.env 后注入环境变量再启动）
+# ══════════════════════════════════════════════════════════════════
+server:
+  port: ${FAZE_API_PORT:8081}
+
+spring:
+  application:
+    name: faze-api
+  datasource:
+    url: ${FAZE_DB_URL}
+    username: ${FAZE_DB_USER}
+    # 默认拒绝：不提供默认口令，未设置时启动失败（后端规范 §12.3.1）
+    password: ${FAZE_DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    # 库必须由 database/00-create-database.sql 先建好
+    baseline-on-migrate: false
+    validate-on-migrate: true
+    # 本地也不许 clean；要 clean 用单独的 reset-db.ps1
+    clean-disabled: true
+  jackson:
+    default-property-inclusion: always
+    # 2026-11-02 复核：Spring Boot 4 已换 Jackson 3（tools.jackson），
+    # Jackson 2 的 serialization.* 键（如 write-dates-as-timestamps）不再存在，不要写。
+    # Jackson 3 默认不把日期写时间戳（ISO-8601），符合项目要求。
+
+mybatis-plus:
+  mapper-locations: classpath*:mapper/**/*.xml
+  configuration:
+    map-underscore-to-camel-case: true
+
+faze:
+  jwt:
+    # 生产必须由环境变量提供；dev 在 application-dev.yml 里有本地默认值
+    secret: ${FAZE_TOKEN_SECRET:}
+    access-ttl-minutes: 120
+    refresh-ttl-days: 30
+  probe:
+    ai:
+      mock: ${FAZE_PROBE_AI_MOCK:true}
+      api-key: ${FAZE_DOUBAO_API_KEY:}
+      base-url: ${FAZE_DOUBAO_BASE_URL:https://ark.cn-beijing.volces.com/api/v3/chat/completions}
+      # 推理接入点 ID（形如 ep-xxxxxxxx），不是模型名字；用错会 404
+      model: ${FAZE_DOUBAO_MODEL:}
+      timeout-seconds: 120
+
+logging:
+  level:
+    root: INFO
+    com.faze: INFO

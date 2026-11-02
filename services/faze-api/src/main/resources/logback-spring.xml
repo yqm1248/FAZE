@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  法泽 FAZE 日志配置（段 0）
+  职责：控制台输出，pattern 必须含 %X{traceId}（接口规范 §5.1：R.traceId 与响应头 X-Trace-Id 同值）
+  注意：日志只打 traceId 与业务标识，禁止打 L4/L5 敏感字段（手机号、身份证、token、ossKey）
+-->
+<configuration>
+  <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder>
+      <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%X{traceId:-no-trace}] %logger{36} - %msg%n</pattern>
+      <charset>UTF-8</charset>
+    </encoder>
+  </appender>
+
+  <root level="INFO">
+    <appender-ref ref="CONSOLE"/>
+  </root>
+</configuration>

@@ -1,0 +1,15 @@
+# ══════════════════════════════════════════════════════════════════
+# 法泽 FAZE 生产配置（prod profile）
+# 默认拒绝：JWT 密钥不提供默认值，未设置 FAZE_TOKEN_SECRET 即启动失败
+# 探针接口在 prod 下不注册（@Profile("!prod")），避免无鉴权消耗豆包配额
+# ══════════════════════════════════════════════════════════════════
+faze:
+  jwt:
+    secret: ${FAZE_TOKEN_SECRET}
+  probe:
+    ai:
+      mock: false
+
+logging:
+  level:
+    com.faze: INFO

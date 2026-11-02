@@ -1,0 +1,14 @@
+# ══════════════════════════════════════════════════════════════════
+# 法泽 FAZE 本地开发配置（dev profile）
+# 注意：这里的 JWT 默认密钥**只允许本地开发使用**，生产 profile 不提供默认值（未设置即启动失败）
+# ══════════════════════════════════════════════════════════════════
+faze:
+  jwt:
+    secret: faze-local-dev-only-secret-key-0123456789abcdef
+  probe:
+    ai:
+      mock: true
+
+logging:
+  level:
+    com.faze: DEBUG
