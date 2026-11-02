@@ -14,7 +14,7 @@
 |---|---|---|---|
 | 1 | `apps/mobile-app` **不是空的**：已有 Expo 54 工程、**16 个路由文件**（全部合规，一行 `export`）、**8 个功能域 / 12 个页面 + 5 个 fixture（共 17 个文件）**、数据全部来自假数据 | 总纲 §11.3 把「B1 Expo 工程与路由树」当成从零搭建 | B1 的工作性质从「搭建」变为「**审计 + 改造 + 处置存量**」；且这 12 个页面是 `0-A7`（全仓搜裸 `<Text>` 为 0）的最大风险源 |
 | 2 | **本机没有 Android SDK**，只有 adb（winget 装的 platform-tools）。`ANDROID_HOME` / `ANDROID_SDK_ROOT` 均未设置，`%LOCALAPPDATA%\Android\Sdk` 不存在，无 build-tools / platforms / ndk / cmdline-tools | 总纲 §5.1 风险表第 1 条预判了「本机无 Android SDK」，但实测比预判更彻底：**连 SDK 目录都没有，不是版本不全** | `0-A1` 的**本地**构建通道不可行。**但实测 `eas-cli/22.0.0` 已安装且已登录（`1454132yqm`，Owner），EAS 云构建通道立即可用** → `0-A1` 走云构建，不需要先装 SDK。`adb` 可用，所以「真机安装与验证」不受影响。唯一缺的是 `eas.json`（不存在，D1 要建）与 `expo-dev-client`（未安装，仅 dev-client 通道需要） |
-| 3 | **本机没有 Redis**：6379 未监听、无 Windows 服务、`redis-server` / `redis-cli` 不在 PATH、七个常见安装目录都不存在。MySQL 8.0.44 正常（服务 `MySQL80` Running、Automatic、3306 监听） | 总纲 §5.1 「工程」行要求 `deploy/start-services.ps1` 同时拉起 MySQL80 与 Redis | `0-A6`（环境可复现）的 Redis 一半**当前必然失败**。这是开工第一件事，处置见任务 A2 与 §六 风险表 |
+| 3 | ~~**本机没有 Redis**：6379 未监听、无 Windows 服务、`redis-server` / `redis-cli` 不在 PATH、七个常见安装目录都不存在~~。**2026-11-02 更新：已采用 tporadowski/redis 5.0.14.1（`E:\Redis-x64-5.0.14.1`），注册为 Windows 服务 `redis`，`PING=PONG`；版本不是 7.x，按负责人指示使用并挂账版本差**。MySQL 8.0.44 正常（服务 `MySQL80` Running、Automatic、3306 监听） | 总纲 §5.1 「工程」行要求 `deploy/start-services.ps1` 同时拉起 MySQL80 与 Redis | ~~`0-A6`（环境可复现）的 Redis 一半**当前必然失败**~~ **已可拉起；`redis_version` 按 5.0.14.1 记录（不是 7.x），版本差挂账** |
 
 **读法**：第 1 条属于「计划要改」，第 2、3 条属于「开工前要补」。三条都已在任务里落成动作，不是提醒而已。
 
@@ -76,7 +76,7 @@
 
 `0-A6` 要求「起 MySQL + Redis」，本机**完全没有 Redis**（6379 未监听、无服务、无二进制、七个常见目录都不存在），且本机无 docker。
 
-**裁决**：装 **Memurai for Windows**（Redis 协议兼容、带 Windows 服务）；同时**段 0 的 `faze-api` 不引入 `spring-boot-starter-data-redis`**——refresh token 的轮换状态用进程内 `ConcurrentHashMap`（段 0 单实例够用），并在 `docs/architecture/依赖清单.md` 登记「段 1 第一个分布式锁用例之前必须迁到 Redis」。
+**裁决（2026-11-02 更新）**：采用 **tporadowski/redis 5.0.14.1（Windows 移植版，`E:\Redis-x64-5.0.14.1`）**，负责人指定；**版本与规范 Redis 7 的差距挂账**（`docs/architecture/依赖清单.md` 登记，段 1 第一个分布式锁用例前评估升级）。同时**段 0 的 `faze-api` 不引入 `spring-boot-starter-data-redis`**——refresh token 的轮换状态用进程内 `ConcurrentHashMap`（段 0 单实例够用），并在 `docs/architecture/依赖清单.md` 登记「段 1 第一个分布式锁用例之前必须迁到 Redis」。
 
 若负责人决定段 0 暂缓 Redis，则 `0-A6` 必须**书面**拆成 `0-A6a`（MySQL + Flyway + RuoYi，本段必过）/ `0-A6b`（Redis 就位，挂账到段 1 开工前置）。**改锚点须负责人签字，技术侧不得自行把「MySQL 通」当成「环境可复现」通过。**
 
@@ -95,6 +95,8 @@
 
 
 ## 零之三、存量代码的处置（实测规模 + 文件级清单）
+
+> **2026-11-02 更新：本节动作已执行完毕**——`9d589d3` 已删除 12 个业务页 + 12 个路由壳 + fixture，`features/` 目录当前不存在；下面的实测数字是执行前的快照，保留备查。
 
 ### 1.1 裁决
 
@@ -266,7 +268,7 @@ git switch UI设计
 | 你看到的字样 | 真实含义 | 常见误读 |
 |---|---|---|
 | 「RuoYi 3.9.2」 | **RuoYi 平台版本**，唯一合法值 | 误以为还有别的可选版本 |
-| 「Spring Boot 4.0」（4.0.3 / 4.0.10） | **Spring Boot 框架版本**：RuoYi 发行版是 4.0.3，faze-api 与 parent 可到 4.0.x | **不是 RuoYi 版本**；也不是「RuoYi 4.0」 |
+| 「Spring Boot 4.0」（4.0.3 / 4.0.6 / 4.0.9） | **Spring Boot 框架版本**：RuoYi 发行版是 4.0.3，faze-api 与 parent 可到 4.0.x | **不是 RuoYi 版本**；也不是「RuoYi 4.0」 |
 | 「Vue 3.5.26」「Element Plus 2.13.1」 | 前端依赖版本 | 与 RuoYi、Spring Boot 都无关 |
 | 「3.8.7」 | **已废止** | 误以为「还能作为参考实现」 |
 | 「3.5.x」 | **已废止**（faze-api 与 RuoYi 都不再是 3.5） | 误以为「Spring Boot 还是 3.5」 |
@@ -378,7 +380,7 @@ git switch UI设计
 
 | 项 | 裁决 |
 |---|---|
-| 用什么 | **Memurai for Windows（Developer 版）**，装成 Windows 服务，服务名 `Memurai`，端口 `6379` |
+| 用什么 | **tporadowski/redis 5.0.14.1（Windows 移植版）**，已注册为 Windows 服务，服务名 `redis`，端口 `6379`（**负责人 2026-11-02 指定**；版本与规范 Redis 7 的差距见下） |
 | 不用什么 | Docker（本机没有）、WSL2（无法无人值守）、微软归档 Redis 3.2.100（停更 10 年）、`tporadowski` fork（仅作降级备选） |
 | 段 0 是否可暂缓 | **可以暂缓，但必须负责人签字改锚点**；不改锚点则 `0-A6` 不算过 |
 | 服务端是否依赖 Redis | **不依赖**。段 0 的 `faze-api` 不引入 `spring-boot-starter-data-redis`（理由见 A3） |
@@ -391,11 +393,12 @@ git switch UI设计
 
 **安装步骤（粒度到命令，安装包来源标注待确认）**
 
-1. 下载 Memurai Developer MSI：来源 `memurai.com` 的 get-memurai 页面。**待确认**：具体版本号、是否需要注册邮箱换取下载链接、Developer 版许可是否允许本项目（商业产品，开发环境免费但上线需付费授权）。
-2. 静默安装：`msiexec /i Memurai-x.y.z.msi /qn /norestart`（需管理员）。
-3. 安装后确认服务：`Get-Service Memurai` → `Status=Running`、`StartType=Automatic`；配置文件默认在 `C:\Program Files\Memurai\memurai.conf`，确认 `port 6379`、`bind 127.0.0.1`（**不绑 0.0.0.0**，本机开发不需要对外）。
-4. 启动：`Start-Service Memurai`（需管理员）；停止：`Stop-Service Memurai`。
-5. 连通验证：`memurai-cli -h 127.0.0.1 -p 6379 ping` → 期望 `PONG`。**不用「端口 6379 有监听」当判据**——端口通只证明有别的东西在听，不证明是 Redis、更不证明能读写。
+1. 采用 **`E:\Redis-x64-5.0.14.1`**（tporadowski/redis 5.0.14.1，Windows 移植版；负责人 2026-11-02 指定）。**版本与规范 Redis 7 的差距**：协议 5.0、无安全更新；段 0 仅用于「起得来 / `-Stop` 能停」与 RuoYi 登录态，**段 1 第一个分布式锁用例前必须评估升级**。
+2. 服务配置副本 `deploy/redis-faze.conf`（把 `dir` / `logfile` 改为绝对路径，避免服务以 System32 为 CWD 时写丢 dump.rdb）。
+3. 注册服务（管理员）：`& "E:\Redis-x64-5.0.14.1\redis-server.exe" --service-install "E:\dshcode\FAZE\deploy\redis-faze.conf" --service-name Redis`；确认 `Get-Service redis` → `Running`、`Automatic`。
+4. 启动/停止：`Start-Service redis` / `Stop-Service redis`（需管理员）。
+5. 连通验证：`redis-cli -h 127.0.0.1 -p 6379 ping` → 期望 `PONG`（本机客户端是 `E:\Redis-x64-5.0.14.1\redis-cli.exe`）。**不用「端口 6379 有监听」当判据**——端口通只证明有别的东西在听，不证明是 Redis、更不证明能读写。
+6. **2026-11-02 实测结果**：服务已注册且 `PING=PONG`；`start-services.ps1 -Stop` 连续两次均退出码 0（幂等）；`redis-cli info server` 的 `redis_version` = **5.0.14.1**（不是 7.x）。
 
 > 安装包、许可、版本号均为**待确认**，本机未安装、未实测。凡涉及下载的步骤，本文不写成「已完成」。
 
@@ -406,14 +409,14 @@ git switch UI设计
 | **Docker** | 本机实测没有 docker（`docker` 不在 PATH，无 Docker Desktop）。题目也明确「不用 docker」。排除。 |
 | **WSL2 里装 Redis** | 需要：启用虚拟化功能 + 装发行版 + 首次启动设用户密码，三步都要交互与重启；`start-services.ps1` 要写成 `wsl -d Ubuntu -u root service redis-server start`，而 `sudo`/`-u root` 在未配置免密时必失败。**「一条脚本拉起」这个前提直接不成立**，且把故障面从「一个 Windows 服务」扩大到「虚拟化 + 发行版 + systemd」。排除。 |
 | **微软归档 Windows 版 Redis（3.2.100）** | 最后更新 2016 年，官方仓库已归档、无安全修复；协议停在 3.2（缺 `ACL`、`RESP3`、部分 `UNLINK` 行为）。作为「真实上线产品」的开发环境，端口暴露的旧版 Redis 是常见的挖矿入口。**安全上不可接受**，排除。 |
-| **`tporadowski/redis` 5.0.14.1** | 社区 fork，个人维护、无安全更新，协议 5.0。**能力足够段 0**（PING/SET/GET/锁），所以留作**降级备选**：仅当 Memurai 许可谈不下来时用，且必须在 `docs/architecture/依赖清单.md` 登记「版本与规范的 Redis 7 有差距、上线前必须换」。 |
+| **`tporadowski/redis` 5.0.14.1** | **2026-11-02 已采用（负责人指定）**。社区 fork，个人维护、无安全更新，协议 5.0；**能力足够段 0**（PING/SET/GET/锁）。版本与规范 Redis 7 的差距已登记到 `docs/architecture/依赖清单.md`，**段 1 第一个分布式锁用例前必须评估升级**。 |
 | **不用 Redis，服务端用进程内缓存替代** | 段 0 可行（本段服务端根本不用 Redis），但段 1 的分布式锁没有替代品（单机进程锁在多实例下失效）。只能作为「段 0 暂缓」的临时状态，不能作为长期方案。 |
 
 **如果段 0 决定暂缓 Redis，`0-A6` 怎么改（只是建议，我不能自己改）**
 
 - 拆成两条：
   - `0-A6a` **环境可复现（MySQL 部分）**：从「MySQL80 已停」开始跑 `deploy/start-services.ps1 -SkipRedis` → MySQL 拉起、Flyway 建出 2 张表、RuoYi 能登录 → 本段必过。
-  - `0-A6b` **Redis 就位**：`memurai-cli ping` 返回 `PONG`、`-Stop` 能停 → **挂账到段 1 开工前置**（写清「为什么可以拖」：段 0 服务端不使用 Redis；「最晚什么时候解决」：段 1 第一个分布式锁用例之前）。
+  - `0-A6b` **Redis 就位**：`redis-cli ping` 返回 `PONG`、`-Stop` 能停 → **挂账到段 1 开工前置**（写清「为什么可以拖」：段 0 服务端不使用 Redis；「最晚什么时候解决」：段 1 第一个分布式锁用例之前）。
 - 改动性质：**拆分锚点 = 改验收锚点**，按总纲 §12.3「验收锚点只增不减，删一条必须负责人确认」→ 必须负责人书面确认，并记进 `docs/CHANGELOG.md`。技术侧只能提建议。
 
 ---
@@ -449,7 +452,7 @@ git switch UI设计
 
 | 出路 | 内容 | 代价 |
 |---|---|---|
-| A. 按 A2 装 Redis | 装 Memurai（Windows 原生发行版）或 Docker/WSL 分发版，6379 起来后起 RuoYi 后端 | 一次安装；A2 本来就要做 |
+| A. 按 A2 装 Redis | **已落地**：tporadowski/redis 5.0.14.1 注册为服务 `redis`，6379 起来后起 RuoYi 后端 | 已完成（2026-11-02） |
 | B. 降锚点 | 把「RuoYi 能登录」降为「RuoYi 前端能启动、能打开登录页（后端未就绪）」 | 改锚点，**必须负责人签字**；`0-A6` 的「后台可用」顺延到段 1 |
 
 **备选为何不行**
@@ -692,7 +695,7 @@ README.md                      L55 修正、L60 补注、新增「目录职责�
 | 2 | `deploy/.env` 不存在（提示从 `.env.example` 复制） |
 | 3 | 需要启动/停止服务但当前不是管理员 |
 | 4 | `MySQL80` 服务不存在 |
-| 5 | Memurai 未安装（且未加 `-SkipRedis`） |
+| 5 | Redis 服务未安装（且未加 `-SkipRedis`） |
 | 6 | 端口在听，但客户端认证失败（凭据错） |
 | 7 | 端口被非目标进程占用（例如 6379 被别的程序占着） |
 | 9 | **库名守卫失败**：`FAZE_DB_URL` 里的库名不是 `faze` |
@@ -704,13 +707,13 @@ README.md                      L55 修正、L60 补注、新增「目录职责�
 1. 读 `-EnvFile`；不存在 → 打印「请执行 `Copy-Item deploy\.env.example deploy\.env` 后填 `FAZE_DB_PASSWORD`」→ 退出 2。
 2. **库名守卫**：用正则从 `FAZE_DB_URL` 提库名（`jdbc:mysql://host:port/<db>`），不等于 `faze` → 打印「检测到库名 `<x>`，段 0 只允许 `faze`」→ 退出 9。
 3. `-Status`：跳到第 6 步。
-4. `-Stop`：`Stop-Service Memurai` → 等 6379 释放（≤ 20s）→ 打印「Redis 已停；MySQL80 保持 Running（Automatic，停止会影响同实例的其他项目）」→ 退出 0。
+4. `-Stop`：`Stop-Service redis` → 等 6379 释放（≤ 20s）→ 打印「Redis 已停；MySQL80 保持 Running（Automatic，停止会影响同实例的其他项目）」→ 退出 0。
 5. 启动阶段：
    - MySQL：`Get-Service MySQL80` → 不存在退出 4；`Running` → 打印「已运行（Automatic），跳过启动」；`Stopped` → 非管理员退出 3，否则 `Start-Service MySQL80` 并轮询 3306（间隔 1s，超时 60s，超时退出 7）。
-   - Redis：`Get-Service Memurai` → 不存在时，`-SkipRedis` 则打 `WARN` 继续，否则退出 5；`Running` 跳过；`Stopped` → 非管理员退出 3，否则 `Start-Service Memurai` 并轮询 6379（超时 30s）。
+   - Redis：`Get-Service redis` → 不存在时，`-SkipRedis` 则打 `WARN` 继续，否则退出 5；`Running` 跳过；`Stopped` → 非管理员退出 3，否则 `Start-Service redis` 并轮询 6379（超时 30s）。
 6. **连通状态打印**（三行，每行「项 / 判据 / 结果」）：
    - MySQL：先 TCP 3306，再用 `.env` 里的账号跑 `mysqladmin --connect-timeout=3 -h <host> -P <port> -u <user> -p<pass> ping`。端口不通 → `FAIL`；端口通但认证失败 → `FAIL（凭据错）` 并退出 6。
-   - Redis：TCP 6379 + `memurai-cli -h <host> -p <port> ping` 必须等于 `PONG`。只通端口不算通。
+   - Redis：TCP 6379 + `redis-cli -h <host> -p <port> ping` 必须等于 `PONG`。只通端口不算通。
    - `faze-api`：`Invoke-WebRequest http://127.0.0.1:<FAZE_API_PORT>/api/v1/pub/ping`。**失败不影响退出码**，只打印「服务端未启动（A3 交付后可用）」——A2 先于 A3 完成时这一行必然是红的，这是预期，不是失败。
 7. 汇总：三行表格 + 「0-A6 判据：MySQL ✓ / Redis ✓ / Flyway（需 A3 后验）」。
 
@@ -726,7 +729,7 @@ README.md                      L55 修正、L60 补注、新增「目录职责�
 #     都会连 RuoYi 的表一起清掉，后台直接登不进去。
 #   - 填成生产库：本地的 V1、V2 迁移会写进真实业务库，等于线上被灌测试数据。
 #   - 填成 faze_test：段 0 的库名守卫会拒绝启动（只允许 faze）。
-FAZE_DB_URL=jdbc:mysql://127.0.0.1:3306/faze?useUnicode=true&characterEncoding=utf8mb4&serverTimezone=UTC
+FAZE_DB_URL=jdbc:mysql://127.0.0.1:3306/faze?useUnicode=true&characterEncoding=UTF-8&serverTimezone=UTC
 FAZE_DB_USER=faze_app
 # ⚠️ 必填，留空直接启动失败（不提供默认值）。不要填 root：
 #    应用会用 root 的 CREATE/DROP/GRANT 权限跑迁移，一次写错 SQL 能清空整个实例。
@@ -759,7 +762,7 @@ FAZE_DOUBAO_BASE_URL=
 1. 前置条件（逐项带实测版本，缺一项就写清会卡在哪）
    - Java 17.0.17（JAVA_HOME=E:\jdk17）、Maven 3.9.16、Node v24.16.0 / npm 11.13.0
    - MySQL 8.0.44（Windows 服务 MySQL80，Automatic）
-   - Memurai（Redis 兼容；未装时用 -SkipRedis 并接受 0-A6 不完整）
+   - Redis（tporadowski 5.0.14.1，Windows 服务名 `redis`；未装时用 -SkipRedis 并接受 0-A6 不完整）
    - 不需要：docker、yarn、Android SDK
 2. 第一次使用（4 步）
    - 复制 .env.example → .env，填 FAZE_DB_PASSWORD
@@ -772,7 +775,7 @@ FAZE_DOUBAO_BASE_URL=
    - “无法启动服务” → 不是管理员（退出码 3）
    - “Access denied” → FAZE_DB_PASSWORD 或 faze_app 未授权（退出码 6）
    - “6379 被占用” → 别的 Redis 实例在跑（退出码 7）
-   - “Memurai 未安装” → 退出码 5，或 -SkipRedis
+   - “Redis 服务未安装” → 退出码 5，或 -SkipRedis
    - “Flyway 报 Unsupported Database: MySQL” → 缺 flyway-mysql 依赖（见 A3）
 6. 与 0-A6 的对应（怎么取证：命令 + 输出存 docs/acceptance/seg0/）
 7. 明确不做（不建库、不跑迁移、不启 faze-api、不启 RuoYi）
@@ -792,8 +795,8 @@ docs/acceptance/seg0/          本任务的命令输出证据
 **算做完（二值可判定）**
 
 1. 管理员 PowerShell 下：`Get-Service MySQL80 | Stop-Service` → `.\deploy\start-services.ps1` → 退出码 **0**，且输出里三行状态齐全（MySQL / Redis / faze-api）。
-2. `.\deploy\start-services.ps1 -Status` → 退出码 0，且**未**改变任何服务状态（前后 `Get-Service MySQL80,Memurai` 的 Status 一致）。
-3. `.\deploy\start-services.ps1 -Stop` → 退出码 0，`Get-Service Memurai` 变 Stopped，`Get-Service MySQL80` **仍是 Running**。
+2. `.\deploy\start-services.ps1 -Status` → 退出码 0，且**未**改变任何服务状态（前后 `Get-Service MySQL80,redis` 的 Status 一致）。
+3. `.\deploy\start-services.ps1 -Stop` → 退出码 0，`Get-Service redis` 变 Stopped，`Get-Service MySQL80` **仍是 Running**。
 4. 非管理员 shell 下、且 MySQL80 已停：`.\deploy\start-services.ps1` → 退出码 **3**，输出含「请用管理员 PowerShell 运行」。
 5. 把 `.env` 的 `FAZE_DB_URL` 改成 `.../faze_admin` → 退出码 **9**（库名守卫），且**没有**任何服务被启动。
 6. `git check-ignore -v deploy/.env` 有输出、`deploy/.env.example` 命中 `!` 例外。
@@ -803,8 +806,8 @@ docs/acceptance/seg0/          本任务的命令输出证据
 
 1. 没有管理员权限（当前会话就是非管理员，实测 `IsInRole(Administrator)=False`）→ 让主理人开一个管理员 PowerShell 跑；**不要**给 `MySQL80` 服务的 SDDL 加当前用户启动权限（改系统安全配置，不可逆，且影响同机其他使用者）。
 2. `Start-Service MySQL80` 报「服务无法启动」→ 先看事件查看器「Windows 日志 → 系统」里 MySQL 的报错，再手工 `"C:\Program Files\MySQL\MySQL Server 8.0\bin\mysqld.exe" --defaults-file="C:\ProgramData\MySQL\MySQL Server 8.0\my.ini" --console` 看前台输出；这条路径只用于诊断，不进脚本。
-3. Memurai 装不上（许可/来源问题）→ 用 `-SkipRedis` 让脚本先能跑通 MySQL 部分，Redis 按裁决 1 挂账；**不要**临时改脚本去连一个不存在的 6379。
-4. `memurai-cli ping` 通但服务名不叫 `Memurai`（安装时改了服务名）→ 在 `.env` 加 `FAZE_REDIS_SERVICE=<真实服务名>`，脚本读它；**不要**在脚本里硬编码猜。
+3. Redis 服务起不来 → 用 `-SkipRedis` 让脚本先能跑通 MySQL 部分，Redis 按裁决 1 记录；**不要**临时改脚本去连一个不存在的 6379。
+4. `redis-cli ping` 通但服务名不叫 `redis`（安装时改了服务名）→ 在 `.env` 加 `FAZE_REDIS_SERVICE=<真实服务名>`，脚本读它；**不要**在脚本里硬编码猜。
 5. 脚本行为与预期不符但没有报错 → 加 `-Verbose`（脚本用 `Write-Verbose` 打每一步的服务状态），并把 `$ErrorActionPreference='Stop'` 保持在脚本顶部（否则 `Start-Service` 失败会被吞掉，变成「假成功」——这正是 §12.4.1 要防的那类假绿）。
 
 ---
@@ -845,21 +848,25 @@ services/faze-api/
 
 | 依赖 | 版本 | 本地 `.m2` | 说明 |
 |---|---|---|---|
-| `spring-boot-starter-parent` | **4.0.10** | ✅ 有（4.0.5 / 4.0.10 / 4.1.0） | 取 4.0.x 最新缓存版本；与 RuoYi 发行版的 4.0.3 **同一大版本**；Java 17 编译目标由 parent 管 |
-| `spring-boot-starter-web` / `-validation` / `-security` / `-aop` / `-test` | parent 管 | ✅ 有 | 版本一律不写，交给 parent |
+| `spring-boot-starter-parent` | **4.0.6** | ✅ 有（4.0.5 / 4.0.6 / 4.1.0） | **2026-11-02 复核修正**：原文写 4.0.10，但 central 上 4.0.x 最新为 **4.0.9**，**4.0.10 不存在**（本机 `.m2` 的 4.0.10 目录只有一个 `.lastUpdated` 失败标记，不是缓存）；按「本地已有真 pom 的 4.0.x 最新版」取 **4.0.6**，与 RuoYi 发行版的 4.0.3 同一大版本；Java 17 编译目标由 parent 管 |
+| `spring-boot-starter-web` / `-validation` / `-security` / `-test` | parent 管 | ✅ 有 | 版本一律不写，交给 parent。**2026-11-02 复核：SB 4.0 起没有 `spring-boot-starter-aop`**（同位置叫 `spring-boot-starter-aspectj`）；段 0 不做 AOP 审计，不引入切面依赖 |
 | `mybatis-plus-spring-boot4-starter` **+ `mybatis-plus-jsqlparser`** | **3.5.18.1**（两个都要，版本一致） | ❌ 需联网（首次） | **必须用 `-spring-boot4-` 这个 artifact**。实测：`-spring-boot3-starter:3.5.12` 在 SB4 下**静默失效**——它 `@AutoConfigureAfter` 的 `org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration` 已被 SB4 移到 `org.springframework.boot.jdbc.autoconfigure`，旧类不存在 → 排序丢失 → MP 自动配置整体跳过 → 只报「Mapper 注入失败」。**不报缺类，最难查**。SB4 starter 从 MP **3.5.13** 起提供。**分页插件 `PaginationInnerInterceptor` 已拆到 `mybatis-plus-jsqlparser`，不加会编译失败**（2026-11-01 实测） |
 | `mysql-connector-j` | **8.0.33** | ✅ 有（另 9.2.0 / 9.7.0） | 与 MySQL 8.0.44 服务端同代；不用 9.x（驱动 9 对 8.0 服务端虽兼容，但本项目未验证，段 0 不引入变量） |
-| `flyway-core` + **`flyway-mysql`** | 由 parent 决定（**Spring Boot 4.0 管的 Flyway 版本未实测**；SB 3.5 管的是 11.x） | ❌ **本地无缓存，必须联网** | Flyway 10+ 把数据库支持拆成独立模块；**只加 `flyway-core` 会报 `Unsupported Database: MySQL`** |
+| **`spring-boot-flyway`** + `flyway-core` + **`flyway-mysql`** | 由 parent 决定（**2026-11-02 实测：SB 4.0.6 管 Flyway 11.x，联网下载成功**） | ❌ **本地无缓存，必须联网** | **SB 4 把 Flyway 自动配置拆成独立模块 `spring-boot-flyway`——2026-11-02 实测：只加 `flyway-core`+`flyway-mysql` 时应用能启动但「不执行迁移、库内 0 张表」**；另 Flyway 10+ 把数据库支持拆成独立模块，只加 `flyway-core` 会报 `Unsupported Database: MySQL` |
 | `jjwt-api` / `-impl` / `-jackson` | **0.12.3** | ✅ 有 | 三件套都要；只加 `jjwt-api` 能编译，但运行时找不到实现类（`NoClassDefFoundError: io/jsonwebtoken/impl/...`） |
 | `lombok` | **1.18.38** | ✅ 有 | `provided` scope |
-| `spring-boot-starter-data-redis` | **不加** | — | 段 0 服务端不使用 Redis；加了就是「配了没人读的死开关」（后端规范 §11.4）。Redis 连通性由 A2 的 `memurai-cli ping` 证明，服务端接入留到段 1 的第一个使用点 |
+| `spring-boot-starter-data-redis` | **不加** | — | 段 0 服务端不使用 Redis；加了就是「配了没人读的死开关」（后端规范 §11.4）。Redis 连通性由 A2 的 `redis-cli ping` 证明，服务端接入留到段 1 的第一个使用点 |
 | `checkstyle` / `archunit` / `jacoco` | **不加** | — | 见第三节 CI 门禁，全部挂账到段 1 |
+
+> **2026-11-02 复核：SB 4 的 JSON 层是 Jackson 3（`tools.jackson`），不是 Jackson 2。**
+> 证据：启动时 `spring.jackson.serialization.write-dates-as-timestamps` 直接导致 `APPLICATION FAILED TO START`（Jackson 3 没有该枚举常量）；依赖树里同时存在 `tools.jackson.core:jackson-databind:3.1.2`（SB 自带）与 `com.fasterxml.jackson.core:jackson-databind:2.21.2`（jjwt-jackson 拉入，两者包名不同可共存）。
+> 因此：代码里写 JSON 一律用 `tools.jackson.databind.ObjectMapper`；不要再写 `spring.jackson.serialization.*` 配置。
 
 网络实测：`repo.maven.apache.org:443` 可达（True），`registry.npmjs.org:443` 可达（True）。所以「Flyway 首次要联网下载」是可行的，但**首次 `mvn verify` 必然比后续慢**，且离线（`mvn -o`）会失败——写进 A3 的「卡住怎么办」。
 
 **(3) 包结构**
 
-严格照 AGENTS §3.2 的五段式：`common/` `config/` `security/` `modules/` `infra/`。段 0 只填 `common/config/security/infra`，`modules/` 留空且**不建子目录**（段 0 没有业务域，建了就是空壳）。
+严格照 AGENTS §3.2 的五段式：`common/` `config/` `security/` `modules/` `infra/`。段 0 填 `common/config/security/infra`，并**只建一个业务域 `modules/account/`**（承载 `0-A2` 必需的登录 / 刷新 / 资料三个接口，见 §零之二 冲突 1）；其余业务域留空，段 1 起再建。
 
 **(4) 本段必须实现的最小件（6 件，多一件都不做）**
 
@@ -873,6 +880,10 @@ services/faze-api/
 | 6 | **三个探针** | `infra/` + 一个 `ProbeController` | `GET /api/v1/pub/ping`、`POST /api/v1/pub/probe/ai`（SSE）、`GET /api/v1/pub/probe/law?kw=`；路径与返回形状照《接口规范》§7 的段 0 表；**三个都加 `@Profile("!prod")`**，生产 profile 下返回 404（理由：《接口规范》§3.1 裁决 1——`probe/ai` 会真实消耗豆包配额且无鉴权） |
 
 > 三个探针归 `pub` 前缀不是随便放的：《接口规范》§3.1 的四类前缀只有 `pub`/`app`/`admin`/`internal`，原来的 `/api/v1/ping`（裸路径）与 `/api/v1/ops/probe/*`（`ops` 不在四类里）都是错的，已裁决改为 `pub` 且仅非生产注册。
+
+> **补：`0-A2` 必需的三个鉴权接口（2026-11-02 复核补入）**
+>
+> A3 原「最小件 6 件」漏了 `0-A2` 要用的登录 / 刷新 / 资料三个接口（《接口规范》§7.1 冻结段 0 共 **6 个**接口）。落点：`modules/account/`（`AuthController` / `ProfileController` / `AuthService` + DTO）；refresh token 轮换状态放进程内 `ConcurrentHashMap`（段 0 不引 Redis，段 1 迁 Redis）。
 
 **(5) Flyway 通道**
 
@@ -977,6 +988,8 @@ ALTER TABLE law_item DROP INDEX ft_law_content,
 services/faze-api/pom.xml
 services/faze-api/README.md                     启动/构建/端口/版本说明
 services/faze-api/src/main/java/com/faze/...    上表 6 件的实现
+services/faze-api/src/main/java/com/faze/modules/account/**  登录 / 刷新 / 资料三接口（0-A2 必需）
+deploy/start-api.ps1                             读 .env 注入环境变量后启动服务端（口令不进仓库）
 services/faze-api/src/main/resources/application*.yml
 services/faze-api/src/main/resources/db/migration/V1__baseline.sql
 services/faze-api/src/main/resources/db/migration/V2__init_law_items.sql
@@ -1002,7 +1015,8 @@ docs/acceptance/seg0/                           命令输出 + 截图
 9. 以 `--spring.profiles.active=prod` 启动 → 三个探针全部 **404**。
 10. 造一个过期 token → HTTP **401** + `code=402002`；造一个签名错的 token → HTTP **401** + `code=402003`（两者必须不同）。
 11. 故意抛一个带 SQL 片段的异常 → 响应的 `msg` **不含** SQL/堆栈/原文（人工核对一条响应体 + 一条日志）。
-12. `SHOW VARIABLES LIKE 'ngram_token_size'` → `2`（**需 root 或 faze_app 有权限；当前无凭据，见不确定项 #1**）。
+12. 段 0 的 6 个接口逐个可访问：login 拿 token → profile 200；无 token 访问 profile → 401 + `402003`；refresh 换 token → 200。
+13. `SHOW VARIABLES LIKE 'ngram_token_size'` → `2`（**2026-11-02 已实测 = 2**）。
 
 **卡住怎么办（按顺序）**
 
@@ -1177,8 +1191,8 @@ deploy/verify-all.ps1 的执行顺序（任一失败即停，退出码非 0）
    if (!baseUrl) throw new Error('[api] extra.apiBaseUrl 未配置：检查 EXPO_PUBLIC_API_BASE_URL');
    ```
    - 为什么不用 `process.env.EXPO_PUBLIC_*` 直读：`EXPO_PUBLIC_*` 在构建期内联，EAS 上必须写进 `eas.json` 的 `env` 或用 EAS secrets，改地址要重新构建；而 `extra` 会进 manifest，`/dev/probe` 页可以直接把当前 baseURL 显示出来给验收人看（`0-A2`/`0-A5` 都需要这个「当前连的是哪台机器」的可视证据）。
-   - **fail-fast，不给默认值**：静默默认 `http://localhost:8080` 会在真机上表现为「一直网络错误」，是最难查的一类故障。
-   - 真机联调必须用 PC 的局域网 IPv4（`ipconfig` 取），**不能用 `localhost`（指向手机自己）也不能用 `10.0.2.2`（那是 Android 模拟器专用）**；Windows 防火墙要放行 8080。验收前置：手机浏览器能打开 `http://<PC-IP>:8080/api/v1/pub/ping`。
+   - **fail-fast，不给默认值**：静默默认 `http://localhost:8081` 会在真机上表现为「一直网络错误」，是最难查的一类故障。
+   - 真机联调必须用 PC 的局域网 IPv4（`ipconfig` 取），**不能用 `localhost`（指向手机自己）也不能用 `10.0.2.2`（那是 Android 模拟器专用）**；Windows 防火墙要放行 8081。验收前置：手机浏览器能打开 `http://<PC-IP>:8081/api/v1/pub/ping`。
 
 3. **请求头（8 个必需 + 1 个响应回读）**。注意：`docs/BASELINE.md` 的索引写「§四 请求（**9 个**请求头）」，而接口规范 §4.1 的表实际只有 **8 行**；第 9 个若指 `X-Trace-Id`，它是响应头。**按 8 个实现，并把这条口径差登记到第四节。**
 
@@ -1258,7 +1272,7 @@ deploy/verify-all.ps1 的执行顺序（任一失败即停，退出码非 0）
 **卡住怎么办**：
 1. SecureStore 在 Android 上写入失败（部分机型/多用户）→ 先确认 `app.json`/`app.config.ts` 里 `expo-secure-store` 的 plugin 已配 `configureAndroidBackup: true`；仍失败则降级为「内存 + AsyncStorage 缓存 + 每次启动重拉」，但**必须在 `docs/standards/` 记一条已知限制**，不许静默降级。
 2. 刷新死循环（无限刷新）→ 三条硬约束缺一条都会循环：①只重放 1 次；②刷新自身的 401 不再触发刷新；③只对带 `Authorization` 的请求判登出。逐条自查，别加「最大重试次数」这种掩盖症状的补丁。
-3. 真机一直 `network` → 按顺序：手机浏览器开 `http://<PC-IP>:8080/api/v1/pub/ping` → 防火墙 → `ipconfig` 是否取了虚拟网卡（VMware/WSL 的 172.x）→ baseURL 是否被 `app.config.ts` 的 `extra` 覆盖成了旧值（重新 `npx expo start --clear`）。
+3. 真机一直 `network` → 按顺序：手机浏览器开 `http://<PC-IP>:8081/api/v1/pub/ping` → 防火墙 → `ipconfig` 是否取了虚拟网卡（VMware/WSL 的 172.x）→ baseURL 是否被 `app.config.ts` 的 `extra` 覆盖成了旧值（重新 `npx expo start --clear`）。
 4. 服务端 401 body 为空/非 JSON → 是 A 组的全局异常处理没生效，**不要在客户端加 `try/catch` 兜**，回报 A 组（`R` 结构是 §5.1 的冻结契约）。
 5. 若裁决为「段 0 不加鉴权接口」→ 走上面第 8 条的退化方案，并在 `docs/CHANGELOG.md` 记「0-A2 降级」，不要自己发明接口。
 
@@ -1522,7 +1536,7 @@ deploy/verify-all.ps1 的执行顺序（任一失败即停，退出码非 0）
 
 #### 任务 C1：登录页（真接口）
 
-**做什么**：把仓库里已有的 UI 复刻版登录页 `features/auth/pages/LoginPage.tsx` 改造成接真实接口的登录页。UI 与令牌用法保留，**只换数据源与错误处理**。
+**做什么**：以 `ui-reference` 分支里的 UI 复刻版登录页为参考，**重写** `features/auth/pages/LoginPage.tsx` 为真实接口版（原文件已随 `9d589d3` 裁剪删除）。UI 与令牌用法沿用设计稿，**数据源与错误处理按真接口**。
 
 **怎么做**：
 
@@ -1531,7 +1545,7 @@ deploy/verify-all.ps1 的执行顺序（任一失败即停，退出码非 0）
    - 响应 `data`：`accessToken`、`refreshToken`、`expiresIn`、`tokenType`、`user{id,nickname,avatarUrl,phoneMasked,realnameStatus,isMinor,roles,payPasswordSet}`
 2. **`deviceId` 的来源**（容易漏，`0-A2` 会因此 400）：优先 `expo-application` 的 `getAndroidId()`（需新增该依赖）；取不到则生成 UUID 并持久化。**无论哪条路，都必须落到一个 `getDeviceId()` 函数里**，页面不许直接调 `expo-application`。
 3. **token 存放**：走 B2 提供的封装（SecureStore），键名在 B2 已定，页面不许自己拼键名。
-4. **登录成功**：按导航树「登录拦截」的约定，取 `redirect` 参数回原目标页；没有 `redirect` 进 `/(tabs)/home`。
+4. **登录成功**：按导航树「登录拦截」的约定，取 `redirect` 参数回原目标页；没有 `redirect` 进 `/`（启动自证页；段 0 没有 tabs / home）。
 5. **错误归一化**（照《错误码规范》与 A.1.1 的错误码，**不许把英文或原始 message 上屏**）：
    | 错误码 | 上屏文案的 key |
    |---|---|
@@ -1543,10 +1557,10 @@ deploy/verify-all.ps1 的执行顺序（任一失败即停，退出码非 0）
 7. **多语言**：所有文案走 `t()`；`ug-Arab-CN` 下「手机号 / 密码」输入框必须 `textAlign: start` 且数字键盘对齐正确；**手机号用 `LtrText` 包**（RTL 下 11 位数字不能被重排）。
 
 **产出**：
-- `features/auth/pages/LoginPage.tsx`（改造）
+- `features/auth/pages/LoginPage.tsx`（**新建**：原文件已随 `9d589d3` 裁剪删除）
 - `features/auth/api/login.ts`（请求函数，走 `shared/api/client.ts`）
 - `shared/utils/deviceId.ts`（`getDeviceId()`）
-- `app/(auth)/login.tsx` 保持一行 `export`（现有已是，不要动）
+- `app/login.tsx` 保持一行 `export`（B1 已把 `(auth)/login` 改名为 `login`，不要恢复 (auth) 分组）
 
 **算做完**：
 - 用真机 + 真后端，输入种子用户的手机号与密码，能登录并进入首页；
@@ -1629,7 +1643,7 @@ deploy/verify-all.ps1 的执行顺序（任一失败即停，退出码非 0）
          "distribution": "internal",
          "android": { "buildType": "apk" },
          "channel": "preview",
-         "env": { "EXPO_PUBLIC_API_BASE_URL": "http://<PC-局域网IP>:8080" }
+         "env": { "EXPO_PUBLIC_API_BASE_URL": "http://<PC-局域网IP>:8081" }
        },
        "production": {
          "android": { "buildType": "app-bundle" },
@@ -1674,7 +1688,7 @@ deploy/verify-all.ps1 的执行顺序（任一失败即停，退出码非 0）
    adb shell pm list packages | Select-String com.faze.app
    adb logcat -c; adb logcat ReactNativeJS:V AndroidRuntime:E *:S
    ```
-   - baseURL 用 PC 局域网 IPv4（`ipconfig` 取，避开 VMware/WSL 的 172.x 虚拟网卡）；防火墙放行 8080；先在手机浏览器打开 `http://<PC-IP>:8080/api/v1/pub/ping` 确认通。
+   - baseURL 用 PC 局域网 IPv4（`ipconfig` 取，避开 VMware/WSL 的 172.x 虚拟网卡）；防火墙放行 8081；先在手机浏览器打开 `http://<PC-IP>:8081/api/v1/pub/ping` 确认通。
    - 装完先验 `0-A3` 的设备侧证据：切 `ug-Arab-CN` → 杀进程（`adb shell am force-stop com.faze.app`）→ 重开 → **仍是 RTL**。同时记录 `reloadAsync` 的实际表现（成功/抛错/不生效）。
 
 **产出**：
@@ -1846,7 +1860,7 @@ deploy/verify-all.ps1 的执行顺序（任一失败即停，退出码非 0）
 3. `expo/fetch` 在真机一次性吐完（没有逐块）→ 切 `react-native-sse`（记得登记依赖与说明理由）。若两者都不行 → 退回「轮询分段接口」只能证明「能出字」不能证明「流式」，**`0-A5` 记未通过**，报主理人（总纲把它列为一票否决风险）。
 4. `TextDecoder` 不存在 → 用 `expo` 内部实现或手写解码；**不要在 Hermes 里引 `buffer` 包**（体积与兼容性都不值）。
 5. ngram 命中 0 条 → 按序查四项：`SHOW VARIABLES LIKE 'ngram_token_size'`（默认 2，`kw` 必须 ≥2 字）；`EXPLAIN` 是否走了 `ft_law_content`；`law_item` 是否有数据（跑 seed）；`content` 的 `COLLATE` 是否 utf8mb4（ngram 对非 utf8mb4 行为异常）。
-6. `PROBE` 接口在真机 404 → 服务端 profile 是 `prod` 或没配 `dev`；探针只在 `!prod` 注册，先用 `curl http://localhost:8080/api/v1/pub/ping` 确认服务端的 active profile。
+6. `PROBE` 接口在真机 404 → 服务端 profile 是 `prod` 或没配 `dev`；探针只在 `!prod` 注册，先用 `curl http://localhost:8081/api/v1/pub/ping` 确认服务端的 active profile。
 
 ---
 ## 四、本段验收锚点（`0-A1` ~ `0-A8` 逐条展开成可执行验收）
@@ -2006,10 +2020,10 @@ adb -s <serial> shell dumpsys package com.faze.app | Select-String -Pattern 'ver
 | MySQL80 Running | ✅ 已满足（3306 监听） | — |
 | `GET /api/v1/pub/ping` 可访问 | ❌ 未实现 | 接口规范 §7.1 冻结响应 `{appName, version, serverTime, env}` |
 | 真实登录接口 | ⚠️ 契约已冻结（接口规范 附录 A.1.1 `POST /api/v1/pub/auth/login/password`），实现未做 | 段 0 的接口清单已由 §零之二 冲突 1 裁决为 6 个（含登录 + 刷新 + 一个需鉴权资源）；《接口规范》§7.1 待回写，见 §附 不确定项 #6 |
-| 测试账号 | ⚠️ 段 0 **没有注册接口**，`app_user` 表本身是空的；§零之二 冲突 1 已定「`V2` 种子迁移插 1 个可登录的测试用户」 | 种子数据算不算总纲 §6.3 禁带的「硬编码数据」、密码强度、与段 3 全量法条的 `id` 冲突，见 §附 不确定项 #7 |
+| 测试账号 | ⚠️ 段 0 **没有注册接口**；**2026-11-02 负责人拍板：测试用户放 `database/seed/test.sql`（不进 Flyway），`V2` 只放 5 条法条** | 口令明文 123456，**只用于本地验收，上线前删号**；见 `database/seed/test.sql` 文件头 |
 | `shared/api/client.ts` | ❌ **不存在**（实测 `shared/` 只有 components / navigation / theme / utils） | 唯一网络出口，B2 产出 |
 | `expo-secure-store` | ❌ **不在 `package.json` 依赖里**（实测） | 鉴权态持久化要用它，属于本条前置 |
-| 后端日志可读、端口已知 | ⚠️ 端口未在任何文档里定死，下文用 `8080` 占位 | 见 §附 不确定项 #10 |
+| 后端日志可读、端口已知 | ✅ **端口已定 8081**（`.env.example` 的 `FAZE_API_PORT`）；8080 是 RuoYi 的 | — |
 
 **操作步骤**
 
@@ -2020,14 +2034,14 @@ adb -s <serial> shell dumpsys package com.faze.app | Select-String -Pattern 'ver
 $out = 'E:\dshcode\FAZE\docs\acceptance\seg0\0-A2'
 New-Item -ItemType Directory -Force -Path $out | Out-Null
 $ts  = Get-Date -Format 'yyyyMMdd-HHmmss'
-curl.exe -s http://localhost:8080/api/v1/pub/ping | Tee-Object -FilePath "$out\0-A2_ping-before-$ts.json"
+curl.exe -s http://localhost:8081/api/v1/pub/ping | Tee-Object -FilePath "$out\0-A2_ping-before-$ts.json"
 ```
 2. 把 `ping` 的 `env`（或 `version`）改成一眼能认出的串，例如 `PING-CHECK-<ts>`，重启服务端后再取一次：
 ```powershell
-curl.exe -s http://localhost:8080/api/v1/pub/ping | Tee-Object -FilePath "$out\0-A2_ping-after-$ts.json"
+curl.exe -s http://localhost:8081/api/v1/pub/ping | Tee-Object -FilePath "$out\0-A2_ping-after-$ts.json"
 ```
    **必须把值改成人工不可能猜中的串**——如果只把 `"dev"` 改成 `"test"`，页面上一堆 `test` 字样，判不出是不是接口来的。
-3. 冷启动 App 并截图首页（`app/index.tsx`，即 §零之三 裁决改造后的「启动自证页」，由现有 `SplashPage` 改造）：
+3. 冷启动 App 并截图首页（`app/index.tsx` 启动自证页；`SplashPage` 已随 `9d589d3` 裁剪删除，不新增页面）：
 ```powershell
 adb -s <serial> shell am force-stop com.faze.app
 adb -s <serial> shell monkey -p com.faze.app -c android.intent.category.LAUNCHER 1
@@ -2071,13 +2085,13 @@ redis-cli exists <key>
 7. **失效前**，用同一枚 token 直接打一个需鉴权接口，拿到 200：
 ```powershell
 $tok = '<ACCESS_TOKEN>'
-curl.exe -s -i -H "Authorization: Bearer $tok" http://localhost:8080/api/v1/app/account/profile | Tee-Object -FilePath "$out\0-A2_auth-before-$ts.txt"
+curl.exe -s -i -H "Authorization: Bearer $tok" http://localhost:8081/api/v1/app/account/profile | Tee-Object -FilePath "$out\0-A2_auth-before-$ts.txt"
 ```
    期望首行 `HTTP/1.1 200`。
 8. 执行失效动作（做法 ①）。
 9. **失效后**，用**同一枚 token 字符串**再打一次：
 ```powershell
-curl.exe -s -i -H "Authorization: Bearer $tok" http://localhost:8080/api/v1/app/account/profile | Tee-Object -FilePath "$out\0-A2_auth-after-$ts.txt"
+curl.exe -s -i -H "Authorization: Bearer $tok" http://localhost:8081/api/v1/app/account/profile | Tee-Object -FilePath "$out\0-A2_auth-after-$ts.txt"
 ```
    期望首行 `HTTP/1.1 401`，且 body 的 `code` ∈ {`402002`,`402003`}（接口规范 §6.1）。记下响应头 `X-Trace-Id` 与 body 的 `traceId`（两者同值，接口规范 §5.1）。
 10. 回 App 触发任一需鉴权请求（下拉刷新 / 进任一需登录页），观察是否回登录页：
@@ -2266,7 +2280,7 @@ adb -s <serial> logcat -d | Select-String -Pattern 'font','Font' | Tee-Object -F
 | 前置 | 当前状态 | 说明 |
 |---|---|---|
 | 豆包 API key 可用 | ❓ 未验 | 总纲 §5.1 风险表：可用官方免费额度或 mock；**但 mock 通过不算本条通过**（见下） |
-| `law_item` 有数据 | ⚠️ 未入库；按 §零之二 冲突 3 裁决为 **`V2` 迁移插 5 条真实法条**（不是总纲风险表说的 50 条） | 5 条足以验通 ngram；命中率不足再补条目进新迁移，**不改 `V1`** |
+| `law_item` 有数据 | ✅ **2026-11-02 已实测**：`V2` 迁移灌入 5 条真实法条，`law_item` 共 5 行 | 5 条足以验通 ngram；50 条探针数据放 `database/seed/law_items_probe.sql`（不进 Flyway） |
 | ngram 全文索引已建 | ❌ 未建 | MySQL `FULLTEXT ... WITH PARSER ngram` |
 | 探针按钮的落点 | ✅ **已裁决：APP 的 `/dev/probe` 页**（§零之二 冲突 2：总纲「后台点按钮」是措辞错误；PC 侧段 0 不设任何探针入口，否则等于做了第二个 PC 页面） | 本节按此执行，不再讨论 |
 | 服务端可起 | ❌ 无 `services/` | A3 组前置 |
@@ -2286,7 +2300,7 @@ New-Item -ItemType Directory -Force -Path $out | Out-Null
 $ts  = Get-Date -Format 'yyyyMMdd-HHmmss'
 ## 请求体先落成文件，避免 PowerShell 把引号吃掉（本机 curl 是 Windows 版）
 '{"prompt":"测试"}' | Set-Content -Encoding UTF8 "$out\probe-body.json"
-curl.exe -N -sS -X POST "http://localhost:8080/api/v1/pub/probe/ai" `
+curl.exe -N -sS -X POST "http://localhost:8081/api/v1/pub/probe/ai" `
   -H "Content-Type: application/json" `
   --data-binary "@$out\probe-body.json" `
   --max-time 30 -o NUL `
@@ -2299,7 +2313,7 @@ curl.exe -N -sS -X POST "http://localhost:8080/api/v1/pub/probe/ai" `
 5. **连测 3 次**（排除首次冷启动、连接池未热）：App 页面上连点 3 次，把 3 次的读数各截一张（`0-A5_frontend-run{1,2,3}-<ts>.png`）；同时用 curl 连测 3 次留档：
 ```powershell
 1..3 | ForEach-Object {
-  curl.exe -N -sS -X POST "http://localhost:8080/api/v1/pub/probe/ai" `
+  curl.exe -N -sS -X POST "http://localhost:8081/api/v1/pub/probe/ai" `
     -H "Content-Type: application/json" `
     --data-binary "@$out\probe-body.json" `
     --max-time 30 -o "$out\0-A5_sse-run$($_)-$ts.txt" `
@@ -2315,7 +2329,7 @@ mysql -u<user> -p -e "select id, law_code, article_no, left(content,30) as c fro
 ```
 7. 调探针：
 ```powershell
-curl.exe -sS "http://localhost:8080/api/v1/pub/probe/law?kw=合同" | Tee-Object -FilePath "$out\0-A5_law-hit-$ts.json"
+curl.exe -sS "http://localhost:8081/api/v1/pub/probe/law?kw=合同" | Tee-Object -FilePath "$out\0-A5_law-hit-$ts.json"
 ```
 8. **命中依据在返回 JSON 的哪个字段**（接口规范 §7.1 冻结形状）：`{hits:[{id, lawCode, articleNo, snippet, score}]}`
    - **命中证据 = `hits` 长度 ≥ 1**，且每项的 `id` / `lawCode` / `articleNo` 能用同一个 `id` 从 `law_item` 查回来（步骤 9），且 `snippet` 是表里 `content` 的子串（说明是真检索出来的片段，不是拼的），且 `score` > 0。
@@ -2325,7 +2339,7 @@ mysql -u<user> -p -e "select id, law_code, article_no, left(content,40) as c fro
 ```
 10. **换关键词必须换结果**（防硬编码，见「可能假通过」）：
 ```powershell
-curl.exe -sS "http://localhost:8080/api/v1/pub/probe/law?kw=离婚" | Tee-Object -FilePath "$out\0-A5_law-hit-2-$ts.json"
+curl.exe -sS "http://localhost:8081/api/v1/pub/probe/law?kw=离婚" | Tee-Object -FilePath "$out\0-A5_law-hit-2-$ts.json"
 ```
    两次返回的 `hits[].id` 集合必须**不同**。
 11. 探针页把「查询词 + 命中的词 + score」显示出来并截图：`0-A5_probe-page-<ts>.png`。
@@ -2359,7 +2373,7 @@ curl.exe -sS "http://localhost:8080/api/v1/pub/probe/law?kw=离婚" | Tee-Object
 > |---|---|---|
 > | `deploy/start-services.ps1` 存在 | 仓库**无 `deploy/` 目录** | 不满足 |
 > | MySQL 能拉起 | 服务 `MySQL80` 已 Running、3306 监听、Automatic | 已满足 |
-> | **Redis 能拉起** | **本机没有 Redis**：6379 未监听、无 Windows 服务、`redis-server`/`redis-cli` 不在 PATH、常见安装目录均不存在 | **不可能满足** |
+> | **Redis 能拉起** | ~~本机没有 Redis~~ **2026-11-02 更新：已装 tporadowski 5.0.14.1 并注册服务 `redis`，可拉起** | 已满足（版本 5.0.14.1，非 7.x，挂账） |
 > | `-Stop` 能停 Redis | 无 Redis 可停 | **不可能满足** |
 > | `.env.example` | 仓库无 | 不满足 |
 > | Flyway 建出 2 张表 | `services/` 不存在、无 `pom.xml` | 不满足 |
@@ -2369,7 +2383,7 @@ curl.exe -sS "http://localhost:8080/api/v1/pub/probe/law?kw=离婚" | Tee-Object
 >
 > **处置（我不改锚点，只给替代验收 + 挂账，改锚点须负责人确认 —— 总纲 §6.4「砍锚点必须负责人确认」）**：
 >
-> 1. 技术侧先按任务 A2 装 Redis，三条路径按可行性排序：① Windows 版 Redis 兼容实现（Memurai 或 tporadowski 的 redis-for-windows 移植版，解压即用）；② 装 WSL2 发行版后在 WSL 里跑官方 Redis 7；③ 本机装 docker（当前没有）。**注意版本口径**：技术栈锁定 **Redis 7**（AGENTS §2），Windows 移植版通常停在旧版本，WSL2 里才能拿到官方 7.x —— 若只能装到非 7.x，`redis_version` 那一项要么挂账、要么走替代验收，**不许写成「Redis 7 已就绪」**。
+> 1. 技术侧先按任务 A2 装 Redis，三条路径按可行性排序：① Windows 版 Redis 兼容实现（**已采用 tporadowski 5.0.14.1**，解压即用；Memurai 为原计划）；② 装 WSL2 发行版后在 WSL 里跑官方 Redis 7；③ 本机装 docker（当前没有）。**注意版本口径**：技术栈锁定 **Redis 7**（AGENTS §2），Windows 移植版通常停在旧版本，WSL2 里才能拿到官方 7.x —— 若只能装到非 7.x，`redis_version` 那一项要么挂账、要么走替代验收，**不许写成「Redis 7 已就绪」**。
 > 2. 装不上时，**唯一合法的替代验收方式**（须负责人书面签字，技术侧不得自行降级）：
 >    - 脚本仍必须实现「起 MySQL + 起 Redis」**两段逻辑**；Redis 段在检测到二进制缺失时**必须显式失败并打印缺失原因**（不许静默跳过、不许 `try/catch` 吞掉、不许打印假的「已连接」）；
 >    - 替代验收只验四件事：MySQL 从 **Stopped** 拉起到 3306 通、Flyway 建出 2 张表、`-Stop` 幂等、RuoYi 登录 + `biz` 菜单；Redis 两项记 **`未验 / 阻塞`**；
@@ -2402,7 +2416,7 @@ Test-NetConnection 127.0.0.1 -Port 6379 | Select-Object TcpTestSucceeded
 redis-cli ping            # 期望 PONG
 redis-cli info server | Select-String redis_version
 ```
-   全部存 `0-A6_ports-$ts.txt`（`redis_version` 必须是 **7.x**，技术栈锁定 Redis 7 —— AGENTS §2）。
+   全部存 `0-A6_ports-$ts.txt`（`redis_version` 实为 **5.0.14.1**：技术栈锁定 Redis 7（AGENTS §2），**版本差按负责人 2026-11-02 指示挂账**，不许写成「Redis 7 已就绪」）。
 4. Flyway 与表数：
 ```powershell
 mvn -f services/faze-api/pom.xml -DskipTests flyway:info 2>&1 | Tee-Object -FilePath "$out\0-A6_flyway-$ts.txt"
@@ -2422,9 +2436,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\deploy\start-services.ps1 
 
 | 结论 | 必须同时成立 |
 |---|---|
-| **通过**（Redis 已装前提下） | ① 步骤 1 起点成立（MySQL Stopped + 6379 False）；② 步骤 2 退出码 0；③ 步骤 3 两个端口都 True、`redis-cli ping` 返回 `PONG`、`redis_version` 为 7.x；④ 步骤 4 业务表**恰好 2 张**；⑤ 步骤 5 Redis 端口变 False 且 `-Stop` 幂等；⑥ 步骤 6 截到 `biz` 菜单；⑦ 全流程**一条命令可重复**：再跑一次仍成功且不报「已存在」。 |
+| **通过**（Redis 已装前提下） | ① 步骤 1 起点成立（MySQL Stopped + 6379 False）；② 步骤 2 退出码 0；③ 步骤 3 两个端口都 True、`redis-cli ping` 返回 `PONG`、`redis_version` 为 5.0.14.1（版本差已挂账，非 7.x）；④ 步骤 4 业务表**恰好 2 张**；⑤ 步骤 5 Redis 端口变 False 且 `-Stop` 幂等；⑥ 步骤 6 截到 `biz` 菜单；⑦ 全流程**一条命令可重复**：再跑一次仍成功且不报「已存在」。 |
 | **不通过（任一命中）** | ① 脚本打印「已连接」但独立探测为 False；② 业务表多于 2 张（混进了别的 DDL）；③ 必须手工先起服务、再跑脚本（那就不是「可复现」）；④ Redis 用非 Redis 7 的兼容实现却宣称 Redis 7（版本号不符要么挂账、要么负责人书面接受，**不许含糊**）。 |
-| **当前实际结论** | **不通过**（Redis 缺口 + `deploy/` 与 `services/` 都不存在）。 |
+| **当前实际结论** | **2026-11-02 更新**：Redis 已就位（5.0.14.1）、MySQL 凭据已提供、Flyway 已建出 2 张表（`app_user` + `law_item`）；剩余 RuoYi 登录 + `biz` 菜单未验。 |
 
 **证据形式**（`docs/acceptance/seg0/0-A6/`）：`_meta.md`、`0-A6_before-<ts>.txt`、`0-A6_start-<ts>.txt`、`0-A6_ports-<ts>.txt`、`0-A6_flyway-<ts>.txt`、`0-A6_tables-<ts>.txt`、`0-A6_stop-<ts>.txt`、`0-A6_ruoyi-biz-menu-<ts>.png`、`0-A6_gap.md`（Redis 缺口的说明 + 替代验收范围 + **负责人签字**）。
 
@@ -2701,8 +2715,8 @@ docs/acceptance/seg0/
 
 | 类别 | 名称 | 位置 | 段末状态 |
 |---|---|---|---|
-| APP 页面 | 登录页（真接口） | `apps/mobile-app/features/auth/pages/LoginPage.tsx`（已有，改造成真接口）+ 路由壳 `apps/mobile-app/app/(auth)/login.tsx` | 改造：去掉 `__fixtures__`，走 `POST /api/v1/pub/auth/login/password`；四态齐全 |
-| APP 页面 | 启动自证页（**改造 `SplashPage`，不新增页**） | `apps/mobile-app/features/auth/pages/SplashPage.tsx`（已有，§零之三 裁决改造）+ `app/index.tsx` | 改造：显示 `/api/v1/pub/ping` 的真实返回值（`0-A2`「首页数据非硬编码」的落点）；**不计入 68 页清单的新增页** |
+| APP 页面 | 登录页（真接口） | `apps/mobile-app/features/auth/pages/LoginPage.tsx`（**新建**：原文件已随 `9d589d3` 裁剪删除）+ 路由壳 `apps/mobile-app/app/login.tsx` | 新建：走 `POST /api/v1/pub/auth/login/password`；四态齐全 |
+| APP 页面 | 启动自证页（不新增页） | `apps/mobile-app/app/index.tsx`（**`SplashPage` 已随 `9d589d3` 裁剪删除**） | 改造：显示 `/api/v1/pub/ping` 的真实返回值（`0-A2`「首页数据非硬编码」的落点）；**不计入 68 页清单的新增页** |
 | APP 页面 | 语言切换页 | `apps/mobile-app/features/settings/pages/LanguagePage.tsx`（新建）+ 路由壳 `apps/mobile-app/app/language.tsx`（与 §三 任务 C2 一致） | 新建：四语言选项（默认 `zh-Hans`）+ `forceRTL` + `Updates.reloadAsync` + 启动时按持久化值再置一次 |
 | 非产品页 | `/dev/probe` 探针页 | `apps/mobile-app/app/dev/probe.tsx` + `features/dev/pages/ProbePage.tsx` | 新建：藏文区块（三档字号）+ AI 首字节计时 + `ping` 回显；**不进 release 包**（`__DEV__` 门控 + preview 独立 profile） |
 | 非产品页 | `/dev/rtl` 探针页 | `apps/mobile-app/app/dev/rtl.tsx` + `features/dev/pages/RtlProbePage.tsx` | 新建：返回箭头 / 30% 进度条 / 3 个 Tab / `marginStart-End` 两方块 / `isRTL` 显示；**不进 release 包** |
@@ -2715,7 +2729,7 @@ docs/acceptance/seg0/
 | 接口 | `GET /api/v1/pub/probe/law?kw=` | 同上 | 新建：`@Profile("!prod")`，返回 `{hits:[{id, lawCode, articleNo, snippet, score}]}` |
 | 表 | `app_user` | `services/faze-api/src/main/resources/db/migration/V1__baseline.sql` | 新建：按《V1 基线表结构_v1.0》DDL 抄，不改字段 |
 | 表 | `law_item` | 同上 | 新建：结构完整；**数据另由 `V2` 迁移灌 5 条真实法条**（§零之二 冲突 3 裁决，不是 50 条），全量入库在段 3 |
-| 表 | `V2` 数据迁移（种子） | `services/faze-api/src/main/resources/db/migration/V2__*.sql` | 新建：1 个可登录测试用户（`password_hash` 为 BCrypt）+ 5 条法条；**只灌数据、不建表**（所以 `0-A6` 的「业务表恰好 2 张」仍成立） |
+| 表 | `V2` 数据迁移（种子） | `services/faze-api/src/main/resources/db/migration/V2__init_law_items.sql` | 新建：**只放 5 条法条**（只灌数据、不建表，`0-A6` 的「业务表恰好 2 张」成立）；**可登录测试用户放 `database/seed/test.sql`（不进 Flyway，负责人 2026-11-02 拍板）** |
 | 配置 | `apps/mobile-app/eas.json` | `apps/mobile-app/eas.json` | 新建：`build.preview.android.buildType = "apk"`；`0-A1` 的硬前置 |
 | 配置 | `app.json` 的 `extra.eas.projectId` | `apps/mobile-app/app.json` | 改造：`eas init` 后回填（当前缺失） |
 | 配置 | `eslint.config.mjs` 新增三条规则 | `apps/mobile-app/eslint.config.mjs` | 改造：`no-raw-text`（禁裸 `<Text>`）、禁物理方向属性（`marginLeft/Right`、`paddingLeft/Right`、`left/right`）、`no-dynamic-i18n-key`（i18n 规范 §11.1 第 6 条）。**当前一条都没有** |
@@ -2746,7 +2760,7 @@ docs/acceptance/seg0/
 | # | 风险 | 一票否决？ | 出口（按顺序） | 最晚处理时点 |
 |---|---|---|---|---|
 | R1 | **出不了可安装包**：本机只有 adb、无 Android SDK | **原本会**（总纲称之为唯一会推翻全盘的风险）。**实测降级**：本机虽无 SDK，但 `eas-cli/22.0.0` 已装且**已登录**（`1454132yqm`，Owner），EAS 云构建通道**已就绪**，不需要本机 SDK | ① **EAS 云构建（已就绪，首选）**：需新建 `eas.json`；`expo-dev-client` 当前未装（仅走 dev-client 通道时才需要）② 本机装完整 SDK：`cmdline-tools` + `build-tools` + `platforms;android-35`（`platform-tools` 已有），JDK 17 已有 → 本地 Gradle ③ dev-client 内测分发 ④ 三条全不通才需要重设计分期体系 | D1 第一天 |
-| R2 | **Redis 装不上**（本机完全没有） | 不会，但 `0-A6` 过不了 | ① Memurai for Windows（与 Redis 协议兼容、有 Windows 服务）② 微软归档的 Windows 版 redis ③ WSL2 内装 Redis ④ 书面申请改 `0-A6`（**改锚点须负责人确认**，技术侧不得自行把「MySQL 通」当「环境可复现」签字） | A2 第一天 |
+| R2 | ~~**Redis 装不上**（本机完全没有）~~ **已解决（2026-11-02）**：tporadowski 5.0.14.1 注册为服务 `redis`，`PING=PONG`；`redis_version` 非 7.x 记版本差挂账 | 不阻塞 `0-A6` 的拉起/停止，但版本判定要如实记录 | ① ~~Memurai~~ ② ~~微软归档版~~ ③ ~~WSL2~~ ④ ~~改 `0-A6`~~（均已不需要） | 已完成 |
 | R3 | **藏文字体无可用开源方案 / 无商用授权** | **会**（`0-A4` 直接失败，段 4 的文书 PDF 也依赖它） | ① Noto Sans Tibetan（SIL OFL，可商用）② 字形覆盖不足 → 「藏文改用图片资源」③ 放弃 `bo` 语言 ④ **②③ 是产品范围决策，必须负责人拍板**，技术侧自行降级不可接受 | D2，且必须在段 4 之前定 |
 | R4 | 豆包 key / 配额未就绪 | 不会 | 官方免费额度；仍不行 → `PROBE_STUB` 开关返回固定流，**并在 `CHANGELOG.md` 登记「待替换」**（不许 Mock 后忘记） | D3 |
 | R5 | `law_item` 探针数据不足 | 不会 | `V2` 迁移的 5 条真实法条（《V1基线表结构》§五）；命中率不足再补，**补的条目进新迁移，不改 `V1`/`V2`** | D3 |
@@ -2845,8 +2859,8 @@ docs/acceptance/seg0/
 
 | # | 事项 | 卡住什么 | 建议 |
 |---|---|---|---|
-| 1 | **存量 15 个页面的删除授权** | 开工第 0 步；不删则 `0-A7` 与 `0-A3` 都无法验（见 §零之三） | 同意删，先打 `ui-reference` 分支保底 |
-| 2 | **MySQL root（或有建库权的账号）凭据** | A3 的建库、建应用账号、查 `ngram_token_size`（实测 `mysql -uroot` 返回 `ERROR 1045 Access denied`） | 提供凭据，或给一个能建库的账号 |
+| 1 | ~~存量 15 个页面的删除授权~~ **已执行（2026-11-02）：提交 `9d589d3` 裁剪完成，`ui-reference` 已推远端** | — | 已关闭 |
+| 2 | ~~MySQL root 凭据~~ **已提供（2026-11-02）：root/123456；`faze` 库与 `faze_app` 账号已建，授权已按 §三 A3 (6) 收紧；`ngram_token_size` 实测 = 2** | — | 已关闭 |
 | 3 | ~~RuoYi 后端版本选型~~ **已裁决（2026-11-01）** | — | 定为 **RuoYi-Vue 3.9.2 官方发行版（tag `v3.9.2` / Spring Boot 4.0.3）**，`faze-api` 同步升 Spring Boot 4.0。**原未决项已关闭（2026-11-01）**：MP 用 `mybatis-plus-spring-boot4-starter:3.5.18.1`，见 §零之四 与 `docs/acceptance/seg1/A3-mp-probe.md` |
 | 4 | **藏文字体来源与商用授权** | `0-A4`；段 4 的文书 PDF 也依赖它 | 给授权结论。若 Noto Sans Tibetan 覆盖不足，「藏文改用图片」或「放弃 `bo`」是**产品范围决策**，不许技术侧自行降级 |
 
@@ -2856,13 +2870,13 @@ docs/acceptance/seg0/
 |---|---|---|---|
 | 5 | `Updates.reloadAsync()` 在 preview（release）包里是否可用 | 技术路线 §13.4 自标「待实测」；不配 `updates.url` 时可能被禁用 | `0-A3` 允许退「手动杀进程重启」，但**必须在 §九 记偏差**，软重启链路列入段 8 前必补 |
 | 6 | `expo/fetch` 在真机上是否逐块回调 | RN 0.81 的全局 `fetch` 是 XHR 实现、没有 `response.body`；`expo/fetch` 存在但未在真机跑过 | 退回 `react-native-sse`（多一个依赖，需登记） |
-| 7 | `ngram_token_size` 本实例的实际值 | 只读参数，必须连库查；若被改过，命中行为与文档假设不一致 | 不为 2 时改 `my.ini` 并重启 MySQL，再重建全文索引 |
+| 7 | ~~`ngram_token_size` 本实例的实际值~~ **已实测 = 2（2026-11-02）** | — | 已关闭 |
 
 ### 10.3 允许挂账（3 条）
 
 | # | 事项 | 挂到哪 | 为什么可以拖 |
 |---|---|---|---|
-| 8 | `0-A6` 是否拆成 `0-A6a`/`0-A6b`（Redis 拆出） | 段 1 开工前置 | 段 0 服务端不用 Redis；但**拆锚点须书面确认** |
+| 8 | ~~`0-A6` 是否拆成 `0-A6a`/`0-A6b`（Redis 拆出）~~ **不拆分（2026-11-02）：Redis 已用 tporadowski 5.0.14.1 就位，`0-A6` 按完整锚点验；`redis_version` 非 7.x 记版本差挂账** | 段 1 开工前置（评估升级 Redis 7） | 已决定 |
 | 9 | 豆包 key / 推理接入点 ID（`ep-xxxxxxxx`）/ 配额 | D3 当天 | 可用 `PROBE_STUB` mock，但 mock 只能记「链路未验」，不能记「通过」 |
 | 10 | 真 CI 平台与触发策略 | **段 1 开工前（硬期限）** | 段 0 用 `deploy/verify-all.ps1` 等价；段 1 是账务内核，必须上真 CI |
 
@@ -2878,6 +2892,26 @@ docs/acceptance/seg0/
 | `README.md` L55 | 写「`database/` 建库脚本 + Flyway 迁移」，但 Flyway 迁移必须在 `services/faze-api/src/main/resources/db/migration/`（classpath）才能打进 jar |
 | `docs/analysis/ruoyi-patches.md` | **被 AGENTS §3.3 引用，但文件不存在**（第一次 patch 时才建，需在 A1 建空文件并写使用规则） |
 | `docs/architecture/依赖清单.md` | **被 AGENTS §4.12 要求，但文件不存在**（A1 建） |
+
+## 十一、施工前提不确定项索引（2026-11-02 复核；对应正文里的「§附 不确定项 #N」）
+
+> 正文多处引用「§附 不确定项 #N / 第四节不确定项 #N」，此前文档没有这一节（引用断链）。这里补齐并给状态。
+
+| # | 不确定项 | 结论（2026-11-02） |
+|---|---|---|
+| 1 | MySQL root / 建库凭据缺失 | ✅ 已解决：root/123456；`faze` 库与 `faze_app` 已建 |
+| 2 | RuoYi 后端版本 | ✅ 已裁决：RuoYi-Vue 3.9.2 / Spring Boot 4.0.3 |
+| 3 | EAS 账号 | ✅ 已登录（`eas whoami` = 1454132yqm） |
+| 4 | `0-A3` 的 Tab / 进度条无载体 | ✅ 已裁决：由 `/dev/rtl` 探针页承载 |
+| 5 | 真机未接入（`adb devices` 为空） | ⏳ 未解决：D 组前必须接入（模拟器不算） |
+| 6 | 《接口规范》§7.1 段 0 清单（3 → 6） | ✅ 已回写：接口规范 v1.34 已是 6 个 |
+| 7 | 测试用户放哪 | ✅ 已拍板：`database/seed/test.sql`（不进 Flyway） |
+| 8 | 藏文字体来源与商用授权 | ⏳ 未解决：`0-A4` 前必须定 |
+| 9 | 豆包 key / `ep-` 推理接入点 | ⏳ 未解决：D3 前；mock 只能记「未验」 |
+| 10 | faze-api 端口 | ✅ 已定 8081（RuoYi 占 8080） |
+| 11 | MySQL 建库字符集参数写法 | ✅ 已修正：JDBC URL 用 `characterEncoding=UTF-8`（`utf8mb4` 非法） |
+| 12 | SB 版本 / Flyway / Jackson 模块 | ✅ 已实测修正：parent 4.0.6、加 `spring-boot-flyway`、Jackson 3（见 §三 A3 依赖表） |
+
 
 
 ---

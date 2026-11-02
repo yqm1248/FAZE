@@ -4,6 +4,30 @@
 
 ---
 
+## 2026-11-02 · 段 0 开工前复核：修正 5 处施工前提错误（基线 v1.35）
+
+**起因**：第 0 段 A1（仓库骨架）、A2（本地服务脚本）已完成并实测通过；A3（服务端骨架）写代码前，负责人要求「先搁置写代码，先复核前提」。
+
+**复核做了什么（全部实测）**：Maven 依赖解析、`mvn compile`、应用启动、Flyway 迁移、MySQL DDL/ngram 命中、Redis 启停、jjwt 与 Jackson 依赖树。
+
+**发现并修正的 5 处前提错误（文档级）**：
+
+| # | 文档写的 | 实测 | 修正 |
+|---|---|---|---|
+| 1 | parent `4.0.10` | central 上 4.0.x 最新是 **4.0.9**，4.0.10 不存在；本机 `.m2` 的 4.0.10 目录只有一个 `.lastUpdated` 失败标记 | 改 **4.0.6**（本地有真 pom，与 RuoYi 4.0.3 同一大版本） |
+| 2 | 依赖表列了 `spring-boot-starter-aop` | SB 4.0 起**没有这个 starter**（同位置叫 `spring-boot-starter-aspectj`） | 删掉（段 0 无切面需求） |
+| 3 | Flyway 只加 `flyway-core` + `flyway-mysql` | **SB4 还要 `spring-boot-flyway` 模块**；只加前两个时应用能启动，但**不执行迁移、库内 0 张表** | 补 `spring-boot-flyway` |
+| 4 | `.env` 里 `characterEncoding=utf8mb4` | Connector/J 报 `Unsupported character encoding 'utf8mb4'`（要 Java 字符集名） | 改 `characterEncoding=UTF-8` |
+| 5 | 0-A2 / 0-A5 / D1 / B2 用 8080 | 8080 是 RuoYi 的；faze-api 早已定 8081 | 全文 12 处 `:8080/api` → `:8081/api` |
+
+**顺带修正的文档矛盾**：`(auth)/login` → `app/login`、`/(tabs)/home` → `/`、SplashPage「改造」→ `app/index.tsx`（已随 `9d589d3` 删除）、A3 补登录/刷新/资料三接口（落 `modules/account/`）与 `deploy/start-api.ps1`、§十 关闭已解决的 1/2/7/8 项、新增 §十一「不确定项索引」（修掉正文「§附 不确定项」引用断链）、§二 自述「14 项」→ 16 项。Redis 由 Memurai 改为 **tporadowski 5.0.14.1**（负责人指定，版本差挂账）。
+
+**实测结论（本版依据）**：SB **4.0.6** / Spring 7.0.7 / Security 7.0.5 / Tomcat 11.0.21 / MP 3.5.18.1；Flyway v1/v2 执行成功，`faze` 库 **2 张业务表**（`app_user`、`law_item`）+ `flyway_schema_history`；`law_item` 共 **5 条**法条、含 `WITH PARSER ngram`、`MATCH('借款')` 命中 2 条、单字 `婚` 命中 0；`ngram_token_size=2`；Redis tporadowski **5.0.14.1** `PING=PONG`；测试用户 `13800000001` 已灌入（`database/seed/test.sql`，不进 Flyway）。
+
+**本版改动**：内容变更 **3 份**（第 0 段工作流 / 依赖清单 / docs/README）。资产数不变 **38**。基线 v1.34 → **v1.35**。
+
+---
+
 ## 2026-11-02 · 新增《第 7 段工作流 v1.0》：运营与治理收口（基线 v1.34）
 
 **起因**：负责人要求「写第 7 段工作流计划书」，并设了执行约束：**只改自己写的第 7 段计划书；先只检查前提，不够就问，不要硬写**。
