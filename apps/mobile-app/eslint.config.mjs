@@ -130,6 +130,16 @@ export default tseslint.config(
   },
 
   {
+    // 豁免 2.5：字体资源映射——`expo-font` 的 `useFonts` 必须用 `require('*.ttf')`，
+    // Metro 只认 require 形式的资源引用，静态 import 拿不到 asset id。
+    // 这是 Expo 官方写法，不是绕规则；本文件除这两个 require 外没有别的 require。
+    files: ['shared/theme/fonts.ts'],
+    rules: {
+      '@typescript-eslint/no-require-imports': 'off',
+    },
+  },
+
+  {
     // 豁免 3：设计令牌的唯一实现位置允许颜色字面量；
     // app.config.ts 的颜色是 app 清单要求（splash / adaptiveIcon），无法引用 TS 令牌。
     files: ['shared/theme/**/*.ts', 'app.config.ts'],

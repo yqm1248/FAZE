@@ -8,18 +8,15 @@
  *      （`no-restricted-imports` 的豁免块里显式列出这两个文件）。
  *   2. `numberOfLines` **必须显式传**：阿拉伯系的连写文字在自动折行时会把字母断开，
  *      必须由调用方给出行数上限（i18n 规范 §7.1）。
- *   3. 字体族名与 D2 加载的字体文件保持一致；段 0 字体文件未落地（D2 才装），
- *      未加载时 RN 会自动回退系统字体——**这是预期行为，不是 bug**。
+ *   3. 字体族名取自 `shared/theme/fonts.ts`，与 `app/_layout.tsx` 的 `useFonts` key 必须一致；
+ *      字体未加载完时 RN 会回退系统字体（`_layout` 已做门控，正常路径不会看到回退）。
  *   4. 不切方向、不管 `t()`：方向归 `LtrText` 与 `I18nManager`，文案归 `useI18n().t()`。
  */
 
 import { Text } from 'react-native';
 import type { StyleProp, TextProps, TextStyle } from 'react-native';
 
-/** 藏文字体族名（D2 落地字体文件后与此一致）。 */
-const FONT_TIBETAN = 'NotoSansTibetan';
-/** 阿拉伯系字体族名（维吾尔文 / 哈萨克文共用）。 */
-const FONT_ARABIC = 'NotoNaskhArabic';
+import { FONT_FAMILY } from '@/shared/theme/fonts';
 
 /** 文本片段所属书写系统。 */
 type ScriptKind = 'tibetan' | 'arabic' | 'default';
@@ -93,10 +90,10 @@ function splitRuns(input: string): TextRun[] {
  */
 function fontStyleOf(script: ScriptKind): TextStyle | undefined {
   if (script === 'tibetan') {
-    return { fontFamily: FONT_TIBETAN };
+    return { fontFamily: FONT_FAMILY.tibetan };
   }
   if (script === 'arabic') {
-    return { fontFamily: FONT_ARABIC };
+    return { fontFamily: FONT_FAMILY.arabic };
   }
   return undefined;
 }

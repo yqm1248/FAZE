@@ -21,3 +21,5 @@ export {
 export type { Tokens } from './tokens';
 
 export { typography, lineHeightFor } from './typography';
+
+export { FONT_ASSETS, FONT_FAMILY } from './fonts';

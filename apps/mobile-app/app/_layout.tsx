@@ -17,6 +17,7 @@
 
 import type { ErrorBoundaryProps } from 'expo-router';
 import { router, Stack } from 'expo-router';
+import { useFonts } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -28,7 +29,7 @@ import { ToastProvider } from '@/shared/components/AppToast';
 import { LocalizedText } from '@/shared/components/LocalizedText';
 import { I18nProvider, useI18n } from '@/shared/i18n';
 import { ensureDirection } from '@/shared/i18n/rtl';
-import { color, spacing, typography } from '@/shared/theme';
+import { color, FONT_ASSETS, spacing, typography } from '@/shared/theme';
 
 /** 错误边界的兜底文案：i18n 未就绪时也要能显示（不查 `t()`）。 */
 const BOUNDARY_MESSAGES = {
@@ -113,6 +114,13 @@ function RootNavigator() {
  * @returns 全部 Provider 包裹的路由树
  */
 export default function RootLayout() {
+  // 藏文 / 阿拉伯系字体按需加载：未就绪时只铺底色，避免「先闪系统字形再跳自定义字形」。
+  // 加载**失败**（fontError）时继续渲染——回退系统字体总比卡在启动屏好。
+  const [fontsLoaded, fontError] = useFonts(FONT_ASSETS);
+  if (!fontsLoaded && fontError === null) {
+    return <View style={styles.boot} />;
+  }
+
   return (
     <SafeAreaProvider>
       {/* 页面底色为浅色，状态栏固定使用深色文字。 */}
@@ -125,6 +133,10 @@ export default function RootLayout() {
 }
 
 const styles = StyleSheet.create({
+  boot: {
+    flex: 1,
+    backgroundColor: color.background.canvas,
+  },
   boundary: {
     flex: 1,
     paddingHorizontal: spacing.xl,
