@@ -4,6 +4,23 @@
 
 ---
 
+## 2026-11-04 · 段 0 D1 云构建启动（基线 v1.40）
+
+**范围**：D1 的「云构建」部分——产出可安装的 `preview` APK 构建，并写清「换机器怎么重建」。**真机安装与 `0-A1` 判定不在本次范围**（本机 `adb devices` 为空）。
+
+**已做的事**：`eas.json`（3 个 profile，`preview` 出 APK、`production` 出 AAB 且只占位）；`app.config.ts` 补 `extra.eas.projectId`、`runtimeVersion: { policy: 'appVersion' }`、`updates: { checkAutomatically: 'NEVER' }`（**不配 `updates.url`**，否则联网拉更新会污染 `0-A8`）；装 `expo-dev-client`（仅 development profile 调试用）。
+
+**构建记录**：EAS 项目 `@1454132yqm/faze`（projectId `06aff2d2-…`）、buildId `f6d854fa-7132-4c04-a37b-eabed777fa00`、profile `preview`、APK 形态、keystore **由 EAS 云端生成并托管**（本机无 keytool，`.gitignore` 已忽略 `*.jks`）、内联 baseURL `http://192.168.43.186:8081`。
+构建页面：https://expo.dev/accounts/1454132yqm/projects/faze/builds/f6d854fa-7132-4c04-a37b-eabed777fa00
+
+**踩到的坑（已写进构建路径文档）**：① `eas init` 在该账号下必须带 `--account 1454132yqm`，否则报「multiple accounts」；② 动态配置（`app.config.ts`）**无法被 `eas init` 自动写入 projectId**，必须手写；③ `EXPO_PUBLIC_API_BASE_URL` 是**构建期内联**，换网段必须重建；④ 本机没有 `keytool`，keystore 只能云端生成。
+
+**本版没做的事（全部待真机）**：`adb shell pm list packages` 含 `com.faze.app`、点图标启动无 `FATAL EXCEPTION`、APK 的 SHA256、切 `ug-Arab-CN` 后 `am force-stop` 重开仍 RTL、`reloadAsync` 的实际结论、第二人独立构建——**`0-A1` 一条都还不能签字**。
+
+**基线**：v1.39 → **v1.40**，新增 **1 份**（构建路径），内容变更 **2 份**（依赖清单 / docs/README），资产数 40 → **41**。
+
+---
+
 ## 2026-11-04 · 段 0 C 组完成：登录页 + 语言切换页（基线 v1.39）
 
 **范围**：C1 登录页（真接口）/ C2 语言切换页（`forceRTL` + 软重启）。C 组是 `0-A2` 与 `0-A3` 的**唯一载体**。
