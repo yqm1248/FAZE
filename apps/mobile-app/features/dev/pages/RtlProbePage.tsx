@@ -43,7 +43,7 @@ export default function DevRtlScreen() {
       <View style={styles.header}>
         <DirectionalIcon name="arrow-back" size={24} color={color.text.body} />
         <LocalizedText numberOfLines={1} style={styles.headerTitle}>
-          {`isRTL = ${String(rtl)}`}
+          {`isRTL = ${rtl === undefined ? 'undefined（web 无原生方向）' : String(rtl)}`}
         </LocalizedText>
       </View>
 

@@ -13,7 +13,7 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import { I18nManager } from 'react-native';
-import type { StyleProp, ViewStyle } from 'react-native';
+import type { StyleProp, TextStyle } from 'react-native';
 
 import type { DirectionalIconName } from './icons';
 
@@ -25,8 +25,8 @@ export type DirectionalIconProps = {
   size: number;
   /** 颜色（必须来自令牌）。 */
   color: string;
-  /** 额外样式。 */
-  style?: StyleProp<ViewStyle>;
+  /** 额外样式（Ionicons 的 style 是 TextStyle 类型，不是 ViewStyle）。 */
+  style?: StyleProp<TextStyle>;
 };
 
 /**

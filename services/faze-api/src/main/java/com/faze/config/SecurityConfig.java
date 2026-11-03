@@ -20,6 +20,7 @@ import com.faze.security.RestAuthenticationEntryPoint;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -56,8 +57,9 @@ public class SecurityConfig {
         http
                 // 前后端分离 + JWT：CSRF 无意义（没有 cookie 会话可被利用）
                 .csrf(AbstractHttpConfigurer::disable)
-                // 段 0 不跨域：RN 原生请求没有 Origin 限制，PC 后台是独立服务（RuoYi 自己有 CORS 配置）
-                .cors(AbstractHttpConfigurer::disable)
+                // CORS：真机 RN 不受同源限制，生产 profile 下 CorsConfig 不存在 → 此处退化为空配置。
+                // dev profile 下由 config/CorsConfig 放开本机 8090（expo web 自测用）。
+                .cors(Customizer.withDefaults())
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)
                 .logout(AbstractHttpConfigurer::disable)

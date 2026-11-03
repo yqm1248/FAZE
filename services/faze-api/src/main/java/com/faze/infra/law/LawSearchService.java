@@ -20,6 +20,7 @@ import com.faze.common.exception.ErrorCode;
 import com.faze.infra.law.dto.LawHitVO;
 import com.faze.infra.law.mapper.LawItemMapper;
 import com.faze.infra.law.mapper.LawSearchRow;
+import java.util.ArrayList;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -33,6 +34,13 @@ public class LawSearchService {
 
     /** kw 最大长度（字符）。契约未定，A3 补：1~50，超出直接 401001。 */
     public static final int MAX_KW_LENGTH = 50;
+    /**
+     * ngram 切分粒度：必须与 MySQL 实例的 `ngram_token_size` 一致（实测 = 2）。
+     *
+     * <p>不一致时「依据」与「命中」会对不上——D3 明确要求同口径。</p>
+     */
+    private static final int NGRAM_TOKEN_SIZE = 2;
+
     /** 默认返回条数。 */
     private static final int DEFAULT_LIMIT = 10;
     /** 摘要前文长度（命中词之前保留的字符数）。 */
@@ -96,7 +104,114 @@ public class LawSearchService {
         vo.setArticleNo(row.getArticleNo());
         vo.setSnippet(buildSnippet(row.getContent(), kw));
         vo.setScore(round6(row.getScore()));
+        vo.setMatchedTerms(matchedTermsOf(kw, row.getContent()));
         return vo;
+    }
+
+    /**
+     * 计算命中依据：切出的 token 里，在原文中实际出现过的那些。
+     *
+     * @param kw      关键词
+     * @param content 条文原文
+     * @return token 列表；无命中时返回空列表（不返回 null）
+     */
+    private List<String> matchedTermsOf(String kw, String content) {
+        if (content == null || content.isEmpty()) {
+            return List.of();
+        }
+        List<String> matched = new ArrayList<>();
+        for (String token : ngramTokens(kw)) {
+            if (content.contains(token) && !matched.contains(token)) {
+                matched.add(token);
+            }
+        }
+        return matched;
+    }
+
+    /**
+     * 按 MySQL ngram 的口径切词（近似）。
+     *
+     * <p>规则：中文按 {@value #NGRAM_TOKEN_SIZE} 字滑窗；连续的 ASCII 字母数字作为整体一个 token；
+     * 长度不足的片段不产生 token（这正是「单字查询 0 命中」的原因）。</p>
+     *
+     * <p>**是近似而非完全等价**：MySQL 的 ngram 对英文也按字符切，这里按词整体保留。
+     * 段 0 的中文探针不受影响；若将来要严格等价，应改为直接查
+     * `INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE`（需要设置 `innodb_ft_aux_table`）。</p>
+     *
+     * @param kw 关键词
+     * @return token 列表
+     */
+    private List<String> ngramTokens(String kw) {
+        List<String> tokens = new ArrayList<>();
+        StringBuilder cjk = new StringBuilder();
+        StringBuilder ascii = new StringBuilder();
+
+        for (char ch : kw.toCharArray()) {
+            if (isAsciiAlnum(ch)) {
+                flushCjk(cjk, tokens);
+                ascii.append(ch);
+            } else if (isCjk(ch)) {
+                flushAscii(ascii, tokens);
+                cjk.append(ch);
+            } else {
+                flushCjk(cjk, tokens);
+                flushAscii(ascii, tokens);
+            }
+        }
+        flushCjk(cjk, tokens);
+        flushAscii(ascii, tokens);
+        return tokens;
+    }
+
+    /**
+     * 把中文缓冲按 N 字滑窗切成 token；不足 N 字则不产生 token。
+     *
+     * @param buffer 中文缓冲（会被清空）
+     * @param tokens 输出列表
+     */
+    private void flushCjk(StringBuilder buffer, List<String> tokens) {
+        if (buffer.length() < NGRAM_TOKEN_SIZE) {
+            buffer.setLength(0);
+            return;
+        }
+        String text = buffer.toString();
+        for (int i = 0; i + NGRAM_TOKEN_SIZE <= text.length(); i++) {
+            tokens.add(text.substring(i, i + NGRAM_TOKEN_SIZE));
+        }
+        buffer.setLength(0);
+    }
+
+    /**
+     * 把 ASCII 缓冲整体作为一个 token；不足 2 字符则丢弃。
+     *
+     * @param buffer ASCII 缓冲（会被清空）
+     * @param tokens 输出列表
+     */
+    private void flushAscii(StringBuilder buffer, List<String> tokens) {
+        if (buffer.length() >= 2) {
+            tokens.add(buffer.toString());
+        }
+        buffer.setLength(0);
+    }
+
+    /**
+     * 是否 ASCII 字母或数字。
+     *
+     * @param ch 字符
+     * @return 是则 true
+     */
+    private boolean isAsciiAlnum(char ch) {
+        return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9');
+    }
+
+    /**
+     * 是否 CJK 统一表意文字（含扩展 A）。
+     *
+     * @param ch 字符
+     * @return 是则 true
+     */
+    private boolean isCjk(char ch) {
+        return (ch >= '\u4E00' && ch <= '\u9FFF') || (ch >= '\u3400' && ch <= '\u4DBF');
     }
 
     /**

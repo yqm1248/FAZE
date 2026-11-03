@@ -49,5 +49,8 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+    // 显式给宽度：web 上 SafeAreaView 的 flex 子项宽度会按「内容 + padding」计算，
+    // 导致加 paddingHorizontal 的页面右侧溢出视口（2026-11-04 用 headless Chrome 实测）。
+    width: '100%',
   },
 });

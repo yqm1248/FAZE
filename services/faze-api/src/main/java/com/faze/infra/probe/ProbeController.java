@@ -34,6 +34,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
@@ -149,15 +150,24 @@ public class ProbeController {
 
         taskExecutor.execute(() -> {
             AtomicInteger total = new AtomicInteger();
+            // 首字节耗时（毫秒）：第一个非空 delta 到达时刻 - 开始拉流时刻。
+            // -1 表示整条流没有任何 delta（异常或空回复）。
+            AtomicLong firstByteMs = new AtomicLong(-1L);
+            long startNanos = System.nanoTime();
             try {
-                // 任务 1：首帧 meta，让验收人知道本次是不是 mock。
-                // 首帧必须是 meta：验收记录依赖它判断「本次是否 mock」，不能靠外部猜
+                // 任务 1：首帧 meta，让验收人知道本次是不是 mock（验收记录依赖它，不能靠外部猜）。
+                // 注意：SSE 的响应头在这一帧发出时就已提交，**之后再设 X-First-Byte-Ms 不会生效**，
+                // 所以首字节耗时改由 done 帧承载（D3 的响应头要求在这里做了技术性让步，
+                // 已记进 docs/standards/探针与流式约定.md 的偏差栏）。
                 emitter.send(SseEmitter.event()
                         .name(EVT_META)
                         .data(Map.of("mock", mock), MediaType.APPLICATION_JSON));
 
                 // 任务 2：逐段转发；客户端断开时转成非受检异常，由外层统一收尾。
                 doubaoClient.stream(PROBE_PROMPT, delta -> {
+                    if (firstByteMs.get() < 0) {
+                        firstByteMs.set((System.nanoTime() - startNanos) / 1_000_000L);
+                    }
                     try {
                         emitter.send(SseEmitter.event()
                                 .name(EVT_DELTA)
@@ -172,7 +182,12 @@ public class ProbeController {
                 // 任务 3：正常结束发 done；失败走下方 error 分支，二者必居其一。
                 emitter.send(SseEmitter.event()
                         .name(EVT_DONE)
-                        .data(Map.of("totalChars", total.get()), MediaType.APPLICATION_JSON));
+                        .data(Map.of(
+                                // 必须转 int：long 装箱成 Long 会被全局「Long → 字符串」序列化，
+                                // 客户端按 number 解析会失败（2026-11-04 实测踩过）。
+                                "totalChars", total.get(),
+                                "firstByteMs", (int) firstByteMs.get(),
+                                "mock", mock), MediaType.APPLICATION_JSON));
                 emitter.complete();
             } catch (Exception e) {
                 if (isClientAbort(e)) {

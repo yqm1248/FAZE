@@ -8,6 +8,7 @@
  */
 package com.faze.infra.law.dto;
 
+import java.util.List;
 import lombok.Data;
 
 /**
@@ -30,4 +31,11 @@ public class LawHitVO {
 
     /** MySQL MATCH 相关度得分（保留 6 位小数，仅用于排序与展示）。 */
     private Double score;
+
+    /**
+     * 命中依据：关键词按 ngram 切出、且在条文原文里实际出现的 token。
+     *
+     * <p>D3 第 2 条要求：只有 score 一个数字时，验收人看不出「凭什么命中」。</p>
+     */
+    private List<String> matchedTerms;
 }

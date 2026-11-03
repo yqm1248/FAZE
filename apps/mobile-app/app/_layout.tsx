@@ -117,7 +117,18 @@ export default function RootLayout() {
   // 藏文 / 阿拉伯系字体按需加载：未就绪时只铺底色，避免「先闪系统字形再跳自定义字形」。
   // 加载**失败**（fontError）时继续渲染——回退系统字体总比卡在启动屏好。
   const [fontsLoaded, fontError] = useFonts(FONT_ASSETS);
-  if (!fontsLoaded && fontError === null) {
+  // 兜底超时：某些平台（实测 web dev server）`useFonts` 可能既不 resolve 也不报错，
+  // 门控会永远等下去、页面永久空白。3 秒未就绪就回退系统字体继续渲染。
+  const [fontWaitExpired, setFontWaitExpired] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setFontWaitExpired(true);
+    }, 3000);
+    return () => {
+      clearTimeout(timer);
+    };
+  }, []);
+  if (!fontsLoaded && fontError === null && !fontWaitExpired) {
     return <View style={styles.boot} />;
   }
 
