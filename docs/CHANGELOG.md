@@ -4,6 +4,28 @@
 
 ---
 
+## 2026-11-04 · 段 0 B 组完成：移动端地基（基线 v1.38）
+
+**范围**：B1 Expo 工程与路由树 / B2 网络层与鉴权态 / B3 本地化与 RTL / B4 页面四态与错误边界。**B 组四个任务全部完成**，按「一组一停」停下汇报。
+
+**B1 工程与路由（7 个路由文件）**：`app.json` → **`app.config.ts`**（`extra.apiBaseUrl` 缺配置即抛错，不静默回退 localhost）；删掉 `(auth)` 分组；路由 = `_layout` / `index` / `login` / `language` / `dev/probe` / `dev/rtl` / `+not-found`；`routes.ts` 收缩到 5 条真实常量；`scripts/prepare-release.ps1` 在构建前移出 `app/dev`、`features/dev`（运行时 `if (!__DEV__)` 拦不住「进包」）。
+
+**B2 网络层（唯一出口）**：`shared/api/client.ts` 收敛 8 个请求头、`R<T>` 解析、**401 双通道**（402002 单飞刷新后只重放 1 次 / 402003 直接登出）、**只清被拒 token**（迟到 401 丢弃）、15 秒超时；`onUnauthorized` 经 `authEvents` 解耦（不 import `expo-router`）。
+
+**B3 i18n 与 RTL**：自研 `t()`（不引 i18next）；`MessageKey` 由资源类型推导，**写错 key 编译期报错**；56 个资源文件一次建全；`forceRTL` + `reloadAsync` 软重启（同向不重启）；`LocalizedText` / `LtrText` / `DirectionalIcon` 职责边界；**6 条 lint 规则**（物理方向 / `textAlign` / 裸 `<Text>` / 裸字符串 / 拼 key / 手工镜像）。
+
+**B4 四态与错误边界**：`AsyncState` 四态（**不设 `idle`**）+ `AsyncBoundary` / `LoadingState` / `EmptyState` / `ErrorState`；`ErrorBoundary` 从 `app/_layout.tsx` 导出（expo-router 唯一落点）。
+
+**过程中修掉的真实问题**：① 注释里 `features/*/api` 的 `*/` **提前结束块注释**（tsc 报一堆语法错）；② `.ts` 文件里写 JSX → 改 `createElement`；③ lint 把 props 名 `right` 误判为布局属性 → 改名 `trailing`；④ 6 个共享组件的裸 `<Text>` 迁到 `<LocalizedText>`；⑤ 5 处物理方向属性改 `marginStart/End`；⑥ PowerShell 脚本缺 BOM 被按 GBK 解析。
+
+**门禁实测**：`npm run verify` = typecheck + eslint + check-raw-text + check-i18n **退出码 0**；`expo export --platform web` **成功（735 modules）**；裸 `<Text>` 命中 **0**；i18n 三项全过。
+
+**本版没做的事**：**真机项全部挂账**——`0-A2` / `0-A3` / `0-A5` / `0-A8` 的设备侧验证都需要真机，而 `adb devices` 为空。**代码与门禁完成不等于锚点通过。**
+
+**基线**：v1.37 → **v1.38**，新增 **2 份**，内容变更 **2 份**，资产数 38 → **40**。
+
+---
+
 ## 2026-11-03 · 段 0 A3 按《后端代码规范》返工（基线 v1.37）
 
 **动因**：负责人要求「写代码按《后端代码规范 v1.0》的代码 / 目录 / 工程性 / 注释规范」。A3 刚交付，立即用它回头核对已写的 35 个文件——**发现 9 处不符**，全部返工（不是挂账）。
