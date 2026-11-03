@@ -39,6 +39,9 @@ export type ErrorKey = keyof typeof ZH_HANS_ERROR;
 /** 所有合法文案 key。**写错一个字母 `tsc` 就会报错。** */
 export type MessageKey = NamespacedKey | ErrorKey;
 
+/** 支持的语言码类型（页面用它标注参数）。 */
+export type { Lang };
+
 /** 占位符变量表。 */
 export type TranslationVars = Record<string, string | number>;
 

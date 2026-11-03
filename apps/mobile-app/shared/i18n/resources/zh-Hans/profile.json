@@ -6,6 +6,9 @@
     "bo": "བོད་ཡིག",
     "ugArabCn": "ئۇيغۇرچە",
     "kkArabCn": "قازاق تىلى",
-    "restartHint": "切换到阿拉伯字母语言后，界面会重新加载一次"
+    "restartHint": "切换到阿拉伯字母语言后，界面会重新加载一次",
+    "current": "当前语言",
+    "switching": "切换中",
+    "restarting": "正在重新加载界面"
   }
 }

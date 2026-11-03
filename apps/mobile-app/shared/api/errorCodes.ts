@@ -12,13 +12,15 @@
 
 import type { MessageKey } from './types';
 
-/** 段 0 用到的 6 个业务码。 */
+/** 段 0 用到的 8 个业务码（含 C1 的登录错误 402001/402004/401007）。 */
 export const ERROR_MSG_KEYS: Readonly<Record<number, MessageKey>> = {
   401002: 'error.common.param-missing',
   401005: 'error.common.already-exists',
-  401007: 'error.common.rate-limited',
+  401007: 'auth.login.rateLimited',
+  402001: 'auth.login.failed',
   402002: 'error.auth.token-expired',
   402003: 'error.auth.token-invalid',
+  402004: 'auth.login.banned',
   508001: 'error.ai.service-down',
 };
 
