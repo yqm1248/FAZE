@@ -1,0 +1,18 @@
+========================================================================
+A3 数据库验收 —— 2026-11-03T22:59:55
+========================================================================
+PASS 6. SHOW TABLES：恰好 2 张业务表 + 1 张 Flyway 元数据表
+     实际=['app_user', 'flyway_schema_history', 'law_item'] 业务表数=2
+PASS 7. COUNT(law_item) = 5
+     实际=5
+PASS 8a. SHOW CREATE TABLE law_item 含 WITH PARSER ngram + utf8mb4_0900_ai_ci
+     ngram=True collate=True
+PASS 8b. SHOW CREATE DATABASE faze 含 utf8mb4_0900_ai_ci
+     Database	Create Database faze	CREATE DATABASE `faze` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */
+PASS 13. ngram_token_size = 2
+     Variable_name	Value ngram_token_size	2
+PASS 附. ngram 语义：'借款' 命中 >=1、'婚'（单字）命中 0
+     '借款'=2 '婚'=0
+========================================================================
+合计 6 项：PASS 6 / FAIL 0
+========================================================================

@@ -50,3 +50,39 @@ docs/acceptance/seg0/
 | 真机未接入（`adb devices` 为空） | `0-A1`/`0-A2`/`0-A3`/`0-A4`/`0-A8` | D 组前必须接入 |
 | 藏文字体授权未定 | `0-A4` | 段 0 §十 10.1-4 |
 | 豆包 key / `ep-` 接入点未定 | `0-A5` | 段 0 §十 10.3-9；mock 只能记「未验」 |
+
+## 六、任务级证据（非锚点，段收口时并入对应锚点）
+
+> 8 条锚点验的是**设备侧现象**；A 组的三个任务是**工程前置**，它们没有独立锚点。
+> 但「服务端能起、能查、能出字节」必须在段收口前留痕，否则 `0-A6`（环境可复现）与 `0-A5`（AI 探针）就没有上游证据。
+
+| 任务 | 证据文件（`_artifacts/`） | 结论 | 日期 |
+|---|---|---|---|
+| A1 仓库骨架 | `A1-check-20261102-192207.txt` | 通过 | 2026-11-02 |
+| A2 本地服务脚本 | `A2-accept-20261102-193302.txt`、`A2-start-20261102-193214.txt` | 通过 | 2026-11-02 |
+| A3 服务端（HTTP 侧 16 项） | `A3-http-20261103-230133.txt` | **16/16 PASS** | 2026-11-03 |
+| A3 服务端（DB 侧 6 项） | `A3-db-20261103-225955.txt` | **6/6 PASS** | 2026-11-03 |
+| A3 服务端（prod 404 5 项） | `A3-prod404-20261103-230235.txt` | **5/5 PASS** | 2026-11-03 |
+| A3 冒烟测试 | 终端输出（未单独存文件） | 无 `FAZE_DB_URL` → `Tests run: 2, Skipped: 2`；带环境变量 → **`Tests run: 2, Skipped: 0`** | 2026-11-03 |
+
+> **A3 第 5 条（`probe/ai` 首字节）只验到 mock 流**：`FAZE_DOUBAO_API_KEY` 未提供，SSE 首帧已明确写
+> `data:{"mock":true}`。真实链路属 `0-A5`/D3 组，**未签**——不要在收口时把它算作已验。
+
+### 复跑方式（三段脚本，均只依赖 Python 标准库）
+
+```powershell
+# 1) 先以 dev profile 起服务（8081），再跑 HTTP 侧
+python docs\acceptance\seg0\_artifacts\a3-http-check.py
+
+# 2) 数据库侧（需要 mysql.exe，路径写死在脚本首行）
+python docs\acceptance\seg0\_artifacts\a3-db-check.py
+
+# 3) 生产 profile 404（另起一个 prod 实例在 8082，带 FAZE_TOKEN_SECRET）
+python docs\acceptance\seg0\_artifacts\a3-prod-check.py
+
+# 附：生成「已过期 / 签名错」的测试 JWT（密钥是 dev 默认值）
+python docs\acceptance\seg0\_artifacts\make-test-jwt.py
+```
+
+> 这些脚本里的 MySQL 口令固定为本地 `faze_app/123456`（与 `deploy/.env` 一致）。**不要把
+> 它们用在非本机环境**，也不要把真实生产口令写进去（脚本会进 git）。

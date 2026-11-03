@@ -1,0 +1,16 @@
+========================================================================
+A3 生产 profile 验收（8082）—— 2026-11-03T23:02:34
+========================================================================
+PASS 9. ping（@Profile 排除） → 404 + JSON 体
+     HTTP=404 Content-Type=application/json body='{"code": 401004, "data": null, "msg": "资源不存在", "traceId": "9835007c-da00-440b-a1af-bd394055f6b6"}'
+PASS 9. probe/law（@Profile 排除） → 404 + JSON 体
+     HTTP=404 Content-Type=application/json body='{"code": 401004, "data": null, "msg": "资源不存在", "traceId": "1ce155de-987a-444b-8a8a-3a169206b1ce"}'
+PASS 9. probe/ai（@Profile 排除） → 404 + JSON 体
+     HTTP=404 Content-Type=application/json body='{"code": 401004, "data": null, "msg": "资源不存在", "traceId": "efd1e416-4518-424c-bd73-ba507b2b726a"}'
+PASS 9b. 反向确认：prod 下 login 仍可用（200 + code 200）
+     HTTP=200 code=200
+PASS 9c. prod 下受保护资源仍回 401 + 402003
+     HTTP=401 code=402003
+========================================================================
+合计 5 项：PASS 5 / FAIL 0
+========================================================================

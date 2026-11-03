@@ -5,7 +5,7 @@
 > **不覆盖**：iOS 真机、任何业务功能、段 1 及以后的设计。
 > **本文件的写法**：每个任务五段式（做什么 / 怎么做 / 产出 / 算做完 / 卡住怎么办）。「算做完」一律二值可判定，不写「基本完成」。
 >
-> 落款见文末（文档基线 v1.19）。
+> 落款见文末（文档基线 v1.36）。
 ## 零、开工前必须知道的三件事（2026-10-31 实测）
 
 总纲写于 2026-10-30，其中对仓库与本机环境的假设与今天实测**不一致**。先纠正，否则会照着错误前提施工。
@@ -1012,7 +1012,7 @@ docs/acceptance/seg0/                           命令输出 + 截图
 6. `SHOW TABLES FROM faze` → 恰好 `app_user`、`law_item`、`flyway_schema_history`（2 张业务表 + 1 张 Flyway 元数据表）；业务表数 = 2。
 7. `SELECT COUNT(*) FROM law_item` → **5**。
 8. `SHOW CREATE TABLE law_item` 含 `WITH PARSER ngram`；`SHOW CREATE DATABASE faze` 含 `utf8mb4_0900_ai_ci`。
-9. 以 `--spring.profiles.active=prod` 启动 → 三个探针全部 **404**。
+9. 以 `--spring.profiles.active=prod` 启动 → 三个探针全部 **404**，且响应体是 **JSON**（`code=401004`）而非 Tomcat 的 HTML 错误页（2026-11-03 实测：3 个探针均 404 + JSON）。
 10. 造一个过期 token → HTTP **401** + `code=402002`；造一个签名错的 token → HTTP **401** + `code=402003`（两者必须不同）。
 11. 故意抛一个带 SQL 片段的异常 → 响应的 `msg` **不含** SQL/堆栈/原文（人工核对一条响应体 + 一条日志）。
 12. 段 0 的 6 个接口逐个可访问：login 拿 token → profile 200；无 token 访问 profile → 401 + `402003`；refresh 换 token → 200。
@@ -1027,6 +1027,37 @@ docs/acceptance/seg0/                           命令输出 + 截图
 5. **`ngram_token_size` ≠ 2** → 按 (7) 的条件分支改 `my.ini` + 重启 + 重建 `ft_law_content`；**不许**把 `probe/law` 改成 `LIKE` 绕过（那会让探针失去「验证 ngram 索引可用」的意义）。
 6. **探针在 dev 下也 404** → 检查 `@Profile("!prod")` 是否被写在类上但该类没被组件扫描到（`FazeApiApplication` 的扫描根必须是 `com.faze`）。
 7. **审计四要素被要求「写进 `operation_log`」** → 拒绝并回到本文 A3 第 (4) 节第 5 件：表在段 1 建，段 0 写库就是越界；把需求记进段 1 的开工前置。
+
+**(10) 施工实测与契约补定（2026-11-03，A3 完成后回写）**
+
+A3 原计划只写「三个探针」，但留了三项未定契约（SSE 事件协议、`probe/law` 的 `kw` 长度限制、`score` 算法），第 §七 不确定项 10 要求「A3 先补这三项再写代码」。本段实施时一并定死，且已实测通过：
+
+| 项 | 补定的契约 | 依据 / 实测 |
+|---|---|---|
+| **SSE 事件协议** | `event: meta` → `{"mock":bool}`；`event: delta` → `{"text":string}`；`event: done` → `{"totalChars":int}`；`event: error` → `{"code":508001,"msgKey":"..."}` | **首帧必须是 meta**：验收记录要能区分「本次是否 mock」，不能靠外部猜。实测首帧 `data:{"mock":true}` |
+| **`kw` 长度限制** | 1~50 字符，空/超长回 `401001`；**单字返回 0 命中是预期结果**，不是错误 | 实测：`kw=合同` 命中 4 条；`kw=婚` 命中 0 条（`ngram_token_size=2`，单字切不出 token） |
+| **`score` 算法** | 直接返回 MySQL `MATCH ... AGAINST` 的相关度，保留 6 位小数；**不归一化、跨查询不可比** | 实测「合同」最高 `0.018783`。前端只能用它排序，**不能做阈值判断** |
+
+**实测中发现并已修的 6 处偏差**（都已改代码，不是记挂账）：
+
+| # | 现象 | 根因 | 处理 |
+|---|---|---|---|
+| 1 | 刷新令牌「轮换后旧 token 仍能兑换」 | 单飞复用窗口原设 30 秒，窗口内旧 token 能换到同一对新令牌 | 窗口收到 **5 秒**（只覆盖并发抖动与一次网络重试），越过窗口重放回 `402003`。「重放检测 + 撤销 token family」（OAuth 2.0 BCP）需要持久化状态，挂到段 1 接 Redis 后做 |
+| 2 | prod profile 启动打印 `Using generated security password: <随机>` | `spring-boot-starter-security` 的 `UserDetailsServiceAutoConfiguration` 自动建了内存用户 | `application.yml` 用 `spring.autoconfigure.exclude` 排除它（本项目是自定义 JWT 链，不需要 UserDetailsService） |
+| 3 | 缺必填参数回 `501001`（服务器内部错误），客户端会误以为服务端故障 | `MissingServletRequestParameterException` 不在 13 类里，落到兜底分支 | 补一个分支回 `401002`（缺少必填参数）。这是对 13 类的**补充**，不是替代 |
+| 4 | prod 下探针 404 是 Tomcat 的 HTML 页，客户端解析不了 | 未开 `throw-exception-if-no-handler-found`，404 被 `ResourceHttpRequestHandler` 吞掉 | 开该配置 + `spring.web.resources.add-mappings: false`；404 回 JSON `401004`（实测 3 个探针全 404 + JSON） |
+| 5 | 按字面 `WITH PARSER ngram` 校验 `SHOW CREATE TABLE` 会**假失败** | MySQL 8.0 输出的是 `` /*!50100 WITH PARSER `ngram` */ ``，**parser 名带反引号** | 验收脚本改用正则匹配。**这是验收判据本身的坑，不是表结构问题**（表结构正确，`MATCH` 实测命中） |
+| 6 | 冒烟测试找不到 `@AutoConfigureMockMvc` | SB 4 把它从 `spring-boot-starter-test` 拆到 **`spring-boot-webmvc-test`** 模块，包名改为 `org.springframework.boot.webmvc.test.autoconfigure` | pom 加该 test 依赖（已登记《依赖清单》） |
+
+**验收实测结果（13 条全过）**，证据在 `docs/acceptance/seg0/_artifacts/A3-{http,db,prod404}-<ts>.txt`：
+
+- 第 1 条：`mvn -B verify` → `BUILD SUCCESS`；**带环境变量时冒烟测试 `Tests run: 2, Skipped: 0`**（不是跳过，是真跑）
+- 第 3 条：`ping` 的 `body.traceId` 与响应头 `X-Trace-Id` 逐字符相同
+- 第 10 条：过期 token → `401 + 402002`；签名错 token → `401 + 402003`（两码可区分）
+- 第 12 条：login 200 / profile（带 token）200 / profile（无 token）`401 + 402003` / refresh 200 / 旧 token 重放 `401 + 402003` / **同一 refresh 并发 6 次全部 200 且新 token 唯一（单飞成立）**
+- 第 6~8、13 条：`SHOW TABLES` 恰好 3 张、`COUNT(law_item)=5`、`SHOW CREATE TABLE` 含 `` WITH PARSER `ngram` ``、`ngram_token_size=2`
+
+**本轮仍未验的 1 条**：第 5 条只验到 mock 流（`FAZE_DOUBAO_API_KEY` 为空），真实豆包链路的「5 秒内出首字节」属 `0-A5`/D3 组，本轮不签。
 
 ---
 
@@ -2916,5 +2947,5 @@ docs/acceptance/seg0/
 
 ---
 
-> **【文档基线 v1.21】** 本文件属于「法泽 FAZE 文档基线 v1.21」（2026-11-01 纳入）。
+> **【文档基线 v1.36】** 本文件属于「法泽 FAZE 文档基线 v1.36」（2026-11-03 纳入）。
 > **后续一切文档从这里开始。** 基线清单与文件指纹见 `docs/BASELINE.md`。
