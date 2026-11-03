@@ -1,0 +1,52 @@
+**********************
+Windows PowerShell transcript start
+Start time: 20261102193535
+Username: YQM\14541
+RunAs User: YQM\14541
+Configuration Name: 
+Machine: YQM (Microsoft Windows NT 10.0.26200.0)
+Host Application: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoProfile -ExecutionPolicy Bypass -File E:\dshcode\FAZE\deploy\verify-all.ps1
+Process ID: 14132
+PSVersion: 5.1.26100.8655
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.26100.8655
+BuildVersion: 10.0.26100.8655
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+法泽 FAZE verify-all  |  2026-11-02T19:35:35.2458502+08:00  |  root=E:\dshcode\FAZE
+
+── service-preflight ─────────────────────────────────────
+[ OK ] MySQL 3306 认证通过
+[ OK ] Redis PING = PONG
+PS>TerminatingError(Invoke-WebRequest): "无法连接到远程服务器"
+[FAIL] faze-api 未启动（A3 交付后可用）：无法连接到远程服务器
+PS>TerminatingError(Invoke-WebRequest): "无法连接到远程服务器"
+[FAIL] RuoYi 前端未启动：无法连接到远程服务器
+
+── 库名守卫 ─────────────────────────────────────
+[ OK ] FAZE_DB_URL 库名 = faze
+
+── 前端门禁（PENDING） ─────────────────────────────────────
+[PENDING] tsc --noEmit / eslint 尚未接入（B2/B3 完成后启用）
+
+── 后端门禁（PENDING） ─────────────────────────────────────
+[PENDING] mvn verify 尚未接入（A3 完成后启用）
+
+── 密钥粗筛 ─────────────────────────────────────
+[ OK ] 未命中明文密钥
+
+── 文档镜像一致（docs vs UI设计） ─────────────────────────────────────
+
+[FAIL] docs 与 UI设计 内容不一致
+
+════════ 汇总 ════════
+PENDING（按失败计）：前端门禁, 后端门禁
+FAIL：service-preflight, 文档镜像一致
+证据：E:\dshcode\FAZE\docs\acceptance\seg0\verify-all-20261102-193535.txt
+**********************
+Windows PowerShell transcript end
+End time: 20261102193540
+**********************

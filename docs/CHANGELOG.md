@@ -4,6 +4,66 @@
 
 ---
 
+## 2026-11-03 · 段 0 A3 完成：服务端骨架 + Flyway + 6 个接口（基线 v1.36）
+
+**范围**：第 0 段 A 组的最后一个任务 A3。至此 **A 组（A1 骨架 / A2 服务脚本 / A3 服务端）全部完成**，按「一组一停」纪律在此停下汇报，未进入 B 组。
+
+**产出（`services/faze-api`）**：
+
+| 包 | 内容 |
+|---|---|
+| `common/` | `R`（code/msg/data/traceId）、`ErrorCode`（16 个段 0 用到的码）、`BusinessException`、`GlobalExceptionHandler`（13 类 + 1 个补充分支）、`TraceIdFilter`、`audit/AuditContext`（段 0 只进 MDC，不建 `operation_log`）、`util/RequestUtils` |
+| `config/` | `SecurityConfig`（无状态 JWT、`pub` 放行、`app` 需认证、refresh 单独放行）、`MybatisPlusConfig`、`JacksonConfig`（包装类 `Long` → 字符串） |
+| `security/` | `JwtTokenProvider`、`RefreshTokenStore`（进程内，段 1 迁 Redis）、`LoginUser`、`JwtAuthenticationFilter`（失败不抛、标记原因后放行）、`RestAuthenticationEntryPoint`（402002/402003 两码）、`RestAccessDeniedHandler` |
+| `modules/account/` | `AppUser` / `AccountMapper` / 4 个 DTO / `AuthService`（登录、单飞刷新、资料）/ `AuthController` / `ProfileController` |
+| `infra/` | `law`（`LawItem` / `LawItemMapper` + XML ngram 检索 / `LawSearchService` / `LawHitVO`）、`probe`（`DoubaoClient` mock+真实两条路 / `ProbeController` 三探针 / `PingVO`） |
+| 资源 | `mapper/LawItemMapper.xml`、`application*.yml`（加 404 走 JSON、排除自动生成内存用户）、`logback-spring.xml`（traceId + 审计字段） |
+| 测试 | `Seg0SmokeTest`（traceId 与 `X-Trace-Id` 同值、无 token → 401+402003）；无 `FAZE_DB_URL` 时整类跳过，带环境变量时真跑 |
+| 脚本 | `deploy/start-api.ps1`（读 `.env` 注入环境变量，`-AsPackage` 走 jar）；`services/faze-api/README.md` |
+
+**13 条验收全部执行**（12 条实打实通过 + 第 5 条以 mock 通过），证据 `docs/acceptance/seg0/_artifacts/A3-{http,db,prod404}-<ts>.txt`：
+
+- `mvn -B verify` → `BUILD SUCCESS`；带环境变量时冒烟测试 **`Tests run: 2, Skipped: 0`**（不是跳过）
+- `ping` 的 `body.traceId` 与响应头 `X-Trace-Id` 逐字符相同
+- `probe/law?kw=合同` 命中 **4** 条（score 最高 `0.018783`）；`kw=婚` 命中 **0**（`ngram_token_size=2` 的预期语义）
+- `probe/ai` 首帧 `event: meta, data:{"mock":true}` → 后续 delta → done
+- `SHOW TABLES` 恰好 `app_user` / `law_item` / `flyway_schema_history`；`COUNT(law_item)=5`；`SHOW CREATE TABLE` 含 `` WITH PARSER `ngram` ``
+- prod profile 下三个探针全 **404 + JSON**（`code=401004`），且 login 仍可用
+- 过期 token → `401 + 402002`；签名错 token → `401 + 402003`（**两码可区分**，实测）
+- 旧 refresh token 在复用窗口外重放 → `401 + 402003`；**同一 refresh 并发 6 次全部 200 且新 token 唯一**（单飞成立）
+
+**6 处实测偏差已修（全部改代码，不是挂账）**：① 单飞复用窗口 30s → **5s**（30 秒内旧 refresh 可重放兑换，是安全缺陷）；② 排除 SB 自动生成的 `UserDetailsService`（prod 启动日志曾打印随机密码）；③ 缺必填参数回 `501001` → 补分支回 `401002`；④ prod 404 是 Tomcat HTML → 开 `throw-exception-if-no-handler-found` + 关静态资源映射，404 回 JSON；⑤ `SHOW CREATE TABLE` 的 ngram 名**带反引号**（按字面校验会假失败，属验收判据的坑）；⑥ SB4 把 `@AutoConfigureMockMvc` 拆到 **`spring-boot-webmvc-test`**（pom + 依赖清单）。
+
+**文档回写**：《第 0 段工作流》A3 新增「(10) 施工实测与契约补定」——补定 SSE 四事件协议、`kw` 1~50、`score` 语义（原 §七 不确定项 10 要求「A3 先补这三项再写代码」），第 9 条判据补「404 必须是 JSON」，落款 v1.21 → v1.36。《依赖清单》补第 10 项。《BASELINE》新增 §7.40，三份指纹重算（第 0 段工作流 2951 行 / `0f13d7b65353a05f`；依赖清单 63 行 / `11c9ff5d208585c5`；docs/README 165 行 / `4b3d76b657d9efe5`），并修掉落款里「31 份资产」的过时数（应为 38）。
+
+**本版没做的事**：§九「实际完成与偏差」仍未填（那是**段 0 收口**的活，当前只到 A 组）；真实豆包链路（key 未提供）与 RuoYi 登录 / `biz` 菜单仍未验。基线 v1.35 → **v1.36**，资产数不变 **38**。
+
+---
+
+## 2026-11-02 · 段 0 开工前复核：修正 5 处施工前提错误（基线 v1.35）
+
+**起因**：第 0 段 A1（仓库骨架）、A2（本地服务脚本）已完成并实测通过；A3（服务端骨架）写代码前，负责人要求「先搁置写代码，先复核前提」。
+
+**复核做了什么（全部实测）**：Maven 依赖解析、`mvn compile`、应用启动、Flyway 迁移、MySQL DDL/ngram 命中、Redis 启停、jjwt 与 Jackson 依赖树。
+
+**发现并修正的 5 处前提错误（文档级）**：
+
+| # | 文档写的 | 实测 | 修正 |
+|---|---|---|---|
+| 1 | parent `4.0.10` | central 上 4.0.x 最新是 **4.0.9**，4.0.10 不存在；本机 `.m2` 的 4.0.10 目录只有一个 `.lastUpdated` 失败标记 | 改 **4.0.6**（本地有真 pom，与 RuoYi 4.0.3 同一大版本） |
+| 2 | 依赖表列了 `spring-boot-starter-aop` | SB 4.0 起**没有这个 starter**（同位置叫 `spring-boot-starter-aspectj`） | 删掉（段 0 无切面需求） |
+| 3 | Flyway 只加 `flyway-core` + `flyway-mysql` | **SB4 还要 `spring-boot-flyway` 模块**；只加前两个时应用能启动，但**不执行迁移、库内 0 张表** | 补 `spring-boot-flyway` |
+| 4 | `.env` 里 `characterEncoding=utf8mb4` | Connector/J 报 `Unsupported character encoding 'utf8mb4'`（要 Java 字符集名） | 改 `characterEncoding=UTF-8` |
+| 5 | 0-A2 / 0-A5 / D1 / B2 用 8080 | 8080 是 RuoYi 的；faze-api 早已定 8081 | 全文 12 处 `:8080/api` → `:8081/api` |
+
+**顺带修正的文档矛盾**：`(auth)/login` → `app/login`、`/(tabs)/home` → `/`、SplashPage「改造」→ `app/index.tsx`（已随 `9d589d3` 删除）、A3 补登录/刷新/资料三接口（落 `modules/account/`）与 `deploy/start-api.ps1`、§十 关闭已解决的 1/2/7/8 项、新增 §十一「不确定项索引」（修掉正文「§附 不确定项」引用断链）、§二 自述「14 项」→ 16 项。Redis 由 Memurai 改为 **tporadowski 5.0.14.1**（负责人指定，版本差挂账）。
+
+**实测结论（本版依据）**：SB **4.0.6** / Spring 7.0.7 / Security 7.0.5 / Tomcat 11.0.21 / MP 3.5.18.1；Flyway v1/v2 执行成功，`faze` 库 **2 张业务表**（`app_user`、`law_item`）+ `flyway_schema_history`；`law_item` 共 **5 条**法条、含 `WITH PARSER ngram`、`MATCH('借款')` 命中 2 条、单字 `婚` 命中 0；`ngram_token_size=2`；Redis tporadowski **5.0.14.1** `PING=PONG`；测试用户 `13800000001` 已灌入（`database/seed/test.sql`，不进 Flyway）。
+
+**本版改动**：内容变更 **3 份**（第 0 段工作流 / 依赖清单 / docs/README）。资产数不变 **38**。基线 v1.34 → **v1.35**。
+
+---
+
 ## 2026-11-02 · 新增《第 7 段工作流 v1.0》：运营与治理收口（基线 v1.34）
 
 **起因**：负责人要求「写第 7 段工作流计划书」，并设了执行约束：**只改自己写的第 7 段计划书；先只检查前提，不够就问，不要硬写**。
