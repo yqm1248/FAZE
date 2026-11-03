@@ -92,6 +92,25 @@ export default function DevRtlScreen() {
         </View>
       </View>
 
+      {/* e) 字形样例：藏文/阿拉伯系字体是否真的加载了（0-A4 的载体） */}
+      <View style={styles.section}>
+        <LocalizedText numberOfLines={1} style={styles.label}>
+          {'e) 字形样例（藏文应在 LTR；阿拉伯系应连写）'}
+        </LocalizedText>
+        <LocalizedText numberOfLines={1} style={styles.sample}>
+          {'藏文：བོད་ཡིག  ཀ་ཁ་ག་ང་  སྐུ་གསུང་ཐུགས་'}
+        </LocalizedText>
+        <LocalizedText numberOfLines={1} style={styles.sample}>
+          {'维吾尔文：ئۇيغۇرچە  ياخشىمۇسىز'}
+        </LocalizedText>
+        <LocalizedText numberOfLines={1} style={styles.sample}>
+          {'哈萨克文：قازاق تىلى  سالەمەتسىز بە'}
+        </LocalizedText>
+        <LocalizedText numberOfLines={2} style={styles.label}>
+          {'若上面三行出现方框/豆腐块/断笔，说明字体未加载或覆盖不足（0-A4 判据）。'}
+        </LocalizedText>
+      </View>
+
       {/* d) marginStart / marginEnd + borderStartWidth：RTL 下 A/B 位置对调 */}
       <View style={styles.section}>
         <LocalizedText numberOfLines={1} style={styles.label}>
@@ -181,5 +200,10 @@ const styles = StyleSheet.create({
   blockText: {
     ...typography.bodySmall,
     color: color.text.body,
+  },
+  sample: {
+    ...typography.bodyLarge,
+    color: color.text.body,
+    marginBottom: spacing.xs,
   },
 });
