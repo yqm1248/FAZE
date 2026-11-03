@@ -21,9 +21,7 @@ import tools.jackson.databind.module.SimpleModule;
 import tools.jackson.databind.ser.std.ToStringSerializer;
 
 /**
- * JSON 序列化配置。
- *
- * <p>只做一件事：把包装类 {@code Long} 序列化成 JSON 字符串。</p>
+ * JSON 序列化配置：包装类 Long 输出为字符串。
  */
 @Configuration
 public class JacksonConfig {

@@ -15,8 +15,8 @@
  */
 package com.faze.infra.law;
 
-import com.faze.common.BusinessException;
-import com.faze.common.ErrorCode;
+import com.faze.common.exception.BusinessException;
+import com.faze.common.exception.ErrorCode;
 import com.faze.infra.law.dto.LawHitVO;
 import com.faze.infra.law.mapper.LawItemMapper;
 import com.faze.infra.law.mapper.LawSearchRow;
@@ -61,6 +61,7 @@ public class LawSearchService {
      * @throws BusinessException 401001 kw 为空或超长
      */
     public List<LawHitVO> search(String kw) {
+        // 任务 1：参数校验（空 / 超长）。单字不拦——0 命中是 ngram 的预期语义。
         if (kw == null || kw.isBlank()) {
             throw new BusinessException(ErrorCode.COMMON_PARAM_INVALID, "kw: 不能为空");
         }
@@ -70,12 +71,14 @@ public class LawSearchService {
                     "kw: 长度不能超过 " + MAX_KW_LENGTH);
         }
 
+        // 任务 2：走 ngram 全文索引。禁止改成 LIKE——那样这个探针就验不出索引是否可用。
         List<LawSearchRow> rows = lawItemMapper.searchByNgram(trimmed, DEFAULT_LIMIT);
         if (rows == null || rows.isEmpty()) {
             // 正常业务分支（单字查询、库里没有该主题），用 info 不用 warn
             log.info("法条检索无命中 kw={}", trimmed);
             return List.of();
         }
+        // 任务 3：转出参（截摘要 + 得分保留 6 位）。
         return rows.stream().map(row -> toHit(row, trimmed)).toList();
     }
 

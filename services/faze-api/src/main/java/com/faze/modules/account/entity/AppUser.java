@@ -21,9 +21,7 @@ import java.time.LocalDateTime;
 import lombok.Data;
 
 /**
- * C 端用户实体。
- *
- * <p>字段名与 `app_user` 的列一一对应（下划线转驼峰由 MP 全局配置处理）。</p>
+ * app_user 表实体（19 字段，与表一一对应）。
  */
 @Data
 @TableName("app_user")

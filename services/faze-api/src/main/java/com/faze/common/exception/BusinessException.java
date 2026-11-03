@@ -8,15 +8,12 @@
  *   2. 不打印完整堆栈：业务异常是预期内分支，不是故障（后端规范 §5.1）。
  *   3. 禁止在 Controller 里 try/catch 它——那不是它的用法（后端规范 §4）。
  */
-package com.faze.common;
+package com.faze.common.exception;
 
 import lombok.Getter;
 
 /**
- * 可预期的业务异常。
- *
- * <p>继承 {@link RuntimeException} 而不受检：业务异常穿透 Service 层不该被层层声明；
- * 真正的兜底交给全局异常处理器。</p>
+ * 可预期的业务异常。detail 只进日志，不进响应体。
  */
 @Getter
 public class BusinessException extends RuntimeException {

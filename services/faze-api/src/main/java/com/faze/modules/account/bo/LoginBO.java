@@ -9,7 +9,7 @@
  *   3. `smsCode` 段 0 不实现（短信通道未定，属段 1），此处不设字段——宁可少字段也不要
  *      留一个「收了但不用」的参数，那会让联调方以为风控已生效。
  */
-package com.faze.modules.account.dto;
+package com.faze.modules.account.bo;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -20,7 +20,7 @@ import lombok.Data;
  * 手机号 + 密码登录请求。
  */
 @Data
-public class LoginRequest {
+public class LoginBO {
 
     /** 中国大陆手机号。 */
     @NotBlank(message = "手机号不能为空")

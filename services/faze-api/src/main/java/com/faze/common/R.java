@@ -11,6 +11,8 @@
  */
 package com.faze.common;
 
+import com.faze.common.exception.ErrorCode;
+
 import jakarta.annotation.Nullable;
 import java.io.Serializable;
 import lombok.Data;
@@ -18,16 +20,7 @@ import lombok.NoArgsConstructor;
 import org.slf4j.MDC;
 
 /**
- * 统一响应体。
- *
- * <p>成功：{@code code=200}，{@code data} 为业务数据。</p>
- * <p>业务失败：{@code code} 为 6 位业务错误码（见 {@link ErrorCode}），HTTP 仍为 200。</p>
- * <p>鉴权失败：HTTP 401/403，body 的 {@code code} 为 402002/402003/401008 等。</p>
- *
- * <p>{@code traceId} 与响应头 {@code X-Trace-Id} 同值，前端上报错误时必须带上，
- * 后端据此在日志里定位整条链路。</p>
- *
- * @param <T> 业务数据类型
+ * 统一响应体（code / msg / data / traceId）。
  */
 @Data
 @NoArgsConstructor

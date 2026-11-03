@@ -34,9 +34,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
- * JWT 认证过滤器。
- *
- * <p>只做解析与上下文填充；授权判断交给 SecurityConfig 的 URL 规则。</p>
+ * JWT 认证过滤器：失败不抛异常，只标记原因后放行。
  */
 @Component
 @Slf4j

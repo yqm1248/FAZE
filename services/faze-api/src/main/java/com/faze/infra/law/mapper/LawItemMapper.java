@@ -13,13 +13,11 @@ package com.faze.infra.law.mapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.faze.infra.law.entity.LawItem;
 import java.util.List;
-import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 /**
  * 法条 Mapper。
  */
-@Mapper
 public interface LawItemMapper extends BaseMapper<LawItem> {
 
     /**

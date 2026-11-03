@@ -5,7 +5,7 @@
  * 注意：按《接口规范》附录 A.1.2，刷新响应**只回这三个字段**，不带 user
  *       （客户端此时手里还有旧 user，多回一份只会造成两份真相）。
  */
-package com.faze.modules.account.dto;
+package com.faze.modules.account.vo;
 
 import lombok.Data;
 
@@ -13,7 +13,7 @@ import lombok.Data;
  * 刷新令牌响应。
  */
 @Data
-public class TokenResponse {
+public class TokenVO {
 
     /** 新的 access token。 */
     private String accessToken;

@@ -11,10 +11,10 @@
  */
 package com.faze.modules.account.controller;
 
-import com.faze.common.BusinessException;
-import com.faze.common.ErrorCode;
+import com.faze.common.exception.BusinessException;
+import com.faze.common.exception.ErrorCode;
 import com.faze.common.R;
-import com.faze.modules.account.dto.UserVO;
+import com.faze.modules.account.vo.UserVO;
 import com.faze.modules.account.service.AuthService;
 import com.faze.security.LoginUser;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;

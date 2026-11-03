@@ -8,7 +8,9 @@
  *   3. 只接受「看起来像 id」的入参（长度 8~64、仅字母数字与 . _ -），否则重写。
  *      理由是 X-Request-Id 会进日志与响应头，放任客户端塞长串/换行会造成日志注入。
  */
-package com.faze.common;
+package com.faze.filter;
+
+import com.faze.common.R;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -24,12 +26,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
- * 链路 id 过滤器。
- *
- * <p>进入时：取 {@code X-Request-Id}（合法则复用，不合法则新生成 UUIDv4）→ 写 MDC。</p>
- * <p>返回时：把 MDC 里的同一个值写进响应头 {@code X-Trace-Id} → 清 MDC。</p>
- *
- * <p>副作用：修改请求处理线程的 MDC（进入/退出各一次），并写一个响应头。</p>
+ * 链路 id 过滤器：生成或透传 traceId，写 MDC 与响应头。
  */
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE)

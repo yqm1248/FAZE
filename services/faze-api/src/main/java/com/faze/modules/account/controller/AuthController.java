@@ -13,10 +13,10 @@ package com.faze.modules.account.controller;
 
 import com.faze.common.R;
 import com.faze.common.util.RequestUtils;
-import com.faze.modules.account.dto.LoginRequest;
-import com.faze.modules.account.dto.LoginResponse;
-import com.faze.modules.account.dto.RefreshRequest;
-import com.faze.modules.account.dto.TokenResponse;
+import com.faze.modules.account.bo.LoginBO;
+import com.faze.modules.account.vo.LoginVO;
+import com.faze.modules.account.bo.RefreshTokenBO;
+import com.faze.modules.account.vo.TokenVO;
 import com.faze.modules.account.service.AuthService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -53,7 +53,7 @@ public class AuthController {
      * @return 令牌 + 用户资料
      */
     @PostMapping("/pub/auth/login/password")
-    public R<LoginResponse> login(@Valid @RequestBody LoginRequest request, HttpServletRequest http) {
+    public R<LoginVO> login(@Valid @RequestBody LoginBO request, HttpServletRequest http) {
         return R.ok(authService.login(request, RequestUtils.deviceId(http), RequestUtils.clientIp(http)));
     }
 
@@ -66,7 +66,7 @@ public class AuthController {
      * @return 新令牌对
      */
     @PostMapping("/app/auth/refresh")
-    public R<TokenResponse> refresh(@Valid @RequestBody RefreshRequest request) {
+    public R<TokenVO> refresh(@Valid @RequestBody RefreshTokenBO request) {
         return R.ok(authService.refresh(request.getRefreshToken()));
     }
 }

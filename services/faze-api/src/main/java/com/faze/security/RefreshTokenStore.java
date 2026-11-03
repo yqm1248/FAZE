@@ -23,9 +23,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.stereotype.Component;
 
 /**
- * refresh token 存储。
- *
- * <p>每个 token 记录：所属用户、过期时间。轮换 = 删除旧记录 + 建立新记录。</p>
+ * refresh token 存储（进程内，段 1 迁 Redis）。
  */
 @Component
 public class RefreshTokenStore {

@@ -13,11 +13,9 @@ package com.faze.modules.account.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.faze.modules.account.entity.AppUser;
-import org.apache.ibatis.annotations.Mapper;
 
 /**
  * 用户表 Mapper。
  */
-@Mapper
 public interface AccountMapper extends BaseMapper<AppUser> {
 }

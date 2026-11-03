@@ -155,17 +155,31 @@ mvn -B verify
 
 ## 9. 目录约定
 
+> **唯一权威是《后端代码规范 v1.0》§2.1 / §3.4 / §3.5。** 本节只是速查，与规范冲突时以规范为准。
+
 ```text
 src/main/java/com/faze/
-├─ common/     R / ErrorCode / BusinessException / GlobalExceptionHandler / TraceIdFilter
-│  ├─ audit/   AuditContext（段 0 只进 MDC，不写库）
-│  └─ util/    RequestUtils（客户端 IP / 设备 id）
-├─ config/     SecurityConfig / MybatisPlusConfig / JacksonConfig
-├─ security/   JwtTokenProvider / RefreshTokenStore / LoginUser
-│              JwtAuthenticationFilter / RestAuthenticationEntryPoint / RestAccessDeniedHandler
-├─ modules/    account（段 0 唯一业务域：登录 / 刷新 / 资料）
-└─ infra/      law（ngram 检索）/ probe（三个探针）
+├─ FazeApiApplication.java
+├─ common/                   跨域共用，不含业务
+│  ├─ R.java                 统一响应
+│  ├─ exception/             ErrorCode / BusinessException / GlobalExceptionHandler
+│  ├─ audit/                 AuditContext（段 0 只进 MDC，不写库）
+│  └─ util/                  RequestUtils（客户端 IP / 设备 id）
+├─ filter/                   TraceIdFilter（链路 id）
+├─ config/                   一个领域一个类
+│  └─ properties/            FazeJwtProperties / FazeProbeProperties（构造绑定，§12.3）
+├─ security/                 JwtTokenProvider / RefreshTokenStore / LoginUser
+│                            JwtAuthenticationFilter / RestAuthenticationEntryPoint / RestAccessDeniedHandler
+├─ modules/account/          段 0 唯一业务域
+│  ├─ controller/ service/ mapper/ entity/
+│  ├─ bo/                    入参（LoginBO / RefreshTokenBO）
+│  ├─ vo/                    出参（UserVO / LoginVO / TokenVO）
+│  └─ README.md              四段：边界 / 数据来源 / 不可改的契约 / 测试入口（§2.6 强制）
+└─ infra/                    law（ngram 检索）/ probe（三个探针）
 ```
+
+**两条段 0 权宜（已挂账）**：`infra/law/` 与 `infra/*/dto/` 不在规范的 infra 子目录清单里，
+段 0 只有 account 一个业务域、法条检索无处可放；段 3 法条库落地时移入业务域一并收敛。
 
 ---
 

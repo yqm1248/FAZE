@@ -13,15 +13,16 @@
  *   3. 402002 与 402003 的区分是硬要求：前者「过期，可刷新」，后者「无效，直接登出」；
  *      混为一谈会让客户端进入无限刷新循环（《错误码规范》§4.3 第 3 条）。
  */
-package com.faze.common;
+package com.faze.common.exception;
 
+import java.util.Arrays;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import lombok.Getter;
 
 /**
- * 段 0 使用的错误码子集。
- *
- * <p>每个常量携带四个信息：6 位业务码、应回的 HTTP 状态、前端 i18n 的 msgKey、开发者兜底文案。
- * 新增错误码前先改《错误码规范》，再改本枚举——顺序反了就会出现「代码里有、规范里没有」的码。</p>
+ * 服务端错误码的唯一来源（段 0 子集）。
  */
 @Getter
 public enum ErrorCode {
@@ -80,5 +81,19 @@ public enum ErrorCode {
         this.httpStatus = httpStatus;
         this.msgKey = msgKey;
         this.msg = msg;
+    }
+
+    /** 业务码 → 枚举 的索引。接口层拿到的是数字，必须能按 code 反查（§12.1）。 */
+    private static final Map<Integer, ErrorCode> BY_CODE = Arrays.stream(values())
+            .collect(Collectors.toUnmodifiableMap(ErrorCode::getCode, Function.identity()));
+
+    /**
+     * 按 6 位业务码反查枚举。
+     *
+     * @param code 业务码
+     * @return 对应枚举；未登记时返回 null（调用方需自行兜底，不要抛异常）
+     */
+    public static ErrorCode of(int code) {
+        return BY_CODE.get(code);
     }
 }

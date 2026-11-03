@@ -14,6 +14,7 @@
  */
 package com.faze.security;
 
+import com.faze.config.properties.FazeJwtProperties;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
@@ -25,14 +26,10 @@ import java.time.Instant;
 import java.util.Date;
 import java.util.UUID;
 import javax.crypto.SecretKey;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 /**
- * JWT 签发与解析。
- *
- * <p>只签发 access token（2 小时）；refresh token 是随机串，由
- * {@link RefreshTokenStore} 管理，不走 JWT——理由见该类的类注释。</p>
+ * JWT 签发与解析（HS256）。只做密码学与 claims，不碰数据库。
  */
 @Component
 public class JwtTokenProvider {
@@ -53,19 +50,18 @@ public class JwtTokenProvider {
     /**
      * 构造签发器，并校验密钥强度。
      *
-     * @param secret            JWT 密钥（至少 32 字节），来自 {@code faze.jwt.secret}
-     * @param accessTtlMinutes  access token 有效期（分钟），来自 {@code faze.jwt.access-ttl-minutes}
-     * @throws IllegalStateException 密钥未配置或长度不足时抛出（启动即失败，属于预期行为）
+     * @param properties JWT 配置（密钥与有效期），绑定自 `faze.jwt.*`
+     * @throws IllegalStateException 密钥未配置或不足 32 字节时抛出（启动即失败，属预期）
      */
-    public JwtTokenProvider(@Value("${faze.jwt.secret:}") String secret,
-                            @Value("${faze.jwt.access-ttl-minutes:120}") long accessTtlMinutes) {
+    public JwtTokenProvider(FazeJwtProperties properties) {
+        String secret = properties.secret();
         if (secret == null || secret.getBytes(StandardCharsets.UTF_8).length < MIN_SECRET_BYTES) {
             throw new IllegalStateException(
                     "faze.jwt.secret 未配置或不足 " + MIN_SECRET_BYTES + " 字节；"
                             + "生产必须由环境变量 FAZE_TOKEN_SECRET 提供（见 application-prod.yml）");
         }
         this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
-        this.accessTtl = Duration.ofMinutes(accessTtlMinutes);
+        this.accessTtl = Duration.ofMinutes(properties.accessTtlMinutes());
     }
 
     /**

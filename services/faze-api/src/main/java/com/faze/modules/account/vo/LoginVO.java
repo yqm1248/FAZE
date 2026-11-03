@@ -5,7 +5,7 @@
  * 注意：字段集合按《接口规范》附录 A.1.1 冻结（accessToken / refreshToken / expiresIn /
  *       tokenType / user），多一个字段都是契约变更。
  */
-package com.faze.modules.account.dto;
+package com.faze.modules.account.vo;
 
 import lombok.Data;
 
@@ -13,7 +13,7 @@ import lombok.Data;
  * 登录响应。
  */
 @Data
-public class LoginResponse {
+public class LoginVO {
 
     /** access token（JWT，2 小时）。 */
     private String accessToken;

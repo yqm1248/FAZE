@@ -17,12 +17,13 @@
 package com.faze.modules.account.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.faze.common.BusinessException;
-import com.faze.common.ErrorCode;
-import com.faze.modules.account.dto.LoginRequest;
-import com.faze.modules.account.dto.LoginResponse;
-import com.faze.modules.account.dto.TokenResponse;
-import com.faze.modules.account.dto.UserVO;
+import com.faze.common.exception.BusinessException;
+import com.faze.config.properties.FazeJwtProperties;
+import com.faze.common.exception.ErrorCode;
+import com.faze.modules.account.bo.LoginBO;
+import com.faze.modules.account.vo.LoginVO;
+import com.faze.modules.account.vo.TokenVO;
+import com.faze.modules.account.vo.UserVO;
 import com.faze.modules.account.entity.AppUser;
 import com.faze.modules.account.mapper.AccountMapper;
 import com.faze.security.JwtTokenProvider;
@@ -39,7 +40,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -92,12 +92,12 @@ public class AuthService {
                        JwtTokenProvider tokenProvider,
                        RefreshTokenStore refreshTokenStore,
                        PasswordEncoder passwordEncoder,
-                       @Value("${faze.jwt.refresh-ttl-days:30}") long refreshTtlDays) {
+                       FazeJwtProperties jwtProperties) {
         this.accountMapper = accountMapper;
         this.tokenProvider = tokenProvider;
         this.refreshTokenStore = refreshTokenStore;
         this.passwordEncoder = passwordEncoder;
-        this.refreshTtl = Duration.ofDays(refreshTtlDays);
+        this.refreshTtl = Duration.ofDays(jwtProperties.refreshTtlDays());
     }
 
     // ── 登录 ───────────────────────────────────────────────────────────────
@@ -114,9 +114,11 @@ public class AuthService {
      * @return 令牌 + 用户资料
      * @throws BusinessException 402001 登录失败 / 402004 已封禁 / 402008 已注销
      */
-    public LoginResponse login(LoginRequest request, String deviceIdHeader, String clientIp) {
+    public LoginVO login(LoginBO request, String deviceIdHeader, String clientIp) {
+        // 任务 1：设备标识一致性。段 0 只记日志不拦（无风控规则时拦会误伤换机用户）。
         warnIfDeviceMismatch(deviceIdHeader, request.getDeviceId());
 
+        // 任务 2：按手机号取未软删用户；查不到与密码错统一回 402001，防账号枚举。
         AppUser user = accountMapper.selectOne(new LambdaQueryWrapper<AppUser>()
                 .eq(AppUser::getPhone, request.getPhone())
                 .isNull(AppUser::getDeletedAt));
@@ -126,7 +128,9 @@ public class AuthService {
             throw new BusinessException(ErrorCode.AUTH_LOGIN_FAILED);
         }
         ensureUsable(user);
+        // 任务 4：更新最后登录时间（单条 update，不需要事务）。
         touchLogin(user.getId(), clientIp);
+        // 任务 5：签发令牌对并组装响应。
         return issue(user);
     }
 
@@ -143,12 +147,14 @@ public class AuthService {
      * @return 新令牌对
      * @throws BusinessException 402003 无效 / 402002 等待超时（让客户端重试）/ 402004 / 402008
      */
-    public TokenResponse refresh(String refreshToken) {
+    public TokenVO refresh(String refreshToken) {
         if (refreshToken == null || refreshToken.isBlank()) {
             throw new BusinessException(ErrorCode.AUTH_TOKEN_INVALID);
         }
+        // 任务 1：清掉超过复用窗口的槽位，避免旧 token 长期可兑换。
         evictStaleSlots();
 
+        // 任务 2：占槽。占不到说明别人正在刷（或刚刷完），等它的结果、绝不自己再轮换一次。
         RefreshingEntry mine = new RefreshingEntry(new CompletableFuture<>(), System.currentTimeMillis());
         RefreshingEntry existing = refreshing.putIfAbsent(refreshToken, mine);
         if (existing != null) {
@@ -157,7 +163,7 @@ public class AuthService {
         }
 
         try {
-            TokenResponse result = doRefresh(refreshToken);
+            TokenVO result = doRefresh(refreshToken);
             mine.future().complete(result);
             return result;
         } catch (RuntimeException e) {
@@ -191,15 +197,18 @@ public class AuthService {
      * @param refreshToken 旧 refresh token
      * @return 新令牌对
      */
-    private TokenResponse doRefresh(String refreshToken) {
+    private TokenVO doRefresh(String refreshToken) {
+        // 任务 1：校验旧 token——不存在 / 已过期 / 已被上一次轮换吊销，一律「无效」。
         RefreshTokenStore.RefreshRecord record = refreshTokenStore.find(refreshToken);
         if (record == null) {
             // 不存在 / 已过期 / 已被上一次轮换吊销 —— 一律「无效」，让客户端直接登出
             throw new BusinessException(ErrorCode.AUTH_TOKEN_INVALID);
         }
+        // 任务 2：重新查用户，防止 token 仍有效但人已被软删 / 封禁。
         AppUser user = accountMapper.selectById(record.userId());
         if (user == null || user.getDeletedAt() != null) {
-            refreshTokenStore.revoke(refreshToken);
+            // 任务 3：轮换——旧 token 立刻失效，防重放。
+        refreshTokenStore.revoke(refreshToken);
             throw new BusinessException(ErrorCode.AUTH_TOKEN_INVALID);
         }
         ensureUsable(user);
@@ -209,7 +218,8 @@ public class AuthService {
         String newRefresh = refreshTokenStore.issue(user.getId(), refreshTtl);
         String newAccess = tokenProvider.createAccessToken(user.getId(), user.getRole());
 
-        TokenResponse response = new TokenResponse();
+        // 任务 4：签发并返回新令牌对。
+        TokenVO response = new TokenVO();
         response.setAccessToken(newAccess);
         response.setRefreshToken(newRefresh);
         response.setExpiresIn((int) tokenProvider.getAccessTtlSeconds());
@@ -222,8 +232,8 @@ public class AuthService {
      * @param user 已通过校验的用户
      * @return 登录响应
      */
-    private LoginResponse issue(AppUser user) {
-        LoginResponse response = new LoginResponse();
+    private LoginVO issue(AppUser user) {
+        LoginVO response = new LoginVO();
         response.setAccessToken(tokenProvider.createAccessToken(user.getId(), user.getRole()));
         response.setRefreshToken(refreshTokenStore.issue(user.getId(), refreshTtl));
         response.setExpiresIn((int) tokenProvider.getAccessTtlSeconds());
@@ -288,7 +298,7 @@ public class AuthService {
      * @param future 单飞槽位里的结果
      * @return 复用的令牌对
      */
-    private TokenResponse awaitRefreshing(CompletableFuture<TokenResponse> future) {
+    private TokenVO awaitRefreshing(CompletableFuture<TokenVO> future) {
         try {
             return future.get(REFRESH_WAIT_SECONDS, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
@@ -371,6 +381,6 @@ public class AuthService {
      * @param future          轮换结果
      * @param createdAtMillis 槽位创建时间（毫秒），用于过期清理
      */
-    private record RefreshingEntry(CompletableFuture<TokenResponse> future, long createdAtMillis) {
+    private record RefreshingEntry(CompletableFuture<TokenVO> future, long createdAtMillis) {
     }
 }

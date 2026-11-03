@@ -11,7 +11,9 @@
  *   4. 业务异常（BusinessException）是预期分支：log.warn + 不打印堆栈；其余未知异常
  *      log.error + 打印全栈。混用会让日志要么淹没在堆栈里，要么查不到故障。
  */
-package com.faze.common;
+package com.faze.common.exception;
+
+import com.faze.common.R;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
@@ -26,19 +28,14 @@ import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingPathVariableException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.NoHandlerFoundException;
 
 /**
- * 全局异常处理器，覆盖《后端代码规范》§5.1 要求的 13 类分支。
- *
- * <p>设计原则（抄 jxyd200 最值得抄的单点）：</p>
- * <ul>
- *   <li><b>对外</b>只给 {@link ErrorCode} 里的稳定中文，客户端按 code 走 i18n；</li>
- *   <li><b>对内</b>把异常原文、请求路径、完整堆栈写进日志，排查靠 traceId 串起来。</li>
- * </ul>
+ * 全局异常处理器：对外稳定文案，对内完整日志。
  */
 @RestControllerAdvice
 @Slf4j
@@ -244,6 +241,22 @@ public class GlobalExceptionHandler {
                                                           HttpServletRequest req) {
         log.warn("缺少必填参数 path={} param={}", req.getRequestURI(), e.getParameterName());
         return ResponseEntity.ok(R.<Void>fail(ErrorCode.COMMON_PARAM_MISSING, e.getParameterName() + ": 不能为空"));
+    }
+
+    /**
+     * 拦截「客户端已断开」（SSE / 长轮询被用户切走时容器主动回调）。
+     *
+     * <p>这不是故障：连接已经没了，连错误响应都写不出去。按 §10.1 分级记 DEBUG，
+     * 否则生产日志里会全是「用户切走」的 ERROR，真正的故障被淹没。</p>
+     *
+     * <p>返回 void 表示本处理器已完全处理、不再写响应体。</p>
+     *
+     * @param e   客户端断开异常
+     * @param req 当前请求
+     */
+    @ExceptionHandler(AsyncRequestNotUsableException.class)
+    public void handleClientDisconnected(AsyncRequestNotUsableException e, HttpServletRequest req) {
+        log.debug("客户端已断开 path={}", req.getRequestURI());
     }
 
     // ── 10. 无权限 ─────────────────────────────────────────────────────────

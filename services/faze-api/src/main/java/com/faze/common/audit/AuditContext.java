@@ -15,10 +15,7 @@ import java.time.Instant;
 import org.slf4j.MDC;
 
 /**
- * 审计上下文（ThreadLocal）。
- *
- * <p>一次请求内可被多处写入，生命周期由 {@link com.faze.common.TraceIdFilter} 之外的
- * 请求入口（认证过滤器）负责初始化、由请求结束时清理。</p>
+ * 审计上下文：段 0 只进 MDC / ThreadLocal，不写库。
  */
 public final class AuditContext {
 

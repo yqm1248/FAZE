@@ -11,9 +11,9 @@
  */
 package com.faze.security;
 
-import com.faze.common.ErrorCode;
+import com.faze.common.exception.ErrorCode;
 import com.faze.common.R;
-import com.faze.common.TraceIdFilter;
+import com.faze.filter.TraceIdFilter;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;

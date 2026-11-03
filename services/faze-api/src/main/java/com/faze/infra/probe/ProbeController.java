@@ -19,7 +19,7 @@
  */
 package com.faze.infra.probe;
 
-import com.faze.common.ErrorCode;
+import com.faze.common.exception.ErrorCode;
 import com.faze.common.R;
 import com.faze.infra.law.LawSearchService;
 import com.faze.infra.law.dto.LawHitVO;
@@ -84,6 +84,9 @@ public class ProbeController {
     /**
      * 构造控制器。
      *
+     * <p>`appName` / `version` 用 `@Value` 而不是 `@ConfigurationProperties`：它们是**应用元数据**，
+     * 不是「可配置的领域阈值」，为两个常量单开属性类不划算（规范 §12.3 针对的是领域配置）。</p>
+     *
      * @param lawSearchService 法条检索服务
      * @param doubaoClient     豆包客户端
      * @param taskExecutor     Spring 异步执行器（用于把 SSE 写入放到工作线程）
@@ -147,11 +150,13 @@ public class ProbeController {
         taskExecutor.execute(() -> {
             AtomicInteger total = new AtomicInteger();
             try {
+                // 任务 1：首帧 meta，让验收人知道本次是不是 mock。
                 // 首帧必须是 meta：验收记录依赖它判断「本次是否 mock」，不能靠外部猜
                 emitter.send(SseEmitter.event()
                         .name(EVT_META)
                         .data(Map.of("mock", mock), MediaType.APPLICATION_JSON));
 
+                // 任务 2：逐段转发；客户端断开时转成非受检异常，由外层统一收尾。
                 doubaoClient.stream(PROBE_PROMPT, delta -> {
                     try {
                         emitter.send(SseEmitter.event()
@@ -164,11 +169,22 @@ public class ProbeController {
                     }
                 });
 
+                // 任务 3：正常结束发 done；失败走下方 error 分支，二者必居其一。
                 emitter.send(SseEmitter.event()
                         .name(EVT_DONE)
                         .data(Map.of("totalChars", total.get()), MediaType.APPLICATION_JSON));
                 emitter.complete();
             } catch (Exception e) {
+                if (isClientAbort(e)) {
+                    // 客户端提前断开是**预期路径**（验收脚本读完首屏就会 close），
+                    // 按《后端规范》§10.1 分级记 DEBUG，不许刷 ERROR——否则生产日志里
+                    // 全是「用户切走 SSE」的噪音，真正的故障会被淹掉。
+                    log.debug("AI 探针：客户端提前断开 mock={}", mock);
+                    // 只用 complete()：completeWithError 会把异常再抛给 GlobalExceptionHandler，
+                    // 那里按「运行时异常」记一条 ERROR——连接都断了，这条日志毫无价值。
+                    emitter.complete();
+                    return;
+                }
                 log.error("AI 探针失败 mock={}", mock, e);
                 try {
                     emitter.send(SseEmitter.event()
@@ -184,6 +200,28 @@ public class ProbeController {
             }
         });
         return emitter;
+    }
+
+    /**
+     * 判断异常链是否属于「客户端已断开」。
+     *
+     * <p>Spring 6.1+ 抛 `AsyncRequestNotUsableException`，Tomcat 抛 `ClientAbortException`。
+     * 用类名后缀判断而不是写死 import：容器实现可换，写死类名会在换容器后悄悄失效。</p>
+     *
+     * @param e 顶层异常
+     * @return true 表示客户端连接已断，属预期路径
+     */
+    private boolean isClientAbort(Throwable e) {
+        Throwable current = e;
+        while (current != null) {
+            String name = current.getClass().getName();
+            if (name.endsWith("AsyncRequestNotUsableException")
+                    || name.endsWith("ClientAbortException")) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
     }
 
     /**

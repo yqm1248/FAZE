@@ -1,18 +1,87 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
   法泽 FAZE 日志配置（段 0）
-  职责：控制台输出，pattern 必须含 %X{traceId}（接口规范 §5.1：R.traceId 与响应头 X-Trace-Id 同值）
-  注意：日志只打 traceId 与业务标识，禁止打 L4/L5 敏感字段（手机号、身份证、token、ossKey）
+  职责：console + 全量文件 + 独立 error 文件三路输出；pattern 必须含 %X{traceId} 与审计字段
+  调用方：Spring Boot 启动时由 logback-spring.xml 自动加载
+  数据来源：SLF4J → MDC（traceId / auditOp / auditAction，由 filter/TraceIdFilter 与
+            common/audit/AuditContext 写入）
+  注意事项：
+    1. 规范 §10.5 要求三个 appender（console + file 全量 + error 单独）且文件走 AsyncAppender、
+       discardingThreshold=0（不丢 WARN/ERROR）。段 0 就按这条配，不留到段 1 补。
+    2. 日志里禁写 L4/L5 敏感字段（身份证、密码哈希、聊天原文、完整 ossKey），见《审计与日志规范》。
+    3. logs/ 已在 .gitignore，日志不进仓库。
+    4. 滚动策略：按天 + 单文件 100MB + 保留 30 天。
 -->
 <configuration>
+
+  <!-- 日志目录：默认工作目录下的 logs/，可用环境变量 LOG_HOME 覆盖 -->
+  <property name="LOG_HOME" value="${LOG_HOME:-logs}"/>
+  <property name="PATTERN"
+            value="%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%X{traceId:-no-trace}] [%X{auditOp:-anon}] [%X{auditAction:-}] %logger{36} - %msg%n"/>
+
+  <!-- 控制台：本地开发看实时输出 -->
   <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
     <encoder>
-      <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%X{traceId:-no-trace}] [%X{auditOp:-anon}] [%X{auditAction:-}] %logger{36} - %msg%n</pattern>
+      <pattern>${PATTERN}</pattern>
       <charset>UTF-8</charset>
     </encoder>
   </appender>
 
+  <!-- 全量文件：给运维按时间 grep -->
+  <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <file>${LOG_HOME}/faze-api.log</file>
+    <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+      <fileNamePattern>${LOG_HOME}/faze-api.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+      <maxFileSize>100MB</maxFileSize>
+      <maxHistory>30</maxHistory>
+    </rollingPolicy>
+    <encoder>
+      <pattern>${PATTERN}</pattern>
+      <charset>UTF-8</charset>
+    </encoder>
+  </appender>
+
+  <!-- 错误单独一份：线上先看这个文件，不必在全量日志里翻 -->
+  <appender name="ERROR" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <file>${LOG_HOME}/faze-api-error.log</file>
+    <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+      <level>ERROR</level>
+    </filter>
+    <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+      <fileNamePattern>${LOG_HOME}/faze-api-error.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+      <maxFileSize>100MB</maxFileSize>
+      <maxHistory>30</maxHistory>
+    </rollingPolicy>
+    <encoder>
+      <pattern>${PATTERN}</pattern>
+      <charset>UTF-8</charset>
+    </encoder>
+  </appender>
+
+  <!-- 全量文件走异步；discardingThreshold=0 表示队列满时也不丢 WARN/ERROR，只丢 DEBUG/INFO -->
+  <appender name="ASYNC_FILE" class="ch.qos.logback.classic.AsyncAppender">
+    <queueSize>512</queueSize>
+    <discardingThreshold>0</discardingThreshold>
+    <neverBlock>false</neverBlock>
+    <appender-ref ref="FILE"/>
+  </appender>
+
+  <!--
+    MyBatis-Plus 已知噪音：当 XML 的 namespace 与 @MapperScan 同时注册同一个接口时，
+    MybatisConfiguration 会打一条 ERROR「mapper[...] is ignored, because it exists, maybe from xml file」。
+    这不是故障（Mapper 实际已注册、查询正常，实测 searchByNgram 有命中），
+    但它是 ERROR 级别，会把 faze-api-error.log 占满。
+
+    这里用 OFF 而不是 WARN——**日志级别是「该级别及以上」**，设 WARN 只挡 DEBUG/INFO，
+    ERROR 仍会通过（2026-11-03 实测：设 WARN 后该 ERROR 照旧输出）。该 logger 只打这一条
+    已知提示、没有需要保留的低级别日志，关掉没有信息损失。
+  -->
+  <logger name="com.baomidou.mybatisplus.core.MybatisConfiguration" level="OFF"/>
+
   <root level="INFO">
     <appender-ref ref="CONSOLE"/>
+    <appender-ref ref="ASYNC_FILE"/>
+    <appender-ref ref="ERROR"/>
   </root>
+
 </configuration>

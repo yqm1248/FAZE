@@ -28,8 +28,8 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
+import com.faze.config.properties.FazeProbeProperties;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
@@ -61,24 +61,15 @@ public class DoubaoClient {
     /**
      * 构造客户端。
      *
-     * @param mockEnabled    是否强制 mock（`faze.probe.ai.mock`）
-     * @param apiKey         豆包 API key（空则自动 mock）
-     * @param baseUrl        接入点 URL（OpenAI 兼容的 chat/completions）
-     * @param model          推理接入点 ID（`ep-` 开头），不是模型名
-     * @param timeoutSeconds 单次请求超时（秒）
-     * @param jsonMapper     Jackson 3 Mapper
+     * @param properties 探针配置（绑定自 `faze.probe.ai.*`）
+     * @param jsonMapper Jackson 3 Mapper
      */
-    public DoubaoClient(@Value("${faze.probe.ai.mock:true}") boolean mockEnabled,
-                        @Value("${faze.probe.ai.api-key:}") String apiKey,
-                        @Value("${faze.probe.ai.base-url:https://ark.cn-beijing.volces.com/api/v3/chat/completions}") String baseUrl,
-                        @Value("${faze.probe.ai.model:}") String model,
-                        @Value("${faze.probe.ai.timeout-seconds:120}") int timeoutSeconds,
-                        JsonMapper jsonMapper) {
-        this.mockEnabled = mockEnabled;
-        this.apiKey = apiKey;
-        this.baseUrl = baseUrl;
-        this.model = model;
-        this.requestTimeout = Duration.ofSeconds(timeoutSeconds);
+    public DoubaoClient(FazeProbeProperties properties, JsonMapper jsonMapper) {
+        this.mockEnabled = properties.mock();
+        this.apiKey = properties.apiKey();
+        this.baseUrl = properties.baseUrl();
+        this.model = properties.model();
+        this.requestTimeout = Duration.ofSeconds(properties.timeoutSeconds());
         this.jsonMapper = jsonMapper;
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(CONNECT_TIMEOUT_SECONDS))

@@ -12,7 +12,7 @@
  *      `isMinor`，与契约一致。若改成原生 boolean 会变成 `minor`（`isXxx()` 的 JavaBeans 语义），
  *      那样就与契约不符了——这是本条注释存在的唯一原因。
  */
-package com.faze.modules.account.dto;
+package com.faze.modules.account.vo;
 
 import java.util.List;
 import lombok.Data;
