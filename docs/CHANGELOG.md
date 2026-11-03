@@ -4,6 +4,30 @@
 
 ---
 
+## 2026-11-04 · 段 0 D3 完成：SSE + ngram 命中依据（基线 v1.42）
+
+**范围**：D3 的服务端与前端代码**全部完成**，并用真实 Chrome（CDP）点验通过。**真机项仍待设备。**
+
+**服务端**：`LawHitVO` 加 `matchedTerms`（D3 第 2 条：只有 score 一个数字时验收人看不出「凭什么命中」）；`LawSearchService` 按 `ngram_token_size=2` 切词并筛出原文中实际出现的 token；`ProbeController` 记录首字节耗时放进 done 帧。种子 `database/seed/law_items_probe.sql`（不进 Flyway）。
+
+**前端**：`shared/api/sse.ts` 用 **`expo/fetch` 的 `ReadableStream`**——RN 全局 fetch 建在 XHR 上、`response.body` 是 `undefined`，这条是 D3 的实测结论；`features/dev/pages/ProbePage.tsx` 三块探针（运行时信息 / ping / AI 流 / law 检索）。
+
+**两个技术性让步（都已写进文档，不是偷偷改）**：
+1. **首字节不写响应头**：SSE 的响应头在首帧 `meta` 发出时就已提交，而首字节要等第一个 `delta` 才知道——顺序上做不到。改由 `done` 帧的 `firstByteMs` 承载，页面同时显示客户端与服务端两个数互证。
+2. **种子是 5 条不是 50 条**：D3 同时规定「不许自己编法条原文」。技术侧能确认的权威原文只有《民法典》5 条，其余 45 条需法务提供。判据只要求「命中 ≥1 + matchedTerms 非空 + 空结果不崩」，5 条够验。
+
+**修掉的两个真 bug**：① `firstByteMs` 用 `long` 装箱成 `Long`，撞上全局「Long → 字符串」序列化，客户端按 number 解析失败 → 改 `int`；② `Screen` 内容区在 web 上宽度算成「父宽 + padding」，右侧溢出视口 → 加 `width:100%`。
+
+**dev-only CORS**：浏览器从 `:8090` 请求 `:8081` 跨域，未加前三个请求全是 `kind=network`。加 `CorsConfig`（`@Profile("!prod")`，只放本机 8090、不写 `*`）；生产 profile 下 bean 不存在，不放开任何源。
+
+**CDP 真点验结果（不是截图猜测）**：ping → 真实版本与时间；SSE → `mock=true`、**客户端首字节 14ms / 服务端 1ms**、流式文本完整；law → **命中 2 条**，`第六百六十七条 | score=0.633425 | 依据=借款`。
+
+**本版没做的事**：真机 SSE 逐段出字未验；`probe/ai` 仍 mock（无豆包 key）；D3 的「真机 + 真后端全链路」判据仍未签。
+
+**基线**：v1.41 → **v1.42**，新增 **1 份**（探针与流式约定），内容变更 **1 份**（docs/README），资产数 42 → **43**。
+
+---
+
 ## 2026-11-04 · 段 0 D2 字体落地 + /dev/rtl 页（基线 v1.41）
 
 **范围**：D2 的字体部分 + `0-A3` 的载体页。**真机渲染未验**（无设备）。
