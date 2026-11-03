@@ -1,0 +1,7 @@
+{
+  "error.common.network": "网络连接失败，请检查网络后重试",
+  "error.common.server": "服务暂时不可用，请稍后重试",
+  "error.auth.token-expired": "登录已过期，请重新登录",
+  "error.auth.token-invalid": "登录凭证无效，请重新登录",
+  "error.ai.service-down": "AI 服务暂时不可用"
+}

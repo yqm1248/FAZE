@@ -1,4 +1,5 @@
-import { Pressable, StyleSheet, Text, type StyleProp, type ViewStyle } from 'react-native';
+import { Pressable, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
+import { LocalizedText } from './LocalizedText';
 
 import { color, radius, shadow, size, spacing, typography } from '@/shared/theme';
 
@@ -59,7 +60,7 @@ export function PrimaryButton({
         style,
       ]}
     >
-      <Text
+      <LocalizedText numberOfLines={1}
         style={[
           styles.label,
           isSolid
@@ -70,7 +71,7 @@ export function PrimaryButton({
         ]}
       >
         {label}
-      </Text>
+      </LocalizedText>
     </Pressable>
   );
 }

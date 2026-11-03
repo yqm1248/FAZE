@@ -1,4 +1,5 @@
-import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { LocalizedText } from './LocalizedText';
 
 import { color, radius, spacing, typography } from '@/shared/theme';
 
@@ -31,9 +32,9 @@ export function TagChip({
 }) {
   return (
     <View style={[styles.base, sizeStyles[chipSize], variantStyles[variant], style]}>
-      <Text style={[textStyles[chipSize], variantTextStyles[variant]]} numberOfLines={1}>
+      <LocalizedText style={[textStyles[chipSize], variantTextStyles[variant]]} numberOfLines={1}>
         {label}
-      </Text>
+      </LocalizedText>
     </View>
   );
 }

@@ -1,4 +1,5 @@
-import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { LocalizedText } from './LocalizedText';
 
 import { color, radius, spacing, typography } from '@/shared/theme';
 
@@ -14,26 +15,26 @@ import { color, radius, spacing, typography } from '@/shared/theme';
  * @param text 标题文字
  * @param bar 是否渲染左侧竖条，默认 `false`
  * @param accent 是否使用强调色（AI 相关），默认 `false`
- * @param right 标题行右侧插槽，例如首页的「更多」按钮
+ * @param trailing 标题行尾部插槽，例如首页的「更多」按钮
  */
 export function SectionTitle({
   text,
   bar = false,
   accent = false,
-  right,
+  trailing,
   style,
 }: {
   text: string;
   bar?: boolean;
   accent?: boolean;
-  right?: React.ReactNode;
+  trailing?: React.ReactNode;
   style?: StyleProp<ViewStyle>;
 }) {
   return (
     <View style={[styles.row, style]}>
       {bar ? <View style={styles.bar} /> : null}
-      <Text style={[styles.text, accent ? styles.textAccent : null]}>{text}</Text>
-      {right ? <View style={styles.right}>{right}</View> : null}
+      <LocalizedText numberOfLines={1} style={[styles.text, accent ? styles.textAccent : null]}>{text}</LocalizedText>
+      {trailing ? <View style={styles.trailing}>{trailing}</View> : null}
     </View>
   );
 }
@@ -49,7 +50,7 @@ const styles = StyleSheet.create({
     height: 16,
     borderRadius: radius.xs / 2,
     backgroundColor: color.brand.primary,
-    marginRight: spacing.md,
+    marginEnd: spacing.md,
   },
   text: {
     ...typography.h3,
@@ -58,7 +59,7 @@ const styles = StyleSheet.create({
   textAccent: {
     color: color.brand.accent,
   },
-  right: {
-    marginLeft: 'auto',
+  trailing: {
+    marginStart: 'auto',
   },
 });

@@ -1,13 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import {
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-  type StyleProp,
-  type ViewStyle,
-} from 'react-native';
+import { LocalizedText } from './LocalizedText';
+import { Pressable, StyleSheet, TextInput, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { color, radius, size, spacing, typography } from '@/shared/theme';
 
@@ -57,9 +50,9 @@ export function SearchBar({
         accessibilityLabel={placeholder}
       >
         <Ionicons name="search" size={16} color={color.text.muted} />
-        <Text style={styles.placeholder} numberOfLines={1}>
+        <LocalizedText style={styles.placeholder} numberOfLines={1}>
           {placeholder}
-        </Text>
+        </LocalizedText>
       </Pressable>
     );
   }
@@ -104,14 +97,14 @@ const styles = StyleSheet.create({
   placeholder: {
     ...typography.body,
     flex: 1,
-    marginLeft: spacing.sm,
+    marginStart: spacing.sm,
     color: color.text.muted,
   },
   input: {
     ...typography.body,
     flex: 1,
     height: size.inputHeight - 6,
-    marginLeft: spacing.sm,
+    marginStart: spacing.sm,
     color: color.text.body,
     paddingVertical: 0,
   },
