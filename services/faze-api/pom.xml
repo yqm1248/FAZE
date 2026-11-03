@@ -50,7 +50,12 @@
       <artifactId>spring-boot-starter-security</artifactId>
     </dependency>
     <!-- 2026-11-02 复核：SB 4.0 起没有 spring-boot-starter-aop（改为 spring-boot-starter-aspectj）。
-         段 0 不做 AOP 审计（审计四要素只进 MDC/ThreadLocal，不写库），故不引入切面依赖。 -->
+         段 0 不做 AOP 审计（审计四要素只进 MDC/ThreadLocal，不写库）；
+         段 1 A4 补建审计切面，故引入 aspectj starter（不是 aop starter，名字不同）。 -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-aspectj</artifactId>
+    </dependency>
 
     <!-- Redis：第 1 段 A2 引入（验证码、令牌、限流、支付密码锁定计数都依赖它）。
          逻辑库用 1，与 RuoYi 的 0 分开；业务 key 统一前缀 faze: -->
