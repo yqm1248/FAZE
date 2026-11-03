@@ -4,6 +4,24 @@
 
 ---
 
+## 2026-11-04 · 段 0 C 组完成：登录页 + 语言切换页（基线 v1.39）
+
+**范围**：C1 登录页（真接口）/ C2 语言切换页（`forceRTL` + 软重启）。C 组是 `0-A2` 与 `0-A3` 的**唯一载体**。
+
+**C1 登录页**：`features/auth/pages/LoginPage.tsx`（真接口 + 字段校验 + 错误码归一 + 短信 Tab 置灰）、`features/auth/api/login.ts`、`shared/utils/deviceId.ts`。错误码映射按《接口规范》：402001→`auth.login.failed`（不区分账号/密码）、402004→`auth.login.banned`、401007→`auth.login.rateLimited`，**绝不展示 `R.msg`**。
+
+**一个文档错误已纠正**：C1 要求「RTL 下输入框 `textAlign: start`」——RN 的 `textAlign` **没有 `start/end`**（只有 left/right/center/auto），用 `'auto'` 跟随方向，并在页面注释里记下这条口径。
+
+**C2 语言切换页**：`features/settings/pages/LanguagePage.tsx`（4 语言单选、母语名不翻译）、`features/settings/api/locale.ts`（写持久化 → `forceRTL` → reload 的顺序不能改）。`bo` 是 **LTR**，RTL 只有 `ug-Arab-CN` / `kk-Arab-CN`。`reloadAsync` 不可用时提示「需重启」，不假装切换完成。
+
+**门禁实测**：`tsc --noEmit` **0**；`eslint` **0**；`check-raw-text` **0**；`check-i18n` 三项全过（每语言缺 42 个 key 已登记）；`expo export --platform web` **832 modules 成功**。
+
+**本版没做的事（设备侧全部挂账）**：C1/C2 的「算做完」条目全部需要**真机 + 真后端**——登录进首页、输错密码显示中文、`X-Device-Id` 与 body 一致、RTL 整屏镜像、`am force-stop` 后仍 RTL。`adb devices` 为空，**一条都验不了**。C 组同样只能记「代码完成、锚点待验」。
+
+**基线**：v1.38 → **v1.39**，内容变更 **2 份**（未完成需备注 / docs/README），资产数 40 不变。
+
+---
+
 ## 2026-11-04 · 段 0 B 组完成：移动端地基（基线 v1.38）
 
 **范围**：B1 Expo 工程与路由树 / B2 网络层与鉴权态 / B3 本地化与 RTL / B4 页面四态与错误边界。**B 组四个任务全部完成**，按「一组一停」停下汇报。
