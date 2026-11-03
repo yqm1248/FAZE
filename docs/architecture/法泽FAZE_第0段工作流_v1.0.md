@@ -827,19 +827,35 @@ services/faze-api/
 ├─ pom.xml
 ├─ src/main/java/com/faze/
 │  ├─ FazeApiApplication.java
-│  ├─ common/        R.java / ErrorCode.java / GlobalExceptionHandler.java / TraceIdFilter.java
-│  │                 audit/AuditContext.java（段 0 只进 MDC，不写库）
-│  ├─ config/        SecurityConfig / MybatisPlusConfig / JacksonConfig / OpenApiConfig
-│  ├─ security/      JwtAuthenticationFilter / JwtTokenProvider / RestAuthenticationEntryPoint
-│  ├─ modules/       (段 0 不建；`modules/*/README` 挂账到段 1)
-│  └─ infra/         ai/DoubaoClient（探针用，key 为空时走 mock）/ law/LawSearchService
+│  ├─ common/        R.java（统一响应）
+│  │                 exception/  ErrorCode / BusinessException / GlobalExceptionHandler
+│  │                 util/       RequestUtils（客户端 IP / 设备 id）
+│  │                 audit/      AuditContext（段 0 只进 MDC，不写库）
+│  ├─ filter/        TraceIdFilter（链路 id）
+│  ├─ config/        SecurityConfig / MybatisPlusConfig / JacksonConfig
+│  │                 properties/ FazeJwtProperties / FazeProbeProperties（§12.3 构造绑定）
+│  ├─ security/      JwtAuthenticationFilter / JwtTokenProvider / LoginUser / RefreshTokenStore
+│  │                 RestAuthenticationEntryPoint / RestAccessDeniedHandler
+│  ├─ modules/       account/（**段 0 唯一业务域**，承载 0-A2 的登录/刷新/资料三接口）
+│  │                 ├─ controller/ service/ mapper/ entity/ bo/ vo/ + **README.md（§2.6 强制）**
+│  └─ infra/         probe/DoubaoClient（探针用，key 为空时走 mock）
+│                    law/LawSearchService（ngram 检索；段 0 权宜放 infra，段 3 移入业务域）
 ├─ src/main/resources/
 │  ├─ application.yml / application-dev.yml / application-prod.yml
 │  ├─ db/migration/V1__baseline.sql、V2__init_law_items.sql
-│  ├─ mapper/LawItemMapper.xml
-│  └─ logback-spring.xml（pattern 含 %X{traceId}）
-└─ src/test/java/com/faze/   （段 0 只放 1 个：TraceId + 401 的 MockMvc 冒烟）
+│  ├─ mapper/law/LawItemMapper.xml（§3.4：按域分子目录）
+│  └─ logback-spring.xml（console + file + error 三 appender，§10.5）
+└─ src/test/java/com/faze/   （Seg0SmokeTest：6 个接口各一条 200 / 错误码用例 + traceId 双处一致）
 ```
+
+> **2026-11-03 包结构返工（本段第一次回写时的结构是错的）**：原文把 `ErrorCode` / `GlobalExceptionHandler` /
+> `TraceIdFilter` 平铺在 `common/` 根、把入参出参混在 `modules/account/dto/`、把 Mapper XML 放在
+> `resources/mapper/` 根——**与《后端代码规范 v1.0》§2.1 / §3.4 / §3.5 冲突**。真实原因是原文 §(3) 说
+> 「严格照 AGENTS §3.2」，而 AGENTS §3.2 的 `common/` 本来就有 `exception` 子包，A3 这段把它拍平了。
+> 现按规范改正：`common/exception/` + `filter/` + `modules/<域>/bo|vo/` + `resources/mapper/<域>/`，
+> 并补 `modules/account/README.md`（规范 §2.6 的 CI 断言项）。
+> **两条仍属段 0 权宜、已记挂账**：`infra/law/`（规范 infra 下只列了 storage/sms/push/pdf/ai/mq/monitor）
+> 与 `infra/*/dto/`（段 3 法条库落地后移入业务域时一并收敛）。
 
 - **不加 Maven Wrapper**（`mvnw`/`mvnw.cmd`/`.mvn/`）：本机已有 Maven 3.9.16（`E:\google\apache-maven-3.9.16-bin\...\mvn.cmd`），wrapper 会引入一份要联网下载的 `maven-wrapper.jar` 与其分发源，收益为负。Maven 版本写进 `deploy/README.md` 与 `services/faze-api/README.md`。
 - **不加根级 `pom.xml`**：单模块，`services/faze-api/pom.xml` 就是工程根，不做聚合。
@@ -867,6 +883,8 @@ services/faze-api/
 **(3) 包结构**
 
 严格照 AGENTS §3.2 的五段式：`common/` `config/` `security/` `modules/` `infra/`。段 0 填 `common/config/security/infra`，并**只建一个业务域 `modules/account/`**（承载 `0-A2` 必需的登录 / 刷新 / 资料三个接口，见 §零之二 冲突 1）；其余业务域留空，段 1 起再建。
+
+> **2026-11-03 修正**：本段实施后按《后端代码规范 v1.0》§2.1 返工，补了 `filter/`、`common/exception/`、`config/properties/`、`modules/<域>/bo|vo/`。**包结构的唯一权威是《后端代码规范》§2.1**，本文件 §(1) 的目录树已同步改正；两处仍挂账的权宜（`infra/law/`、`infra/*/dto/`）见 §(1) 末尾。
 
 **(4) 本段必须实现的最小件（6 件，多一件都不做）**
 
@@ -1058,6 +1076,31 @@ A3 原计划只写「三个探针」，但留了三项未定契约（SSE 事件�
 - 第 6~8、13 条：`SHOW TABLES` 恰好 3 张、`COUNT(law_item)=5`、`SHOW CREATE TABLE` 含 `` WITH PARSER `ngram` ``、`ngram_token_size=2`
 
 **本轮仍未验的 1 条**：第 5 条只验到 mock 流（`FAZE_DOUBAO_API_KEY` 为空），真实豆包链路的「5 秒内出首字节」属 `0-A5`/D3 组，本轮不签。
+
+**2026-11-03 规范返工（按《后端代码规范 v1.0》逐条对齐）**
+
+A3 首次交付后，负责人要求「写代码按后端代码规范」。用 `_artifacts/selfcheck-backend-spec.py` 逐文件核对，发现 **9 处不符**，已全部返工：
+
+| # | 违反条款 | 返工前 | 返工后 |
+|---|---|---|---|
+| 1 | §2.1 | `common/BusinessException` / `ErrorCode` / `GlobalExceptionHandler` 平铺在 `common/` 根 | `common/exception/` |
+| 2 | §2.1 | `common/TraceIdFilter` | `filter/` |
+| 3 | §3.5 | `modules/account/dto/`（入参出参混放） | `bo/`（`LoginBO` / `RefreshTokenBO`）+ `vo/`（`UserVO` / `LoginVO` / `TokenVO`） |
+| 4 | §4.1 | 12 个类头 javadoc 超三行（最长 12 行） | 全部压到 ≤3 行，长说明留在文件头块注释 |
+| 5 | §4.4 | `// 任务 n：` 分段 0 处 | `AuthService`（login / refresh / doRefresh）、`LawSearchService`、`ProbeController` 补齐 |
+| 6 | §12.1 | `ErrorCode` 无静态查找 | 补 `BY_CODE` 索引 + `of(int)` |
+| 7 | §12.3 | `@ConfigurationProperties` 0 个、`@Value` 10 处 | 新增 `config/properties/FazeJwtProperties` / `FazeProbeProperties`（构造绑定 + `@DefaultValue`）；`@Value` 降到 2 处（`appName`/`version` 属应用元数据，豁免理由写在该构造器注释里） |
+| 8 | §2.6 | `modules/account/README.md` 缺失 | 补四段（边界 / 数据来源 / 不可改的契约 / 测试入口） |
+| 9 | §10.5 / §12.4 / §3.4 | logback 只有 console；MockMvc 只 2 个用例；XML 在 `mapper/` 根 | 三 appender + `AsyncAppender(discardingThreshold=0)`；**10 个用例覆盖 6 个接口**（含 SSE 异步）；XML 移到 `mapper/law/` |
+
+**两处文档冲突的裁决**：
+
+1. **包结构**：第 0 段工作流 §(1) 与《后端代码规范》§2.1 冲突 → **以后端规范为准**。依据：原文自称「严格照 AGENTS §3.2」，而 AGENTS §3.2 的 `common/` 本来就有 `exception` 子包，是 A3 这段把它拍平了，不是有意裁决。本文件 §(1) 已同步改正。
+2. **`@Schema` / `@Operation`**：后端规范 §4 要求与校验注解成对，但段 0 的依赖表**没有 springdoc** → **不引入**，记挂账到「首次引入 springdoc 的那一段」；`OpenApiConfig` 也从 §(1) 目录树删掉（原文列了它却没有对应依赖，属自相矛盾）。
+
+**仍挂账、经负责人同意**：MapStruct（§3.6）段 0 不引入（只有 1 个转换点）；`infra/law/` 与 `infra/*/dto/` 保留（段 3 法条库落地后移入业务域时收敛）。
+
+**返工后复验**（`selfcheck-backend-spec.py` 输出）：包结构违规 0；类 javadoc 超三行 0/35（2 个 record 的 `@param` 属契约，豁免）；文件头块注释缺失 0；public 方法 javadoc 51/51；Controller 分层禁令违规 0；`logback` 三 appender 齐全；`mvn -B test` → **Tests run: 10, Skipped: 0**。
 
 ---
 

@@ -1,12 +1,12 @@
 ========================================================================
-A3 生产 profile 验收（8082）—— 2026-11-03T23:02:34
+A3 生产 profile 验收（8082）—— 2026-11-03T23:34:15
 ========================================================================
 PASS 9. ping（@Profile 排除） → 404 + JSON 体
-     HTTP=404 Content-Type=application/json body='{"code": 401004, "data": null, "msg": "资源不存在", "traceId": "9835007c-da00-440b-a1af-bd394055f6b6"}'
+     HTTP=404 Content-Type=application/json body='{"code": 401004, "data": null, "msg": "资源不存在", "traceId": "9c08bca6-2db5-4dcd-a6d4-f8f5a9d606cd"}'
 PASS 9. probe/law（@Profile 排除） → 404 + JSON 体
-     HTTP=404 Content-Type=application/json body='{"code": 401004, "data": null, "msg": "资源不存在", "traceId": "1ce155de-987a-444b-8a8a-3a169206b1ce"}'
+     HTTP=404 Content-Type=application/json body='{"code": 401004, "data": null, "msg": "资源不存在", "traceId": "e9d233cc-8a92-4a47-85a6-0caa99fd08c7"}'
 PASS 9. probe/ai（@Profile 排除） → 404 + JSON 体
-     HTTP=404 Content-Type=application/json body='{"code": 401004, "data": null, "msg": "资源不存在", "traceId": "efd1e416-4518-424c-bd73-ba507b2b726a"}'
+     HTTP=404 Content-Type=application/json body='{"code": 401004, "data": null, "msg": "资源不存在", "traceId": "682ab373-ee77-45c3-9141-dc50589f62a5"}'
 PASS 9b. 反向确认：prod 下 login 仍可用（200 + code 200）
      HTTP=200 code=200
 PASS 9c. prod 下受保护资源仍回 401 + 402003

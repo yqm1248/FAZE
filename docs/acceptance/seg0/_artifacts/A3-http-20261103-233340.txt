@@ -1,9 +1,9 @@
 ========================================================================
-A3 HTTP 验收 —— 2026-11-03T23:01:33
+A3 HTTP 验收 —— 2026-11-03T23:33:40
 base=http://127.0.0.1:8081
 ========================================================================
 PASS 3. ping：HTTP 200 + code 200 + traceId 与 X-Trace-Id 同值
-     HTTP=200 code=200 header=ccb10a0d-6ec1-4450-8c22-5c4f6d085602 body=ccb10a0d-6ec1-4450-8c22-5c4f6d085602
+     HTTP=200 code=200 header=192a9058-3bf9-403f-b763-7a0db9ee1735 body=192a9058-3bf9-403f-b763-7a0db9ee1735
 PASS 4. probe/law?kw=合同：hits >= 1
      HTTP=200 hits=4 首条={"articleNo": "第五百零九条", "id": "2", "lawCode": "civil_code", "score": 0.018783, "snippet": "…应当按照约定全面履行自己的义务。当事人应当遵循诚信原则，根据合同的性质、目的和交易习惯履行通知、协助、保密等义务。当事人在履行合同过程中，应当避免浪费资源、污染环境…"}
 PASS 4b. probe/law?kw=婚（单字）：0 命中是预期（ngram_token_size=2）
@@ -13,27 +13,27 @@ PASS 5. probe/ai：SSE 首帧 meta 且 mock=true（本次为 mock）
 PASS 12a. login：200 + access/refresh/expiresIn/tokenType/user 齐全
      HTTP=200 tokenType=Bearer expiresIn=7200 user={"avatarUrl": null, "id": "1", "isMinor": false, "nickname": "测试用户", "payPasswordSet": false, "phoneMasked": "138****0001", "realnameStatus": "NONE", "roles": ["user"]}
 PASS 12b. profile（带 token）：200 + code 200 + id 为字符串（Long→String）
-     HTTP=200 body={"code": 200, "data": {"avatarUrl": null, "id": "1", "isMinor": false, "nickname": "测试用户", "payPasswordSet": false, "phoneMasked": "138****0001", "realnameStatus": "NONE", "roles": ["user"]}, "msg": "ok", "traceId": "ad00c0ea-f8c7-43b9-8dc4-0f93c45465f5"}
+     HTTP=200 body={"code": 200, "data": {"avatarUrl": null, "id": "1", "isMinor": false, "nickname": "测试用户", "payPasswordSet": false, "phoneMasked": "138****0001", "realnameStatus": "NONE", "roles": ["user"]}, "msg": "ok", "traceId": "9a4d830f-372b-4981-b195-761f25bb7575"}
 PASS 12c. profile（无 token）：HTTP 401 + code 402003
-     HTTP=401 body={"code": 402003, "data": null, "msg": "登录凭证无效，请重新登录", "traceId": "8fe654c0-8a0e-46d5-9156-3ff0e8951a69"}
+     HTTP=401 body={"code": 402003, "data": null, "msg": "登录凭证无效，请重新登录", "traceId": "9a4eacce-7443-4b5a-aa9d-626bde4378dd"}
 PASS 12d. refresh：200 + 新 access/refresh + 轮换
      HTTP=200 新 refresh 与旧不同=True
 PASS 12e. 旧 refresh token 在复用窗口外重放：401 + 402003（轮换后失效，不许重放）
-     HTTP=401 body={"code": 402003, "data": null, "msg": "登录凭证无效，请重新登录", "traceId": "ac4774ba-c242-4f71-9670-a1bd852c272f"}（先 sleep 6 秒越过 5 秒复用窗口）
+     HTTP=401 body={"code": 402003, "data": null, "msg": "登录凭证无效，请重新登录", "traceId": "5e0c16a5-36c0-4aae-9c72-30c0e09295e4"}（先 sleep 6 秒越过 5 秒复用窗口）
 PASS 12f. 单飞：同一 refreshToken 并发 6 次 → 全部 200 且新 token 唯一
      HTTP=[200, 200, 200, 200, 200, 200] 不同新token数=1
 PASS 10a. 过期 token：HTTP 401 + code 402002（可刷新）
-     HTTP=401 body={"code": 402002, "data": null, "msg": "登录已过期，请重新登录", "traceId": "aa854680-b8f3-4f84-b3a5-713a81a0bc52"}
+     HTTP=401 body={"code": 402002, "data": null, "msg": "登录已过期，请重新登录", "traceId": "69aa221a-9a91-4554-86b7-b6b2c595850a"}
 PASS 10b. 签名错 token：HTTP 401 + code 402003（不可刷新）
-     HTTP=401 body={"code": 402003, "data": null, "msg": "登录凭证无效，请重新登录", "traceId": "1fcfacfe-b438-45e7-9e55-0239e5e59c4e"}
+     HTTP=401 body={"code": 402003, "data": null, "msg": "登录凭证无效，请重新登录", "traceId": "bc6950e7-e5f6-4a59-865f-1879a67de8ae"}
 PASS 10c. 两码必须不同（否则客户端无限刷新循环）
      过期码=402002 无效码=402003
 PASS 11a. kw 超长（60 字 > 50）：200 + 401001，msg 不含 SQL/表名/类名
-     HTTP=200 body={"code": 401001, "data": null, "msg": "probeLaw.kw: kw 长度需在 1~50 之间", "traceId": "d9913fac-c75d-4ba2-809f-b74fe8b116ba"}
+     HTTP=200 body={"code": 401001, "data": null, "msg": "probeLaw.kw: kw 长度需在 1~50 之间", "traceId": "6fb3f297-3a3a-4b65-aa36-baca65f7ee74"}
 PASS 11b. 缺必填参数 kw：200 + 401002，msg 为字段级提示、不含内部信息
-     HTTP=200 body={"code": 401002, "data": null, "msg": "kw: 不能为空", "traceId": "7cd9b322-be2f-4238-929b-9282dcf51300"}
+     HTTP=200 body={"code": 401002, "data": null, "msg": "kw: 不能为空", "traceId": "324bcd02-1c0d-49e8-b6e6-ed1c231cb32f"}
 PASS 11c. 方法不支持：HTTP 405 + JSON 体（不是 HTML 错误页）
-     HTTP=405 body={"code": 401001, "data": null, "msg": "参数校验失败", "traceId": "9add6b53-ecb7-400d-bc55-2f12e98e404b"}
+     HTTP=405 body={"code": 401001, "data": null, "msg": "参数校验失败", "traceId": "03d5a154-4026-4e5a-b0c1-e0a0bf63e241"}
 ========================================================================
 合计 16 项：PASS 16 / FAIL 0
 ========================================================================

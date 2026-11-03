@@ -4,6 +4,41 @@
 
 ---
 
+## 2026-11-03 · 段 0 A3 按《后端代码规范》返工（基线 v1.37）
+
+**动因**：负责人要求「写代码按《后端代码规范 v1.0》的代码 / 目录 / 工程性 / 注释规范」。A3 刚交付，立即用它回头核对已写的 35 个文件——**发现 9 处不符**，全部返工（不是挂账）。
+
+**怎么核的**：写 `docs/acceptance/seg0/_artifacts/selfcheck-backend-spec.py`，逐文件扫包结构、类头 javadoc 行数、public 方法注释覆盖、`// 任务 n` 分段、`ErrorCode` 静态查找、`@ConfigurationProperties`、logback appender、Controller 分层禁令。**不凭印象**——首轮报出的 12 处超长类注释、0 处分段、0 个属性类都是脚本数出来的。
+
+**返工的 9 处**：
+
+| # | 条款 | 返工前 | 返工后 |
+|---|---|---|---|
+| 1 | §2.1 | `common/` 根平铺 `ErrorCode`/`BusinessException`/`GlobalExceptionHandler` | `common/exception/` |
+| 2 | §2.1 | `common/TraceIdFilter` | `filter/` |
+| 3 | §3.5 | `modules/account/dto/` 混放入参出参 | `bo/`（`LoginBO`/`RefreshTokenBO`）+ `vo/`（`UserVO`/`LoginVO`/`TokenVO`） |
+| 4 | §4.1 | 12 个类头 javadoc 超三行（最长 12 行） | 全部 ≤3 行，长说明留在文件头块注释 |
+| 5 | §4.4 | `// 任务 n：` 分段 **0** 处 | `AuthService`（login/refresh/doRefresh）、`LawSearchService`、`ProbeController` 补齐 |
+| 6 | §12.1 | `ErrorCode` 无静态查找 | 补 `BY_CODE` + `of(int)` |
+| 7 | §12.3 | `@ConfigurationProperties` **0** 个、`@Value` **10** 处 | `config/properties/FazeJwtProperties`/`FazeProbeProperties`（构造绑定 + `@DefaultValue`）；`@Value` 降到 2 处（应用元数据，豁免理由写进注释） |
+| 8 | §2.6 | `modules/account/README.md` **缺失** | 补四段（边界 / 数据来源 / 不可改的契约 / 测试入口） |
+| 9 | §10.5 / §12.4 / §3.4 | logback 只有 console；MockMvc 只 2 个用例；XML 在 `mapper/` 根 | 三 appender + `AsyncAppender(discardingThreshold=0)`；**10 个用例覆盖 6 个接口**；XML 移到 `mapper/law/` |
+
+**两处文档冲突，已裁决**：① **包结构以后端规范为准**——第 0 段工作流原文把 `exception` 子包拍平了，而它自称「严格照 AGENTS §3.2」，AGENTS §3.2 本来就有该子包，属笔误不是裁决；已回写 §(1) 目录树与 §(3)。② **`@Schema`/`@Operation` 段 0 不引入**（依赖表没有 springdoc，`OpenApiConfig` 原文列了却没有依赖，已从目录树删除），记挂账到首次引入 springdoc 的段。**MapStruct 与 `infra/law/` 按此前约定保留并挂账**。
+
+**顺手消灭两条 ERROR 噪音**（修复前 `faze-api-error.log` 63 行，全非业务故障）：
+
+1. MP 在「XML namespace + `@MapperScan` 双重注册」时打 `mapper is ignored` ERROR → logback 对该 logger 设 **OFF**。**踩过一次坑：先设 WARN 无效**——日志级别是「该级别及以上」，ERROR 照样通过；已把这条写进配置注释。
+2. 客户端断开 SSE 后容器回调 `AsyncRequestNotUsableException` → `GlobalExceptionHandler` 加专用分支记 DEBUG；`ProbeController` 该分支由 `completeWithError()` 改成 `complete()`（前者会把异常再抛给异常处理器记 ERROR）。
+
+修完 `faze-api-error.log` **0 行**；`mvn -B test` 10/10 仍全过。
+
+**重验（全部重跑，未复用旧证据）**：`mvn -B verify` → `BUILD SUCCESS`；带 `FAZE_DB_URL` → **`Tests run: 10, Skipped: 0`**；HTTP **16/16**、DB **6/6**、prod 404 **5/5**（`A3-{http,db,prod404}-20261103-2333xx.txt`）。
+
+**基线**：v1.36 → **v1.37**，内容变更 **2 份**（第 0 段工作流 / docs/README），资产数不变 **38**。
+
+---
+
 ## 2026-11-03 · 段 0 A3 完成：服务端骨架 + Flyway + 6 个接口（基线 v1.36）
 
 **范围**：第 0 段 A 组的最后一个任务 A3。至此 **A 组（A1 骨架 / A2 服务脚本 / A3 服务端）全部完成**，按「一组一停」纪律在此停下汇报，未进入 B 组。

@@ -1,18 +1,18 @@
-# 法泽 FAZE 文档基线 v1.36
+# 法泽 FAZE 文档基线 v1.37
 
 > # 后续一切文档从这里开始
 
 | 项 | 值 |
 | --- | --- |
-| 基线编号 | **v1.36** |
-| 确立日期 | 2026-11-03 |
-| 上一版 | v1.35（2026-11-02，38 份资产） |
+| 基线编号 | **v1.37** |
+| 确立日期 | 2026-11-03（v1.37 同日） |
+| 上一版 | v1.36（2026-11-03，38 份资产） |
 | 所在分支 | `UI设计`（v1.2 及以前在 `docs` 分支） |
 | Git 标签 | `v1.13-docs-baseline`（v1.3~v1.10 当时未打标签，见 §7.13；v1.14~v1.32 亦未打标签，见 §7.33 末尾） |
 | 基线资产数 | **38**（37 份 Markdown + 1 份令牌 JSON） |
 | 本版新增 | **0 份** |
 | 本版删除 | **0 份** |
-| 本版内容变更 | **3 份**（《第 0 段工作流》补 A3 施工实测与三项契约、《依赖清单》补登记 `spring-boot-webmvc-test`、docs/README 基线号。见 §7.40） |
+| 本版内容变更 | **2 份**（《第 0 段工作流》A3 目录树按《后端代码规范》返工、docs/README 基线号。见 §7.41） |
 
 ---
 
@@ -100,7 +100,7 @@
 |---|---|---|---|---|
 | 1 | `AGENTS.md` | 200 | 18126 | `bb9020e676603c78` 📝 |
 | 2 | `README.md` | 109 | 5021 | `1ad2ee2572b6c7af` |
-| 3 | `docs/README.md` | 165 | 22171 | `4b3d76b657d9efe5` 📝 |
+| 3 | `docs/README.md` | 165 | 22171 | `13de7e44b14323cb` 📝 |
 
 ### 2.2 架构与实施（★ 核心）
 
@@ -115,7 +115,7 @@
 | 26 | `docs/architecture/法泽FAZE_后端代码规范_v1.0.md` | 1609 | 93985 | `03573f955af80606` 🆕 |
 | 27 | `docs/architecture/法泽FAZE_i18n规范_v1.0.md` | 567 | 26414 | `bc719c258591b94c` 📝 |
 | 28 | `docs/architecture/法泽FAZE_审计与日志规范_v1.0.md` | 392 | 22190 | `c71243e7cb706523` 🆕 |
-| 29 | `docs/architecture/法泽FAZE_第0段工作流_v1.0.md` | 2951 | 269565 | `0f13d7b65353a05f` 📝 |
+| 29 | `docs/architecture/法泽FAZE_第0段工作流_v1.0.md` | 2994 | 274364 | `a1870262bcb76c51` 📝 |
 | 30 | `docs/architecture/法泽FAZE_第1段工作流_v1.0.md` | 1267 | 79880 | `9c8f647259956400` 📝 |
 | 31 | `docs/architecture/法泽FAZE_第2段工作流_v1.0.md` | 1068 | 103668 | `aaf5b62b7edc688f` 🆕 |
 | 32 | `docs/architecture/法泽FAZE_第3段工作流_v1.0.md` | 2188 | 166306 | `053bdeda26be26b7` 🆕 |
@@ -1415,6 +1415,32 @@ git tag -n
 **实测数据（LF 口径）**：《第 0 段工作流》2920→**2951 行** / 265276→**269565 字节** / `b7a3e47caedec655`→**`0f13d7b65353a05f`**；《依赖清单》61→**63 行** / 5823→**6491 字节** / `55c8db47bfdc6237`→**`11c9ff5d208585c5`**；docs/README 165 行 / 22144→**22171 字节** / `dd4215bf25fad98b`→**`4b3d76b657d9efe5`**。三份 CRLF 均为 0。
 
 **A3 验收证据**：`docs/acceptance/seg0/_artifacts/A3-{http,db,prod404}-<ts>.txt`（逐项 PASS/FAIL 明细与实测值）。
+
+---
+
+### 7.41 v1.37 内容变更 2 份（段 0 A3 按《后端代码规范》返工）
+
+**动因**：负责人要求「写代码按《后端代码规范 v1.0》的代码 / 目录 / 工程性 / 注释规范」。A3 已交付的 35 个文件逐条核对后**发现 9 处不符**，全部返工（不是挂账）。
+
+| 文件 | 改了什么 | 为什么 |
+|---|---|---|
+| `docs/architecture/法泽FAZE_第0段工作流_v1.0.md` | §三 A3 §(1) 的 Maven 目录树**按规范重写**（`common/exception/`、`filter/`、`config/properties/`、`modules/<域>/bo|vo/`、`resources/mapper/<域>/`，删掉 `OpenApiConfig`）；§(3) 补「包结构以后端规范为准」的裁决；A3 新增「2026-11-03 规范返工」小节（9 处逐条对照 + 两处文档冲突裁决 + 挂账项） | 原文的目录树把 `exception` 子包拍平、把入参出参混在 `dto/`，与规范 §2.1/§3.5 冲突；不改等于把错误结构传给段 1 |
+| `docs/README.md` | 基线号 v1.36 → v1.37 | 维护规则 |
+
+**返工的 9 处（代码侧，不登记指纹）**：包结构 2 处（`common/exception/`、`filter/`）、BO/VO 拆分 1 处（`dto/` → `bo/`+`vo/`）、类 javadoc 超长 12 个 → 全 ≤3 行、`// 任务 n` 分段 0 → 3 个文件、`ErrorCode` 补 `BY_CODE`+`of()`、`@ConfigurationProperties` 0 → 2 个（`@Value` 10 → 2 处）、`modules/account/README.md` 补齐、logback 三 appender + MockMvc 每接口用例（2 → 10 个）+ XML 移到 `mapper/law/`。
+
+**另外消灭两条 ERROR 噪音**（都不是业务故障，但会污染 `faze-api-error.log`）：
+
+1. MP 在「XML namespace + `@MapperScan` 双重注册」时打 `mapper is ignored` ERROR → `logback` 对该 logger 设 **OFF**。**注意：设 WARN 无效**——日志级别是「该级别及以上」，ERROR 仍会通过（2026-11-03 实测踩过，已写进配置注释）。
+2. 客户端断开 SSE 后容器回调 `AsyncRequestNotUsableException` → `GlobalExceptionHandler` 加专用分支记 DEBUG；`ProbeController` 该分支改用 `complete()` 而非 `completeWithError()`（后者会把异常再抛给异常处理器记一条 ERROR）。
+
+修完 `faze-api-error.log` **0 行**。
+
+**返工后重验**：`mvn -B verify` → `BUILD SUCCESS`；带 `FAZE_DB_URL` 时 **`Tests run: 10, Skipped: 0`**；HTTP **16/16**、DB **6/6**、prod 404 **5/5**（证据 `A3-{http,db,prod404}-20261103-2333xx.txt`）。
+
+**本版没做的事**：§九 仍未填（段收口才填）；豆包真实链路、RuoYi 登录、真机仍未验。
+
+**实测数据（LF 口径）**：《第 0 段工作流》2951→**2994 行** / 269565→**274364 字节** / `0f13d7b65353a05f`→**`a1870262bcb76c51`**；docs/README 165 行 / 22171 字节（不变） / `4b3d76b657d9efe5`→**`13de7e44b14323cb`**；《依赖清单》未动（`11c9ff5d208585c5`）。
 
 ---
 
