@@ -73,13 +73,23 @@ const config: ExpoConfig = {
   experiments: {
     typedRoutes: true,
   },
+  // 软重启原语用：只让 expo-updates 提供 reloadAsync。
+  // **不配 updates.url**（段 0 不接更新服务器），并用 NEVER 关闭自动检查，
+  // 否则 expo-updates 会尝试联网拉更新，污染 0-A8 的断网判定。
+  runtimeVersion: { policy: 'appVersion' },
+  updates: {
+    checkAutomatically: 'NEVER',
+    fallbackToCacheTimeout: 0,
+  },
   extra: {
     /** 服务端基地址。`shared/api/client.ts` 经 expo-constants 读取，是本项目唯一来源。 */
     apiBaseUrl: required('EXPO_PUBLIC_API_BASE_URL'),
     /** 是否放开 `/dev/**` 探针路由（生产构建必须为 false）。 */
     enableDevRoutes: process.env.EXPO_PUBLIC_ENABLE_DEV_ROUTES === 'true',
     eas: {
-      projectId: process.env.EAS_PROJECT_ID ?? '',
+      // EAS 项目 id（`eas init --account 1454132yqm` 创建，2026-11-04）。
+      // 不是密钥，可入库；换账号或重建项目时才改。CI 里可用 EAS_PROJECT_ID 覆盖。
+      projectId: process.env.EAS_PROJECT_ID ?? '06aff2d2-086b-4718-8f91-9d2a50a9adc0',
     },
   },
 };
