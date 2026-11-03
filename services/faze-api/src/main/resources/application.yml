@@ -9,6 +9,21 @@ server:
 spring:
   application:
     name: faze-api
+  autoconfigure:
+    # 排除 Spring Security 的「自动生成内存用户」：本项目用自定义 JWT 过滤器链，
+    # 不需要 UserDetailsService。不排除的话，启动日志会打印
+    # "Using generated security password: <random>"，生产环境出现这行本身就是隐患
+    # （2026-11-03 实测：prod profile 启动时确实打印过）。
+    exclude:
+      - org.springframework.boot.security.autoconfigure.UserDetailsServiceAutoConfiguration
+  # 404 也要回 JSON：不抛异常的 404 会被 ResourceHttpRequestHandler 吞掉、回 Tomcat 的 HTML 页，
+  # 客户端解析不了。这两条配置（throw-exception + 关静态资源映射）缺一条都不生效。
+  mvc:
+    throw-exception-if-no-handler-found: true
+  web:
+    resources:
+      # 段 0 服务端是纯 API，没有静态资源；开着会把 /api/** 的 404 变成静态资源 404
+      add-mappings: false
   datasource:
     url: ${FAZE_DB_URL}
     username: ${FAZE_DB_USER}

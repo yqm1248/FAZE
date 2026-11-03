@@ -7,7 +7,7 @@
 <configuration>
   <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
     <encoder>
-      <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%X{traceId:-no-trace}] %logger{36} - %msg%n</pattern>
+      <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%X{traceId:-no-trace}] [%X{auditOp:-anon}] [%X{auditAction:-}] %logger{36} - %msg%n</pattern>
       <charset>UTF-8</charset>
     </encoder>
   </appender>

@@ -1,0 +1,84 @@
+/*
+ * 职责：服务端错误码的**唯一**来源。业务代码禁止出现裸数字错误码。
+ * 调用方：common/R（构造失败响应）、common/GlobalExceptionHandler（按分支取码）、
+ *         security/RestAuthenticationEntryPoint（401 两码）、各业务 Service 抛 BusinessException。
+ * 数据来源：《法泽FAZE_错误码规范_v1.0.md》§三 的完整错误码表（段 0 只登记本段用到的子集，
+ *           段 1 起按同一张表继续补，**不许自行发明新码，也不许改已冻结码的含义**）。
+ * 注意：
+ *   1. httpStatus 必须与《错误码规范》§2.2 一致：业务失败仍 HTTP 200，只有鉴权（401）与
+ *      无权限（403）才不是 200。这两个必须与 code 同时正确，客户端是按「HTTP 状态 + body.code」
+ *      两个维度分流的（§6.1）。
+ *   2. msgKey 是给前端 i18n 的稳定键（《i18n 规范》三段式），msg 只是给开发者看的兜底中文，
+ *      **客户端不得直接展示 msg**（接口规范 §5.1 约束 2）。
+ *   3. 402002 与 402003 的区分是硬要求：前者「过期，可刷新」，后者「无效，直接登出」；
+ *      混为一谈会让客户端进入无限刷新循环（《错误码规范》§4.3 第 3 条）。
+ */
+package com.faze.common;
+
+import lombok.Getter;
+
+/**
+ * 段 0 使用的错误码子集。
+ *
+ * <p>每个常量携带四个信息：6 位业务码、应回的 HTTP 状态、前端 i18n 的 msgKey、开发者兜底文案。
+ * 新增错误码前先改《错误码规范》，再改本枚举——顺序反了就会出现「代码里有、规范里没有」的码。</p>
+ */
+@Getter
+public enum ErrorCode {
+
+    // ── 通用域 01 ──────────────────────────────────────────────────────────
+    /** 参数校验失败（Bean Validation）。HTTP 200。 */
+    COMMON_PARAM_INVALID(401001, 200, "error.common.param-invalid", "参数校验失败"),
+    /** 缺少必填参数。HTTP 200。 */
+    COMMON_PARAM_MISSING(401002, 200, "error.common.param-missing", "缺少必填参数"),
+    /** 参数格式错误（手机号、日期等）。HTTP 200。 */
+    COMMON_PARAM_FORMAT(401003, 200, "error.common.param-format", "参数格式错误"),
+    /** 资源不存在。HTTP 200（路径不存在另走 404，见 GlobalExceptionHandler）。 */
+    COMMON_NOT_FOUND(401004, 200, "error.common.not-found", "资源不存在"),
+    /** 资源已存在。HTTP 200。 */
+    COMMON_ALREADY_EXISTS(401005, 200, "error.common.already-exists", "资源已存在"),
+    /** 状态非法，当前操作不允许。HTTP 200。 */
+    COMMON_ILLEGAL_STATE(401006, 200, "error.common.illegal-state", "状态非法，当前操作不允许"),
+    /** 请求过于频繁。HTTP 200。 */
+    COMMON_RATE_LIMITED(401007, 200, "error.common.rate-limited", "请求过于频繁"),
+    /** 无权限访问该资源。HTTP **403**。 */
+    COMMON_FORBIDDEN(401008, 403, "error.common.forbidden", "无权限访问该资源"),
+    /** 服务器内部错误（兜底）。HTTP 200。 */
+    COMMON_INTERNAL(501001, 200, "error.common.internal", "服务器内部错误"),
+    /** 第三方服务不可用。HTTP 200。 */
+    COMMON_THIRD_PARTY_DOWN(501002, 200, "error.common.third-party-down", "第三方服务不可用"),
+    /** 数据库操作失败。HTTP 200。 */
+    COMMON_DB_ERROR(501003, 200, "error.common.db-error", "数据库操作失败"),
+
+    // ── 账户与鉴权域 02 ───────────────────────────────────────────────────
+    /** 手机号或密码错误（**不区分是哪个错**，防账号枚举）。HTTP 200。 */
+    AUTH_LOGIN_FAILED(402001, 200, "error.auth.login-failed", "手机号或密码错误"),
+    /** 登录已过期，可刷新。HTTP **401**。 */
+    AUTH_TOKEN_EXPIRED(402002, 401, "error.auth.token-expired", "登录已过期，请重新登录"),
+    /** 凭证无效（签名错、已被拉黑），刷了也没用。HTTP **401**。 */
+    AUTH_TOKEN_INVALID(402003, 401, "error.auth.token-invalid", "登录凭证无效，请重新登录"),
+    /** 账号已被封禁。HTTP **403**。 */
+    AUTH_ACCOUNT_BLOCKED(402004, 403, "error.auth.account-blocked", "账号已被封禁"),
+    /** 账号已注销。HTTP 200。 */
+    AUTH_ACCOUNT_CANCELLED(402008, 200, "error.auth.account-cancelled", "账号已注销"),
+
+    // ── AI 域 08 ─────────────────────────────────────────────────────────
+    /** 豆包服务不可用 / 5 秒内未出首字节。HTTP 200。 */
+    AI_SERVICE_DOWN(508001, 200, "error.ai.service-down", "AI 服务暂不可用");
+
+    /** 6 位业务码（前 3 位是 HTTP 语义家族，第 4~5 位是业务域）。 */
+    private final int code;
+    /** 该错误码应回的 HTTP 状态：业务失败恒为 200，鉴权 401，无权限 403。 */
+    private final int httpStatus;
+    /** 前端 i18n 的稳定键，客户端按它走 t()，**不得展示 msg**。 */
+    private final String msgKey;
+    /** 开发者可见的兜底中文文案。 */
+    private final String msg;
+
+    ErrorCode(int code, int httpStatus, String msgKey, String msg) {
+        this.code = code;
+        this.httpStatus = httpStatus;
+        this.msgKey = msgKey;
+        this.msg = msg;
+    }
+}

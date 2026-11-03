@@ -117,6 +117,14 @@
       <artifactId>spring-boot-starter-test</artifactId>
       <scope>test</scope>
     </dependency>
+    <!-- Spring Boot 4 把 @AutoConfigureMockMvc 从 starter-test 拆到了 spring-boot-webmvc-test
+         （包名也变了：org.springframework.boot.webmvc.test.autoconfigure）。
+         不加这个依赖写 MockMvc 冒烟测试会找不到该注解。段 0 只此一处用途，已登记依赖清单。 -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-webmvc-test</artifactId>
+      <scope>test</scope>
+    </dependency>
     <dependency>
       <groupId>org.springframework.security</groupId>
       <artifactId>spring-security-test</artifactId>

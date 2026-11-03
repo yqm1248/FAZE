@@ -122,10 +122,37 @@ Step '前端门禁（PENDING）' {
   $script:Pending.Add('前端门禁')
 }
 
-# ── 4. 后端门禁（PENDING：A3 完成后启用）──────────────────────────
-Step '后端门禁（PENDING）' {
-  Write-Host '[PENDING] mvn verify 尚未接入（A3 完成后启用）'
-  $script:Pending.Add('后端门禁')
+# ── 4. 后端门禁（A3 完成后启用）────────────────────────────────────
+Step '后端门禁' {
+  $mvn = Get-Command mvn -ErrorAction SilentlyContinue
+  if ($null -eq $mvn) {
+    Write-Host '[FAIL] 找不到 mvn（需要 Maven 3.9.16 在 PATH）'
+    $script:Failures.Add('后端门禁')
+    return
+  }
+  $apiDir = Join-Path $root 'services/faze-api'
+  if (-not (Test-Path -LiteralPath (Join-Path $apiDir 'pom.xml'))) {
+    Write-Host '[FAIL] services/faze-api/pom.xml 不存在'
+    $script:Failures.Add('后端门禁')
+    return
+  }
+  Push-Location $apiDir
+  try {
+    Write-Host 'mvn -B verify ...'
+    $out = & $mvn.Source -B verify 2>&1
+    $code = $LASTEXITCODE
+    $out | Select-Object -Last 25 | ForEach-Object { Write-Host $_ }
+    if ($code -ne 0) {
+      Write-Host ("[FAIL] mvn -B verify 退出码 {0}" -f $code)
+      $script:Failures.Add('后端门禁')
+    } else {
+      # 测试可能是 skipped（无 FAZE_DB_URL 时整类跳过）——这里不判假绿，只把实况打出来
+      $testsLine = ($out | Select-String -Pattern 'Tests run:.*Skipped' | Select-Object -Last 1)
+      Write-Host ("[ OK ] mvn -B verify 通过{0}" -f $(if ($testsLine) { "（$($testsLine.Line.Trim())）" } else { '' }))
+    }
+  } finally {
+    Pop-Location
+  }
 }
 
 # ── 5. 密钥粗筛 ─────────────────────────────────────────────────
