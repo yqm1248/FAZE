@@ -52,6 +52,13 @@
     <!-- 2026-11-02 复核：SB 4.0 起没有 spring-boot-starter-aop（改为 spring-boot-starter-aspectj）。
          段 0 不做 AOP 审计（审计四要素只进 MDC/ThreadLocal，不写库），故不引入切面依赖。 -->
 
+    <!-- Redis：第 1 段 A2 引入（验证码、令牌、限流、支付密码锁定计数都依赖它）。
+         逻辑库用 1，与 RuoYi 的 0 分开；业务 key 统一前缀 faze: -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-data-redis</artifactId>
+    </dependency>
+
     <!-- MyBatis-Plus：SB4 starter + 分页插件（两个都要，版本一致） -->
     <dependency>
       <groupId>com.baomidou</groupId>

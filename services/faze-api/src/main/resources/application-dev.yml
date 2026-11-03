@@ -2,9 +2,22 @@
 # 法泽 FAZE 本地开发配置（dev profile）
 # 注意：这里的 JWT 默认密钥**只允许本地开发使用**，生产 profile 不提供默认值（未设置即启动失败）
 # ══════════════════════════════════════════════════════════════════
+spring:
+  data:
+    redis:
+      # 第 1 段 A2：逻辑库 1（RuoYi 用 0，两者 key 不互相污染）
+      host: ${FAZE_REDIS_HOST:127.0.0.1}
+      port: ${FAZE_REDIS_PORT:6379}
+      database: ${FAZE_REDIS_DATABASE:1}
+      timeout: 3s
+      connect-timeout: 3s
+
 faze:
   jwt:
     secret: faze-local-dev-only-secret-key-0123456789abcdef
+  redis:
+    # 业务 key 统一前缀；不同环境共用同一 Redis 时靠它隔离
+    key-prefix: "faze:"
   probe:
     ai:
       mock: true
