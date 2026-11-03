@@ -4,6 +4,24 @@
 
 ---
 
+## 2026-11-04 · 段 0 D2 字体落地 + /dev/rtl 页（基线 v1.41）
+
+**范围**：D2 的字体部分 + `0-A3` 的载体页。**真机渲染未验**（无设备）。
+
+**做了什么**：`assets/fonts/` 放入 **Noto Serif Tibetan**（2.06 MB）与 **Noto Naskh Arabic**（308 kB），两份 `OFL-*.txt` 一并入库（OFL 要求随分发保留）；`shared/theme/fonts.ts` 提供 `FONT_FAMILY` / `FONT_ASSETS`；`app/_layout.tsx` 加 `useFonts` 门控（未就绪只铺底色，**加载失败回退系统字体**，不卡启动屏）；`LocalizedText` 的字体族名改从 `FONT_FAMILY` 取。
+
+**一个必须说明的取舍**：用户给的是 **Noto Sans Tibetan**，但 `google/fonts` 的 `ofl/notosanstibetan/` **不存在**（404），`notofonts.github.io` 的 `fonts/NotoSansTibetan/{hinted,unhinted,full}/ttf/...` 与 `notofonts/tibetan` **全部 404**；Google Fonts 只收录了 **Serif** 版。改用 Noto Serif Tibetan（同为 OFL 1.1），换回 Sans 只需改 `FONT_ASSETS` 与 `FONT_FAMILY.tibetan` 两处。
+
+**顺手补掉一个真缺口**：`/dev/rtl` 之前是 B1 建的空壳，而它是 `0-A3`（RTL 整屏镜像）在段 0 的**唯一载体**——真机来了也验不了。现已内建四组静态元素：返回箭头、固定 30% 进度条、3 个静态 Tab、`marginStart`/`marginEnd` 两个方块 + `borderStartWidth` 红线。
+
+**门禁实测**：`tsc` **0**；`eslint` **0**；`check-raw-text` **0**；`expo export --platform web` **837 modules 成功**，包内两个字体均在（2.06 MB + 308 kB）。字体 `require` 被 `@typescript-eslint/no-require-imports` 拦住，已按「Metro 只认 require 形式的资源引用」给该文件单独豁免（写在 eslint 配置的豁免块里，可审）。
+
+**本版没做的事**：字体**真机渲染**（`0-A4`）未验；`/dev/probe` 与 D3 的 SSE 读取、`matchedTerms`、50 条法条 seed 仍未做。
+
+**基线**：v1.40 → **v1.41**，新增 **1 份**（字体选型），内容变更 **1 份**（docs/README），资产数 41 → **42**。
+
+---
+
 ## 2026-11-04 · 段 0 D1 云构建启动（基线 v1.40）
 
 **范围**：D1 的「云构建」部分——产出可安装的 `preview` APK 构建，并写清「换机器怎么重建」。**真机安装与 `0-A1` 判定不在本次范围**（本机 `adb devices` 为空）。
