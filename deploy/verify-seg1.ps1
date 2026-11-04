@@ -20,20 +20,27 @@
 .PARAMETER SkipTests
     跳过 `mvn test`（只跑接口与对账检查；用于「只想快速看一眼」的场合）。
 
+.PARAMETER SkipE2E
+    跳过端到端验收（`verify-e2e.js`，约 3.5 分钟，含两处 60 秒发码间隔等待）。
+    跳过时依赖端到端的锚点（1-A1 / 1-A2 / 1-A3 / 1-A4 / 1-A10）会显示 SKIP。
+
 .PARAMETER OutDir
     证据输出目录，默认 `docs\acceptance\seg1`。
 
 .EXAMPLE
     .\deploy\verify-seg1.ps1
     .\deploy\verify-seg1.ps1 -SkipTests
+    .\deploy\verify-seg1.ps1 -SkipTests -SkipE2E
 
 .NOTES
-    前置：MySQL(faze) / Redis / faze-api:8081 / RuoYi 后端:8080 / PC 前端:80 都在跑，
-    且 Chrome 以 `--remote-debugging-port=9222` 启动并已登录 RuoYi 后台（`verify-admin-api.mjs` 要用它取 token）。
+    前置：MySQL(faze) / Redis / faze-api:8081 / RuoYi 后端:8080 / PC 前端:80 都在跑；
+    `verify-admin-api.mjs` 需要 Chrome 以 `--remote-debugging-port=9222` 启动并已登录 RuoYi 后台
+    （取 `Admin-Token` Cookie）；`verify-e2e.js` 不需要 CDP，它直接调 RuoYi `/login` 拿 token。
 #>
 [CmdletBinding()]
 param(
     [switch]$SkipTests,
+    [switch]$SkipE2E,
     [string]$OutDir
 )
 
@@ -158,23 +165,84 @@ if (-not $nodeExe) {
     Say ("  {0} 管理端 23 项接口复核" -f $(if ($adminOk) { '[OK]  ' } else { '[FAIL]' })) $(if ($adminOk) { 'DarkGray' } else { 'Red' })
 }
 
-# ── 5. 十条锚点汇总 ───────────────────────────────────────────────────────
-Say "`n===== 5. 段 1 验收锚点（1-A1 ~ 1-A10）=====" 'Cyan'
+# ── 5. 端到端验收（写操作全链，锚点 1-A1/A2/A3/A4/A10 的 App 半边）────────
+Say "`n===== 5. 端到端验收 verify-e2e.js =====" 'Cyan'
+$e2e = @{}
+$e2eUsed = $false
+if ($SkipE2E) {
+    Say '  [SKIP] 按参数跳过（锚点里依赖端到端的几条会显示 SKIP）' 'Yellow'
+} else {
+    $e2eLog = Join-Path $repoRoot 'logs\verify-seg1-e2e.log'
+    New-Item -ItemType Directory -Force -Path (Split-Path -LiteralPath $e2eLog) | Out-Null
+    & node (Join-Path $scriptDir 'verify-e2e.js') *> $e2eLog
+    $e2eExit = $LASTEXITCODE
+    $reportPath = Join-Path $repoRoot 'docs\acceptance\seg1\e2e-report.json'
+    if (Test-Path -LiteralPath $reportPath) {
+        $report = Get-Content -LiteralPath $reportPath -Raw -Encoding UTF8 | ConvertFrom-Json
+        foreach ($item in $report.results) { $e2e[[string]$item.id] = [bool]$item.ok }
+        $e2eUsed = $true
+        $passed = ($report.results | Where-Object { $_.ok }).Count
+        $total = $report.results.Count
+        Say ("  端到端 {0}/{1} 通过" -f $passed, $total)
+        $failedItems = $report.results | Where-Object { -not $_.ok }
+        foreach ($fi in $failedItems) { Say ("    [FAIL] " + $fi.id + " " + $fi.desc + " " + $fi.detail) 'Red' }
+    } else {
+        Say '  [FAIL] 没找到 e2e-report.json（脚本可能提前崩了）' 'Red'
+    }
+    Say ("  {0} 端到端验收（退出码 {1}）" -f $(if ($e2eExit -eq 0) { '[OK]  ' } else { '[FAIL]' }), $e2eExit) $(if ($e2eExit -eq 0) { 'DarkGray' } else { 'Red' })
+    Say "  完整日志：$e2eLog" 'DarkGray'
+}
+
+# 某一组端到端用例是否全 PASS（前缀匹配，如 '1A2-'）。
+function Test-E2EGroup([string]$prefix) {
+    if (-not $e2eUsed) { return $false }
+    $keys = @($e2e.Keys | Where-Object { $_ -like ($prefix + '*') })
+    if ($keys.Count -eq 0) { return $false }
+    foreach ($k in $keys) { if (-not $e2e[$k]) { return $false } }
+    return $true
+}
+
+# ── 6. 前端错误态与重试（锚点 1-A9 的后两态）─────────────────────────────
+# 1-A9 要四态都齐。正常态与空态的截图在 G5-states/，错误态与「点重试能恢复」
+# 的证据由 deploy/verify-error-states.js 生成（它用 CDP 拦 api/v1 请求制造接口失败）。
+# 这里只读证据，不重复跑——那个脚本需要 expo web + Chrome CDP，不该让本脚本强依赖前置。
+Say "`n===== 6. 前端错误态与重试证据（1-A9）=====" 'Cyan'
+$uiReport = Join-Path $repoRoot 'docs\acceptance\seg1\G5-states\error-states\_report.json'
+$uiOk = $false
+if (Test-Path -LiteralPath $uiReport) {
+    $uiData = Get-Content -LiteralPath $uiReport -Raw -Encoding UTF8 | ConvertFrom-Json
+    $uiRows = @($uiData.rows)
+    $uiFail = @($uiRows | Where-Object { -not ($_.hasReadable -and $_.hasRetry -and $_.recovered) })
+    $uiOk = ($uiRows.Count -gt 0 -and $uiFail.Count -eq 0)
+    Say ("  证据：{0} 页有错误态与重试记录，失败 {1} 页" -f $uiRows.Count, $uiFail.Count)
+    foreach ($f in $uiFail) { Say ("    [FAIL] " + $f.name + " 错误文案=" + $f.hasReadable + " 重试=" + $f.hasRetry + " 恢复=" + $f.recovered) 'Red' }
+} else {
+    Say '  [SKIP] 没找到 error-states/_report.json（先跑 node deploy\verify-error-states.js）' 'Yellow'
+}
+Say ("  {0} 错误态 + 重试恢复" -f $(if ($uiOk) { '[OK]  ' } else { '[SKIP]' })) $(if ($uiOk) { 'DarkGray' } else { 'Yellow' })
+$r['1-A9'] = $uiOk
+
+# ── 7. 十条锚点汇总 ───────────────────────────────────────────────────────
+Say "`n===== 7. 段 1 验收锚点（1-A1 ~ 1-A10）=====" 'Cyan'
 $rows = @(
-    @{ Id = '1-A1';  State = 'PARTIAL'; Why = 'App 7 页齐（注册/登录/忘记密码/我的/注销/资料/改密），已实测注册→登录；差注销→同号重注册的端到端七步' },
-    @{ Id = '1-A2';  State = 'PARTIAL'; Why = 'PC 半边已验（A-04）；App 实名页已交付并截图，差「提交→PC 审→App 状态变」的端到端' },
-    @{ Id = '1-A3';  State = 'PARTIAL'; Why = 'PC 半边已验（A-05 四步+通过写 lawyer）；App 四步表单已交付并截图，差端到端提交' },
-    @{ Id = '1-A4';  State = 'PARTIAL'; Why = 'PC 半边已验（A-07 充值+幂等 4 项 PASS，余额来自流水汇总 balanceCents=39303）；App 余额页已交付并截图，差「充值→App 看到」联动' },
-    @{ Id = '1-A5';  State = $null;     Why = '后端集成测试 PayPasswordLockTest' },
-    @{ Id = '1-A6';  State = $null;     Why = '后端集成测试 BalanceSourceOfTruthTest' },
+    @{ Id = '1-A1';  State = $null; E2E = '1A1-'; Why = '端到端七步：注册→登录→我的→忘记密码→新密码登录→有余额拒注销→清余额注销→同号重注册' },
+    @{ Id = '1-A2';  State = $null; E2E = '1A2-'; Why = '端到端：上传→实名提交→PENDING→PC 队列（脱敏）→审核→APPROVED' },
+    @{ Id = '1-A3';  State = $null; E2E = '1A3-'; Why = '端到端：四步入驻提交→PENDING→PC 审核→APPROVED→profile 律师状态联动' },
+    @{ Id = '1-A4';  State = $null; E2E = '1A4-'; Why = '端到端：PC 充值 100 元→App 余额 10000 分→流水 1 条；幂等由 A-07-3/4 另验' },
+    @{ Id = '1-A5';  State = $null;     Why = '后端集成测试 PayPasswordLockTest（端到端 1A5-* 另验响应头与锁定期）' },
+    @{ Id = '1-A6';  State = $null;     Why = '后端集成测试 BalanceSourceOfTruthTest + 端到端 profile.balanceCents 走流水口径' },
     @{ Id = '1-A7';  State = $null;     Why = 'verify-balance.ps1 + A-09 对账页' },
     @{ Id = '1-A8';  State = $null;     Why = '后端集成测试 DeductServiceTest（含 10 线程并发）' },
-    @{ Id = '1-A9';  State = 'PARTIAL'; Why = '18 页正常态 + 空态截图已有（G5-states/），差错误态与真实断网重试；真 RTL 在浏览器口径下无法验' },
-    @{ Id = '1-A10'; State = 'PARTIAL'; Why = '接口层已验（MinorGuardianTest）；App 注册页有未成年勾选+监护人输入框，差「勾选后展开→提交被拒→填完成功」三张截图' }
+    @{ Id = '1-A9';  State = $null;     Why = '四态：正常/空态见 G5-states/，错误态与「点重试能恢复」见 G5-states/error-states/（真 RTL 仍无法在浏览器验，单列挂账）' },
+    @{ Id = '1-A10'; State = $null; E2E = '1A10-'; Why = '端到端：未成年不填监护人 402009 → 填了能注册（且验证码不被浪费）' }
 )
 $allAutoPass = $true
+# SKIP 不等于通过：-SkipTests / -SkipE2E 时对应锚点会 SKIP，此时不能报「可以收口」。
+$hasSkip = $false
 foreach ($row in $rows) {
-    if ($null -ne $row.State) {
+    if ($row.ContainsKey('E2E') -and $e2eUsed) {
+        $state = if (Test-E2EGroup $row.E2E) { 'PASS' } else { 'FAIL' }
+    } elseif ($null -ne $row.State) {
         $state = $row.State
     } elseif ($r.Contains($row.Id)) {
         $state = if ($r[$row.Id]) { 'PASS' } else { 'FAIL' }
@@ -182,6 +250,7 @@ foreach ($row in $rows) {
         $state = 'SKIP'
     }
     if ($state -eq 'FAIL') { $allAutoPass = $false }
+    if ($state -eq 'SKIP') { $hasSkip = $true }
     $color = switch ($state) {
         'PASS'    { 'Green' }
         'FAIL'    { 'Red' }
@@ -193,12 +262,23 @@ foreach ($row in $rows) {
 # 设计稿把 1-A4 的「幂等重放」也算在锚点里，这里把接口复核结果并进去
 if (-not $adminOk) { $allAutoPass = $false }
 
-$todo = ($rows | Where-Object { $_.State -in @('TODO', 'PARTIAL') }).Count
+# 数「还需要人工补齐」的锚点。
+# 用显式循环而不是 `Where-Object { $_.State -in @('TODO','PARTIAL') }`：后者在 State 为
+# $null 时也会把条目算进去（2026-11-05 实测：只有 1 条 PARTIAL 却报成 3 条），
+# 加 `$null -ne` 前缀也没挡住——干脆不用管道，一个 if 说清楚。
+$todo = 0
+foreach ($row in $rows) {
+    if ($null -ne $row.State) {
+        if ($row.State -eq 'TODO' -or $row.State -eq 'PARTIAL') { $todo++ }
+    }
+}
 Say "`n可自动判定的检查：$(if ($allAutoPass) { '全部通过' } else { '有失败项' })" $(if ($allAutoPass) { 'Green' } else { 'Red' })
-Say "仍需人工补齐：$todo 条锚点为 PARTIAL（缺的是端到端写操作 / 断网 / 原生 RTL，不是页面没做）" 'Yellow'
-Say "本段能否收口：$(if ($allAutoPass -and $todo -eq 0) { '可以' } else { '还不可以（补齐端到端与断网证据）' })" 'Yellow'
+if ($todo -gt 0) { Say "仍需人工补齐：$todo 条锚点标为 PARTIAL" 'Yellow' }
+if ($hasSkip) { Say '有锚点显示 SKIP：本次用了 -SkipTests / -SkipE2E，或缺少对应证据文件。SKIP 不算通过。' 'Yellow' }
+$canClose = ($allAutoPass -and $todo -eq 0 -and -not $hasSkip)
+Say "本段能否收口：$(if ($canClose) { '可以（10 条锚点全部 PASS）' } else { '还不可以（见上面的 PARTIAL / SKIP 说明）' })" $(if ($canClose) { 'Green' } else { 'Yellow' })
 
-# ── 6. 落证据 ─────────────────────────────────────────────────────────────
+# ── 8. 落证据 ─────────────────────────────────────────────────────────────
 $transcript | Set-Content -LiteralPath $logFile -Encoding UTF8
 Say "`n证据已写入：$logFile" 'Cyan'
 
