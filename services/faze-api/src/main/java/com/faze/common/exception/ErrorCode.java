@@ -50,6 +50,8 @@ public enum ErrorCode {
     COMMON_THIRD_PARTY_DOWN(501002, 200, "error.common.third-party-down", "第三方服务不可用"),
     /** 数据库操作失败。HTTP 200。 */
     COMMON_DB_ERROR(501003, 200, "error.common.db-error", "数据库操作失败"),
+    /** 幂等键冲突（重复请求）。HTTP 200。 */
+    COMMON_IDEMPOTENT_CONFLICT(501005, 200, "error.common.idempotent-conflict", "重复请求，请勿重复提交"),
 
     // ── 账户与鉴权域 02 ───────────────────────────────────────────────────
     /** 手机号或密码错误（**不区分是哪个错**，防账号枚举）。HTTP 200。 */
@@ -72,6 +74,12 @@ public enum ErrorCode {
     AUTH_PASSWORD_WEAK(402010, 200, "error.auth.password-weak", "密码强度不足"),
     /** 短信发送失败（第三方通道）。HTTP 200。 */
     AUTH_SMS_SEND_FAILED(502001, 200, "error.auth.sms-send-failed", "短信发送失败"),
+
+    // ── 交易与资金域 05 ──────────────────────────────────────────────────
+    /** 余额不足。HTTP 200。 */
+    TRADE_BALANCE_INSUFFICIENT(405001, 200, "error.trade.balance-insufficient", "账户余额不足"),
+    /** 金额非法（负数、超限、非整数分）。HTTP 200。 */
+    TRADE_AMOUNT_INVALID(405006, 200, "error.trade.amount-invalid", "金额非法"),
 
     // ── AI 域 08 ─────────────────────────────────────────────────────────
     /** 豆包服务不可用 / 5 秒内未出首字节。HTTP 200。 */

@@ -12,6 +12,7 @@ package com.faze.modules.trade.entity;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.Version;
 import java.time.LocalDateTime;
 import lombok.Data;
 
@@ -35,7 +36,13 @@ public class UserBalance {
     /** 冻结余额（分）。 */
     private Long frozenCents;
 
-    /** 乐观锁版本号。 */
+    /**
+     * 乐观锁版本号。
+     *
+     * <p>**必须带 {@code @Version}**：只声明字段不注解时，MP 不会在 update 时追加版本条件，
+     * 并发扣款会静默超扣（两个请求各自读到 version=1，各自 update 成功）。</p>
+     */
+    @Version
     private Integer version;
 
     /** 创建时间（UTC）。 */
