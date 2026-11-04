@@ -21,6 +21,9 @@ import com.faze.common.exception.BusinessException;
 import com.faze.config.properties.FazeJwtProperties;
 import com.faze.common.exception.ErrorCode;
 import com.faze.modules.account.bo.LoginBO;
+import com.faze.modules.account.bo.RegisterBO;
+import com.faze.modules.account.bo.SmsLoginBO;
+import com.faze.modules.account.rule.PasswordPolicy;
 import com.faze.modules.account.vo.LoginVO;
 import com.faze.modules.account.vo.TokenVO;
 import com.faze.modules.account.vo.UserVO;
@@ -42,6 +45,8 @@ import java.util.concurrent.TimeoutException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 /**
  * 账户服务。
@@ -64,16 +69,24 @@ public class AuthService {
     /** 等待单飞结果的超时时间（秒）。超时说明创建者卡死，让客户端重试而不是无限等。 */
     private static final long REFRESH_WAIT_SECONDS = 10L;
 
+    private static final String STATUS_ACTIVE = "active";
     private static final String STATUS_BLOCKED = "blocked";
     private static final String STATUS_CANCELLED = "cancelled";
     private static final String TOKEN_TYPE_BEARER = "Bearer";
     private static final String DEFAULT_ROLE = "user";
+    private static final String DEFAULT_LANG = "zh-Hans";
     private static final String DEFAULT_REALNAME_STATUS = "none";
+    private static final String LOGIN_TYPE_PASSWORD = "password";
+    private static final String LOGIN_TYPE_SMS = "sms";
+    private static final String LOGIN_TYPE_REGISTER = "register";
 
     private final AccountMapper accountMapper;
     private final JwtTokenProvider tokenProvider;
     private final RefreshTokenStore refreshTokenStore;
     private final PasswordEncoder passwordEncoder;
+    private final SmsCodeService smsCodeService;
+    private final LoginGuardService loginGuardService;
+    private final LoginLogService loginLogService;
     private final Duration refreshTtl;
 
     /** 单飞槽位：refreshToken → 正在执行/已完成的轮换。 */
@@ -86,17 +99,26 @@ public class AuthService {
      * @param tokenProvider     JWT 签发器
      * @param refreshTokenStore refresh token 存储
      * @param passwordEncoder   BCrypt 编码器
-     * @param refreshTtlDays    refresh token 有效期（天），来自 {@code faze.jwt.refresh-ttl-days}
+     * @param smsCodeService    短信验证码（注册 / 短信登录校验）
+     * @param loginGuardService 登录失败计数与锁定
+     * @param loginLogService   登录日志
+     * @param jwtProperties     JWT 配置（取 refresh 有效期）
      */
     public AuthService(AccountMapper accountMapper,
                        JwtTokenProvider tokenProvider,
                        RefreshTokenStore refreshTokenStore,
                        PasswordEncoder passwordEncoder,
+                       SmsCodeService smsCodeService,
+                       LoginGuardService loginGuardService,
+                       LoginLogService loginLogService,
                        FazeJwtProperties jwtProperties) {
         this.accountMapper = accountMapper;
         this.tokenProvider = tokenProvider;
         this.refreshTokenStore = refreshTokenStore;
         this.passwordEncoder = passwordEncoder;
+        this.smsCodeService = smsCodeService;
+        this.loginGuardService = loginGuardService;
+        this.loginLogService = loginLogService;
         this.refreshTtl = Duration.ofDays(jwtProperties.refreshTtlDays());
     }
 
@@ -105,34 +127,160 @@ public class AuthService {
     /**
      * 手机号 + 密码登录。
      *
-     * <p>副作用：更新 app_user 的 last_login_at / last_login_ip；在 RefreshTokenStore 里登记新
-     * refresh token。</p>
+     * <p>前置：账号未处于登录锁定期（连错达到阈值后锁 15 分钟）。</p>
+     * <p>副作用：更新 app_user 的 last_login_at / last_login_ip；写 login_log；
+     * 在 RefreshTokenStore 里登记新 refresh token。</p>
      *
      * @param request        登录请求
      * @param deviceIdHeader 请求头 X-Device-Id（可为 null）
      * @param clientIp       客户端 IP
+     * @param userAgent      User-Agent
      * @return 令牌 + 用户资料
-     * @throws BusinessException 402001 登录失败 / 402004 已封禁 / 402008 已注销
+     * @throws BusinessException 401007 锁定期内 / 402001 登录失败 / 402004 已封禁 / 402008 已注销
      */
-    public LoginVO login(LoginBO request, String deviceIdHeader, String clientIp) {
+    public LoginVO login(LoginBO request, String deviceIdHeader, String clientIp, String userAgent) {
+        String phone = request.getPhone();
         // 任务 1：设备标识一致性。段 0 只记日志不拦（无风控规则时拦会误伤换机用户）。
         warnIfDeviceMismatch(deviceIdHeader, request.getDeviceId());
 
-        // 任务 2：按手机号取未软删用户；查不到与密码错统一回 402001，防账号枚举。
-        AppUser user = accountMapper.selectOne(new LambdaQueryWrapper<AppUser>()
-                .eq(AppUser::getPhone, request.getPhone())
-                .isNull(AppUser::getDeletedAt));
+        // 任务 2：锁定期内直接拒绝，不再跑 BCrypt——锁定期间仍允许尝试等于没锁。
+        loginGuardService.assertNotLocked(phone);
 
-        if (user == null || user.getPasswordHash() == null
-                || !passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
+        // 任务 3：按手机号取未软删用户；查不到与密码错统一回 402001，防账号枚举。
+        AppUser user = accountMapper.selectOne(new LambdaQueryWrapper<AppUser>()
+                .eq(AppUser::getPhone, phone)
+                .isNull(AppUser::getDeletedAt));
+        boolean badCredential = user == null || user.getPasswordHash() == null
+                || !passwordEncoder.matches(request.getPassword(), user.getPasswordHash());
+        if (badCredential) {
+            loginGuardService.recordFailure(phone);
+            loginLogService.recordFailure(phone, LOGIN_TYPE_PASSWORD, "账号或密码错误",
+                    clientIp, userAgent, request.getDeviceId());
+            throw new BusinessException(ErrorCode.AUTH_LOGIN_FAILED);
+        }
+
+        // 任务 4：状态校验放在凭据正确之后——封禁账号若也累计失败次数，
+        // 攻击者可以用一个已知的封禁账号把号刷到锁定状态。
+        ensureUsable(user);
+
+        // 任务 5：成功则清失败计数、更新最后登录、写日志。
+        loginGuardService.clearFailure(phone);
+        touchLogin(user.getId(), clientIp);
+        loginLogService.recordSuccess(user.getId(), phone, LOGIN_TYPE_PASSWORD,
+                clientIp, userAgent, request.getDeviceId());
+
+        // 任务 6：签发令牌对并组装响应。
+        return issue(user);
+    }
+
+    // ── 注册 ───────────────────────────────────────────────────────────────
+
+    /**
+     * 手机号 + 验证码注册，成功后直接登录。
+     *
+     * <p>前置：验证码有效且未被使用；协议已勾选；未成年人必须填监护人手机号。</p>
+     * <p>副作用：插入 app_user、写 login_log、登记 refresh token，三者同一事务。</p>
+     *
+     * <p>并发说明：两个请求同时注册同一手机号时，靠 app_user 的 uk_app_user_phone 拦，
+     * 后到的那个抛 DuplicateKeyException，由 GlobalExceptionHandler 转 401005。</p>
+     *
+     * @param request   注册请求
+     * @param clientIp  客户端 IP
+     * @param userAgent User-Agent
+     * @return 令牌 + 用户资料
+     * @throws BusinessException 402005 验证码错 / 402009 缺监护人 / 402010 密码弱 / 402006 手机号已注册
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public LoginVO register(RegisterBO request, String clientIp, String userAgent) {
+        String phone = request.getPhone();
+
+        // 任务 1：消费验证码（校验通过即删除，防重放）。
+        smsCodeService.verifyAndConsume(phone, request.getSmsCode());
+
+        // 任务 2：协议必须勾选（合规要求，不能默认通过）。
+        if (!Boolean.TRUE.equals(request.getAgreementAccepted())) {
+            throw new BusinessException(ErrorCode.COMMON_PARAM_INVALID);
+        }
+
+        // 任务 3：未成年人联动——勾选未成年必须填监护人手机号（负责人 2026-11-01 裁决 #10）。
+        boolean minor = Boolean.TRUE.equals(request.getIsMinor());
+        if (minor && !StringUtils.hasText(request.getGuardianPhone())) {
+            throw new BusinessException(ErrorCode.AUTH_GUARDIAN_REQUIRED);
+        }
+
+        // 任务 4：密码强度（≥8 位且含字母与数字）。
+        PasswordPolicy.assertStrong(request.getPassword());
+
+        // 任务 5：手机号唯一检查（并发兜底见方法注释）。
+        AppUser existing = accountMapper.selectOne(new LambdaQueryWrapper<AppUser>()
+                .eq(AppUser::getPhone, phone)
+                .isNull(AppUser::getDeletedAt));
+        if (existing != null) {
+            throw new BusinessException(ErrorCode.AUTH_PHONE_TAKEN);
+        }
+
+        // 任务 6：落库。时间统一 UTC；token_version 从 0 起。
+        AppUser user = new AppUser();
+        user.setPhone(phone);
+        user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+        user.setNickname(defaultNickname(phone));
+        user.setRole(DEFAULT_ROLE);
+        user.setLang(DEFAULT_LANG);
+        user.setRealnameStatus(DEFAULT_REALNAME_STATUS);
+        user.setStatus(STATUS_ACTIVE);
+        user.setIsMinor(minor);
+        user.setGuardianPhone(minor ? request.getGuardianPhone() : null);
+        user.setGuardianConsentAt(minor ? LocalDateTime.now(ZoneOffset.UTC) : null);
+        user.setTokenVersion(0);
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+        user.setCreatedAt(now);
+        user.setUpdatedAt(now);
+        accountMapper.insert(user);
+
+        // 任务 7：注册即首次登录——写日志并签发令牌。
+        loginLogService.recordSuccess(user.getId(), phone, LOGIN_TYPE_REGISTER,
+                clientIp, userAgent, null);
+        return issue(user);
+    }
+
+    // ── 短信登录 ───────────────────────────────────────────────────────────
+
+    /**
+     * 手机号 + 验证码登录（**必须已注册**）。
+     *
+     * <p>前置：验证码有效且未被使用；账号已存在且状态可用。</p>
+     * <p>副作用：更新最后登录时间、写 login_log、登记 refresh token。</p>
+     *
+     * @param request   短信登录请求
+     * @param clientIp  客户端 IP
+     * @param userAgent User-Agent
+     * @return 令牌 + 用户资料
+     * @throws BusinessException 402005 验证码错 / 402001 未注册 / 402004 已封禁 / 402008 已注销
+     */
+    public LoginVO loginBySms(SmsLoginBO request, String clientIp, String userAgent) {
+        String phone = request.getPhone();
+
+        // 任务 1：消费验证码。
+        smsCodeService.verifyAndConsume(phone, request.getSmsCode());
+
+        // 任务 2：必须已注册——短信登录不做「首次登录即注册」，
+        // 否则会绕过注册页的协议勾选与未成年人判定。
+        AppUser user = accountMapper.selectOne(new LambdaQueryWrapper<AppUser>()
+                .eq(AppUser::getPhone, phone)
+                .isNull(AppUser::getDeletedAt));
+        if (user == null) {
+            // 统一回「登录失败」而不是「未注册」：后者等于给出手机号枚举接口
             throw new BusinessException(ErrorCode.AUTH_LOGIN_FAILED);
         }
         ensureUsable(user);
-        // 任务 4：更新最后登录时间（单条 update，不需要事务）。
+
+        // 任务 3：更新最后登录、写日志、签发。
         touchLogin(user.getId(), clientIp);
-        // 任务 5：签发令牌对并组装响应。
+        loginLogService.recordSuccess(user.getId(), phone, LOGIN_TYPE_SMS,
+                clientIp, userAgent, request.getDeviceId());
         return issue(user);
     }
+
 
     // ── 刷新（单飞）────────────────────────────────────────────────────────
 
@@ -339,6 +487,18 @@ public class AuthService {
         // 段 0 没有支付密码表（属段 1），恒 false；不要写成 true 骗客户端
         vo.setPayPasswordSet(false);
         return vo;
+    }
+
+    /**
+     * 默认昵称：用户 + 手机号后 4 位。
+     *
+     * <p>不暴露完整手机号，也不为空（客户端有地方可能直接显示昵称）。</p>
+     *
+     * @param phone 手机号
+     * @return 形如「用户0001」
+     */
+    private String defaultNickname(String phone) {
+        return "用户" + phone.substring(phone.length() - 4);
     }
 
     /**

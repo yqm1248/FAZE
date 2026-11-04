@@ -34,6 +34,9 @@ public class AppUser {
     /** 手机号，登录账号，唯一。 */
     private String phone;
 
+    /** 注销前的原手机号；注销时 phone 改为占位值释放唯一键，此处留原值供审计。 */
+    private String originalPhone;
+
     /** BCrypt 密码哈希（60 字符）；第三方登录用户可为 null。**禁止外泄**。 */
     private String passwordHash;
 
@@ -69,6 +72,9 @@ public class AppUser {
 
     /** active / blocked / cancelled。 */
     private String status;
+
+    /** 凭证版本号；改密/换绑/注销时 +1，旧 token 立即失效（V7 新增）。 */
+    private Integer tokenVersion;
 
     /** 最后登录时间（写 UTC）。 */
     private LocalDateTime lastLoginAt;
