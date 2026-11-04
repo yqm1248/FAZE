@@ -12,6 +12,7 @@
  */
 package com.faze.modules.ops.service;
 
+import com.faze.modules.ops.entity.SysConfig;
 import java.util.Optional;
 
 /**
@@ -26,6 +27,17 @@ public interface SysConfigQueryService {
      * @return 值；键不存在或值为 null 时返回空
      */
     Optional<String> findValue(String key);
+
+    /**
+     * 按 key 取整行（需要 `updatedAt` 等附属字段时用）。
+     *
+     * <p>与 {@link #findValue(String)} 的区别只在于返回整行：公开配置接口要把
+     * 「最后更新时间」一起给页面显示，光有值拿不到。仍然只是查询，不带写能力。</p>
+     *
+     * @param key 配置键
+     * @return 配置行；键不存在时返回空
+     */
+    Optional<SysConfig> findRow(String key);
 
     /**
      * 按 key 取字符串，缺失时用默认值。

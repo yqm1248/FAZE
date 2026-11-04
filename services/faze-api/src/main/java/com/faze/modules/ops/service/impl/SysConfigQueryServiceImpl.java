@@ -14,6 +14,7 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.faze.modules.ops.entity.SysConfig;
 import com.faze.modules.ops.mapper.SysConfigMapper;
 import com.faze.modules.ops.service.SysConfigQueryService;
+import java.util.Objects;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,15 +39,22 @@ public class SysConfigQueryServiceImpl implements SysConfigQueryService {
      */
     @Override
     public Optional<String> findValue(String key) {
+        return findRow(key).map(SysConfig::getConfigValue).filter(Objects::nonNull);
+    }
+
+    /**
+     * 按 key 取整行。
+     *
+     * @param key 配置键
+     * @return 配置行；不存在时为空
+     */
+    @Override
+    public Optional<SysConfig> findRow(String key) {
         if (!StringUtils.hasText(key)) {
             return Optional.empty();
         }
-        SysConfig row = sysConfigMapper.selectOne(Wrappers.<SysConfig>lambdaQuery()
-                .eq(SysConfig::getConfigKey, key));
-        if (row == null || row.getConfigValue() == null) {
-            return Optional.empty();
-        }
-        return Optional.of(row.getConfigValue());
+        return Optional.ofNullable(sysConfigMapper.selectOne(Wrappers.<SysConfig>lambdaQuery()
+                .eq(SysConfig::getConfigKey, key)));
     }
 
     /**
