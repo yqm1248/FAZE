@@ -26,6 +26,8 @@
 | 3 | 2026-11-05 | `vite.config.js`（**前端**根） | 第 1 段 F1 第 3 步：业务页要调 **faze-api（8081）**，而 RuoYi 前端只有一条 `/dev-api → 8080` 的代理。新增一条 `/biz-api → http://127.0.0.1:8081`（转发时去掉前缀）。属「配置覆盖」，不是改框架层 | 只影响开发服务器代理；生产由 Nginx 按同样规则分流。**不影响** RuoYi 自带 8 页 | 删掉 `server.proxy['/biz-api']` 这一条与 `bizBaseUrl` 常量 |
 | 4 | — | **不是 RuoYi 改动，是跨服务耦合点（接口规范 §1.3.1 第 6 条要求登记）** | `faze-api` 的 `AdminAuthenticationFilter` 依赖 RuoYi 的登录态：① JWT 用 HS512、密钥 = RuoYi `token.secret`；② 载荷里有 `login_user_key`（UUID）；③ Redis 逻辑库 0 的 `login_tokens:<uuid>` 存 `LoginUser` 的 fastjson2 序列化文本，`faze-api` 从中抽 `userId` / `username` | RuoYi **升级或改 token 配置**会让 PC 后台业务页全部 401。回归手段：`AdminTokenVerifierTest`（真实 token 快照）+ `AdminSessionStoreParseTest`（真实 Redis 值快照），见 `docs/acceptance/seg1/F1-admin-auth-bridge.md` | 换方案 B（faze-api 自签 admin token，PC 业务页单独登录） |
 
+| 5 | 2026-11-05 | `vite.config.js`（**前端**根，同 #3 文件的第二处改动） | 写文件的一方用「临时目录 + rename」做原子写（`.index.vue.<pid>.<uuid>.tmpdir/`），Vite 默认的 `fs.watch` 会去监听那个临时文件，Windows 抛 `EBUSY: resource busy or locked`，而 Node 的 `fs.watch` error 事件没人接 → **dev server 进程直接退出**（实测 01:30 崩过一次）。改为 `server.watch = { usePolling: true, interval: 300, ignored: ['**/*.tmpdir/**','**/.*.tmpdir/**','**/*.tmp'] }` | 只影响开发服务器的文件监听方式：改成轮询后 CPU 略升（node_modules 默认不监听，src 很小），换来不再崩 | 删掉 `server.watch` 这一段 |
+
 > **耦合点 4 的两个实测坑（2026-11-05，与接口规范 §1.3.1 第 5 条的表述不符，以这里为准）**：
 > 1. **Redis 里的值不是标准 JSON**。fastjson2 开了 `WriteClassName`，落盘形如
 >    `{"@type":"...LoginUser","deptId":103L,...,"permissions":Set["*:*:*"],...,"userId":1L,"username":"admin"}`。

@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 <#
 .SYNOPSIS
     重启 faze-api（停掉旧实例 → 以 dev profile 后台启动 → 等到端口可用）。
