@@ -182,8 +182,15 @@ public class PayPasswordService {
     /**
      * 记录一次失败，达到阈值时写锁定。
      *
+     * <p><b>2026-11-05 行为修正</b>：本次就是「触发锁定」的那一次时，直接抛
+     * {@link PayPasswordLockedException}（带剩余秒数），而不是回「还可尝试 0 次」。
+     * 依据《第1段工作流》§二 E2 的验收：<i>「第 5 次错：锁定，提示『已锁定，30 分钟后重试』，
+     * 给出剩余时间」</i>。原实现要到**第 6 次**才回锁定，第 5 次客户端看到的是
+     * 「还可尝试 0 次」——用户会以为还能再试一次，而实际上已经锁了。</p>
+     *
      * @param userId 用户主键
-     * @return 剩余尝试次数（0 表示本次触发锁定）
+     * @return 剩余尝试次数（≥1）
+     * @throws PayPasswordLockedException 本次失败刚好触发锁定
      */
     private int recordFailure(Long userId) {
         int maxFail = sysConfig.getInt("pay_pwd_max_fail", DEFAULT_MAX_FAIL);
@@ -199,7 +206,7 @@ public class PayPasswordService {
             redis.opsForValue().set(KEY_LOCKED + userId, "1", window);
             redis.delete(failKey);
             log.warn("支付密码连续错误达到阈值，已锁定 userId={} 时长={}分", userId, lockMinutes);
-            return 0;
+            throw new PayPasswordLockedException(window.toSeconds());
         }
         long remaining = (count == null ? 0L : count);
         return (int) Math.max(maxFail - remaining, 0L);
