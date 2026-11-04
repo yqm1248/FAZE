@@ -40,6 +40,14 @@ public class AppUser {
     /** BCrypt 密码哈希（60 字符）；第三方登录用户可为 null。**禁止外泄**。 */
     private String passwordHash;
 
+    /**
+     * 支付密码 BCrypt 哈希（6 位数字的 BCrypt 结果）；null 表示未设置。
+     *
+     * <p>**与登录密码分属两个字段**：共用一个哈希时改一个会静默改掉另一个，
+     * 且两者的强度策略与锁定策略完全不同（见 V11 迁移注释）。</p>
+     */
+    private String payPassword;
+
     /** 昵称。 */
     private String nickname;
 

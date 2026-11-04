@@ -63,6 +63,48 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(code.getHttpStatus()).body(R.<Void>fail(code));
     }
 
+    /**
+     * 拦截「支付密码仍处于锁定期」。
+     *
+     * <p>**剩余秒数走 `Retry-After` 头**（HTTP 标准），不进 body：body 的 msg 是
+     * ErrorCode 的固定文案，把动态数字塞进 msg 会让文案、翻译、断言全部失效
+     * （负责人 2026-11-05 拍板方案 A）。</p>
+     *
+     * @param e   锁定异常
+     * @param req 当前请求
+     * @return 401007 + Retry-After 头
+     */
+    @ExceptionHandler(PayPasswordLockedException.class)
+    public ResponseEntity<R<Void>> handlePayPasswordLocked(PayPasswordLockedException e,
+                                                           HttpServletRequest req) {
+        ErrorCode code = e.getErrorCode();
+        log.warn("支付密码锁定 path={} code={} remaining={}s",
+                req.getRequestURI(), code.getCode(), e.getRemainingSeconds());
+        return ResponseEntity.status(code.getHttpStatus())
+                .header("Retry-After", String.valueOf(e.getRemainingSeconds()))
+                .body(R.<Void>fail(code));
+    }
+
+    /**
+     * 拦截「支付密码校验失败」。
+     *
+     * <p>剩余尝试次数走 `X-Pay-Pwd-Remaining` 头，理由同上：动态数据走 header，
+     * 固定文案走 msg。客户端据此提示「还可尝试 N 次」。</p>
+     *
+     * @param e   支付密码错误异常
+     * @param req 当前请求
+     * @return 402001 + X-Pay-Pwd-Remaining 头
+     */
+    @ExceptionHandler(PayPasswordWrongException.class)
+    public ResponseEntity<R<Void>> handlePayPasswordWrong(PayPasswordWrongException e,
+                                                          HttpServletRequest req) {
+        ErrorCode code = e.getErrorCode();
+        log.warn("支付密码错误 path={} remaining={}", req.getRequestURI(), e.getRemainingAttempts());
+        return ResponseEntity.status(code.getHttpStatus())
+                .header("X-Pay-Pwd-Remaining", String.valueOf(e.getRemainingAttempts()))
+                .body(R.<Void>fail(code));
+    }
+
     // ── 2~4. 参数类异常（三种来源）──────────────────────────────────────────
 
     /**
