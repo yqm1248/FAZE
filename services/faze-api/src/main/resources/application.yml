@@ -63,6 +63,19 @@ faze:
       # 推理接入点 ID（形如 ep-xxxxxxxx），不是模型名字；用错会 404
       model: ${FAZE_DOUBAO_MODEL:}
       timeout-seconds: 120
+  api:
+    # 对外可访问的服务地址，用于拼本地存储的签名 URL；
+    # 接云 OSS 后本项只在「本地开发想用局域网 IP 联调」时还有意义
+    public-base-url: ${FAZE_PUBLIC_BASE_URL:http://127.0.0.1:8081}
+  storage:
+    # 本段是本地目录实现（负责人 2026-11-04 选方案 B），文件落在仓库之外；
+    # 段 4 换云 OSS 时只替换 FileStorage 的实现类，本配置项删除
+    base-dir: ${FAZE_FILE_BASE_DIR:E:/dshcode/faze-files}
+    sign-secret: ${FAZE_FILE_SIGN_SECRET:faze-local-file-sign-secret-0123456789}
+    download-ttl-seconds: 60
+    upload-ttl-seconds: 300
+    # 单文件上限 10MB，与 C1 风险项「签名里限 content-length-range」对应
+    max-upload-bytes: 10485760
 
 logging:
   level:

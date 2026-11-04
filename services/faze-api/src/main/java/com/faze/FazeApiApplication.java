@@ -9,6 +9,7 @@ package com.faze;
 
 import com.faze.config.properties.FazeJwtProperties;
 import com.faze.config.properties.FazeProbeProperties;
+import com.faze.config.properties.FazeStorageProperties;
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -18,7 +19,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
  * 服务端启动类。
  */
 @SpringBootApplication
-@EnableConfigurationProperties({FazeJwtProperties.class, FazeProbeProperties.class})
+@EnableConfigurationProperties({FazeJwtProperties.class, FazeProbeProperties.class, FazeStorageProperties.class})
 @MapperScan("com.faze.**.mapper")
 public class FazeApiApplication {
 
