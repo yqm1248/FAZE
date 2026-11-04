@@ -13,8 +13,11 @@ package com.faze.modules.trade.controller;
 import com.faze.common.R;
 import com.faze.common.exception.BusinessException;
 import com.faze.common.exception.ErrorCode;
+import com.faze.common.pojo.PageResult;
+import com.faze.modules.trade.bo.FlowQueryBO;
 import com.faze.modules.trade.service.BalanceService;
 import com.faze.modules.trade.vo.BalanceVO;
+import com.faze.modules.trade.vo.FlowVO;
 import com.faze.security.LoginUser;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -44,5 +47,21 @@ public class WalletController {
             throw new BusinessException(ErrorCode.AUTH_TOKEN_INVALID);
         }
         return R.ok(balanceService.getBalance(loginUser.getUserId()));
+    }
+
+    /**
+     * 分页查询当前用户的资金流水。
+     *
+     * @param query     查询条件（页码/条数/类型/时间区间）
+     * @param loginUser 当前认证主体
+     * @return 分页结果（list/total/pageNum/pageSize/hasMore）
+     */
+    @GetMapping("/flows")
+    public R<PageResult<FlowVO>> flows(FlowQueryBO query,
+                                       @AuthenticationPrincipal LoginUser loginUser) {
+        if (loginUser == null) {
+            throw new BusinessException(ErrorCode.AUTH_TOKEN_INVALID);
+        }
+        return R.ok(balanceService.listFlows(loginUser.getUserId(), query));
     }
 }

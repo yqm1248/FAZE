@@ -14,17 +14,26 @@
  */
 package com.faze.modules.trade.service;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.faze.common.pojo.PageResult;
+import com.faze.modules.trade.bo.FlowQueryBO;
+import com.faze.modules.trade.entity.BalanceFlow;
 import com.faze.modules.trade.entity.UserBalance;
 import com.faze.modules.trade.mapper.BalanceFlowMapper;
 import com.faze.modules.trade.mapper.UserBalanceMapper;
 import com.faze.modules.trade.vo.BalanceVO;
+import com.faze.modules.trade.vo.FlowVO;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 /**
  * 余额服务。
@@ -91,7 +100,52 @@ public class BalanceService {
         return total;
     }
 
+    /**
+     * 分页查询资金流水。
+     *
+     * <p>排序 `created_at DESC, id DESC`：同秒内用 id 兜底，保证翻页不重不漏。</p>
+     *
+     * @param userId 用户主键
+     * @param query  查询条件
+     * @return 分页结果
+     */
+    public PageResult<FlowVO> listFlows(Long userId, FlowQueryBO query) {
+        // 任务 1：页码与每页条数 clamp（规范：超 100 服务端夹住，不报错）
+        int pageNum = query.getPageNum() == null || query.getPageNum() < 1 ? 1 : query.getPageNum();
+        int pageSize = query.getPageSize() == null ? 20 : Math.min(Math.max(query.getPageSize(), 1), 100);
+        // 任务 2：条件查询（单表条件 + 排序，规范 §8.1 用 Wrapper 而不是 XML）
+        LambdaQueryWrapper<BalanceFlow> wrapper = Wrappers.<BalanceFlow>lambdaQuery()
+                .eq(BalanceFlow::getOwnerType, OWNER_USER)
+                .eq(BalanceFlow::getOwnerId, userId)
+                .eq(StringUtils.hasText(query.getBizType()), BalanceFlow::getBizType, query.getBizType())
+                .ge(query.getBeginTime() != null, BalanceFlow::getCreatedAt, query.getBeginTime())
+                .le(query.getEndTime() != null, BalanceFlow::getCreatedAt, query.getEndTime())
+                .orderByDesc(BalanceFlow::getCreatedAt)
+                .orderByDesc(BalanceFlow::getId);
+        // 任务 3：分页查询并转出参
+        IPage<BalanceFlow> page = balanceFlowMapper.selectPage(new Page<>(pageNum, pageSize), wrapper);
+        List<FlowVO> list = page.getRecords().stream().map(this::toFlowVO).toList();
+        return PageResult.of(list, page.getTotal(), pageNum, pageSize);
+    }
+
     // ── 内部 ───────────────────────────────────────────────────────────────
+
+    /**
+     * 流水实体 → 出参。
+     *
+     * @param flow 流水实体
+     * @return 流水项；不返回内部 bizId（见 FlowVO 注释第 3 条）
+     */
+    private FlowVO toFlowVO(BalanceFlow flow) {
+        FlowVO vo = new FlowVO();
+        vo.setId(flow.getId());
+        vo.setBizType(flow.getBizType());
+        vo.setDeltaCents(flow.getDeltaCents());
+        vo.setBalanceAfterCents(flow.getBalanceAfter());
+        vo.setRemark(flow.getRemark());
+        vo.setCreatedAt(flow.getCreatedAt());
+        return vo;
+    }
 
     /**
      * 流水分汇总（余额的唯一来源）。
