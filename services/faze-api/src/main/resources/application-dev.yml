@@ -28,6 +28,15 @@ faze:
   probe:
     ai:
       mock: true
+    # 开发期 CORS 白名单（`@Profile("!prod")` 的 config/CorsConfig 读这个键）。
+    # 为什么必须加 localhost 与 127.0.0.1（80 端口）：
+    #   PC 后台跑在 http://localhost（vite dev server），业务接口在 8081，
+    #   **浏览器对非 GET 请求一律带 Origin 头**，vite 代理只转发不改 Origin，
+    #   于是写接口（封禁/审核/充值/保存）会被 CORS 拦成 HTTP 403 `Invalid CORS request`，
+    #   而 GET 列表接口正常——2026-11-05 实测踩过，表现是「只有写操作 403」。
+    # 8090 保留给 expo web 自测。生产 profile 不加载本文件、也不注册这个 bean。
+    web:
+      allowed-origins: http://localhost,http://127.0.0.1,http://localhost:80,http://127.0.0.1:80,http://localhost:8090,http://127.0.0.1:8090
 
 logging:
   level:
