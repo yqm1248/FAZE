@@ -14,6 +14,7 @@
  */
 package com.faze.config;
 
+import com.faze.security.AdminAuthenticationFilter;
 import com.faze.security.JwtAuthenticationFilter;
 import com.faze.security.RestAccessDeniedHandler;
 import com.faze.security.RestAuthenticationEntryPoint;
@@ -52,6 +53,7 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain fazeSecurityFilterChain(HttpSecurity http,
                                                        JwtAuthenticationFilter jwtAuthenticationFilter,
+                                                       AdminAuthenticationFilter adminAuthenticationFilter,
                                                        RestAuthenticationEntryPoint entryPoint,
                                                        RestAccessDeniedHandler deniedHandler) throws Exception {
         http
@@ -83,7 +85,11 @@ public class SecurityConfig {
                 .exceptionHandling(eh -> eh
                         .authenticationEntryPoint(entryPoint)
                         .accessDeniedHandler(deniedHandler))
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                // 管理端认证桥（第 1 段 F1，方案 A）：校验 RuoYi 签发的 token 并还原 ROLE_ADMIN。
+                // 必须排在 JwtAuthenticationFilter 之后：两者靠各自的 shouldNotFilter 互斥
+                // （C 端 token 是 HS256 自签、管理端是 HS512 由 RuoYi 签），顺序固定便于排障。
+                .addFilterAfter(adminAuthenticationFilter, JwtAuthenticationFilter.class);
         return http.build();
     }
 

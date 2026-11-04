@@ -67,6 +67,19 @@ faze:
     # 对外可访问的服务地址，用于拼本地存储的签名 URL；
     # 接云 OSS 后本项只在「本地开发想用局域网 IP 联调」时还有意义
     public-base-url: ${FAZE_PUBLIC_BASE_URL:http://127.0.0.1:8081}
+  admin-auth:
+    # ── 管理端鉴权桥（第 1 段 F1，方案 A：与 RuoYi 共享 token.secret + 共享 Redis）──
+    # token-secret 必须与 RuoYi-Vue 的 token.secret **完全一致**，两边各写一份一定漂移；
+    # 生产由 FAZE_ADMIN_TOKEN_SECRET 注入，未设置即启动失败（默认拒绝）
+    enabled: ${FAZE_ADMIN_AUTH_ENABLED:true}
+    token-secret: ${FAZE_ADMIN_TOKEN_SECRET:}
+    # 指向 RuoYi 用的那个 Redis 逻辑库（默认 0），不是 faze 业务缓存库（1）
+    redis-host: ${FAZE_REDIS_HOST:127.0.0.1}
+    redis-port: ${FAZE_REDIS_PORT:6379}
+    redis-password: ${FAZE_REDIS_PASSWORD:}
+    redis-database: ${FAZE_ADMIN_REDIS_DATABASE:0}
+    # 取自 RuoYi 的 CacheConstants.LOGIN_TOKEN_KEY，改了这里就读不到登录态
+    token-key-prefix: "login_tokens:"
   storage:
     # 本段是本地目录实现（负责人 2026-11-04 选方案 B），文件落在仓库之外；
     # 段 4 换云 OSS 时只替换 FileStorage 的实现类，本配置项删除

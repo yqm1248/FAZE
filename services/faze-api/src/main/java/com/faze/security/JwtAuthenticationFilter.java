@@ -69,6 +69,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         this.accountQueryService = accountQueryService;
     }
 
+    /**
+     * 管理端请求不由本过滤器处理。
+     *
+     * <p>两套 token 的算法与密钥完全不同（C 端 HS256 自签、管理端 HS512 由 RuoYi 签发），
+     * 让两个过滤器都跑一遍会互相覆盖 SecurityContext 与失败原因。</p>
+     *
+     * @param request 当前请求
+     * @return true 表示跳过本过滤器
+     */
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        return AdminAuthenticationFilter.isAdminPath(request.getRequestURI());
+    }
+
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {

@@ -27,10 +27,17 @@
 
 .NOTES
     退出码：0 正常退出 / 2 .env 缺失 / 3 必需变量缺失 / 5 Maven 不可用 / 6 启动失败
+
+    2026-11-05 修正：本脚本原先**不设 profile**，而 application.yml 里 `faze.jwt.secret`
+    是 `${FAZE_TOKEN_SECRET:}`（无默认值）、dev 的默认密钥只在 application-dev.yml 里。
+    结果是「按脚本启动」必然在 JwtTokenProvider 构造期抛「secret 未配置」——脚本从来没真正
+    起过 dev 实例。现补 `-Profile`（默认 dev），显式注入 SPRING_PROFILES_ACTIVE。
+    生产必须显式 `-Profile prod`，并自行提供 FAZE_TOKEN_SECRET / FAZE_ADMIN_TOKEN_SECRET。
 #>
 [CmdletBinding()]
 param(
     [string]$EnvFile,
+    [string]$Profile = 'dev',
     [switch]$AsPackage,
     [switch]$SkipTests
 )
@@ -99,6 +106,24 @@ if (-not (Get-Command java -ErrorAction SilentlyContinue)) {
 
 Write-Step "已加载 $envFile（$script:loaded 个变量）"
 Write-Step "端口 $port / 库 $env:FAZE_DB_USER@.../faze"
+
+# ── 3.5 激活 profile ──────────────────────────────────────────────────────
+# 必须显式设置：application.yml 里的 jwt.secret / admin-auth.token-secret 都没有默认值，
+# 默认值只存在于 application-dev.yml。不设 profile 一定启动失败（见 .NOTES 的 2026-11-05 修正）。
+if ($env:SPRING_PROFILES_ACTIVE) {
+    Write-Step "profile 已由环境变量指定：$env:SPRING_PROFILES_ACTIVE（忽略 -Profile $Profile）"
+} else {
+    $env:SPRING_PROFILES_ACTIVE = $Profile
+    Write-Step "profile：$Profile"
+}
+if ($env:SPRING_PROFILES_ACTIVE -eq 'prod') {
+    foreach ($name in @('FAZE_TOKEN_SECRET', 'FAZE_ADMIN_TOKEN_SECRET')) {
+        if ([string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($name, 'Process'))) {
+            Write-Fail "prod profile 下 $name 必须显式提供（不许带默认密钥上线）"
+            exit 3
+        }
+    }
+}
 
 # ── 4. 启动 ───────────────────────────────────────────────────────────────
 Push-Location $apiDir

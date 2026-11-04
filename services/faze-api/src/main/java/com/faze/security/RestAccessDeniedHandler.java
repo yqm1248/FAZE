@@ -1,13 +1,15 @@
 /*
- * 职责：已认证但无权限的请求的统一出口——回 HTTP 403 + {code:401008}。
+ * 职责：已认证但无权限的请求的统一出口——C 端回 HTTP 403 + {code:401008}，管理端回 HTTP 200 + 同码。
  * 调用方：Spring Security 的 ExceptionTranslationFilter（AccessDeniedException）。
  * 数据来源：无（恒定错误码）。
  * 注意：
  *   1. 与 401 的区别是硬语义：「你是谁我不知道」→ 401；「我知道你是谁，但你不能做这件事」→ 403。
  *      混用会让客户端在「刷新 token」和「提示无权限」之间做错选择。
- *   2. 段 0 没有任何 @PreAuthorize，所以这条分支实际上只会在 `denyAll()` 命中时触发；
- *      仍然要实现它——否则 Security 会退回默认实现，吐 HTML 或空体。
- *   3. 不返回 e.getMessage()（可能含表达式、角色名等内部信息）。
+ *   2. **管理端必须回 HTTP 200**（接口规范附录 C 第 4 行）：RuoYi 前端对 `code !== 200`
+ *      一律走 `ElNotification.error(msg)`，它不需要 HTTP 非 2xx 来表达「无权限」，
+ *      而 HTTP 403 会落进它的「系统接口403异常」分支，把六位业务码的 msg 盖掉。
+ *      所以管理端这里是 HTTP 200 + `{code:401008, msg:"无权限访问该资源"}`。
+ *   3. 不返回 `e.getMessage()`（可能含表达式、角色名等内部信息）。
  */
 package com.faze.security;
 
@@ -44,7 +46,7 @@ public class RestAccessDeniedHandler implements AccessDeniedHandler {
     }
 
     /**
-     * 输出 403 响应。
+     * 按前缀选 HTTP 状态输出无权限响应。
      *
      * @param request               当前请求
      * @param response              当前响应
@@ -54,9 +56,11 @@ public class RestAccessDeniedHandler implements AccessDeniedHandler {
     @Override
     public void handle(HttpServletRequest request, HttpServletResponse response,
                        AccessDeniedException accessDeniedException) throws IOException {
-        log.warn("无权限 path={} reason={}", request.getRequestURI(), accessDeniedException.getMessage());
+        boolean adminPath = AdminAuthenticationFilter.isAdminPath(request.getRequestURI());
+        log.warn("无权限 path={} adminPath={} reason={}",
+                request.getRequestURI(), adminPath, accessDeniedException.getMessage());
 
-        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+        response.setStatus(adminPath ? HttpServletResponse.SC_OK : HttpServletResponse.SC_FORBIDDEN);
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding("UTF-8");
         String traceId = MDC.get(R.TRACE_ID_MDC_KEY);

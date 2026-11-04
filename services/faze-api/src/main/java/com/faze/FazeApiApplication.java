@@ -7,6 +7,7 @@
  */
 package com.faze;
 
+import com.faze.config.properties.FazeAdminAuthProperties;
 import com.faze.config.properties.FazeJwtProperties;
 import com.faze.config.properties.FazeProbeProperties;
 import com.faze.config.properties.FazeStorageProperties;
@@ -19,7 +20,8 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
  * 服务端启动类。
  */
 @SpringBootApplication
-@EnableConfigurationProperties({FazeJwtProperties.class, FazeProbeProperties.class, FazeStorageProperties.class})
+@EnableConfigurationProperties({FazeJwtProperties.class, FazeProbeProperties.class,
+        FazeStorageProperties.class, FazeAdminAuthProperties.class})
 @MapperScan("com.faze.**.mapper")
 public class FazeApiApplication {
 

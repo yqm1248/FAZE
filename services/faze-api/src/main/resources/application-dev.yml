@@ -21,6 +21,10 @@ faze:
   redis:
     # 业务 key 统一前缀；不同环境共用同一 Redis 时靠它隔离
     key-prefix: "faze:"
+  admin-auth:
+    # 管理端鉴权桥：dev 用 RuoYi 发行版出厂默认 secret（abcdefghijklmnopqrstuvwxyz）。
+    # 这里给默认值只为了本机能直接跑；生产不提供默认值，必须走 FAZE_ADMIN_TOKEN_SECRET。
+    token-secret: ${FAZE_ADMIN_TOKEN_SECRET:abcdefghijklmnopqrstuvwxyz}
   probe:
     ai:
       mock: true
