@@ -30,4 +30,21 @@ public interface BalanceQueryService {
      * @return 冻结余额（分）
      */
     long getFrozenCents(Long userId);
+
+    /**
+     * 按**流水汇总**取账户总余额（分）。
+     *
+     * <p>与 {@link #getAvailableCents(Long)} 的区别不是精度而是**口径**：那个读
+     * `user_balance` 缓存字段，这个方法 SUM(`balance_flow.delta_cents`)。
+     * 锚点 1-A6 规定「凡是展示给用户看的余额必须来自流水汇总」，所以资料接口的
+     * `balanceCents` 用本方法；缓存那一个只用于「有没有余额」这类粗判断
+     * （注销前置校验），两者混用会把账不平藏起来。</p>
+     *
+     * <p>为什么两个方法都留着而不是合成一个：合成之后调用点分不清自己在用哪个口径，
+     * 而「注销时判断能不能退」和「页面显示多少钱」本来就该用不同口径。</p>
+     *
+     * @param userId 用户主键
+     * @return 总余额（分）；无流水记录时为 0
+     */
+    long getTotalCentsFromFlows(Long userId);
 }
