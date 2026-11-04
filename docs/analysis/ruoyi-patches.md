@@ -19,4 +19,11 @@
 
 ## 当前记录
 
-**无。** 段 0 只做 A-01 登录与一个 `biz` 菜单占位页，不触碰框架层。
+| # | 日期 | RuoYi 文件（相对 RuoYi 根） | 为什么必须改 | 影响面 | 回滚方式 |
+|---|---|---|---|---|---|
+| 1 | 2026-11-05 | `ruoyi-admin/src/main/resources/application-druid.yml` | RuoYi 必须用独立库 `faze_admin`（《数据表规范》§6.1 定：与业务库 `faze` **分库**），默认的 `ry-vue` 库不存在 | 只影响本地开发的数据库连接；不改任何框架代码 | 把 `url` 改回 `jdbc:mysql://localhost:3306/ry-vue?...`、`password` 改回 `password` |
+| 2 | 2026-11-05 | `pnpm-workspace.yaml`（**新增文件**，前端根） | ① npm 11.13.0 解析 RuoYi 的 `package-lock.json`（lockfileVersion 3，已确认无异常版本）时在 `arborist` 的 dedupe 阶段抛 `Invalid Version`，全新 `node_modules` 下仍复现；② 改用 pnpm 后，其默认严格布局让 `sortablejs` 等「代码直接 `import` 但不在 `package.json`」的包解析不到。<br>该文件内容：`nodeLinker: hoisted` + `allowBuilds`（esbuild / vue-demi / @parcel/watcher） | 只影响**依赖安装方式与 node_modules 布局**，不改任何前端源码；`hoisted` 是为了兼容 RuoYi 依赖 npm 扁平提升的写法 | 删除 `pnpm-workspace.yaml`，改回 npm（需先解决 npm 的 lock 解析问题，或降级到 npm 10） |
+
+> 补充说明（2026-11-05）：
+> - 前端 `package.json` 曾被临时加入 `pnpm.onlyBuiltDependencies`（pnpm 11 已不读该字段，仅打警告），**已删除**；原文件备份在 `RuoYi-Vue3/package.json.bak-dsh`。当前 `package.json` 与原始内容的差异仅为 JSON 缩进格式（语义未变）。
+> - 本机的 Node.js 曾把 `INSTALLDIR` 装到 `E:\uniapp1\`（HBuilderX 目录），2026-11-05 已卸载并重装到标准位置 `C:\Program Files\nodejs`（v24.16.0 / npm 11.13.0）。此事属**本机环境修复**，不是 RuoYi 改动。
