@@ -25,7 +25,9 @@ import com.faze.modules.account.converter.AccountConverter;
 import com.faze.modules.account.bo.RegisterBO;
 import com.faze.modules.account.bo.SmsLoginBO;
 import com.faze.modules.account.rule.PasswordPolicy;
+import com.faze.modules.account.bo.UpdateProfileBO;
 import com.faze.modules.account.vo.LoginVO;
+import com.faze.modules.account.vo.ProfileVO;
 import com.faze.modules.account.vo.TokenVO;
 import com.faze.modules.account.vo.UserVO;
 import com.faze.modules.account.entity.AppUser;
@@ -89,6 +91,7 @@ public class AuthService {
     private final LoginGuardService loginGuardService;
     private final LoginLogService loginLogService;
     private final AccountConverter accountConverter;
+    private final DeviceService deviceService;
     private final Duration refreshTtl;
 
     /** 单飞槽位：refreshToken → 正在执行/已完成的轮换。 */
@@ -114,6 +117,7 @@ public class AuthService {
                        LoginGuardService loginGuardService,
                        LoginLogService loginLogService,
                        AccountConverter accountConverter,
+                       DeviceService deviceService,
                        FazeJwtProperties jwtProperties) {
         this.accountMapper = accountMapper;
         this.tokenProvider = tokenProvider;
@@ -123,6 +127,7 @@ public class AuthService {
         this.loginGuardService = loginGuardService;
         this.loginLogService = loginLogService;
         this.accountConverter = accountConverter;
+        this.deviceService = deviceService;
         this.refreshTtl = Duration.ofDays(jwtProperties.refreshTtlDays());
     }
 
@@ -167,11 +172,12 @@ public class AuthService {
         // 攻击者可以用一个已知的封禁账号把号刷到锁定状态。
         ensureUsable(user);
 
-        // 任务 5：成功则清失败计数、更新最后登录、写日志。
+        // 任务 5：成功则清失败计数、更新最后登录、写日志、登记设备。
         loginGuardService.clearFailure(phone);
         touchLogin(user.getId(), clientIp);
         loginLogService.recordSuccess(user.getId(), phone, LOGIN_TYPE_PASSWORD,
                 clientIp, userAgent, request.getDeviceId());
+        deviceService.touch(user.getId(), request.getDeviceId(), userAgent);
 
         // 任务 6：签发令牌对并组装响应。
         return issue(user);
@@ -278,10 +284,11 @@ public class AuthService {
         }
         ensureUsable(user);
 
-        // 任务 3：更新最后登录、写日志、签发。
+        // 任务 3：更新最后登录、写日志、登记设备、签发。
         touchLogin(user.getId(), clientIp);
         loginLogService.recordSuccess(user.getId(), phone, LOGIN_TYPE_SMS,
                 clientIp, userAgent, request.getDeviceId());
+        deviceService.touch(user.getId(), request.getDeviceId(), userAgent);
         return issue(user);
     }
 
@@ -333,12 +340,38 @@ public class AuthService {
      * @return 资料出参
      * @throws BusinessException 402003 用户不存在或已软删（token 仍有效但人已没）
      */
-    public UserVO profile(Long userId) {
+    public ProfileVO profile(Long userId) {
         AppUser user = accountMapper.selectById(userId);
         if (user == null || user.getDeletedAt() != null) {
             throw new BusinessException(ErrorCode.AUTH_TOKEN_INVALID);
         }
-        return accountConverter.toUserVO(user);
+        return accountConverter.toProfileVO(user);
+    }
+
+    /**
+     * 修改资料（只允许昵称 / 头像 / 性别）。
+     *
+     * <p>前置：用户存在且未软删。</p>
+     * <p>副作用：更新 app_user 的对应字段与 updated_at；未传的字段保持原值。</p>
+     *
+     * @param userId  当前用户
+     * @param request 修改请求（字段可空，只更新传了的）
+     * @throws BusinessException 402003 用户不存在或已软删
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void updateProfile(Long userId, UpdateProfileBO request) {
+        AppUser user = accountMapper.selectById(userId);
+        if (user == null || user.getDeletedAt() != null) {
+            throw new BusinessException(ErrorCode.AUTH_TOKEN_INVALID);
+        }
+        // 用 patch 语义：MP 的 NOT_NULL 策略会忽略 null 字段，不会把没传的字段清空
+        AppUser patch = new AppUser();
+        patch.setId(userId);
+        patch.setNickname(request.getNickname());
+        patch.setAvatarUrl(request.getAvatarUrl());
+        patch.setGender(request.getGender());
+        patch.setUpdatedAt(LocalDateTime.now(ZoneOffset.UTC));
+        accountMapper.updateById(patch);
     }
 
     // ── 内部实现 ───────────────────────────────────────────────────────────

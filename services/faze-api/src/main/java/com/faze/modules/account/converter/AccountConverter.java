@@ -11,6 +11,7 @@
 package com.faze.modules.account.converter;
 
 import com.faze.modules.account.entity.AppUser;
+import com.faze.modules.account.vo.ProfileVO;
 import com.faze.modules.account.vo.UserVO;
 import java.util.List;
 import java.util.Locale;
@@ -24,6 +25,8 @@ public class AccountConverter {
 
     private static final String DEFAULT_ROLE = "user";
     private static final String DEFAULT_REALNAME_STATUS = "none";
+    /** 律师状态：非律师。 */
+    private static final String LAWYER_STATUS_NONE = "NONE";
 
     /**
      * 实体 → 用户出参。
@@ -44,6 +47,31 @@ public class AccountConverter {
         vo.setRoles(List.of(user.getRole() == null ? DEFAULT_ROLE : user.getRole()));
         // 支付密码表属段 1 E 组，尚未落地；恒 false，不要写成 true 骗客户端
         vo.setPayPasswordSet(false);
+        return vo;
+    }
+
+    /**
+     * 实体 → 资料出参（在用户出参基础上补律师状态与余额）。
+     *
+     * <p>余额段 1 B4 固定 0，D 组接流水汇总后改（见 ProfileVO 的 TODO）。</p>
+     *
+     * @param user 用户实体
+     * @return 资料出参
+     */
+    public ProfileVO toProfileVO(AppUser user) {
+        ProfileVO vo = new ProfileVO();
+        vo.setId(user.getId());
+        vo.setNickname(user.getNickname());
+        vo.setAvatarUrl(user.getAvatarUrl());
+        vo.setPhoneMasked(maskPhone(user.getPhone()));
+        vo.setRealnameStatus(toRealnameStatus(user.getRealnameStatus()));
+        vo.setIsMinor(Boolean.TRUE.equals(user.getIsMinor()));
+        vo.setRoles(List.of(user.getRole() == null ? DEFAULT_ROLE : user.getRole()));
+        vo.setPayPasswordSet(false);
+        // 段 1 C 组建 lawyer 表之前没有律师数据，恒 NONE
+        vo.setLawyerStatus(LAWYER_STATUS_NONE);
+        // TODO(owner: D 组, scope: trade)：接 SUM(balance_flow.delta_cents)，不许读缓存
+        vo.setBalanceCents(0L);
         return vo;
     }
 

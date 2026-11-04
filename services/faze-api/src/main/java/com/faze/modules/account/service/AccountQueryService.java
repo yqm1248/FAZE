@@ -1,7 +1,8 @@
 /*
- * 职责：账号认证状态的只读查询接口（跨域供 security 层使用）。
- * 调用方：security/JwtAuthenticationFilter（每个带 token 的请求一次）。
- * 数据来源：app_user。
+ * 职责：账号认证状态与设备的只读查询接口（跨域供 security 层与账号页使用）。
+ * 调用方：security/JwtAuthenticationFilter（认证快照）、
+ *         modules/account/controller/AccountSecurityController（设备列表）。
+ * 数据来源：app_user、user_device。
  * 注意：
  *   1. **每次请求查一次库**：这是 token 失效（改密 / 换绑 / 注销）能立即生效的代价。
  *      段 1 数据量小可接受；若将来成为瓶颈，按《后端代码规范》§12.1 用 @Component 实例字段
@@ -12,10 +13,12 @@
 package com.faze.modules.account.service;
 
 import com.faze.modules.account.vo.AccountAuthSnapshot;
+import com.faze.modules.account.vo.DeviceVO;
+import java.util.List;
 import java.util.Optional;
 
 /**
- * 账号认证快照查询。
+ * 账号认证与设备查询。
  */
 public interface AccountQueryService {
 
@@ -26,4 +29,13 @@ public interface AccountQueryService {
      * @return 快照；用户不存在时返回空
      */
     Optional<AccountAuthSnapshot> findAuthSnapshot(Long userId);
+
+    /**
+     * 取用户的有效设备列表（未软删）。
+     *
+     * @param userId          用户主键
+     * @param currentDeviceId 当前请求的 X-Device-Id，用于标记 current（可为 null）
+     * @return 设备列表，按最后活跃时间倒序
+     */
+    List<DeviceVO> listDevices(Long userId, String currentDeviceId);
 }

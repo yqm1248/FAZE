@@ -26,6 +26,7 @@ import com.faze.modules.account.entity.AppUser;
 import com.faze.modules.account.mapper.AccountMapper;
 import com.faze.modules.account.rule.PasswordPolicy;
 import com.faze.modules.account.vo.TokenVO;
+import com.faze.modules.trade.service.BalanceQueryService;
 import com.faze.security.JwtTokenProvider;
 import com.faze.security.RefreshTokenStore;
 import java.time.Duration;
@@ -45,6 +46,9 @@ public class AccountSecurityService {
 
     private static final String LOGIN_TYPE_RESET = "reset";
     private static final String MODULE_ACCOUNT = "account";
+    private static final String STATUS_CANCELLED = "cancelled";
+    /** 注销占位号的最大长度，与 V8 后的 phone VARCHAR(40) 一致。 */
+    private static final int PHONE_MAX_LENGTH = 40;
 
     private final AccountMapper accountMapper;
     private final PasswordEncoder passwordEncoder;
@@ -53,19 +57,21 @@ public class AccountSecurityService {
     private final SmsCodeService smsCodeService;
     private final LoginLogService loginLogService;
     private final AccountConverter accountConverter;
+    private final BalanceQueryService balanceQueryService;
     private final Duration refreshTtl;
 
     /**
      * 构造服务。
      *
-     * @param accountMapper     用户 Mapper
-     * @param passwordEncoder   BCrypt 编码器
-     * @param refreshTokenStore refresh token 存储
-     * @param tokenProvider     JWT 签发器
-     * @param smsCodeService    短信验证码
-     * @param loginLogService   登录日志（忘记密码留痕）
-     * @param accountConverter  脱敏转换
-     * @param jwtProperties     JWT 配置
+     * @param accountMapper       用户 Mapper
+     * @param passwordEncoder     BCrypt 编码器
+     * @param refreshTokenStore   refresh token 存储
+     * @param tokenProvider       JWT 签发器
+     * @param smsCodeService      短信验证码
+     * @param loginLogService     登录日志（忘记密码留痕）
+     * @param accountConverter    脱敏转换
+     * @param balanceQueryService 余额只读查询（注销前判断）
+     * @param jwtProperties       JWT 配置
      */
     public AccountSecurityService(AccountMapper accountMapper,
                                   PasswordEncoder passwordEncoder,
@@ -74,6 +80,7 @@ public class AccountSecurityService {
                                   SmsCodeService smsCodeService,
                                   LoginLogService loginLogService,
                                   AccountConverter accountConverter,
+                                  BalanceQueryService balanceQueryService,
                                   FazeJwtProperties jwtProperties) {
         this.accountMapper = accountMapper;
         this.passwordEncoder = passwordEncoder;
@@ -82,6 +89,7 @@ public class AccountSecurityService {
         this.smsCodeService = smsCodeService;
         this.loginLogService = loginLogService;
         this.accountConverter = accountConverter;
+        this.balanceQueryService = balanceQueryService;
         this.refreshTtl = Duration.ofDays(jwtProperties.refreshTtlDays());
     }
 
@@ -202,8 +210,77 @@ public class AccountSecurityService {
                 accountConverter.maskPhone(oldPhone));
     }
 
-    // ── 内部 ───────────────────────────────────────────────────────────────
+    // ── 登出与注销（B5）───────────────────────────────────────────────────
 
+    /**
+     * 登出。
+     *
+     * <p>副作用：token_version +1、吊销该用户全部 refresh token，**所有设备下线**。</p>
+     *
+     * <p>为什么不是「只退当前设备」：access token 是无状态的，要做到「只废当前这张」
+     * 必须维护黑名单（会无限增长）。B5 的验收口径是「登出后旧 token 失效」，
+     * 用版本号一步到位；若将来产品要求单端登出，再引入带 TTL 的黑名单。</p>
+     *
+     * @param userId 当前用户
+     * @throws BusinessException 402003 用户不存在或已软删
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void logout(Long userId) {
+        AppUser user = requireUser(userId);
+        int nextVersion = tokenVersionOf(user) + 1;
+        AppUser patch = new AppUser();
+        patch.setId(userId);
+        patch.setTokenVersion(nextVersion);
+        patch.setUpdatedAt(LocalDateTime.now(ZoneOffset.UTC));
+        accountMapper.updateById(patch);
+        refreshTokenStore.revokeAllByUser(userId);
+        log.info("用户登出 userId={}", userId);
+    }
+
+    /**
+     * 注销账号（立即生效，无冷静期）。
+     *
+     * <p>前置：账号存在且余额（含冻结）为 0。</p>
+     * <p>副作用：status 置 cancelled、手机号改写为占位值释放唯一键（原号进 original_phone）、
+     * token_version +1、吊销全部 refresh、写 operation_log。</p>
+     *
+     * <p>**不物理删除**：balance_flow、login_log 有财务与审计留痕要求，
+     * 删行会让「这个号曾经发生过什么」永远查不到。</p>
+     *
+     * @param userId 当前用户
+     * @throws BusinessException 402003 用户不存在 / 402008 已注销 / 401006 有余额不允许注销
+     */
+    @Transactional(rollbackFor = Exception.class)
+    @OperationLog(module = MODULE_ACCOUNT, action = "CANCEL_ACCOUNT", targetType = "APP_USER")
+    public void cancelAccount(Long userId) {
+        AppUser user = requireUser(userId);
+        if (STATUS_CANCELLED.equals(user.getStatus())) {
+            throw new BusinessException(ErrorCode.AUTH_ACCOUNT_CANCELLED);
+        }
+        // 任务 1：有余额（或冻结）不允许注销——注销后钱没地方退，用户会直接投诉。
+        long available = balanceQueryService.getAvailableCents(userId);
+        long frozen = balanceQueryService.getFrozenCents(userId);
+        if (available > 0 || frozen > 0) {
+            throw new BusinessException(ErrorCode.COMMON_ILLEGAL_STATE);
+        }
+        // 任务 2：改写手机号为占位值，释放唯一键（裁决 #9：注销后号码可立即重新注册）。
+        int nextVersion = tokenVersionOf(user) + 1;
+        AppUser patch = new AppUser();
+        patch.setId(userId);
+        patch.setOriginalPhone(user.getPhone());
+        patch.setPhone(placeholderPhone(userId, user.getPhone()));
+        patch.setStatus(STATUS_CANCELLED);
+        patch.setTokenVersion(nextVersion);
+        patch.setUpdatedAt(LocalDateTime.now(ZoneOffset.UTC));
+        accountMapper.updateById(patch);
+        refreshTokenStore.revokeAllByUser(userId);
+        // 任务 3：审计明细只留脱敏号。
+        AuditContext.mark(MODULE_ACCOUNT, "CANCEL_ACCOUNT", "APP_USER", String.valueOf(userId),
+                "{\"phone\":\"" + accountConverter.maskPhone(user.getPhone()) + "\"}");
+        log.info("账号已注销 userId={} {}", userId, accountConverter.maskPhone(user.getPhone()));
+    }
+
+    // ── 内部 ───────────────────────────────────────────────────────────────
     /**
      * 取用户并校验存在。
      *
@@ -248,6 +325,21 @@ public class AccountSecurityService {
         fresh.setRefreshToken(refreshTokenStore.issue(user.getId(), refreshTtl));
         fresh.setExpiresIn((int) tokenProvider.getAccessTtlSeconds());
         return fresh;
+    }
+
+    /**
+     * 生成注销占位手机号：`cancelled_<userId>_<原号>`。
+     *
+     * <p>三元组保证唯一（userId 本身唯一），且保留原号便于客服肉眼追溯。
+     * 超长时截断——V8 已把列放宽到 40，正常 id 不会触发。</p>
+     *
+     * @param userId 用户主键
+     * @param phone  原手机号
+     * @return 占位手机号
+     */
+    private String placeholderPhone(Long userId, String phone) {
+        String value = "cancelled_" + userId + "_" + phone;
+        return value.length() <= PHONE_MAX_LENGTH ? value : value.substring(0, PHONE_MAX_LENGTH);
     }
 
     /**
