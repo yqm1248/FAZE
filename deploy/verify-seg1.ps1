@@ -8,11 +8,12 @@
 
     本脚本只做**能自动判定的部分**：
       1. 环境自检（MySQL / Redis / faze-api / RuoYi 前后端）
-      2. `mvn -B test`（44 个用例，含锚点 1-A5 / 1-A6 / 1-A8 / 1-A10 的专用用例）
+      2. `mvn -B test`（48 个用例，含锚点 1-A5 / 1-A6 / 1-A8 / 1-A10 的专用用例）
       3. `deploy\verify-balance.ps1`（锚点 1-A7 的恒等式）
-      4. `deploy\verify-admin-api.mjs`（PC 21 个管理端接口 + 1-A4 的幂等重放）
+      4. `deploy\verify-admin-api.mjs`（PC 23 项管理端接口复核 + 1-A4 的幂等重放）
     依赖 APP 页面的锚点（1-A1 / 1-A2 / 1-A3 / 1-A4 / 1-A9 / 1-A10 的 App 半边）**不做假通过**，
-    一律标 `TODO(G组)` 或 `PARTIAL`，并在输出里写清缺什么。
+    一律标 `PARTIAL` 并写清缺什么。G 组（18 页）已交付后，这些锚点缺的是**端到端写操作与断网**，
+    不再是「页面没做」。
 
     退出码：0 所有可自动判定的检查通过 / 1 有检查失败 / 2 环境不满足（缺服务或缺少依赖）。
 
@@ -98,13 +99,24 @@ $surefire = Join-Path $repoRoot 'services\faze-api\target\surefire-reports'
 if ($SkipTests) {
     Say '  [SKIP] 按参数跳过' 'Yellow'
 } else {
+    # 为什么重定向到文件而不是 `$out = & mvn ... 2>&1`：
+    # Maven 全量测试日志有数万行，PowerShell 把原生命令的每一行 stderr/stdout 包成 ErrorRecord / String
+    # 对象再收进变量，实测从 3 分钟涨到 10 分钟以上（2026-11-05 两次跑都把这一步跑成"看起来卡死"）。
+    # `*>` 直接写文件流，开销可以忽略；事后只读最后一条汇总行。
+    $testLog = Join-Path $repoRoot 'logs\verify-seg1-mvn-test.log'
+    New-Item -ItemType Directory -Force -Path (Split-Path -LiteralPath $testLog) | Out-Null
     Push-Location (Join-Path $repoRoot 'services\faze-api')
     try {
-        $out = & mvn -B test 2>&1
-        $summary = ($out | Select-String -Pattern 'Tests run:.*Failures:.*Errors:.*Skipped:' | Select-Object -Last 1)
-        if ($summary) { Say ("  " + $summary.Line.Trim()) }
-        $testOk = ($LASTEXITCODE -eq 0)
+        & mvn -B test *> $testLog
+        $testExit = $LASTEXITCODE
     } finally { Pop-Location }
+    if (Test-Path -LiteralPath $testLog) {
+        $summary = (Get-Content -LiteralPath $testLog -Encoding UTF8 |
+            Select-String -Pattern 'Tests run:.*Failures:.*Errors:.*Skipped:' | Select-Object -Last 1)
+        if ($summary) { Say ("  " + $summary.Line.Trim()) }
+        Say ("  完整日志：$testLog") 'DarkGray'
+    }
+    $testOk = ($testExit -eq 0)
     Say ("  {0} mvn test" -f $(if ($testOk) { '[OK]  ' } else { '[FAIL]' })) $(if ($testOk) { 'DarkGray' } else { 'Red' })
 }
 
@@ -143,22 +155,22 @@ if (-not $nodeExe) {
         Say ("  " + $_)
     }
     $adminOk = ($LASTEXITCODE -eq 0)
-    Say ("  {0} 管理端 21 接口复核" -f $(if ($adminOk) { '[OK]  ' } else { '[FAIL]' })) $(if ($adminOk) { 'DarkGray' } else { 'Red' })
+    Say ("  {0} 管理端 23 项接口复核" -f $(if ($adminOk) { '[OK]  ' } else { '[FAIL]' })) $(if ($adminOk) { 'DarkGray' } else { 'Red' })
 }
 
 # ── 5. 十条锚点汇总 ───────────────────────────────────────────────────────
 Say "`n===== 5. 段 1 验收锚点（1-A1 ~ 1-A10）=====" 'Cyan'
 $rows = @(
-    @{ Id = '1-A1';  State = 'TODO';    Why = 'App 端 7 步链路页面未做（G1/G3）' },
-    @{ Id = '1-A2';  State = 'PARTIAL'; Why = 'PC 半边已验（A-04）；App 提交/查看半边等 G3' },
-    @{ Id = '1-A3';  State = 'PARTIAL'; Why = 'PC 半边已验（A-05 四步+通过写 lawyer）；App 半边等 G2' },
-    @{ Id = '1-A4';  State = 'PARTIAL'; Why = 'PC 半边已验（A-07 充值+幂等）；App 余额页等 G4' },
+    @{ Id = '1-A1';  State = 'PARTIAL'; Why = 'App 7 页齐（注册/登录/忘记密码/我的/注销/资料/改密），已实测注册→登录；差注销→同号重注册的端到端七步' },
+    @{ Id = '1-A2';  State = 'PARTIAL'; Why = 'PC 半边已验（A-04）；App 实名页已交付并截图，差「提交→PC 审→App 状态变」的端到端' },
+    @{ Id = '1-A3';  State = 'PARTIAL'; Why = 'PC 半边已验（A-05 四步+通过写 lawyer）；App 四步表单已交付并截图，差端到端提交' },
+    @{ Id = '1-A4';  State = 'PARTIAL'; Why = 'PC 半边已验（A-07 充值+幂等 4 项 PASS，余额来自流水汇总 balanceCents=39303）；App 余额页已交付并截图，差「充值→App 看到」联动' },
     @{ Id = '1-A5';  State = $null;     Why = '后端集成测试 PayPasswordLockTest' },
     @{ Id = '1-A6';  State = $null;     Why = '后端集成测试 BalanceSourceOfTruthTest' },
     @{ Id = '1-A7';  State = $null;     Why = 'verify-balance.ps1 + A-09 对账页' },
     @{ Id = '1-A8';  State = $null;     Why = '后端集成测试 DeductServiceTest（含 10 线程并发）' },
-    @{ Id = '1-A9';  State = 'TODO';    Why = '18 页四态/断网/RTL 复核未做（G5）' },
-    @{ Id = '1-A10'; State = 'PARTIAL'; Why = '接口层已验（MinorGuardianTest）；App 注册页等 G1' }
+    @{ Id = '1-A9';  State = 'PARTIAL'; Why = '18 页正常态 + 空态截图已有（G5-states/），差错误态与真实断网重试；真 RTL 在浏览器口径下无法验' },
+    @{ Id = '1-A10'; State = 'PARTIAL'; Why = '接口层已验（MinorGuardianTest）；App 注册页有未成年勾选+监护人输入框，差「勾选后展开→提交被拒→填完成功」三张截图' }
 )
 $allAutoPass = $true
 foreach ($row in $rows) {
@@ -183,8 +195,8 @@ if (-not $adminOk) { $allAutoPass = $false }
 
 $todo = ($rows | Where-Object { $_.State -in @('TODO', 'PARTIAL') }).Count
 Say "`n可自动判定的检查：$(if ($allAutoPass) { '全部通过' } else { '有失败项' })" $(if ($allAutoPass) { 'Green' } else { 'Red' })
-Say "仍需人工/待 G 组：$todo 条锚点为 TODO/PARTIAL（见上表）" 'Yellow'
-Say "本段能否收口：$(if ($allAutoPass -and $todo -eq 0) { '可以' } else { '还不可以（先做 G 组 + 补证据）' })" 'Yellow'
+Say "仍需人工补齐：$todo 条锚点为 PARTIAL（缺的是端到端写操作 / 断网 / 原生 RTL，不是页面没做）" 'Yellow'
+Say "本段能否收口：$(if ($allAutoPass -and $todo -eq 0) { '可以' } else { '还不可以（补齐端到端与断网证据）' })" 'Yellow'
 
 # ── 6. 落证据 ─────────────────────────────────────────────────────────────
 $transcript | Set-Content -LiteralPath $logFile -Encoding UTF8
