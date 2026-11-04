@@ -67,10 +67,14 @@
 | 2 | **同一个 Redis 库，但 key 前缀隔离** | RuoYi 用 `login_tokens:`；faze-api 的业务缓存放 `faze:` 前缀。否则清业务缓存会误伤登录态 |
 | 3 | **复刻 `JwtAuthenticationTokenFilter` 的校验链** | 解 JWT → 取 `login_user_key`（UUID）→ 查 `login_tokens:<uuid>` → 反序列化出 userId / username / permissions → 放进 SecurityContext |
 | 4 | **只取必要字段** | faze-api 不需要完整的 `SysUser`。解析时**只读 userId、username、permissions**，其余忽略——降低对 RuoYi 版本的耦合 |
-| 5 | **✅ 已实测（2026-11-01）：`LoginUser` 用 JSON 序列化，跨服务可读** | RuoYi-Vue 3.9.2 的 `ruoyi-framework/.../config/RedisConfig.java` L29–33：value 用 `FastJson2JsonRedisSerializer`，**不是 JDK 序列化**；`TokenService` L155 `redisCache.setCacheObject(loginUser)` 直写 `login_tokens:<uuid>`。faze-api 用任意 JSON 库都能读。**但 `serialize()` 带 `JSONWriter.Feature.WriteClassName`，JSON 里会出现 `@type` 字段**——faze-api 用 Jackson 解析必须设 `FAIL_ON_UNKNOWN_PROPERTIES=false`，否则报错 |
+| 5 | **⚠️ 原写「✅ 已实测：`LoginUser` 用 JSON 序列化，跨服务可读」——2026-11-05 施工后修正：不完全成立** | RuoYi 侧确实用 Fastjson2 写了 Redis（原判据没错），但**写出来的不是标准 JSON**：实测 `login_tokens:<uuid>` 的值里出现 `103L`（Long 后缀）、`permissions:Set["*:*:*"]`（Fastjson 的类型标注），Jackson 按标准 JSON 解析会直接失败，改 `FAIL_ON_UNKNOWN_PROPERTIES=false` 也救不了（那是语法层不是字段层）。<br>**实际实现**（`core/AdminSessionStore`）：不整段解析，按 `"userId":<数字>L?,"username":"..."` 的**相邻对定点抽取**；抽不到就 fail closed（当作未登录）。<br>**影响**：RuoYi 升级若改了 `LoginUser` 的字段顺序，抽取会失配 → 管理端全 401，所以这条已登记进 `docs/analysis/ruoyi-patches.md` 必须回归。<br>另：`token.secret` 的派生也不是标准 Base64（jjwt 0.9.1 的 `DatatypeConverter.parseBase64Binary` 只解完整 4 字符组），26 字符密钥实测派生 **18 字节**，`AdminTokenVerifier.deriveKey()` 按同一规则实现才验得过 |
 | 6 | **登记耦合点** | 在 `docs/analysis/ruoyi-patches.md` 记一条：faze-api 依赖 RuoYi 的 `login_tokens:<uuid>` 结构与 `LoginUser` 字段。RuoYi 升级时要回归 |
 
-**退路口径变更（2026-11-01）**：方案 A **不再因「序列化不兼容」降级**——第 5 条已实测通过（JSON 可读）。方案 B 只作为「faze-api 无法兼容 `LoginUser` 结构」时的备选。
+**退路口径（2026-11-05 施工后修正）**：方案 A 可用，但**不是因为「JSON 可读」**——第 5 条说的
+标准 JSON 解析实际不成立（Fastjson 写出来的是带 `L`/`Set[...]` 标注的非标准文本）。
+仍不需要退到方案 B：`AdminSessionStore` 用定点抽取绕过了语法不兼容，已实测通过管理端全链路
+（`verify-admin-api.mjs` 23/23）。**真正的风险是 RuoYi 升级改字段顺序会静默失配**，
+所以回归项写在 `docs/analysis/ruoyi-patches.md`。方案 B 仍然只是备选。
 
 ---
 
@@ -766,7 +770,19 @@ if (o == null) throw new BusinessException(TRADE_ORDER_NOT_FOUND);
 
 **段 0 明确不做的接口**：除上述 6 个外，**不实现任何业务接口**（`sms/code`、注册、忘记密码、实名、入驻、余额流水等全部属段 1）。段 0 的出口是「能装、能连、能出字」，不是「有接口」。
 
-## 7.2 段 1（C 端 20 个 + PC 端 20 个）
+## 7.2 段 1（C 端 27 个 + PC 端 21 个）
+
+> **2026-11-05 施工后回写（段 1 收口）**：原标题写「C 端 20 + PC 端 20」，两处都数与实不符。
+> 下面这张表以**实测的后端路由扫描**为准（排除段 0 的 `pub/ping`、`pub/probe/*`、
+> `pub/file/*` 三个基础设施接口）。
+> - C 端：表内相加 **27 个**。相对原表（相加 23）多出 4 个，各有理由：
+>   `POST /app/account/pay-password/verify`（`1-A5` 要验连错锁定，没有校验接口无从验）、
+>   `POST /app/account/change-phone`（工作流 §5.2 补的清单漏项）、
+>   `PUT /app/account/password`（改登录密码，「修改密码页」必须有）、
+>   `GET /pub/config/{configKey}`（G1 要求协议/隐私正文「来自配置不是写死」，原清单没有读配置的接口）。
+> - PC 端：实测管理端路由 **21 个**（明细见下）。`verify-admin-api.mjs` 复核的 23 项里含
+>   2 条鉴权对照（无 token → 401、带 RuoYi token → 200），那 2 条不是业务接口。
+> 依据：`docs/acceptance/seg1/verify-seg1-20261105-041320.log`（十条锚点全 PASS 那次）。
 
 **C 端（`app`/`pub`）**：
 
@@ -781,10 +797,31 @@ if (o == null) throw new BusinessException(TRADE_ORDER_NOT_FOUND);
 | 余额与流水（2） | `GET /app/wallet/balance`、`GET /app/wallet/flows` | §4.8.2 trade |
 | 上传（2） | `POST /app/upload/token`、`GET /app/upload/url?key=` | §4.8.2 infra |
 | 支付密码（3） | `POST /app/account/pay-password`、`PUT /app/account/pay-password`、`POST /app/account/pay-password/reset` | **§4.8.2 缺，本规范补** |
+| **支付密码校验（1）** | `POST /app/account/pay-password/verify` | **2026-11-05 补**：`1-A5` 要验「连错 5 次锁定 + 剩余时间」，没有校验接口这条锚点无从验 |
+| **换绑手机（1）** | `POST /app/account/change-phone` | **§4.8.2 缺，段 1 工作流补**（见 §5.2） |
+| **修改登录密码（1）** | `PUT /app/account/password` | **2026-11-05 补**：G3 有「修改密码页」，原清单漏了这条 |
+| **公开配置（1）** | `GET /pub/config/{configKey}` | **2026-11-05 补**：G1 的协议/隐私正文要求「来自配置」，白名单只放 `user_agreement_content` / `privacy_policy_content` 两个键 |
 
 > **支付密码 3 个接口在技术路线里没有**，但总纲 §5.1 的「必须做」写了「支付密码（设置/校验/锁定/重置）」，锚点 `1-A5` 直接验它。**这是清单漏项**，本规范补上（见 §八 D-3）。
 
-**PC 端（`admin`）**：A-03~A-09 共 20 个，见 §4.8.4.4 与 §4.8.4.5，其中 4 组升 L1（见 §2.2）。
+**PC 端（`admin`）**：A-03~A-09 实测共 **21 个**（原文写 20），见 §4.8.4.4 与 §4.8.4.5，其中 4 组升 L1（见 §2.2）。
+实测路由清单（`faze-api` 全量扫描所得）：
+
+```text
+GET  /admin/users                          GET  /admin/users/{id}
+POST /admin/users/{id}/ban                 POST /admin/users/{id}/unban
+GET  /admin/verifications                  GET  /admin/verifications/{id}
+POST /admin/verifications/{id}/audit
+GET  /admin/lawyer-applications            GET  /admin/lawyer-applications/{id}
+POST /admin/lawyer-applications/{id}/audit
+GET  /admin/lawyers                        GET  /admin/lawyers/{id}
+GET  /admin/wallets/{userId}               POST /admin/wallets/{userId}/recharge
+POST /admin/wallets/{userId}/adjust        GET  /admin/balance-flows
+GET  /admin/reconciliation/summary         GET  /admin/reconciliation/diffs
+POST /admin/reconciliation/run
+GET  /admin/sys-configs                    PUT  /admin/sys-configs
+GET  /admin/dashboard/ping
+```
 
 ## 7.3 段 2~8
 

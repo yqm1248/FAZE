@@ -4,6 +4,44 @@
 
 ---
 
+## 2026-11-05 · 第 1 段收口：APP 18 页 + 端到端验收，十条锚点全 PASS（基线 v1.43）
+
+**范围**：G 组（APP 18 页）/ H1（锚点验收）/ H2（收口五件套）。**真机口径全部改为浏览器验收**（负责人 2026-11-05 决定），
+所以 `0-A3` 与 `1-A9` 的真 RTL 那一半在浏览器里做不了，已明确挂账而不是假装通过。
+
+**APP 18 页全部交付**：G1 启动与认证 5 页、G2 律师入驻与我的 3 页、G3 设置 8 页、G4 余额与支付密码 2 页。
+公共层新增 11 个组件（ActionBar/CheckRow/CodeTimerButton/ConfirmDialog/FormField/MoneyText/PinField/SettingRow/StatusHero/ToggleRow/WebFileButton）、
+2 个 hook（useAsyncResource / useErrorMessage）、3 个工具（prefStore/serverTime/money）、10 个 api 文件。
+`tsc` 0 error、`eslint` 0 告警、`check-raw-text` 命中 0、`check-i18n` 通过（bo/ug/kk 各缺 517 条已登记）。
+
+**验收分两层，两层都过才算接通**：
+- **页面层**（CDP 驱动真实 Chrome，390×844@2x）：老账号 20 路由 + 新账号 13 页表单形态 + 滚到底不被底栏压住 + `dir=rtl` 镜像，**全部零白屏零 console error**；
+- **接口层**（`deploy/verify-e2e.js`，真实 HTTP + 真实库）：38 项端到端——注册→登录→忘记密码→改密→实名提交→PC 审→入驻提交→PC 审→充值→有余额拒注销→清余额注销→同号重注册，**38/38 通过**；
+- **错误态**（`deploy/verify-error-states.js`）：用 CDP 只拦 `api/v1` 请求制造接口失败，7 页逐个验「有可读文案 + 有重试按钮 + 点了真能恢复」，**7/7 通过**。
+
+**修掉的 7 个真缺陷**（都是验收逼出来的，只看代码发现不了）：
+1. `ProfileVO.lawyerStatus` 恒 `NONE` —— 已入驻用户「我的」页显示「未入驻」；
+2. `ProfileVO.balanceCents` 恒 `0` —— 余额为零与「接口没接」在页面上无法区分；
+3. `ProfileVO.payPasswordSet` 恒 `false` —— 「账号与安全」永远显示「未设置」，用户会去走「重置」多花一次验证码；
+4. 协议/隐私正文**没有匿名可读接口**，且 `sys_config.config_value` 只有 `varchar(500)`（实测导入就 `Data too long`）——
+   补 `GET /pub/config/{configKey}`（白名单 2 键，白名单外一律 401004）+ V12 扩到 TEXT + 两条种子正文 + 4 个集成测试；
+5. **注册时验证码被过早消费**：漏填监护人被正确拒绝后验证码已作废，改好重试得 402005 还要再等 60 秒；
+6. `verify-seg1.ps1` 用 `$out = & mvn` 捕获数万行输出，跑一次从 3 分钟变 10 分钟（改重定向到文件后 32 秒）；
+7. `.gitignore` 的 `*.log` 把所有验收证据挡在仓库外（加 `!docs/acceptance/**/*.log` 例外）。
+
+**两条数字纠错**：接口数原文「C 端 20 / PC 端 20」与实测不符，实际 **C 端 27 / PC 端 21**（逐条差异见接口规范 §7.2 修正说明）；
+管理端鉴权「`LoginUser` 是标准 JSON」**不成立**（Fastjson2 写的是带 `L`/`Set[...]` 标注的非标准文本），实现改为定点抽取 + fail closed，已回写 §1.3.1 第 5 条。
+
+**收口结论**：`deploy/verify-seg1.ps1` 一条命令跑完（环境自检 → 48 个后端用例 → 对账恒等式 → 管理端 23/23 → 端到端 38/38 → 错误态 7/7），
+**1-A1~1-A10 十条锚点全部 PASS**，脚本判定「本段能否收口：可以」。证据：`docs/acceptance/seg1/verify-seg1-20261105-041320.log`。
+
+**本次没做的事**：真 RTL（浏览器无解）、换绑手机未进端到端自动化、三语译文为空 —— 与另外 7 项一起写进《第 1 段工作流》§十.1 遗留挂账（G-1~G-10）。
+
+**基线**：v1.42 → **v1.43**。新增资产 **0 份**（`docs/acceptance/**` 不在基线登记范围），
+内容变更 **3 份**（《接口规范》《开发计划总纲》《第 1 段工作流》），资产数仍 **43**。
+
+---
+
 ## 2026-11-04 · 段 0 D3 完成：SSE + ngram 命中依据（基线 v1.42）
 
 **范围**：D3 的服务端与前端代码**全部完成**，并用真实 Chrome（CDP）点验通过。**真机项仍待设备。**
