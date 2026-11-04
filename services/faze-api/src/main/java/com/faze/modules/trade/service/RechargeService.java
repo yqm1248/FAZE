@@ -22,6 +22,8 @@ import com.faze.common.audit.AuditContext;
 import com.faze.common.audit.OperationLog;
 import com.faze.common.exception.BusinessException;
 import com.faze.common.exception.ErrorCode;
+import com.faze.modules.account.service.AccountQueryService;
+import com.faze.modules.account.vo.AccountAuthSnapshot;
 import com.faze.modules.trade.bo.AdjustBO;
 import com.faze.modules.trade.bo.RechargeBO;
 import com.faze.modules.trade.entity.BalanceFlow;
@@ -56,6 +58,40 @@ public class RechargeService {
 
     private final UserBalanceMapper userBalanceMapper;
     private final BalanceFlowMapper balanceFlowMapper;
+    private final BalanceService balanceService;
+    private final AccountQueryService accountQueryService;
+
+    /**
+     * 锁余额行；行不存在但用户存在时先补建一行 0 余额再锁。
+     *
+     * <p><b>为什么需要这一步</b>：`user_balance` 是**惰性建行**的（只有查过余额的用户才有行）。
+     * 于是「运营给一个只注册过、还没查过余额的用户手工充值」会因为没有行而报 401004 ——
+     * 这是真实运营场景，不是脏数据。补建的行余额为 0、不产生任何流水，所以不违反
+     * 「余额只能由流水推导」（V5 迁移铁律）。</p>
+     *
+     * <p>顺序不能反：必须先确认**用户存在**再建行，否则打错一个 userId 就会凭空造出一条
+     * 幽灵余额户，对账时永远平不掉。</p>
+     *
+     * @param userId 目标用户
+     * @return 已加行锁的余额行
+     * @throws BusinessException 401004 用户不存在或已注销
+     */
+    private UserBalance lockOrCreateBalanceRow(Long userId) {
+        UserBalance cache = userBalanceMapper.selectByUserIdForUpdate(userId);
+        if (cache != null) {
+            return cache;
+        }
+        AccountAuthSnapshot snapshot = accountQueryService.findAuthSnapshot(userId).orElse(null);
+        if (snapshot == null || snapshot.deleted()) {
+            throw new BusinessException(ErrorCode.COMMON_NOT_FOUND);
+        }
+        balanceService.ensureRow(userId);
+        cache = userBalanceMapper.selectByUserIdForUpdate(userId);
+        if (cache == null) {
+            throw new BusinessException(ErrorCode.COMMON_NOT_FOUND);
+        }
+        return cache;
+    }
 
     /**
      * 手工充值。
@@ -136,11 +172,8 @@ public class RechargeService {
         if (existing != null) {
             return duplicated(existing);
         }
-        // 任务 2：锁余额行。
-        UserBalance cache = userBalanceMapper.selectByUserIdForUpdate(userId);
-        if (cache == null) {
-            throw new BusinessException(ErrorCode.COMMON_NOT_FOUND);
-        }
+        // 任务 2：锁余额行（行不存在且用户存在时补建，见 lockOrCreateBalanceRow）。
+        UserBalance cache = lockOrCreateBalanceRow(userId);
         // 任务 3：锁后复查幂等（READ_COMMITTED 下能看到最新提交）。
         BalanceFlow afterLock = findFlow(userId, bizType, bizId);
         if (afterLock != null) {

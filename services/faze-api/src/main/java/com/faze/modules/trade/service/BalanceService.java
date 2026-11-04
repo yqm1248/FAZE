@@ -61,7 +61,7 @@ public class BalanceService {
      */
     public BalanceVO getBalance(Long userId) {
         // 任务 1：确保余额行存在（后续扣费要 update 它）。
-        UserBalance cache = ensureBalanceRow(userId);
+        UserBalance cache = ensureRow(userId);
         // 任务 2：总额只认流水汇总（锚点 1-A6）。
         long total = sumDelta(userId);
         // 任务 3：冻结额读缓存——段 1 没有冻结场景，恒 0；段 2 订单占用后才有值。
@@ -87,7 +87,7 @@ public class BalanceService {
      * @return 重算后的总额（分）
      */
     public long recalcBalance(Long userId) {
-        UserBalance cache = ensureBalanceRow(userId);
+        UserBalance cache = ensureRow(userId);
         long total = sumDelta(userId);
         long frozen = cache.getFrozenCents() == null ? 0L : cache.getFrozenCents();
         UserBalance patch = new UserBalance();
@@ -161,10 +161,17 @@ public class BalanceService {
     /**
      * 确保余额行存在（惰性建 + 并发兜底）。
      *
+     * <p><b>为什么是 public</b>：余额行是「惰性建」的——只有查过余额的用户才有行。
+     * 于是「运营给一个只注册过、还没查过余额的用户手工充值」会因为没有行而失败（401004），
+     * 这是真实场景。入账侧（RechargeService）需要先建这一行，所以本方法必须对外开放。</p>
+     *
+     * <p>**只建 0 余额的空行，不产生任何流水、不改任何金额**——所以它不违反
+     * 「余额只能由流水推导」这条铁律（见 V5 迁移注释）。</p>
+     *
      * @param userId 用户主键
      * @return 余额缓存行
      */
-    private UserBalance ensureBalanceRow(Long userId) {
+    public UserBalance ensureRow(Long userId) {
         UserBalance existing = userBalanceMapper.selectOne(Wrappers.<UserBalance>lambdaQuery()
                 .eq(UserBalance::getUserId, userId));
         if (existing != null) {

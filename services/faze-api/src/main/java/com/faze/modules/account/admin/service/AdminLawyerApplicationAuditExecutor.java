@@ -56,6 +56,8 @@ public class AdminLawyerApplicationAuditExecutor {
     private static final String STATUS_PENDING = "pending";
     private static final String STATUS_APPROVED = "approved";
     private static final String STATUS_REJECTED = "rejected";
+    /** app_user.status 的可用值（DB 存小写）。 */
+    private static final String STATUS_ACTIVE = "active";
     private static final String OUT_APPROVED = "APPROVED";
     private static final String OUT_REJECTED = "REJECTED";
     private static final String OPERATOR_ADMIN = "admin";
@@ -90,6 +92,11 @@ public class AdminLawyerApplicationAuditExecutor {
         if (!STATUS_PENDING.equals(application.getAuditStatus())) {
             throw new BusinessException(ErrorCode.COMMON_ILLEGAL_STATE);
         }
+        // 任务 1.5：申请人账号必须仍然可用。
+        // 2026-11-05 补：原来不判，实测「已注销用户（status=cancelled）的入驻申请仍可通过」——
+        // 通过会写 lawyer 行并改 role，等于给一个已注销账号开通律师身份，属越权加工。
+        // 状态语义：不存在/已注销 → 401004；封禁或其它非 active → 401006（状态非法）。
+        assertApplicantActive(application.getUserId());
         // 任务 2：撞库检查（软删行也占唯一索引，所以插入时还要兜底捕获）。
         assertLicenseAvailable(application.getLicenseNumber());
         // 任务 3：CAS 迁移 pending → approved，抢到才继续往下写。
@@ -171,6 +178,28 @@ public class AdminLawyerApplicationAuditExecutor {
             throw new BusinessException(ErrorCode.COMMON_NOT_FOUND);
         }
         return application;
+    }
+
+    /**
+     * 申请人账号可用性检查（approve 前必须过）。
+     *
+     * <p>2026-11-05 补：原来不判，实测「已注销用户（status=cancelled）的入驻申请仍可通过」。
+     * 通过会写 `lawyer` 行并把 `app_user.role` 改成 lawyer——等于给一个已注销账号
+     * 开通律师身份，是越权加工。封禁（blocked）同理不放行。</p>
+     *
+     * @param userId 申请人主键
+     * @throws BusinessException 401004 用户不存在或已软删 / 401006 账号非 active
+     */
+    private void assertApplicantActive(Long userId) {
+        AppUser user = accountMapper.selectOne(Wrappers.<AppUser>lambdaQuery()
+                .eq(AppUser::getId, userId)
+                .isNull(AppUser::getDeletedAt));
+        if (user == null) {
+            throw new BusinessException(ErrorCode.COMMON_NOT_FOUND);
+        }
+        if (!STATUS_ACTIVE.equals(user.getStatus())) {
+            throw new BusinessException(ErrorCode.COMMON_ILLEGAL_STATE);
+        }
     }
 
     /**

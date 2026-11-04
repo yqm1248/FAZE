@@ -178,9 +178,14 @@ class Seg0SmokeTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.data.id").isString())
-                .andExpect(jsonPath("$.data.realnameStatus").value("NONE"))
+                // 2026-11-05 改：原来写死 value("NONE")，但 realname_status 是**会变的状态**，
+                // 段 1 起这个测试账号真的会被拿去走实名审核（A-04 验收），审核一过这里就红。
+                // 冒烟测试要验的是「契约字段存在且取值合法」，不是「这个用户此刻还没实名」。
+                .andExpect(jsonPath("$.data.realnameStatus")
+                        .value(org.hamcrest.Matchers.oneOf("NONE", "PENDING", "APPROVED", "REJECTED")))
                 .andExpect(jsonPath("$.data.isMinor").value(false))
-                .andExpect(jsonPath("$.data.payPasswordSet").value(false))
+                // 同理：支付密码是否已设置也属于会变的账号状态，只断言字段是布尔
+                .andExpect(jsonPath("$.data.payPasswordSet").isBoolean())
                 .andExpect(jsonPath("$.data.roles").isArray());
     }
 
