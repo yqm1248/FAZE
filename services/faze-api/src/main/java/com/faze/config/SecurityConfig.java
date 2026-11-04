@@ -75,6 +75,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/v1/app/auth/refresh").permitAll()
                         // app：需 access token，是 0-A2 验 401 的唯一载体
                         .requestMatchers("/api/v1/app/**").authenticated()
+                        // admin：管理端写接口（第 1 段 D4 起）。用 hasRole 而不是 authenticated，
+                        // 否则任何普通用户拿自己的 token 就能调充值接口
+                        .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                         // 默认拒绝：未规划的后缀一律不通
                         .anyRequest().denyAll())
                 .exceptionHandling(eh -> eh
