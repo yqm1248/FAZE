@@ -86,6 +86,22 @@ public class RefreshTokenStore {
     }
 
     /**
+     * 吊销某个用户的**全部** refresh token（改密 / 换绑 / 注销时调用）。
+     *
+     * <p>只加 token_version 不够：旧 refresh token 仍然能换出新 access token，
+     * 而换出来的新 access 会带**最新**的 ver，等于绕过了失效机制。
+     * 两者必须一起做。</p>
+     *
+     * @param userId 用户主键
+     */
+    public void revokeAllByUser(Long userId) {
+        if (userId == null) {
+            return;
+        }
+        store.entrySet().removeIf(e -> userId.equals(e.getValue().userId()));
+    }
+
+    /**
      * 当前有效 token 数量。仅用于冒烟测试与运维排查，不参与业务判断。
      *
      * @return 记录数

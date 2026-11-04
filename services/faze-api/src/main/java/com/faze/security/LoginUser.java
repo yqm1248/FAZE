@@ -27,13 +27,22 @@ public class LoginUser {
     private final String role;
 
     /**
+     * 凭证版本号（来自 token 的 ver claim）。
+     *
+     * <p>与库中 app_user.token_version 比对：不一致说明该 token 已被改密 / 换绑 / 注销作废。</p>
+     */
+    private final int tokenVersion;
+
+    /**
      * 构造认证主体。
      *
-     * @param userId 用户主键，来自 JWT 的 sub
-     * @param role   角色，来自 JWT 的 role claim
+     * @param userId       用户主键，来自 JWT 的 sub
+     * @param role         角色，来自 JWT 的 role claim
+     * @param tokenVersion 凭证版本号，来自 JWT 的 ver claim
      */
-    public LoginUser(Long userId, String role) {
+    public LoginUser(Long userId, String role, int tokenVersion) {
         this.userId = userId;
         this.role = role;
+        this.tokenVersion = tokenVersion;
     }
 }

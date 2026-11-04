@@ -21,6 +21,7 @@ import com.faze.common.exception.BusinessException;
 import com.faze.config.properties.FazeJwtProperties;
 import com.faze.common.exception.ErrorCode;
 import com.faze.modules.account.bo.LoginBO;
+import com.faze.modules.account.converter.AccountConverter;
 import com.faze.modules.account.bo.RegisterBO;
 import com.faze.modules.account.bo.SmsLoginBO;
 import com.faze.modules.account.rule.PasswordPolicy;
@@ -87,6 +88,7 @@ public class AuthService {
     private final SmsCodeService smsCodeService;
     private final LoginGuardService loginGuardService;
     private final LoginLogService loginLogService;
+    private final AccountConverter accountConverter;
     private final Duration refreshTtl;
 
     /** 单飞槽位：refreshToken → 正在执行/已完成的轮换。 */
@@ -111,6 +113,7 @@ public class AuthService {
                        SmsCodeService smsCodeService,
                        LoginGuardService loginGuardService,
                        LoginLogService loginLogService,
+                       AccountConverter accountConverter,
                        FazeJwtProperties jwtProperties) {
         this.accountMapper = accountMapper;
         this.tokenProvider = tokenProvider;
@@ -119,6 +122,7 @@ public class AuthService {
         this.smsCodeService = smsCodeService;
         this.loginGuardService = loginGuardService;
         this.loginLogService = loginLogService;
+        this.accountConverter = accountConverter;
         this.refreshTtl = Duration.ofDays(jwtProperties.refreshTtlDays());
     }
 
@@ -334,7 +338,7 @@ public class AuthService {
         if (user == null || user.getDeletedAt() != null) {
             throw new BusinessException(ErrorCode.AUTH_TOKEN_INVALID);
         }
-        return toUserVO(user);
+        return accountConverter.toUserVO(user);
     }
 
     // ── 内部实现 ───────────────────────────────────────────────────────────
@@ -364,7 +368,8 @@ public class AuthService {
         // 轮换：旧 token 立刻失效，防止重放
         refreshTokenStore.revoke(refreshToken);
         String newRefresh = refreshTokenStore.issue(user.getId(), refreshTtl);
-        String newAccess = tokenProvider.createAccessToken(user.getId(), user.getRole());
+        String newAccess = tokenProvider.createAccessToken(
+                user.getId(), user.getRole(), tokenVersionOf(user));
 
         // 任务 4：签发并返回新令牌对。
         TokenVO response = new TokenVO();
@@ -382,11 +387,12 @@ public class AuthService {
      */
     private LoginVO issue(AppUser user) {
         LoginVO response = new LoginVO();
-        response.setAccessToken(tokenProvider.createAccessToken(user.getId(), user.getRole()));
+        response.setAccessToken(tokenProvider.createAccessToken(
+                user.getId(), user.getRole(), tokenVersionOf(user)));
         response.setRefreshToken(refreshTokenStore.issue(user.getId(), refreshTtl));
         response.setExpiresIn((int) tokenProvider.getAccessTtlSeconds());
         response.setTokenType(TOKEN_TYPE_BEARER);
-        response.setUser(toUserVO(user));
+        response.setUser(accountConverter.toUserVO(user));
         return response;
     }
 
@@ -469,60 +475,25 @@ public class AuthService {
         refreshing.entrySet().removeIf(e -> now - e.getValue().createdAtMillis() > REFRESH_REUSE_WINDOW_MS);
     }
 
+
     /**
-     * 实体 → 出参。
+     * 取用户的凭证版本号（库里 NOT NULL DEFAULT 0，null 按 0 保守处理）。
      *
-     * @param user 用户实体
-     * @return 资料出参（不含任何敏感字段）
+     * @param user 用户
+     * @return 版本号
      */
-    private UserVO toUserVO(AppUser user) {
-        UserVO vo = new UserVO();
-        vo.setId(user.getId());
-        vo.setNickname(user.getNickname());
-        vo.setAvatarUrl(user.getAvatarUrl());
-        vo.setPhoneMasked(maskPhone(user.getPhone()));
-        vo.setRealnameStatus(toRealnameStatus(user.getRealnameStatus()));
-        vo.setIsMinor(Boolean.TRUE.equals(user.getIsMinor()));
-        vo.setRoles(List.of(user.getRole() == null ? DEFAULT_ROLE : user.getRole()));
-        // 段 0 没有支付密码表（属段 1），恒 false；不要写成 true 骗客户端
-        vo.setPayPasswordSet(false);
-        return vo;
+    private int tokenVersionOf(AppUser user) {
+        return user.getTokenVersion() == null ? 0 : user.getTokenVersion();
     }
 
     /**
      * 默认昵称：用户 + 手机号后 4 位。
-     *
-     * <p>不暴露完整手机号，也不为空（客户端有地方可能直接显示昵称）。</p>
      *
      * @param phone 手机号
      * @return 形如「用户0001」
      */
     private String defaultNickname(String phone) {
         return "用户" + phone.substring(phone.length() - 4);
-    }
-
-    /**
-     * 手机号脱敏。
-     *
-     * @param phone 手机号原文
-     * @return 形如 138****8888；不足 7 位时返回空串（不外泄原始值）
-     */
-    private String maskPhone(String phone) {
-        if (phone == null || phone.length() < 7) {
-            return "";
-        }
-        return phone.substring(0, 3) + "****" + phone.substring(phone.length() - 4);
-    }
-
-    /**
-     * 库内小写实名状态 → 契约要求的大写枚举。
-     *
-     * @param raw 库内值（none/pending/approved/rejected，可为 null）
-     * @return NONE/PENDING/APPROVED/REJECTED
-     */
-    private String toRealnameStatus(String raw) {
-        String value = raw == null ? DEFAULT_REALNAME_STATUS : raw;
-        return value.toUpperCase(Locale.ROOT);
     }
 
     /**

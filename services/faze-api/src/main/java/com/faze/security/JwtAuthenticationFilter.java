@@ -17,6 +17,8 @@ package com.faze.security;
 
 import com.faze.common.audit.AuditContext;
 import com.faze.common.util.RequestUtils;
+import com.faze.modules.account.service.AccountQueryService;
+import com.faze.modules.account.vo.AccountAuthSnapshot;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
@@ -49,16 +51,22 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private static final String HEADER_AUTHORIZATION = "Authorization";
     private static final String BEARER_PREFIX = "Bearer ";
+    /** 可用状态值。 */
+    private static final String STATUS_ACTIVE = "active";
 
     private final JwtTokenProvider tokenProvider;
+    private final AccountQueryService accountQueryService;
 
     /**
      * 构造过滤器。
      *
-     * @param tokenProvider JWT 解析器
+     * @param tokenProvider        JWT 解析器
+     * @param accountQueryService  账号认证快照查询（比对 token_version 与账号状态）
      */
-    public JwtAuthenticationFilter(JwtTokenProvider tokenProvider) {
+    public JwtAuthenticationFilter(JwtTokenProvider tokenProvider,
+                                   AccountQueryService accountQueryService) {
         this.tokenProvider = tokenProvider;
+        this.accountQueryService = accountQueryService;
     }
 
     @Override
@@ -80,13 +88,27 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         try {
             LoginUser loginUser = tokenProvider.parseAccessToken(token);
+
+            // 凭证版本与账号状态校验：改密 / 换绑 / 注销会把 token_version +1，
+            // 旧 token 即使没过期也必须立即失效（B3 的安全要求）。
+            // 四种情况对客户端是同一件事——这张令牌不能用了，统一走 402003。
+            AccountAuthSnapshot snapshot = accountQueryService
+                    .findAuthSnapshot(loginUser.getUserId())
+                    .orElse(null);
+            if (snapshot == null
+                    || snapshot.deleted()
+                    || !STATUS_ACTIVE.equals(snapshot.status())
+                    || snapshot.tokenVersion() != loginUser.getTokenVersion()) {
+                throw new JwtException("凭证版本或账号状态已变化");
+            }
+
             var authentication = new UsernamePasswordAuthenticationToken(
                     loginUser, null,
                     List.of(new SimpleGrantedAuthority("ROLE_" + loginUser.getRole().toUpperCase())));
             authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
             SecurityContextHolder.getContext().setAuthentication(authentication);
 
-            // 审计四要素：段 0 只进 MDC / ThreadLocal，不写库（operation_log 段 1 才建）
+            // 审计四要素：从 JWT 取操作人，IP 从请求取
             AuditContext.init(loginUser.getUserId(), "user", RequestUtils.clientIp(request));
         } catch (ExpiredJwtException e) {
             SecurityContextHolder.clearContext();

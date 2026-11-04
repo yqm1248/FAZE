@@ -40,6 +40,8 @@ public class JwtTokenProvider {
     public static final String TYPE_ACCESS = "access";
     /** claim 名：角色。 */
     public static final String CLAIM_ROLE = "role";
+    /** claim 名：凭证版本号（对应 app_user.token_version）。改密/换绑/注销时 +1，旧 token 立即失效。 */
+    public static final String CLAIM_VER = "ver";
 
     /** HS256 要求的最小密钥字节数（256 bit）。 */
     private static final int MIN_SECRET_BYTES = 32;
@@ -67,16 +69,18 @@ public class JwtTokenProvider {
     /**
      * 签发 access token。
      *
-     * @param userId 用户主键，写入 sub
-     * @param role   角色，写入 role claim
+     * @param userId       用户主键，写入 sub
+     * @param role         角色，写入 role claim
+     * @param tokenVersion 凭证版本号，写入 ver claim；与库中值不一致即视为失效
      * @return 紧凑格式的 JWT 字符串
      */
-    public String createAccessToken(Long userId, String role) {
+    public String createAccessToken(Long userId, String role, int tokenVersion) {
         Instant now = Instant.now();
         return Jwts.builder()
                 .subject(String.valueOf(userId))
                 .claim(CLAIM_TYPE, TYPE_ACCESS)
                 .claim(CLAIM_ROLE, role)
+                .claim(CLAIM_VER, tokenVersion)
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(now.plus(accessTtl)))
                 .id(UUID.randomUUID().toString())
@@ -114,7 +118,8 @@ public class JwtTokenProvider {
             throw new JwtException("sub 不是合法的用户主键");
         }
         String role = claims.get(CLAIM_ROLE, String.class);
-        return new LoginUser(userId, role == null ? "user" : role);
+        Integer tokenVersion = claims.get(CLAIM_VER, Integer.class);
+        return new LoginUser(userId, role == null ? "user" : role, tokenVersion == null ? 0 : tokenVersion);
     }
 
     /**

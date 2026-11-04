@@ -18,7 +18,9 @@ import com.faze.common.util.RequestUtils;
 import com.faze.modules.account.bo.LoginBO;
 import com.faze.modules.account.bo.RefreshTokenBO;
 import com.faze.modules.account.bo.RegisterBO;
+import com.faze.modules.account.bo.ResetPasswordBO;
 import com.faze.modules.account.bo.SmsLoginBO;
+import com.faze.modules.account.service.AccountSecurityService;
 import com.faze.modules.account.service.AuthService;
 import com.faze.modules.account.vo.LoginVO;
 import com.faze.modules.account.vo.TokenVO;
@@ -40,6 +42,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final AuthService authService;
+    private final AccountSecurityService accountSecurityService;
 
     /**
      * 手机号 + 验证码注册（成功后直接登录）。
@@ -95,6 +98,20 @@ public class AuthController {
     @PostMapping("/app/auth/refresh")
     public R<TokenVO> refresh(@Valid @RequestBody RefreshTokenBO request) {
         return R.ok(authService.refresh(request.getRefreshToken()));
+    }
+
+    /**
+     * 忘记密码（重置）。
+     *
+     * <p>副作用：该用户全部 token 失效、密码更新；**不返回令牌**，用户需重新登录。</p>
+     *
+     * @param request 重置请求体
+     * @return 空响应
+     */
+    @PostMapping("/pub/auth/reset-password")
+    public R<Void> resetPassword(@Valid @RequestBody ResetPasswordBO request) {
+        accountSecurityService.resetPassword(request);
+        return R.ok();
     }
 
     /**
