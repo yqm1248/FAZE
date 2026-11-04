@@ -60,8 +60,18 @@ public enum ErrorCode {
     AUTH_TOKEN_INVALID(402003, 401, "error.auth.token-invalid", "登录凭证无效，请重新登录"),
     /** 账号已被封禁。HTTP **403**。 */
     AUTH_ACCOUNT_BLOCKED(402004, 403, "error.auth.account-blocked", "账号已被封禁"),
+    /** 短信验证码错误或已过期。HTTP 200。 */
+    AUTH_CODE_INVALID(402005, 200, "error.auth.code-invalid", "验证码错误或已过期"),
+    /** 手机号已注册。HTTP 200（**不泄露除「已注册」外的任何信息**）。 */
+    AUTH_PHONE_TAKEN(402006, 200, "error.auth.phone-taken", "手机号已注册"),
     /** 账号已注销。HTTP 200。 */
     AUTH_ACCOUNT_CANCELLED(402008, 200, "error.auth.account-cancelled", "账号已注销"),
+    /** 未成年人需监护人同意（未填监护人手机号）。HTTP 200。 */
+    AUTH_GUARDIAN_REQUIRED(402009, 200, "error.auth.guardian-required", "未成年人需填写监护人手机号"),
+    /** 密码强度不足。HTTP 200。 */
+    AUTH_PASSWORD_WEAK(402010, 200, "error.auth.password-weak", "密码强度不足"),
+    /** 短信发送失败（第三方通道）。HTTP 200。 */
+    AUTH_SMS_SEND_FAILED(502001, 200, "error.auth.sms-send-failed", "短信发送失败"),
 
     // ── AI 域 08 ─────────────────────────────────────────────────────────
     /** 豆包服务不可用 / 5 秒内未出首字节。HTTP 200。 */
