@@ -13,35 +13,32 @@
 import { execFileSync } from 'node:child_process';
 
 const BASE = 'http://127.0.0.1:8081';
-const CDP = 'http://127.0.0.1:9222';
+const RUOYI = 'http://127.0.0.1:8080';
 
-/** 从 CDP 浏览器里取 RuoYi 的 Admin-Token Cookie。 */
+/**
+ * 取 RuoYi 的管理端 token。
+ *
+ * 为什么不再从 CDP 浏览器读 `Admin-Token` Cookie：RuoYi 的 token 只在 Redis 里活 30 分钟，
+ * 而验收脚本常常是「几十个浏览器脚本跑完之后」才轮到这一项——实测 2026-11-05 就因为
+ * cookie 过期导致 23 项全 401，看起来像接口坏了，其实是登录态过期（假失败最误导人）。
+ *
+ * 改成直接调 RuoYi 的 `/login`：它拿的是真实签发的 token，不依赖浏览器里是否登录。
+ * `admin/admin123` 是 RuoYi 初始化 SQL 自带的本地开发账号，只在本机 dev 环境有意义。
+ *
+ * @returns {Promise<string>} 管理端 token
+ * @throws {Error} RuoYi 未启动或凭据不对时抛出（外层按环境问题处理）
+ */
 async function getToken() {
-  const list = await (await fetch(`${CDP}/json/list`)).json();
-  const page = list.find(t => t.type === 'page');
-  if (!page) throw new Error('CDP 没有可用的 page 目标');
-  const ws = new WebSocket(page.webSocketDebuggerUrl);
-  let id = 0;
-  const pending = new Map();
-  const send = (method, params = {}) => new Promise((resolve, reject) => {
-    const mid = ++id;
-    pending.set(mid, { resolve, reject });
-    ws.send(JSON.stringify({ id: mid, method, params }));
+  const res = await fetch(`${RUOYI}/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: 'admin', password: 'admin123' }),
   });
-  ws.addEventListener('message', ev => {
-    const m = JSON.parse(ev.data);
-    if (m.id && pending.has(m.id)) {
-      const { resolve, reject } = pending.get(m.id);
-      pending.delete(m.id);
-      m.error ? reject(new Error(JSON.stringify(m.error))) : resolve(m.result);
-    }
-  });
-  await new Promise(r => ws.addEventListener('open', r));
-  const res = await send('Network.getCookies', { urls: ['http://localhost/'] });
-  ws.close();
-  const cookie = res.cookies.find(c => c.name === 'Admin-Token');
-  if (!cookie) throw new Error('浏览器里没有 Admin-Token，请先在 http://localhost 登录 RuoYi 后台');
-  return cookie.value;
+  const json = await res.json();
+  if (!json.token) {
+    throw new Error('RuoYi /login 没返回 token：code=' + json.code + ' msg=' + json.msg);
+  }
+  return json.token;
 }
 
 function curl(path, { method = 'GET', token, headers = {}, body } = {}) {
