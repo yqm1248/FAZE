@@ -27,6 +27,7 @@ import type { AppError } from '@/shared/api/types';
 import { LocalizedText } from '@/shared/components/LocalizedText';
 import { PrimaryButton } from '@/shared/components/PrimaryButton';
 import { Screen } from '@/shared/components/Screen';
+import { PAGE_ROUTES } from '@/shared/navigation/routes';
 import { useI18n } from '@/shared/i18n';
 import { color, radius, size, spacing, typography } from '@/shared/theme';
 
@@ -174,6 +175,33 @@ export function LoginPage({ onSuccess }: LoginPageProps) {
           />
         </View>
 
+        {/* 注册 / 忘记密码入口：段 1 起这两条链路必须有可达路径（G1 验收要求） */}
+        <View style={styles.linksRow}>
+          <View style={styles.linkGroup}>
+            <LocalizedText numberOfLines={1} style={styles.linkTip}>
+              {t('auth.login.noAccount')}
+            </LocalizedText>
+            <LocalizedText
+              numberOfLines={1}
+              style={styles.link}
+              accessibilityRole="link"
+              accessibilityLabel={t('auth.login.registerLink')}
+              onPress={() => router.push(PAGE_ROUTES.register)}
+            >
+              {t('auth.login.registerLink')}
+            </LocalizedText>
+          </View>
+          <LocalizedText
+            numberOfLines={1}
+            style={styles.link}
+            accessibilityRole="link"
+            accessibilityLabel={t('auth.login.forgotLink')}
+            onPress={() => router.push(PAGE_ROUTES.forgotPassword)}
+          >
+            {t('auth.login.forgotLink')}
+          </LocalizedText>
+        </View>
+
         <LocalizedText numberOfLines={2} style={styles.smsHint}>
           {t('auth.login.smsDisabled')}
         </LocalizedText>
@@ -242,6 +270,25 @@ const styles = StyleSheet.create({
   },
   actions: {
     marginTop: spacing.xxl,
+  },
+  linksRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: spacing.lg,
+  },
+  linkGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xxs,
+  },
+  linkTip: {
+    ...typography.bodySmall,
+    color: color.text.muted,
+  },
+  link: {
+    ...typography.bodySmall,
+    color: color.brand.primary,
   },
   smsHint: {
     ...typography.caption,

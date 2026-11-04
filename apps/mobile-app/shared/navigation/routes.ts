@@ -17,19 +17,61 @@ import type { Href } from 'expo-router';
 /**
  * 段 0 的路由。
  *
- * 共 5 条常量（`+not-found` 是兜底文件、不作为跳转目标，故不设常量）。
+ * 段 0 的 5 条 + 段 1 G 组的 17 条（18 页里启动页复用 `root`）。
  */
 export const PAGE_ROUTES = {
-  /** 启动分流器：读持久化的语言与登录态后决定去哪。 */
+  /** 启动页：品牌渐变 + 读持久化登录态后分流到「我的」或登录页。 */
   root: '/' as Href,
-  /** 登录页（C1 实现，B1 阶段为空壳）。 */
+  /** 登录页（C1 实现）。 */
   login: '/login' as Href,
-  /** 语言切换页（C2 实现，B1 阶段为空壳）。 */
+  /** 语言切换页（C2 实现）。 */
   language: '/language' as Href,
   /** 探针页：ping / AI 流 / law 检索（D3）。 */
   devProbe: '/dev/probe' as Href,
   /** 探针页：RTL 镜像 / 藏文渲染 / 静态 Tab 样本（B3 + D2）。 */
   devRtl: '/dev/rtl' as Href,
+
+  // ── 段 1 G1：启动与认证（启动页复用 root）────────────────────────────
+  /** 注册页（手机号 + 验证码 + 密码 + 协议 + 未成年人监护人）。 */
+  register: '/register' as Href,
+  /** 忘记密码页。 */
+  forgotPassword: '/forgot-password' as Href,
+  /** 用户服务协议页（正文读服务端配置）。 */
+  agreement: '/agreement' as Href,
+  /** 隐私政策页（正文读服务端配置）。 */
+  privacy: '/privacy' as Href,
+
+  // ── 段 1 G4：余额与支付密码 ─────────────────────────────────────────
+  /** 账户余额与明细页。 */
+  balance: '/balance' as Href,
+  /** 支付密码页（设置 / 修改 / 重置 / 校验 + 锁定倒计时）。 */
+  payPassword: '/pay-password' as Href,
+
+  // ── 段 1 G2：律师入驻 + 我的 ────────────────────────────────────────
+  /** 律师入驻页（四步表单，可存草稿）。 */
+  lawyerJoin: '/lawyer-join' as Href,
+  /** 入驻审核状态页。 */
+  lawyerJoinStatus: '/lawyer-join-status' as Href,
+  /** 我的页。 */
+  profile: '/profile' as Href,
+
+  // ── 段 1 G3：设置与其他 8 页 ────────────────────────────────────────
+  /** 账号与安全页。 */
+  accountSecurity: '/account-security' as Href,
+  /** 修改登录密码页。 */
+  changePassword: '/change-password' as Href,
+  /** 换绑手机页。 */
+  changePhone: '/change-phone' as Href,
+  /** 注销账号页（立即生效口径）。 */
+  deactivate: '/deactivate' as Href,
+  /** 实名认证页（上传 → 提交 → 状态）。 */
+  verifyRealname: '/verify-realname' as Href,
+  /** 个人资料编辑页。 */
+  editProfile: '/edit-profile' as Href,
+  /** 通知设置页。 */
+  notifySettings: '/notify-settings' as Href,
+  /** 隐私设置页。 */
+  privacySettings: '/privacy-settings' as Href,
 } as const;
 
 /** 路由常量表的值类型（用于接收「任一页面路径」的参数）。 */

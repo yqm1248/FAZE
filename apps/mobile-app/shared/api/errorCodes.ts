@@ -4,23 +4,40 @@
  * 依据：《错误码规范》§3 与《接口规范》§5.1。
  * 调用方：`shared/api/client.ts`（把非 200 的业务码翻译成 msgKey）。
  * 注意：
- *   1. **段 0 只登记 6 个码**，不整表抄 78 个——整表填充是段 8 的收口工作。
- *      未登记的码由 `client.ts` 兜底成 `error.common.server`，不会显示空文案。
+ *   1. 段 0 只登记 6 个码；**段 1 G 组按同一张表补齐 18 页用到的码**（其余仍走兜底），
+ *      整表填充是段 8 的收口工作。未登记的码由 `client.ts` 兜底成
+ *      `error.common.server`，不会显示空文案。
  *   2. key 用**完整 msgKey**（`error.auth.token-expired`），不拼前缀（i18n 规范 §4.4）。
  *   3. 这里只做「码 → key」映射，不做文案——文案在 `shared/i18n/resources/**` 里。
  */
 
 import type { MessageKey } from './types';
 
-/** 段 0 用到的 8 个业务码（含 C1 的登录错误 402001/402004/401007）。 */
+/** 段 0 + 段 1 G 组用到的业务码。 */
 export const ERROR_MSG_KEYS: Readonly<Record<number, MessageKey>> = {
+  401001: 'error.common.param-invalid',
   401002: 'error.common.param-missing',
+  401003: 'error.common.param-format',
+  401004: 'error.common.not-found',
   401005: 'error.common.already-exists',
+  401006: 'error.common.illegal-state',
   401007: 'auth.login.rateLimited',
+  401008: 'error.common.forbidden',
   402001: 'auth.login.failed',
   402002: 'error.auth.token-expired',
   402003: 'error.auth.token-invalid',
   402004: 'auth.login.banned',
+  402005: 'error.auth.code-invalid',
+  402006: 'error.auth.phone-taken',
+  402008: 'error.auth.account-cancelled',
+  402009: 'error.auth.guardian-required',
+  402010: 'error.auth.password-weak',
+  405001: 'error.trade.balance-insufficient',
+  405006: 'error.trade.amount-invalid',
+  501001: 'error.common.internal',
+  501002: 'error.common.third-party-down',
+  501003: 'error.common.db-error',
+  502001: 'error.auth.sms-send-failed',
   508001: 'error.ai.service-down',
 };
 

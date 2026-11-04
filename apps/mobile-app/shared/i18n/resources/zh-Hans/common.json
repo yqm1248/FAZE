@@ -3,11 +3,26 @@
   "state": {
     "loading": "加载中",
     "empty": "暂无内容",
-    "retry": "重试"
+    "retry": "重试",
+    "loadingMore": "加载更多",
+    "noMore": "没有更多了",
+    "saving": "保存中",
+    "submitting": "提交中"
   },
   "action": {
     "confirm": "确定",
-    "cancel": "取消"
+    "cancel": "取消",
+    "save": "保存",
+    "back": "返回",
+    "logout": "退出登录",
+    "close": "关闭"
+  },
+  "logout": {
+    "title": "确定要退出当前账号？",
+    "desc": "退出后需要重新输入手机号和密码才能继续使用。账户余额、订单与进行中的服务都不受影响。",
+    "cancel": "取消",
+    "confirm": "退出登录",
+    "failed": "退出失败，请重试"
   },
   "notFound": {
     "title": "页面不存在",

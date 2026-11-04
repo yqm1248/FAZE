@@ -42,6 +42,21 @@ export type BusinessAppError = {
   msgKey: MessageKey;
   /** 链路 id（有则带上，便于后端定位）。 */
   traceId: string | null;
+  /**
+   * 支付密码锁定的剩余秒数（来自响应头 `Retry-After`）。
+   *
+   * 段 1 E2 新增：动态数字走响应头而不进 `msg`（后端 `GlobalExceptionHandler`
+   * 对 `PayPasswordLockedException` 写 `Retry-After`）。只有 401007 锁定时才存在，
+   * 页面据此区分「限流」与「支付密码锁定」，并显示「已锁定，剩余 X 分钟」。
+   */
+  retryAfterSeconds?: number;
+  /**
+   * 支付密码还可尝试次数（来自响应头 `X-Pay-Pwd-Remaining`）。
+   *
+   * 段 1 E2 新增：`PayPasswordWrongException` 带回这个头，0 表示本次已触发锁定。
+   * 页面据此显示「还可尝试 N 次」。
+   */
+  remainingAttempts?: number;
 };
 
 /** 网络错误：断网、超时、DNS 失败等。 */

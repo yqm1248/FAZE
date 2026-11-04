@@ -120,6 +120,50 @@ export function post<T>(
 }
 
 /**
+ * 直接 PUT 二进制内容到预签名上传地址。
+ *
+ * 职责：三段式上传的第二步（`POST /app/upload/token` → PUT 到 `uploadUrl` → 提交对象 key）。
+ * 为什么放在本文件：全仓只有本文件允许出现 `fetch`（AGENTS §4.7 的收口点），
+ * 上传虽然打的是另一个地址，仍是网络出口，不该在 features 里再开一个 `fetch`。
+ * 注意：
+ *   1. **不带 8 个业务请求头**：预签名地址的鉴权靠 URL 里的 `sig`/`exp`，
+ *      带 `Authorization` 反而可能被存储端拒绝（它只校验签名）。
+ *   2. 上传失败可能是 403（签名过期）或 413（超限），统一归一为 network，
+ *      页面只需提示「上传失败，请重试」（重新申请凭证即可）。
+ *
+ * @param uploadUrl   服务端签发的可写地址
+ * @param body        文件内容（web 传 `Blob`）
+ * @param contentType 声明的 MIME 类型（必须与申请凭证时一致）
+ * @param timeoutMs   超时毫秒数，默认 30 秒（图片上传比普通请求慢）
+ * @returns 成功时 `{ ok: true, data: null }`
+ */
+export async function putBinary(
+  uploadUrl: string,
+  body: Blob,
+  contentType: string,
+  timeoutMs = 30_000,
+): Promise<ApiResult<null>> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(uploadUrl, {
+      method: 'PUT',
+      headers: { 'Content-Type': contentType },
+      body,
+      signal: controller.signal,
+    });
+    if (!response.ok) {
+      return { ok: false, error: networkError() };
+    }
+    return { ok: true, data: null };
+  } catch {
+    return { ok: false, error: networkError() };
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+/**
  * 实际发送一次（含 401 重放）。
  *
  * @param path        接口路径
@@ -327,15 +371,46 @@ async function handleUnauthorized(rejectedAccessToken: string | null): Promise<v
  * 业务错误归一。
  *
  * @param envelope 服务端响应
+ * @param headers  响应头（段 1 E2：支付密码锁定/剩余次数走响应头，见 `types.ts`）
  * @returns business 类型错误
  */
-function businessError<T>(envelope: ApiEnvelope<T>): AppError {
-  return {
+function businessError<T>(envelope: ApiEnvelope<T>, headers?: Headers): AppError {
+  const base: AppError = {
     kind: 'business',
     code: envelope.code,
     msgKey: msgKeyOfCode(envelope.code),
     traceId: envelope.traceId,
   };
+  if (headers === undefined) {
+    return base;
+  }
+  // 动态数字只认响应头：`msg` 是固定文案，塞动态值会让文案与翻译失效（后端 E2 的设计取舍）。
+  const retryAfter = readPositiveInt(headers.get('Retry-After'));
+  const remaining = readPositiveInt(headers.get('X-Pay-Pwd-Remaining'));
+  if (retryAfter !== null) {
+    base.retryAfterSeconds = retryAfter;
+  }
+  if (remaining !== null) {
+    base.remainingAttempts = remaining;
+  }
+  return base;
+}
+
+/**
+ * 把响应头里的整数字符串读成非负数；缺失或非法返回 null。
+ *
+ * @param raw 响应头原值
+ * @returns 非负整数或 null
+ */
+function readPositiveInt(raw: string | null): number | null {
+  if (raw === null || raw.trim() === '') {
+    return null;
+  }
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value < 0) {
+    return null;
+  }
+  return Math.trunc(value);
 }
 
 /**
