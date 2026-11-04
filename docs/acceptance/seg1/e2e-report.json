@@ -1,0 +1,236 @@
+{
+  "runAt": "2026-11-04T20:01:11.895Z",
+  "phone": "13800006044",
+  "minorPhone": "13700006044",
+  "userId": "76",
+  "results": [
+    {
+      "id": "E2E-0",
+      "desc": "管理端 token 可用（RuoYi /login）",
+      "ok": true,
+      "detail": "code=200"
+    },
+    {
+      "id": "1A1-1",
+      "desc": "注册成功（发码+注册）",
+      "ok": true,
+      "detail": "code=200 userId=76 sms=200"
+    },
+    {
+      "id": "1A1-2",
+      "desc": "登录态可取资料（手机号脱敏）",
+      "ok": true,
+      "detail": "phoneMasked=138****6044"
+    },
+    {
+      "id": "FIX-1",
+      "desc": "profile.payPasswordSet 可读（未设=false）",
+      "ok": true,
+      "detail": "payPasswordSet=false"
+    },
+    {
+      "id": "FIX-2",
+      "desc": "profile.lawyerStatus 可读（未入驻=NONE）",
+      "ok": true,
+      "detail": "lawyerStatus=NONE"
+    },
+    {
+      "id": "FIX-3",
+      "desc": "profile.balanceCents 可读（无流水=0）",
+      "ok": true,
+      "detail": "balanceCents=0"
+    },
+    {
+      "id": "1A5-1",
+      "desc": "支付密码设置成功",
+      "ok": true,
+      "detail": "code=200"
+    },
+    {
+      "id": "FIX-1b",
+      "desc": "设置后 profile.payPasswordSet=true",
+      "ok": true,
+      "detail": "payPasswordSet=true"
+    },
+    {
+      "id": "1A5-2",
+      "desc": "连错返回剩余次数（X-Pay-Pwd-Remaining）",
+      "ok": true,
+      "detail": "remaining=[\"4\",\"3\",\"2\",\"1\",null]"
+    },
+    {
+      "id": "1A5-3",
+      "desc": "第 5 次错 → 401007 锁定",
+      "ok": true,
+      "detail": "code=401007"
+    },
+    {
+      "id": "1A5-4",
+      "desc": "锁定响应带 Retry-After",
+      "ok": true,
+      "detail": "Retry-After=1800"
+    },
+    {
+      "id": "1A5-5",
+      "desc": "锁定期内正确密码也被拒（401007）",
+      "ok": true,
+      "detail": "code=401007"
+    },
+    {
+      "id": "1A2-1",
+      "desc": "三段式上传：token + PUT 成功",
+      "ok": true,
+      "detail": "put=204/204"
+    },
+    {
+      "id": "1A2-2",
+      "desc": "实名提交成功",
+      "ok": true,
+      "detail": "code=200 msg=ok"
+    },
+    {
+      "id": "1A2-3",
+      "desc": "提交后 App 状态=PENDING",
+      "ok": true,
+      "detail": "status=PENDING"
+    },
+    {
+      "id": "1A2-4",
+      "desc": "PC 待审队列出现该条（身份证脱敏）",
+      "ok": true,
+      "detail": "rows=1 idCard=650***********1234"
+    },
+    {
+      "id": "1A2-5",
+      "desc": "PC 审核通过",
+      "ok": true,
+      "detail": "code=200"
+    },
+    {
+      "id": "1A2-6",
+      "desc": "审核后 App 状态=APPROVED（含审核时间）",
+      "ok": true,
+      "detail": "status=APPROVED"
+    },
+    {
+      "id": "1A3-1",
+      "desc": "四步入驻提交成功",
+      "ok": true,
+      "detail": "code=200 msg=ok"
+    },
+    {
+      "id": "1A3-2",
+      "desc": "提交后 App 状态=PENDING",
+      "ok": true,
+      "detail": "status=PENDING"
+    },
+    {
+      "id": "1A3-3",
+      "desc": "PC 待审队列出现该申请（四步字段齐）",
+      "ok": true,
+      "detail": "rows=4 firm=端到端律师事务所"
+    },
+    {
+      "id": "1A3-4",
+      "desc": "PC 审核通过（写 lawyer 表）",
+      "ok": true,
+      "detail": "code=200"
+    },
+    {
+      "id": "1A3-5",
+      "desc": "审核后 App 状态=APPROVED",
+      "ok": true,
+      "detail": "status=APPROVED"
+    },
+    {
+      "id": "FIX-2b",
+      "desc": "审核后 profile.lawyerStatus=APPROVED",
+      "ok": true,
+      "detail": "lawyerStatus=APPROVED"
+    },
+    {
+      "id": "1A4-1",
+      "desc": "PC 充值 100 元成功",
+      "ok": true,
+      "detail": "code=200 msg=ok"
+    },
+    {
+      "id": "1A4-2",
+      "desc": "App 余额 = 100.00 元",
+      "ok": true,
+      "detail": "available=10000 total=10000"
+    },
+    {
+      "id": "1A4-3",
+      "desc": "App 流水新增 1 条且金额正确",
+      "ok": true,
+      "detail": "count=1 delta=10000"
+    },
+    {
+      "id": "FIX-3b",
+      "desc": "profile.balanceCents 走流水口径=10000",
+      "ok": true,
+      "detail": "balanceCents=10000"
+    },
+    {
+      "id": "1A10-1",
+      "desc": "未成年不填监护人 → 402009",
+      "ok": true,
+      "detail": "code=402009"
+    },
+    {
+      "id": "1A10-2",
+      "desc": "填监护人后注册成功",
+      "ok": true,
+      "detail": "code=200 msg=ok"
+    },
+    {
+      "id": "1A1-3",
+      "desc": "有余额时注销被拒（401006）",
+      "ok": true,
+      "detail": "code=401006"
+    },
+    {
+      "id": "1A1-4",
+      "desc": "忘记密码：重置成功",
+      "ok": true,
+      "detail": "code=200 sms=200"
+    },
+    {
+      "id": "1A1-5",
+      "desc": "旧密码已失效（402001）",
+      "ok": true,
+      "detail": "code=402001"
+    },
+    {
+      "id": "1A1-6",
+      "desc": "新密码可登录",
+      "ok": true,
+      "detail": "code=200"
+    },
+    {
+      "id": "1A1-7",
+      "desc": "管理端调账清空余额",
+      "ok": true,
+      "detail": "code=200 msg=ok"
+    },
+    {
+      "id": "1A1-8",
+      "desc": "余额清零后注销成功",
+      "ok": true,
+      "detail": "code=200 msg=ok"
+    },
+    {
+      "id": "1A1-9",
+      "desc": "注销后旧 token 失效（402003）",
+      "ok": true,
+      "detail": "code=402003"
+    },
+    {
+      "id": "1A1-10",
+      "desc": "注销后同号可立即重新注册",
+      "ok": true,
+      "detail": "code=200 sms=200"
+    }
+  ]
+}
