@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  balance_flow 的聚合查询（第 1 段 D1）
-  职责：按归属方汇总流水净额，作为余额的**唯一权威来源**
-  调用方：com.faze.modules.trade.mapper.BalanceFlowMapper#sumDeltaByOwner
+  balance_flow 的聚合查询（第 1 段 D1 起；第 1 段 F3 追加 A-07 / A-09 用的三个聚合）
+  职责：按归属方 / 业务类型汇总流水净额，作为余额的**唯一权威来源**
+  调用方：com.faze.modules.trade.mapper.BalanceFlowMapper
+          （sumDeltaByOwner / sumDeltaByOwnerAndBizType / selectLastFlowTime / selectOwnerSums）
   数据来源：MySQL faze.balance_flow（B 追加型，只插入）
   注意事项：
     1. 全部参数用 #{}，禁用 ${}（后端规范 §8.2）
@@ -11,6 +12,8 @@
        不要在这里加 ORDER BY / LIMIT，聚合不该带排序
     4. **这条 SQL 就是「余额」的定义**：user_balance.balance_cents 只是它的缓存。
        改这条 SQL 等于改账，评审必须逐字看（锚点 1-A6）
+    5. selectOwnerSums 对账用：GROUP BY 后与 user_balance / lawyer_balance 的
+       「可用 + 冻结」逐行比对（与 deploy/verify-balance.ps1 同一恒等式）
 -->
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
@@ -25,5 +28,31 @@
         FROM balance_flow
         WHERE owner_type = #{ownerType}
           AND owner_id = #{ownerId}
+    </select>
+
+    <!-- 按归属方 + 业务类型汇总（A-07 钱包页的累计充值 / 累计消费） -->
+    <select id="sumDeltaByOwnerAndBizType" resultType="java.lang.Long">
+        SELECT COALESCE(SUM(delta_cents), 0)
+        FROM balance_flow
+        WHERE owner_type = #{ownerType}
+          AND owner_id = #{ownerId}
+          AND biz_type = #{bizType}
+    </select>
+
+    <!-- 最近一条流水时间（A-07 的 lastFlowAt）；无流水返回 NULL，由 Service 转 null -->
+    <select id="selectLastFlowTime" resultType="java.time.LocalDateTime">
+        SELECT MAX(created_at)
+        FROM balance_flow
+        WHERE owner_type = #{ownerType}
+          AND owner_id = #{ownerId}
+    </select>
+
+    <!-- 全量按归属方汇总（A-09 对账：一次查询拿全部 owner 的流水净额） -->
+    <select id="selectOwnerSums" resultType="com.faze.modules.trade.mapper.OwnerFlowSum">
+        SELECT owner_type AS owner_type,
+               owner_id   AS owner_id,
+               COALESCE(SUM(delta_cents), 0) AS sum_cents
+        FROM balance_flow
+        GROUP BY owner_type, owner_id
     </select>
 </mapper>

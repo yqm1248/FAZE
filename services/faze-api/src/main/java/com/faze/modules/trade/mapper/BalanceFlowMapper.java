@@ -1,17 +1,21 @@
 /*
  * 职责：balance_flow 的数据访问（只插入 + 按 owner 查询/聚合）。
- * 调用方：modules/trade（扣费引擎、充值、调账、对账）。
+ * 调用方：modules/trade（扣费引擎、充值、调账、对账）、modules/trade/admin（钱包、对账报表）。
  * 数据来源：faze.balance_flow。
  * 注意：
  *   1. **不提供 update / delete**：这张表是只追加的证据链，改一条流水等于改账。
  *   2. 「余额 = SUM(delta_cents)」走 XML（规范 §8.1：聚合用 XML，不用 Wrapper 拼）。
  *      调用点读 `sumDeltaByOwner` 时能一眼看出是「流水汇总」而不是读缓存。
  *   3. 幂等查询用 `(owner_type, owner_id, biz_type, biz_id)` 走 uk_flow_biz。
+ *   4. `sumDeltaByOwnerAndBizType` / `selectLastFlowTime` / `selectOwnerSums` 是第 1 段
+ *      F3 为准入的 A-07（钱包）与 A-09（对账）新增的聚合查询，一律用 `#{}` 参数化。
  */
 package com.faze.modules.trade.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.faze.modules.trade.entity.BalanceFlow;
+import java.time.LocalDateTime;
+import java.util.List;
 import org.apache.ibatis.annotations.Param;
 
 /**
@@ -29,4 +33,36 @@ public interface BalanceFlowMapper extends BaseMapper<BalanceFlow> {
      * @return 净额（分），无流水时为 0
      */
     Long sumDeltaByOwner(@Param("ownerType") String ownerType, @Param("ownerId") Long ownerId);
+
+    /**
+     * 按归属方 + 业务类型汇总流水净额（分）。
+     *
+     * <p>A-07 钱包页的「累计充值」用 biz_type=recharge，「累计消费」用 biz_type=consume
+     * （消费流水是负数，展示时取绝对值）。</p>
+     *
+     * @param ownerType user / lawyer
+     * @param ownerId   归属主键
+     * @param bizType   业务类型：recharge / consume / adjust / …
+     * @return 净额（分），无流水时为 0
+     */
+    Long sumDeltaByOwnerAndBizType(@Param("ownerType") String ownerType,
+                                   @Param("ownerId") Long ownerId,
+                                   @Param("bizType") String bizType);
+
+    /**
+     * 取某个归属方最近一条流水的时间。
+     *
+     * @param ownerType user / lawyer
+     * @param ownerId   归属主键
+     * @return 最近流水时间（UTC）；无流水时为 null
+     */
+    LocalDateTime selectLastFlowTime(@Param("ownerType") String ownerType,
+                                     @Param("ownerId") Long ownerId);
+
+    /**
+     * 按 (owner_type, owner_id) 汇总全部流水净额（对账用，一次查询搞定）。
+     *
+     * @return 每个归属方一行；无流水返回空列表
+     */
+    List<OwnerFlowSum> selectOwnerSums();
 }

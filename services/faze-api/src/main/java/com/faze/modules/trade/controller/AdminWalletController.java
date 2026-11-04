@@ -9,6 +9,12 @@
  *      混在一起会让「重放同一请求」看起来像「改了内容」。
  *   3. 需要写 `operation_log`：由 RechargeService 上的 `@OperationLog` 切面完成，
  *      本 Controller 不手写审计（规范 §10.4：不许在 Handler 里手写）。
+ *   4. **@deprecated（契约 A-07 裁决，2026-11-05）**：本类的两条接口是 D4 的既有形态，
+ *      body 里带 `userId`；A-07 冻结契约改成「userId 在路径」的
+ *      `POST /api/v1/admin/wallets/{userId}/recharge|adjust`（见 AdminWalletOpsController）。
+ *      按契约要求**本类仍保留可用**（D 组已按它验收，删掉会破坏既有证据），
+ *      但它不再是新前端的接入点；迁移只需把 body 的 userId 挪到路径、其余字段不变。
+ *      幂等键、审计、入账链路两个形态完全共用，不存在两套实现。
  */
 package com.faze.modules.trade.controller;
 
