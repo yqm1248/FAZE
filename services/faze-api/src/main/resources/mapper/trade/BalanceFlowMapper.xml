@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  balance_flow 的聚合查询（第 1 段 D1）
+  职责：按归属方汇总流水净额，作为余额的**唯一权威来源**
+  调用方：com.faze.modules.trade.mapper.BalanceFlowMapper#sumDeltaByOwner
+  数据来源：MySQL faze.balance_flow（B 追加型，只插入）
+  注意事项：
+    1. 全部参数用 #{}，禁用 ${}（后端规范 §8.2）
+    2. COALESCE(...,0)：无流水时返回 0 而不是 NULL，避免调用方到处判空
+    3. 走 idx_flow_owner_time(owner_type, owner_id, created_at) 的最左前缀，
+       不要在这里加 ORDER BY / LIMIT，聚合不该带排序
+    4. **这条 SQL 就是「余额」的定义**：user_balance.balance_cents 只是它的缓存。
+       改这条 SQL 等于改账，评审必须逐字看（锚点 1-A6）
+-->
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.faze.modules.trade.mapper.BalanceFlowMapper">
+
+    <!--
+      按归属方汇总流水净额（分）。
+      delta_cents 为 0 的行是冻结/解冻的转移记录，加 0 不影响结果，天然兼容。
+    -->
+    <select id="sumDeltaByOwner" resultType="java.lang.Long">
+        SELECT COALESCE(SUM(delta_cents), 0)
+        FROM balance_flow
+        WHERE owner_type = #{ownerType}
+          AND owner_id = #{ownerId}
+    </select>
+</mapper>
