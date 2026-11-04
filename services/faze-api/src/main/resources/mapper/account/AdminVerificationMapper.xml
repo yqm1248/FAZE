@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  管理端认证队列的合并分页查询（第 1 段 F2，A-04）
+  职责：把 realname_auth 与 enterprise_auth 合并成一张队列，按提交时间倒序分页
+  调用方：com.faze.modules.account.mapper.AdminVerificationMapper
+          （selectVerificationPage / countVerifications）
+  数据来源：MySQL faze.realname_auth、faze.enterprise_auth
+  注意事项：
+    1. 全部参数用 #{}，禁用 ${}（后端规范 §8.2 / §11.3）。
+    2. **必须 UNION ALL 后统一排序分页**：两表分别查再合并，翻页会重、漏且 total 不准。
+    3. status 在 SQL 里 UPPER() 成大写枚举，type 直接输出大写字面量；
+       WHERE 里仍用库内小写值（`r.status = #{bo.status}`），保证 idx_*_status 索引可用。
+    4. 分页由 MP 的 PaginationInnerInterceptor 追加 LIMIT；调用方必须
+       setSearchCount(false)，因为 UNION 派生表的自动 count 重写不可控，
+       总数走本文件底部的 countVerifications。
+    5. 不用 app_user join：两张表各自 join 会让 SQL 与分页复杂度翻倍，
+       userNickname 由 Service 批量补齐（2 次 IN 查询，最多 100 行）。
+-->
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.faze.modules.account.mapper.AdminVerificationMapper">
+
+    <!-- 合并队列分页：两表 UNION ALL 后统一 ORDER BY 提交时间 -->
+    <select id="selectVerificationPage"
+            resultType="com.faze.modules.account.admin.vo.AdminVerificationRowVO">
+        SELECT t.id           AS id,
+               t.type         AS type,
+               t.user_id      AS user_id,
+               t.realname_masked AS realname_masked,
+               t.id_card_masked  AS id_card_masked,
+               t.status          AS status,
+               t.reviewed_by     AS reviewed_by,
+               t.reviewed_at     AS reviewed_at,
+               t.reject_reason   AS reject_reason,
+               t.submitted_at    AS submitted_at
+        FROM (
+            SELECT 'REALNAME' AS type,
+                   r.id AS id,
+                   r.user_id AS user_id,
+                   r.real_name AS realname_masked,
+                   r.id_card_masked AS id_card_masked,
+                   UPPER(r.status) AS status,
+                   r.audited_by AS reviewed_by,
+                   r.audited_at AS reviewed_at,
+                   r.reject_reason AS reject_reason,
+                   r.created_at AS submitted_at
+            FROM realname_auth r
+            WHERE (#{bo.type,jdbcType=VARCHAR} IS NULL OR #{bo.type,jdbcType=VARCHAR} = 'realname')
+              AND (#{bo.status,jdbcType=VARCHAR} IS NULL OR r.status = #{bo.status,jdbcType=VARCHAR})
+              AND (#{bo.beginTime,jdbcType=TIMESTAMP} IS NULL
+                   OR r.created_at &gt;= #{bo.beginTime,jdbcType=TIMESTAMP})
+              AND (#{bo.endTime,jdbcType=TIMESTAMP} IS NULL
+                   OR r.created_at &lt;= #{bo.endTime,jdbcType=TIMESTAMP})
+            UNION ALL
+            SELECT 'ENTERPRISE' AS type,
+                   e.id AS id,
+                   e.user_id AS user_id,
+                   e.company_name AS realname_masked,
+                   CASE WHEN CHAR_LENGTH(e.credit_code) &lt;= 8 THEN REPEAT('*', CHAR_LENGTH(e.credit_code))
+                        ELSE CONCAT(LEFT(e.credit_code, 4), '****', RIGHT(e.credit_code, 4))
+                   END AS id_card_masked,
+                   UPPER(e.status) AS status,
+                   e.audited_by AS reviewed_by,
+                   e.audited_at AS reviewed_at,
+                   e.reject_reason AS reject_reason,
+                   e.created_at AS submitted_at
+            FROM enterprise_auth e
+            WHERE (#{bo.type,jdbcType=VARCHAR} IS NULL OR #{bo.type,jdbcType=VARCHAR} = 'enterprise')
+              AND (#{bo.status,jdbcType=VARCHAR} IS NULL OR e.status = #{bo.status,jdbcType=VARCHAR})
+              AND (#{bo.beginTime,jdbcType=TIMESTAMP} IS NULL
+                   OR e.created_at &gt;= #{bo.beginTime,jdbcType=TIMESTAMP})
+              AND (#{bo.endTime,jdbcType=TIMESTAMP} IS NULL
+                   OR e.created_at &lt;= #{bo.endTime,jdbcType=TIMESTAMP})
+        ) t
+        ORDER BY t.submitted_at DESC, t.type ASC, t.id DESC
+    </select>
+
+    <!-- 合并队列总数：与分页同条件（UNION 派生表不适合自动 count） -->
+    <select id="countVerifications" resultType="long">
+        SELECT (SELECT COUNT(*)
+                FROM realname_auth r
+                WHERE (#{bo.type,jdbcType=VARCHAR} IS NULL OR #{bo.type,jdbcType=VARCHAR} = 'realname')
+                  AND (#{bo.status,jdbcType=VARCHAR} IS NULL OR r.status = #{bo.status,jdbcType=VARCHAR})
+                  AND (#{bo.beginTime,jdbcType=TIMESTAMP} IS NULL
+                       OR r.created_at &gt;= #{bo.beginTime,jdbcType=TIMESTAMP})
+                  AND (#{bo.endTime,jdbcType=TIMESTAMP} IS NULL
+                       OR r.created_at &lt;= #{bo.endTime,jdbcType=TIMESTAMP}))
+             + (SELECT COUNT(*)
+                FROM enterprise_auth e
+                WHERE (#{bo.type,jdbcType=VARCHAR} IS NULL OR #{bo.type,jdbcType=VARCHAR} = 'enterprise')
+                  AND (#{bo.status,jdbcType=VARCHAR} IS NULL OR e.status = #{bo.status,jdbcType=VARCHAR})
+                  AND (#{bo.beginTime,jdbcType=TIMESTAMP} IS NULL
+                       OR e.created_at &gt;= #{bo.beginTime,jdbcType=TIMESTAMP})
+                  AND (#{bo.endTime,jdbcType=TIMESTAMP} IS NULL
+                       OR e.created_at &lt;= #{bo.endTime,jdbcType=TIMESTAMP}))
+    </select>
+</mapper>

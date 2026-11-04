@@ -1,6 +1,8 @@
 /*
  * 职责：上传凭证的签发与下载地址生成（第 1 段 C 组）。
- * 调用方：modules/account/controller/UploadController。
+ * 调用方：modules/account/controller/UploadController（C 端本人看自己的影像）、
+ *         modules/account/admin/service/AdminVerificationService 与 AdminLawyerApplicationService
+ *         （管理端审核看别人的影像，走 downloadUrlForAdmin，不做归属校验但路径已鉴权 + 审计）。
  * 数据来源：infra/storage/FileStorage（本地目录实现，段 4 换 OSS）。
  * 注意：
  *   1. **key 一律由服务端生成**，客户端只提交 scene + 文件名（只用来取扩展名）。
@@ -71,6 +73,32 @@ public class UploadService {
         vo.setExpiresIn(presigned.expiresIn());
         log.info("签发上传凭证 userId={} scene={} key={}", userId, request.getScene(), key);
         return vo;
+    }
+
+    /**
+     * 生成短时下载地址（**管理端审核专用**，不做归属校验）。
+     *
+     * <p>前置：调用方已通过 `/api/v1/admin/**` 的 ROLE_ADMIN 鉴权，且会把这次访问
+     * 写进 operation_log（见 A-04 / A-05 的详情接口）。</p>
+     *
+     * <p>与 {@link #downloadUrl(String, Long)} 的差异只有一个：**不校验 key 归属**。
+     * 管理员必须能看别人提交的证件影像，否则审核无法进行；代价是把「谁能看」
+     * 完全交给调用路径的鉴权，所以本方法只能被管理端 Service 调用，
+     * **不得**暴露给 C 端任何 Controller。</p>
+     *
+     * @param key 对象 key；null/空白时返回 null（草稿可能还没上传）
+     * @return 60 秒签名下载地址；key 不合法（脏数据）时返回 null 并记 warn
+     */
+    public String downloadUrlForAdmin(String key) {
+        if (key == null || key.isBlank()) {
+            return null;
+        }
+        if (!StorageKeyRules.isValid(key)) {
+            // 不打印 key 内容：影像对象 key 属 L4，日志里连完整 key 都不打（规范 §10.2）
+            log.warn("管理端影像 key 格式非法，已忽略该字段");
+            return null;
+        }
+        return fileStorage.presignDownload(key).url();
     }
 
     /**
