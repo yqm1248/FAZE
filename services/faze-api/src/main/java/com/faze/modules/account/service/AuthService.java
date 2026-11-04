@@ -203,30 +203,36 @@ public class AuthService {
     public LoginVO register(RegisterBO request, String clientIp, String userAgent) {
         String phone = request.getPhone();
 
-        // 任务 1：消费验证码（校验通过即删除，防重放）。
-        smsCodeService.verifyAndConsume(phone, request.getSmsCode());
-
-        // 任务 2：协议必须勾选（合规要求，不能默认通过）。
+        // 任务 1：协议必须勾选（合规要求，不能默认通过）。
         if (!Boolean.TRUE.equals(request.getAgreementAccepted())) {
             throw new BusinessException(ErrorCode.COMMON_PARAM_INVALID);
         }
 
-        // 任务 3：未成年人联动——勾选未成年必须填监护人手机号（负责人 2026-11-01 裁决 #10）。
+        // 任务 2：未成年人联动——勾选未成年必须填监护人手机号（负责人 2026-11-01 裁决 #10）。
         boolean minor = Boolean.TRUE.equals(request.getIsMinor());
         if (minor && !StringUtils.hasText(request.getGuardianPhone())) {
             throw new BusinessException(ErrorCode.AUTH_GUARDIAN_REQUIRED);
         }
 
-        // 任务 4：密码强度（≥8 位且含字母与数字）。
+        // 任务 3：密码强度（≥8 位且含字母与数字）。
         PasswordPolicy.assertStrong(request.getPassword());
 
-        // 任务 5：手机号唯一检查（并发兜底见方法注释）。
+        // 任务 4：手机号唯一检查（并发兜底见方法注释）。
         AppUser existing = accountMapper.selectOne(new LambdaQueryWrapper<AppUser>()
                 .eq(AppUser::getPhone, phone)
                 .isNull(AppUser::getDeletedAt));
         if (existing != null) {
             throw new BusinessException(ErrorCode.AUTH_PHONE_TAKEN);
         }
+
+        // 任务 5：消费验证码（校验通过即删除，防重放）。
+        //
+        // **必须放在所有前置校验之后**：这段原来是第一步，于是「勾选协议/填监护人/密码强度/
+        // 手机号已注册」任何一项没过，验证码都已经被消费掉了——用户改完之后要重新等 60 秒
+        // 才能再发码（同号发码间隔限制）。1-A10 的端到端验收就是这么踩出来的：
+        // 未成年不填监护人 → 402009 被正确拒绝，但紧接着填好监护人重试 → 402005 验证码无效。
+        // 消费放在这里仍然只消费一次，防重放语义不变。
+        smsCodeService.verifyAndConsume(phone, request.getSmsCode());
 
         // 任务 6：落库。时间统一 UTC；token_version 从 0 起。
         AppUser user = new AppUser();
@@ -270,6 +276,10 @@ public class AuthService {
         String phone = request.getPhone();
 
         // 任务 1：消费验证码。
+        //
+        // 这里**故意保持「先消费码、再查账号」**，与 register 相反：register 是合法用户
+        // 被前置校验挡住时不该白扔一个验证码；而短信登录若先查账号，未持码的人就能靠
+        // 402001/402005 的差异枚举「这个手机号有没有注册」。登录路径优先挡探测。
         smsCodeService.verifyAndConsume(phone, request.getSmsCode());
 
         // 任务 2：必须已注册——短信登录不做「首次登录即注册」，
