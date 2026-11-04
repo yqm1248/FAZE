@@ -27,7 +27,6 @@ import com.faze.modules.account.bo.SmsLoginBO;
 import com.faze.modules.account.rule.PasswordPolicy;
 import com.faze.modules.account.bo.UpdateProfileBO;
 import com.faze.modules.account.vo.LoginVO;
-import com.faze.modules.account.vo.ProfileVO;
 import com.faze.modules.account.vo.TokenVO;
 import com.faze.modules.account.vo.UserVO;
 import com.faze.modules.account.entity.AppUser;
@@ -333,20 +332,8 @@ public class AuthService {
 
     // ── 资料 ───────────────────────────────────────────────────────────────
 
-    /**
-     * 取当前用户资料。
-     *
-     * @param userId 用户主键（来自 JWT）
-     * @return 资料出参
-     * @throws BusinessException 402003 用户不存在或已软删（token 仍有效但人已没）
-     */
-    public ProfileVO profile(Long userId) {
-        AppUser user = accountMapper.selectById(userId);
-        if (user == null || user.getDeletedAt() != null) {
-            throw new BusinessException(ErrorCode.AUTH_TOKEN_INVALID);
-        }
-        return accountConverter.toProfileVO(user);
-    }
+    // 资料查询已迁到 ProfileService（需要跨表组装律师状态与余额，AuthService 只管认证）。
+    // 保留本段分隔注释是为了让「资料」这块在阅读时仍有落点，不要在这里再加资料方法。
 
     /**
      * 修改资料（只允许昵称 / 头像 / 性别）。

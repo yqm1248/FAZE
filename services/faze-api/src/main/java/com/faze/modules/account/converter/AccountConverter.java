@@ -25,8 +25,6 @@ public class AccountConverter {
 
     private static final String DEFAULT_ROLE = "user";
     private static final String DEFAULT_REALNAME_STATUS = "none";
-    /** 律师状态：非律师。 */
-    private static final String LAWYER_STATUS_NONE = "NONE";
 
     /**
      * 实体 → 用户出参。
@@ -45,15 +43,15 @@ public class AccountConverter {
         vo.setRealnameStatus(toRealnameStatus(user.getRealnameStatus()));
         vo.setIsMinor(Boolean.TRUE.equals(user.getIsMinor()));
         vo.setRoles(List.of(user.getRole() == null ? DEFAULT_ROLE : user.getRole()));
-        // 支付密码表属段 1 E 组，尚未落地；恒 false，不要写成 true 骗客户端
-        vo.setPayPasswordSet(false);
+        vo.setPayPasswordSet(hasPayPassword(user));
         return vo;
     }
 
     /**
      * 实体 → 资料出参（在用户出参基础上补律师状态与余额）。
      *
-     * <p>余额段 1 B4 固定 0，D 组接流水汇总后改（见 ProfileVO 的 TODO）。</p>
+     * <p>律师状态与余额都要查别的表，本类不查库，由 ProfileService 补齐
+     * （见 modules/account/service/ProfileService）。</p>
      *
      * @param user 用户实体
      * @return 资料出参
@@ -67,12 +65,28 @@ public class AccountConverter {
         vo.setRealnameStatus(toRealnameStatus(user.getRealnameStatus()));
         vo.setIsMinor(Boolean.TRUE.equals(user.getIsMinor()));
         vo.setRoles(List.of(user.getRole() == null ? DEFAULT_ROLE : user.getRole()));
-        vo.setPayPasswordSet(false);
-        // 段 1 C 组建 lawyer 表之前没有律师数据，恒 NONE
-        vo.setLawyerStatus(LAWYER_STATUS_NONE);
-        // TODO(owner: D 组, scope: trade)：接 SUM(balance_flow.delta_cents)，不许读缓存
-        vo.setBalanceCents(0L);
+        vo.setPayPasswordSet(hasPayPassword(user));
+        // 律师状态与余额要查别的表，Converter 不查库（本类第 2 条约束）：
+        // 由 modules/account/service/ProfileService 拿到本 VO 后补齐，此处不写占位值。
         return vo;
+    }
+
+    /**
+     * 是否已设置支付密码。
+     *
+     * <p>段 1 E 组之前这里写死 false（当时 `app_user.pay_password` 列还没落地），
+     * 会让「账号与安全」页永远显示「未设置」——用户以为没设过就会去重设，
+     * 于是绕开「修改」走「重置」，多花一次短信验证码。改成读真实值。</p>
+     *
+     * <p>注意：支付密码存在 `app_user.pay_password` 这一列（不是独立表），
+     * 所以这里只是「字段非空 → 布尔」的转换，既不查库也不做业务判断。</p>
+     *
+     * @param user 用户实体
+     * @return 已设置返回 true
+     */
+    private boolean hasPayPassword(AppUser user) {
+        String raw = user.getPayPassword();
+        return raw != null && !raw.isBlank();
     }
 
     /**

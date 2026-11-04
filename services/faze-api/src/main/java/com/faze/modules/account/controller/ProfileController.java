@@ -1,7 +1,8 @@
 /*
  * 职责：资料接口——GET /app/account/profile（0-A2 验 401 的载体）、PUT 修改资料。
  * 调用方：App「我的」页 / 个人资料编辑页。
- * 数据来源：SecurityContext 里的 LoginUser（由 JwtAuthenticationFilter 从 JWT 填充）→ AuthService 查库。
+ * 数据来源：SecurityContext 里的 LoginUser（由 JwtAuthenticationFilter 从 JWT 填充）
+ *           → ProfileService 查库组装（基础资料 + 律师状态 + 余额）。
  * 注意：
  *   1. **GET 是 0-A2 的唯一载体**，路径与响应结构不许改（App 端靠它判 401）。
  *   2. `@AuthenticationPrincipal` 在未认证时注入 null，这里兜底抛 402003——
@@ -17,6 +18,7 @@ import com.faze.common.exception.BusinessException;
 import com.faze.common.exception.ErrorCode;
 import com.faze.modules.account.bo.UpdateProfileBO;
 import com.faze.modules.account.service.AuthService;
+import com.faze.modules.account.service.ProfileService;
 import com.faze.modules.account.vo.ProfileVO;
 import com.faze.security.LoginUser;
 import jakarta.validation.Valid;
@@ -37,6 +39,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class ProfileController {
 
     private final AuthService authService;
+    private final ProfileService profileService;
 
     /**
      * 取当前登录用户资料。
@@ -48,7 +51,7 @@ public class ProfileController {
     @GetMapping("/profile")
     public R<ProfileVO> profile(@AuthenticationPrincipal LoginUser loginUser) {
         requireLogin(loginUser);
-        return R.ok(authService.profile(loginUser.getUserId()));
+        return R.ok(profileService.profile(loginUser.getUserId()));
     }
 
     /**
