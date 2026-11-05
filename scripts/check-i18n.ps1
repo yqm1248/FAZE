@@ -115,13 +115,42 @@ foreach ($lang in $targetLangs) {
 }
 
 $pendingPath = Join-Path $resourcesRoot '.i18n-pending.json'
-$payload = [ordered]@{
-    _comment = '本文件由 scripts/check-i18n.ps1 生成，不要手改；段 8 收口时必须为空。'
-    pending  = $pending
+
+# ── 固定格式手工序列化（不要改回 ConvertTo-Json）─────────────────────────
+# 为什么不用 ConvertTo-Json：Windows PowerShell 5.1 与 PowerShell 7（CI 的 pwsh）
+# 对这个结构输出的字节不同，而且两处都坏：
+#   1. 5.1 在多层嵌套下缩进会**累积**（实测数组元素前面 27 个空格、"bo" 前 20 个），
+#      是 5.1 的已知缺陷；PS 7 修了这个 bug，输出正常缩进。
+#   2. 5.1 用 [Environment]::NewLine 收尾 → CRLF，Linux 是 LF。
+# 结果：同一个文件在两个平台各生成一份内容，CI 的「防漂移」检查在 Linux 上永远失败
+# （2026-11-05 实测：1560 行全变、1560 行新增）。
+# 这里结构是固定的（两级 map + 字符串数组），手工拼就能逐字节可预测，两平台完全一致。
+function ConvertTo-JsonString([string]$s) {
+    return ($s.Replace('\', '\\').Replace('"', '\"'))
 }
-$jsonText = $payload | ConvertTo-Json -Depth 8
+
+$comment = '本文件由 scripts/check-i18n.ps1 生成，不要手改；段 8 收口时必须为空。'
+$sb = New-Object System.Text.StringBuilder
+[void]$sb.Append("{`n")
+[void]$sb.Append('  "_comment": "' + (ConvertTo-JsonString $comment) + '",' + "`n")
+[void]$sb.Append('  "pending": {' + "`n")
+$langKeys = @($pending.Keys)
+for ($li = 0; $li -lt $langKeys.Count; $li++) {
+    $lang = $langKeys[$li]
+    $keys = @($pending[$lang])
+    [void]$sb.Append('    "' + $lang + '": [' + "`n")
+    for ($ki = 0; $ki -lt $keys.Count; $ki++) {
+        $tail = if ($ki -lt $keys.Count - 1) { ',' } else { '' }
+        [void]$sb.Append('      "' + (ConvertTo-JsonString ([string]$keys[$ki])) + '"' + $tail + "`n")
+    }
+    $langTail = if ($li -lt $langKeys.Count - 1) { ',' } else { '' }
+    [void]$sb.Append('    ]' + $langTail + "`n")
+}
+[void]$sb.Append('  }' + "`n")
+[void]$sb.Append('}' + "`n")
+
 $encoding = New-Object System.Text.UTF8Encoding($false)
-[System.IO.File]::WriteAllText($pendingPath, $jsonText + [Environment]::NewLine, $encoding)
+[System.IO.File]::WriteAllText($pendingPath, $sb.ToString(), $encoding)
 Write-Host '[check-i18n] 已更新 .i18n-pending.json'
 
 if ($failures.Count -gt 0) {
