@@ -14,6 +14,10 @@
        页面侧做一次同规则的前置校验，只为少跑一次往返，不是唯一防线。
     5. 列表接口不分页（配置项总量小），所以本页没有分页器；`keys` 过滤在服务端做。
     6. 四态：加载中 / 空 / 错误（页面内常驻 el-alert + 重试）/ 正常。
+    7. **长文本参数（超过 80 字的 string，如用户协议 / 隐私政策正文）不在表格里内联编辑**：
+       表格只放 60 字摘要 + 「编辑正文（N 字）」按钮，点开是固定高度的多行 textarea 弹窗。
+       原先表格用单行 el-input，600~900 字的法务正文既看不全、也打不进换行（G-3，段 1 收口修）。
+       判定按「长度 + valueType」而不是按 configKey 硬编码，以后新增法务类参数不用再改代码。
 -->
 <template>
   <div class="app-container">
@@ -105,10 +109,24 @@
             <span class="mono">{{ row.configKey }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="参数值" min-width="240">
+        <el-table-column label="参数值" min-width="300">
           <template #default="{ row }">
+            <!-- 长文本（用户协议 / 隐私政策正文这类 600~900 字）：表格里只放摘要，
+                 编辑走弹窗里的多行 textarea。单行 el-input 装不下也看不见换行。 -->
+            <div v-if="isLongText(row)" class="long-text">
+              <span class="long-text__preview">{{ previewText(row) }}</span>
+              <el-button
+                v-if="isEditable(row)"
+                type="primary"
+                link
+                size="small"
+                @click="openEditor(row)"
+              >
+                编辑正文（{{ lengthOf(row) }} 字）
+              </el-button>
+            </div>
             <el-input
-              v-if="isEditable(row) && editValues[row.configKey] !== undefined"
+              v-else-if="isEditable(row) && editValues[row.configKey] !== undefined"
               v-model="editValues[row.configKey]"
               size="small"
               :placeholder="valuePlaceholder(row)"
@@ -145,6 +163,40 @@
         只读参数（是否可改 = 只读）由服务端锁定，保存时不会提交，也无法通过本页修改。
       </div>
     </el-card>
+
+    <!-- ==================== 长文本编辑器（用户协议 / 隐私政策正文） ==================== -->
+    <!-- 为什么单独开弹窗而不是在表格里换 textarea：表格行高会被 900 字撑爆，
+         而且输入时整张表的行会跟着抖动。这里固定高度 + 实时字数，编辑体验才是可用的。 -->
+    <el-dialog
+      v-model="editorVisible"
+      :title="editorTitle"
+      width="760px"
+      :close-on-click-modal="false"
+      destroy-on-close
+    >
+      <div class="editor-tip">
+        保存后立即对 APP 生效（接口 <span class="mono">GET /api/v1/pub/config/{configKey}</span> 直接读这条）。
+        换行请直接按回车——写入的是真实换行符。
+      </div>
+      <el-input
+        v-model="editorValue"
+        type="textarea"
+        :rows="18"
+        resize="vertical"
+        placeholder="在此输入正文"
+      />
+      <div class="editor-foot">
+        <span class="editor-foot__count" :class="{ 'is-warn': editorValue.length > MAX_TEXT_LENGTH }">
+          {{ editorValue.length }} 字<template v-if="MAX_TEXT_LENGTH"> / 上限 {{ MAX_TEXT_LENGTH }}</template>
+        </span>
+        <div class="editor-foot__actions">
+          <el-button @click="editorVisible = false">取消</el-button>
+          <el-button type="primary" :disabled="!editorDirty" @click="confirmEditor">
+            确定（回到列表，仍需点「保存修改」）
+          </el-button>
+        </div>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -188,6 +240,142 @@ const saving = ref(false)
 
 /** 保存错误（留在页面，方便改完重试）。 */
 const saveError = ref('')
+
+/**
+ * 长文本判定阈值（字符数）。
+ *
+ * 超过它的 `string` 参数走弹窗编辑器，不再用表格内联单行输入框。
+ * 80 是「一眼看得出这是段文章而不是一个开关值」的粗略分界；按长度判而不是按
+ * configKey 硬编码，是为了以后新增法务类参数（如《未成年人保护规则》）不用再改代码。
+ */
+const LONG_TEXT_MIN_LENGTH = 80
+
+/**
+ * 正文长度上限的**提示阈值**（不是硬校验）。
+ *
+ * 库列是 TEXT（65535 字节），这里给 20000 字符是留足 UTF-8 字节余量的运营上限。
+ * 超过只标黄，不拦——真正的长度约束应由服务端决定，前端不臆造业务规则。
+ */
+const MAX_TEXT_LENGTH = 20000
+
+/** 长文本编辑器可见性。 */
+const editorVisible = ref(false)
+
+/** 正在编辑的参数键。 */
+const editorKey = ref('')
+
+/** 编辑器草稿值（点「确定」才写回 editValues，取消即丢弃）。 */
+const editorValue = ref('')
+
+/** 正在编辑的参数行。 */
+const editorRow = computed(
+  () => rows.value.find((row) => row.configKey === editorKey.value) || null
+)
+
+/** 编辑器标题。 */
+const editorTitle = computed(() =>
+  editorRow.value ? `编辑正文 · ${editorRow.value.configKey}` : '编辑正文'
+)
+
+/** 编辑器草稿相对「待保存值」是否有改动。 */
+const editorDirty = computed(() => {
+  const key = editorKey.value
+  if (!key) {
+    return false
+  }
+  const current = editValues[key] === undefined ? '' : String(editValues[key])
+  return editorValue.value !== current
+})
+
+/**
+ * 取服务端返回的原始值（统一成字符串）。
+ *
+ * @param {object} row 参数行
+ * @returns {string} 原始值，null/undefined 归一为空串
+ */
+function rawValue(row) {
+  return row && row.configValue !== null && row.configValue !== undefined ? String(row.configValue) : ''
+}
+
+/**
+ * 取该行「当前」显示值：优先编辑器里的待保存值，其次服务端值。
+ *
+ * @param {object} row 参数行
+ * @returns {string} 当前值
+ */
+function currentValue(row) {
+  if (!row) {
+    return ''
+  }
+  const cached = editValues[row.configKey]
+  return cached === undefined ? rawValue(row) : String(cached)
+}
+
+/**
+ * 判断该行是否按长文本渲染。
+ *
+ * <p>用「原值与当前值的较大者」判，而不是只看当前值：一旦这一项是长文本，
+ * 编辑过程中即使暂时删短，也不该掉回单行输入框——控件随输入字数跳变是很糟的体验，
+ * 而且用户删到一半时控件消失会直接把光标弄丢。一旦长文本，永远是长文本。</p>
+ *
+ * @param {object} row 参数行
+ * @returns {boolean} 是否长文本
+ */
+function isLongText(row) {
+  if (!row) {
+    return false
+  }
+  if ((row.valueType || '').toLowerCase() !== 'string') {
+    return false
+  }
+  const longest = Math.max(rawValue(row).length, currentValue(row).length)
+  return longest > LONG_TEXT_MIN_LENGTH
+}
+
+/**
+ * 该行当前值长度（表格上显示「编辑正文（N 字）」）。
+ *
+ * @param {object} row 参数行
+ * @returns {number} 字符数
+ */
+function lengthOf(row) {
+  return currentValue(row).length
+}
+
+/**
+ * 长文本在表格里的摘要（压掉换行与连续空白，只留前 60 字）。
+ *
+ * @param {object} row 参数行
+ * @returns {string} 摘要文案
+ */
+function previewText(row) {
+  const text = currentValue(row).replace(/\s+/g, ' ').trim()
+  return text.length > 60 ? `${text.slice(0, 60)}…` : text
+}
+
+/**
+ * 打开长文本编辑器。
+ *
+ * @param {object} row 参数行
+ * @returns {void}
+ */
+function openEditor(row) {
+  editorKey.value = row.configKey
+  editorValue.value = currentValue(row)
+  editorVisible.value = true
+}
+
+/**
+ * 确认编辑：把草稿写进 editValues（此时**还没有提交到服务端**）。
+ *
+ * @returns {void}
+ */
+function confirmEditor() {
+  if (editorKey.value) {
+    editValues[editorKey.value] = editorValue.value
+  }
+  editorVisible.value = false
+}
 
 /**
  * 有改动的项（只算 editable=true 的行）。
@@ -334,9 +522,13 @@ async function saveAll() {
     configKey: row.configKey,
     configValue: String(editValues[row.configKey])
   }))
+  // 确认框里不能整段塞法务正文：900 字会把弹窗撑满，截到 40 字足够认出是哪一项
   const preview = items
     .slice(0, 5)
-    .map((item) => `${item.configKey} = ${item.configValue}`)
+    .map((item) => {
+      const shown = item.configValue.length > 40 ? `${item.configValue.slice(0, 40)}…` : item.configValue
+      return `${item.configKey} = ${shown}`
+    })
     .join('；')
   try {
     await ElMessageBox.confirm(
@@ -451,5 +643,50 @@ onMounted(loadList)
   font-size: 12px;
   line-height: 1.6;
   color: var(--el-text-color-secondary);
+}
+
+/* ── 长文本（法务正文）────────────────────────────────────────── */
+.long-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.long-text__preview {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--el-text-color-regular);
+  word-break: break-all;
+}
+
+.editor-tip {
+  margin-bottom: 10px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--el-text-color-secondary);
+}
+
+.editor-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.editor-foot__count {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.editor-foot__count.is-warn {
+  color: var(--el-color-warning);
+}
+
+.editor-foot__actions {
+  display: flex;
+  gap: 8px;
 }
 </style>
