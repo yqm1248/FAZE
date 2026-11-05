@@ -8,9 +8,13 @@
 
     本脚本只做**能自动判定的部分**：
       1. 环境自检（MySQL / Redis / faze-api / RuoYi 前后端）
-      2. `mvn -B test`（48 个用例，含锚点 1-A5 / 1-A6 / 1-A8 / 1-A10 的专用用例）
+      2. `mvn -B test`（54 个用例，含锚点 1-A5 / 1-A6 / 1-A8 / 1-A10 的专用用例）
       3. `deploy\verify-balance.ps1`（锚点 1-A7 的恒等式）
       4. `deploy\verify-admin-api.mjs`（PC 23 项管理端接口复核 + 1-A4 的幂等重放）
+      5. `deploy\verify-e2e.js`（端到端写操作全链：注册→实名→入驻→充值→注销）
+      6. 前端错误态与重试证据（锚点 1-A9）
+      7. `deploy\sync-db-grants.ps1 -Verify`（数据库账号权限：迁移/运行分离，
+         `operation_log` 对运行时账号只有 SELECT+INSERT ——《审计与日志规范》的可验证形态）
     依赖 APP 页面的锚点（1-A1 / 1-A2 / 1-A3 / 1-A4 / 1-A9 / 1-A10 的 App 半边）**不做假通过**，
     一律标 `PARTIAL` 并写清缺什么。G 组（18 页）已交付后，这些锚点缺的是**端到端写操作与断网**，
     不再是「页面没做」。
@@ -222,8 +226,40 @@ if (Test-Path -LiteralPath $uiReport) {
 Say ("  {0} 错误态 + 重试恢复" -f $(if ($uiOk) { '[OK]  ' } else { '[SKIP]' })) $(if ($uiOk) { 'DarkGray' } else { 'Yellow' })
 $r['1-A9'] = $uiOk
 
-# ── 7. 十条锚点汇总 ───────────────────────────────────────────────────────
-Say "`n===== 7. 段 1 验收锚点（1-A1 ~ 1-A10）=====" 'Cyan'
+# ── 7. 数据库账号权限（operation_log 只追加）──────────────────────────────
+# 为什么验收脚本要管数据库权限：《审计与日志规范》要求 operation_log 只追加、
+# 「DB 账号无 UPDATE/DELETE 权限」，而这条在段 1 收口前**根本没落地**——
+# faze_app 对 faze.* 持全套 DDL+DML，审计表能被应用连接直接改删。
+# 只写在文档里的约束等于没有约束，所以这里作为可自动判定的检查项跑。
+Say "`n===== 7. 数据库账号权限（operation_log 只追加）=====" 'Cyan'
+$grantsOk = $false
+$grantsSkip = $false
+$grantsScript = Join-Path $scriptDir 'sync-db-grants.ps1'
+if (-not (Test-Path -LiteralPath $grantsScript)) {
+    Say '  [FAIL] 找不到 deploy\sync-db-grants.ps1' 'Red'
+} else {
+    $grantsLog = Join-Path $repoRoot 'logs\verify-seg1-grants.log'
+    New-Item -ItemType Directory -Force -Path (Split-Path -LiteralPath $grantsLog) | Out-Null
+    & powershell -NoProfile -ExecutionPolicy Bypass -File $grantsScript -Verify *> $grantsLog
+    $grantsExit = $LASTEXITCODE
+    Get-Content -LiteralPath $grantsLog -Encoding UTF8 |
+        Where-Object { $_ -match '^\[db-grants\]' } |
+        ForEach-Object { Say ("  " + $_) }
+    if ($grantsExit -eq 0) {
+        $grantsOk = $true
+    } elseif ($grantsExit -eq 3) {
+        # 缺 FAZE_DB_MIGRATE_* / FAZE_DB_ROOT_PASSWORD：环境还没做过账号拆分
+        $grantsSkip = $true
+        Say '  [SKIP] deploy\.env 缺迁移账号或 root 口令：先跑一次 deploy\sync-db-grants.ps1' 'Yellow'
+    } else {
+        Say ("  [FAIL] 权限形态不符合《审计与日志规范》（退出码 $grantsExit）") 'Red'
+    }
+    Say "  完整输出：$grantsLog" 'DarkGray'
+}
+Say ("  {0} 迁移/运行账号分离 + operation_log 对 faze_app 只读可插入" -f $(if ($grantsOk) { '[OK]  ' } elseif ($grantsSkip) { '[SKIP]' } else { '[FAIL]' })) $(if ($grantsOk) { 'DarkGray' } elseif ($grantsSkip) { 'Yellow' } else { 'Red' })
+
+# ── 8. 十条锚点汇总 ───────────────────────────────────────────────────────
+Say "`n===== 8. 段 1 验收锚点（1-A1 ~ 1-A10）=====" 'Cyan'
 $rows = @(
     @{ Id = '1-A1';  State = $null; E2E = '1A1-'; Why = '端到端七步：注册→登录→我的→忘记密码→新密码登录→有余额拒注销→清余额注销→同号重注册' },
     @{ Id = '1-A2';  State = $null; E2E = '1A2-'; Why = '端到端：上传→实名提交→PENDING→PC 队列（脱敏）→审核→APPROVED' },
@@ -261,6 +297,9 @@ foreach ($row in $rows) {
 }
 # 设计稿把 1-A4 的「幂等重放」也算在锚点里，这里把接口复核结果并进去
 if (-not $adminOk) { $allAutoPass = $false }
+# 数据库权限不是「十锚点」之一，但它决定审计证据成不成立，所以同样是一票否决项
+if (-not $grantsOk) { $allAutoPass = $false }
+if ($grantsSkip) { $hasSkip = $true }
 
 # 数「还需要人工补齐」的锚点。
 # 用显式循环而不是 `Where-Object { $_.State -in @('TODO','PARTIAL') }`：后者在 State 为
@@ -278,7 +317,7 @@ if ($hasSkip) { Say '有锚点显示 SKIP：本次用了 -SkipTests / -SkipE2E�
 $canClose = ($allAutoPass -and $todo -eq 0 -and -not $hasSkip)
 Say "本段能否收口：$(if ($canClose) { '可以（10 条锚点全部 PASS）' } else { '还不可以（见上面的 PARTIAL / SKIP 说明）' })" $(if ($canClose) { 'Green' } else { 'Yellow' })
 
-# ── 8. 落证据 ─────────────────────────────────────────────────────────────
+# ── 9. 落证据 ─────────────────────────────────────────────────────────────
 $transcript | Set-Content -LiteralPath $logFile -Encoding UTF8
 Say "`n证据已写入：$logFile" 'Cyan'
 
