@@ -73,7 +73,10 @@ Get-Content -LiteralPath $EnvFile -Encoding UTF8 | ForEach-Object {
 }
 
 # ── 2. 校验必需变量 ─────────────────────────────────────────────────────────
-$required = @('FAZE_DB_URL', 'FAZE_DB_USER', 'FAZE_DB_PASSWORD')
+# FAZE_DB_MIGRATE_* 是 Flyway 用的迁移账号：运行时账号 faze_app 已无 DDL，
+# 缺这两项时 Flyway 会回落到 datasource 账号并在建表处报权限拒绝（见 database/grants/README.md）
+$required = @('FAZE_DB_URL', 'FAZE_DB_USER', 'FAZE_DB_PASSWORD',
+              'FAZE_DB_MIGRATE_USER', 'FAZE_DB_MIGRATE_PASSWORD')
 $missing = @()
 foreach ($name in $required) {
     $value = [Environment]::GetEnvironmentVariable($name, 'Process')

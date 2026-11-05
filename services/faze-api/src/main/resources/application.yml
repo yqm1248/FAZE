@@ -38,6 +38,16 @@ spring:
     validate-on-migrate: true
     # 本地也不许 clean；要 clean 用单独的 reset-db.ps1
     clean-disabled: true
+    # ── 迁移走独立的 faze_migrate 账号（第 1 段收口补）──────────────────
+    # 《审计与日志规范》要求 operation_log 只追加、DB 账号无 UPDATE/DELETE；
+    # MySQL 权限是并集，只能把 DDL（迁移）与 DML（运行）拆成两个账号。
+    # 运行时账号 faze_app 已无 CREATE/DROP/ALTER，所以**不配这三项 Flyway 一定失败**
+    # （回落到 datasource 的 faze_app → 建表权限拒绝）。
+    # 注意：Spring Boot 里 spring.flyway.user 不配置时会回落到 spring.datasource.username，
+    # 那是隐式降级，不符合「默认拒绝」，所以这里显式写、且不提供默认值。
+    url: ${FAZE_DB_URL}
+    user: ${FAZE_DB_MIGRATE_USER}
+    password: ${FAZE_DB_MIGRATE_PASSWORD}
   jackson:
     default-property-inclusion: always
     # 2026-11-02 复核：Spring Boot 4 已换 Jackson 3（tools.jackson），
