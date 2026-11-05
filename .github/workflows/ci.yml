@@ -156,6 +156,20 @@ jobs:
         working-directory: .
         run: pwsh -NoProfile -File scripts/check-i18n.ps1
 
+      # check-i18n.ps1 会重写 resources/.i18n-pending.json。如果仓库里那份与脚本输出不一致
+      # （有人手改过、或改了文案却忘了跑脚本），这一步会把工作树变脏——那就是漂移，必须拦住。
+      # 没有这一步的话，「缺译已登记」永远是自证：脚本自己写、自己读、自己判通过。
+      - name: 确认 .i18n-pending.json 没有漂移
+        working-directory: .
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "::error::脚本运行后工作树被改动，说明仓库里的 .i18n-pending.json 已漂移"
+            git status --porcelain
+            git --no-pager diff --stat
+            exit 1
+          fi
+          echo "OK：.i18n-pending.json 与 scripts/check-i18n.ps1 的输出一致"
+
   # ── PC 后台：能构建即可（RuoYi 前端没有 lint script） ──────────────
   admin-web:
     name: PC 后台构建
