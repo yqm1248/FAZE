@@ -4,6 +4,35 @@
 
 ---
 
+## 2026-11-05 · 补上 CI（首个 GitHub Actions workflow）
+
+**动因**：段 1 收口后仍然没有 CI —— 54 个后端用例 + 6 个验收脚本全靠人手跑。
+今天已经因为「没人跑」埋过一次假失败（管理端 23 项全 401，实际是浏览器 Cookie 里的 RuoYi token
+过了 30 分钟有效期），可见靠自觉不够。
+
+`.github/workflows/ci.yml` 三个 job：
+
+| job | 内容 |
+|---|---|
+| `backend` | MySQL 8.0 + Redis 7 service，建 `faze_migrate`（DDL）与 `faze_app`（仅 DML）两个账号 → 触发 Flyway 建表 → 导 seed → `mvn -B test`（54 用例）→ 断言运行时账号拿不到 DDL |
+| `mobile` | `tsc --noEmit` + `eslint .` + `check-raw-text.ps1`（禁裸 `<Text>`）+ `check-i18n.ps1`（四语言同构） |
+| `admin-web` | `pnpm install --frozen-lockfile` + `vite build`（RuoYi 前端没有 lint script，构建通过即门槛） |
+
+**为什么不按「服务跑起来再测」的常规写法**：`sys_config` 的 12 条数据与测试账号在
+`database/seed/`（负责人决策**不进 Flyway**），所以要先有表才能导 seed，而「只建表不跑业务」
+没有独立入口。workflow 里用「先跑一次 `Seg0SmokeTest` 且允许失败」触发 Flyway 建表——这一步不是
+质量门禁，只是拿表的副作用，注释里写清了原因，免得后人误以为它该失败。
+
+**CI 里为什么不做「operation_log 只追加」的验证**：那条要求需要逐表 GRANT，而 CI 的表是 Flyway
+现建的，建完再动态生成 GRANT 会让脚本复杂且难排查。它由本地 `sync-db-grants.ps1 -Verify` 覆盖，
+并已接进 `verify-seg1.ps1` 第 7 步作为一票否决项。CI 只做轻量断言（运行时账号不能建表）。
+
+**⚠️ 未验证**：本文件**没有在真实 GitHub Actions runner 上跑过**（本机只有 Windows 环境）。
+首次推送后需看 Actions 页面结果，已知三个不确定点写在工作流文件头部注释里
+（MySQL service 初始化耗时、`Seg0SmokeTest` 那步的容忍失败、两个 `.ps1` 在 ubuntu 上对 pwsh 的依赖）。
+
+---
+
 ## 2026-11-05 · 第 1 段收口后补漏：审计表可篡改 / 注销余额口径 / 法务正文存不进去（基线 v1.44）
 
 **这一节记录的不是新功能，是「验收全 PASS 之后仍然不合规」的三件事。**
