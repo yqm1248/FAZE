@@ -27,9 +27,19 @@
 现建的，建完再动态生成 GRANT 会让脚本复杂且难排查。它由本地 `sync-db-grants.ps1 -Verify` 覆盖，
 并已接进 `verify-seg1.ps1` 第 7 步作为一票否决项。CI 只做轻量断言（运行时账号不能建表）。
 
-**⚠️ 未验证**：本文件**没有在真实 GitHub Actions runner 上跑过**（本机只有 Windows 环境）。
-首次推送后需看 Actions 页面结果，已知三个不确定点写在工作流文件头部注释里
-（MySQL service 初始化耗时、`Seg0SmokeTest` 那步的容忍失败、两个 `.ps1` 在 ubuntu 上对 pwsh 的依赖）。
+**首跑结果（2026-11-05 20:01，run `42023685805`）**：
+
+| job | 结果 | 说明 |
+|---|---|---|
+| 后端测试 | ✅ success | **54 个用例 0 跳过**（ubuntu + MySQL 8.0 + Redis 7）；Flyway 从空库建到 v12；「`faze_app` 无法建表」断言通过。日志里第一个 `mvn test` 是「触发建表」那步，如预期失败（此时还没有 seed 数据） |
+| PC 后台构建 | ✅ success | `pnpm install --frozen-lockfile` + `vite build` 一次过 |
+| APP 静态检查 | ❌ failure | `check-raw-text.ps1` 在 Linux 上误报 3 处裸 `<Text>`（全都来自 `LocalizedText.tsx` 自己），根因见下 |
+
+**首跑暴露的脚本缺陷（已修）**：`scripts/check-raw-text.ps1` 与 `check-i18n.ps1` 都把路径写成了反斜杠字面量
+（`Join-Path $root 'apps\mobile-app'`）。Windows 上没事，Linux 上拼出一个不存在的路径；更糟的是
+**路径不对时脚本「一个文件都没扫到」仍然报「命中 0」/「全部通过」**——假绿比失败更危险。
+修法：路径一律走 `[System.IO.Path]::Combine`、比较前把分隔符规范成 `/`、并新增「扫到 0 个文件就退出 2」的守卫。
+本地复验：`check-raw-text` 扫 68 个文件命中 0；`check-i18n` 14 个 namespace、缺译 517 条已登记、通过。
 
 ---
 

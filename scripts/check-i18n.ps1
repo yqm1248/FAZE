@@ -25,7 +25,9 @@ param()
 $ErrorActionPreference = 'Stop'
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
-$resourcesRoot = Join-Path $repoRoot 'apps\mobile-app\shared\i18n\resources'
+# 不用 Join-Path + 'apps\mobile-app\...' 字面量：本脚本在 GitHub Actions（ubuntu）上也要跑，
+# 那里反斜杠不是路径分隔符，拼出来的目录不存在（2026-11-05 CI 首跑同类问题的根因）
+$resourcesRoot = [System.IO.Path]::Combine($repoRoot, 'apps', 'mobile-app', 'shared', 'i18n', 'resources')
 $sourceLang = 'zh-Hans'
 $targetLangs = @('bo', 'ug-Arab-CN', 'kk-Arab-CN')
 
@@ -69,6 +71,13 @@ function Read-LangFlat([string]$lang) {
 
 $sourceNames = @(Get-JsonFiles $sourceLang | ForEach-Object { $_.Name } | Sort-Object)
 Write-Host ("[check-i18n] 源语言 " + $sourceLang + " 有 " + $sourceNames.Count + " 个 namespace 文件")
+
+# 守卫：路径写错（尤其换平台时）会一个文件都读不到，此时「四目录同构」表现为「都空 = 都一样」，
+# 后面会一路走到「全部通过」——那是比失败更糟的假绿
+if ($sourceNames.Count -eq 0) {
+    Write-Host ("[check-i18n] 源语言目录里没有任何 json（resourcesRoot=" + $resourcesRoot + "）——路径可能不对") -ForegroundColor Red
+    exit 2
+}
 
 foreach ($lang in $targetLangs) {
     $names = @(Get-JsonFiles $lang | ForEach-Object { $_.Name } | Sort-Object)
