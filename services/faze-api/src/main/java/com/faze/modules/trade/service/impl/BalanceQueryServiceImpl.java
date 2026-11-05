@@ -3,8 +3,10 @@
  * 调用方：Spring 依赖注入（modules/account 的资料与注销前置校验）。
  * 数据来源：faze.user_balance（缓存口径）+ faze.balance_flow（汇总口径）。
  * 注意：
- *   1. `getAvailableCents` / `getFrozenCents` 读缓存字段，只给「有没有余额」这种粗判断用。
- *   2. `getTotalCentsFromFlows` 走 SUM(delta_cents)，给展示与对账用（锚点 1-A6）。
+ *   1. `getAvailableCents` / `getFrozenCents` 读缓存字段。**决策点不能只看它**：
+ *      注销前置校验（AccountSecurityService.cancelAccount）会把它与流水汇总取较大值，
+ *      因为缓存是派生值，偏小时会放行「带余额注销」。
+ *   2. `getTotalCentsFromFlows` 走 SUM(delta_cents)，给展示、对账与注销校验用（锚点 1-A6）。
  *      两个口径**故意分开**，不要互相替代。
  *   3. 查不到记录返回 0（新用户没有余额行是正常状态，不是异常）。
  *   4. 不做任何写操作。

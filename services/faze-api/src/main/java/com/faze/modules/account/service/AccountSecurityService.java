@@ -258,8 +258,18 @@ public class AccountSecurityService {
             throw new BusinessException(ErrorCode.AUTH_ACCOUNT_CANCELLED);
         }
         // 任务 1：有余额（或冻结）不允许注销——注销后钱没地方退，用户会直接投诉。
-        long available = balanceQueryService.getAvailableCents(userId);
+        // **口径**：注销是不可逆动作，判定必须偏保守，所以账本（balance_flow 汇总）与
+        // 缓存（user_balance）取**较大值**——任一 > 0 就拒绝。只用缓存是资金悬空风险：
+        // 某笔流水写了但缓存更新失败时，缓存会偏小，用户就能带着余额注销、钱再也退不出去。
+        // 两个口径不一致本身是对账异常，记 WARN 留给巡检（G-9，段 1 收口修正）。
+        long flowTotal = balanceQueryService.getTotalCentsFromFlows(userId);
+        long cachedAvailable = balanceQueryService.getAvailableCents(userId);
         long frozen = balanceQueryService.getFrozenCents(userId);
+        if (flowTotal != cachedAvailable) {
+            log.warn("注销前置校验：余额口径不一致 userId={} 流水汇总={} 缓存={}（按较大值判定）",
+                    userId, flowTotal, cachedAvailable);
+        }
+        long available = Math.max(flowTotal, cachedAvailable);
         if (available > 0 || frozen > 0) {
             throw new BusinessException(ErrorCode.COMMON_ILLEGAL_STATE);
         }
