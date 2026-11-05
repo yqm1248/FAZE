@@ -4,6 +4,123 @@
 
 ---
 
+## 2026-11-05 · 第 1 段收口后补漏：审计表可篡改 / 注销余额口径 / 法务正文存不进去（基线 v1.44）
+
+**这一节记录的不是新功能，是「验收全 PASS 之后仍然不合规」的三件事。**
+段 1 的十条锚点验的是**功能**，下面三项都在锚点清单之外，属于工程与合规缺口。
+三项都是**实测发现**——写文档时都以为做了，实际没做。
+
+### 1. 审计表可以被应用连接直接改删（合规缺口，最严重）
+
+《审计与日志规范》对 `operation_log` 写了两条落地手段：Mapper 只读 + **DB 账号无 UPDATE/DELETE 权限**。
+§八 第 1 条甚至指定了「在 `deploy/start-services.ps1` 里做」。实测：
+
+```text
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, REFERENCES, INDEX, ALTER,
+      EXECUTE, CREATE VIEW, SHOW VIEW, TRIGGER ON `faze`.* TO `faze_app`@`localhost`
+GRANT ALL PRIVILEGES ON `faze_test`.* TO `faze_app`@`localhost`
+```
+
+两个问题叠在一起：①审计表对运行时账号开放了 `UPDATE`/`DELETE`；②**迁移与应用共用同一个账号**，
+所以应用连接同时持有整套 DDL。`OperationLogMapper` 的注释里其实写着「faze_app 有 DELETE 权限是段 0 的历史授权，
+收口时应收回」——识别到了，没做。
+
+**MySQL 权限是并集，库级 GRANT 无法用表级 REVOKE 减掉**，所以「既能在库里建表、又不能改审计表」
+只有一个合法解：迁移与运行分离。
+
+| 落地 | 说明 |
+|---|---|
+| `database/grants/01-accounts.sql` | 建 `faze_migrate`（持 `faze.*` DDL+DML），只做增量授权 |
+| `database/grants/README.md` | 为什么必须拆两个账号、生产怎么初始化、已知边界 |
+| `deploy/sync-db-grants.ps1` | 幂等收敛：跑 SQL → 撤 `faze_app` 库级授权 → 按 `information_schema` 逐表授权；`-Verify` 只核对不改 |
+| `application.yml` | Flyway 改用 `spring.flyway.user/password`（`FAZE_DB_MIGRATE_*`），不再回落到 datasource 账号 |
+| `deploy/start-api.ps1` | `FAZE_DB_MIGRATE_USER` / `FAZE_DB_MIGRATE_PASSWORD` 进必需变量校验，缺了直接退出 3 |
+| `deploy/verify-seg1.ps1` | **新增第 7 步**跑 `sync-db-grants.ps1 -Verify`，并作为一票否决项计入「能否收口」 |
+
+`faze_app` 现在的权限形态：逐表 `SELECT/INSERT/UPDATE/DELETE`；`operation_log` **只有 `SELECT, INSERT`**；
+`flyway_schema_history` 只有 `SELECT`；无任何库级授权、无 DDL。
+
+`-Verify` 跑 6 项探针，其中 3 项是**真发一条语句**而不是读 `information_schema`（权限表说没有、实际能改的情况是存在的）：
+
+```
+[OK] 库级授权已清空
+[OK] 表级授权覆盖全部 15 张表
+[OK] operation_log 对 faze_app 只开放：INSERT, SELECT
+[OK] faze_app 实测 UPDATE operation_log 被拒（1142 command denied）
+[OK] faze_app 实测 UPDATE app_user 通过（业务表可写）
+[OK] faze_app 实测 CREATE TABLE 被拒（运行时账号无 DDL）
+```
+
+**踩坑记录**：PowerShell 5.1 把含引号的参数交给原生 exe 时会二次转义，
+`grantee = "'faze_app'@'localhost'"` 这类语句直接被拆坏（`ERROR 1064 near @'localhost''`）——
+SQL 一律走 stdin 而不是 `-e`。另外 `ERROR 1142` 写 stderr 在 `ErrorActionPreference='Stop'` 下
+会被包成 `NativeCommandError` 直接中断脚本，探针位置必须局部放开。
+
+### 2. 注销前判余额用缓存口径 → 资金悬空（G-9）
+
+`AccountSecurityService.cancelAccount` 只读 `user_balance`（缓存）。而缓存是派生值：
+某笔流水写了但缓存更新失败时缓存会偏小，于是**用户能带着余额注销，钱再也退不出去**。
+`BalanceQueryService` 的接口注释当时还在为这个做法辩护（「缓存只用于注销前置校验」），
+等于把风险写成了设计。
+
+改为：账本（`SUM(balance_flow.delta_cents)`）与缓存**取较大值**做保守判定，任一口径 > 0 就拒绝；
+两个口径不一致时打 WARN 留给巡检。接口注释同步改成「决策点一律以账本为准，且必须与缓存交叉校验」。
+
+新增 `CancelAccountBalanceTest`（3 个用例，全部是「制造缓存 ≠ 流水」才有意义的场景）：
+缓存 0 / 流水 100 元 → 必须拒；流水 0 / 缓存 100 元 → 必须拒；两边都 0 → 注销成功且副作用完整。
+
+### 3. PC A-08 根本改不了法务正文（G-3，比原记录更严重）
+
+原记录是「表格里用单行 `el-input`，600~900 字正文看不全」。实测发现还有更硬的一层：
+
+**`AdminSysConfigUpdateBO.Item.configValue` 上有 `@Size(max = 500)`**，而
+`user_agreement_content` 是 619 字、`privacy_policy_content` 是 633 字。
+也就是说 **PC 后台永远存不进去这两条**，返回 `{"code":401001,"msg":"items[0].configValue: 配置值过长"}`。
+之所以一直没暴露：seed 是 SQL 直插绕过 BO 校验，开发阶段全部用脚本灌数据，只有运营真去后台改一次才会撞上。
+
+修两层：
+
+| 层 | 改动 |
+|---|---|
+| 后端 | `@Size(max = 500)` → `@Size(max = 20000)`，与 V12 把列改成 `TEXT`（65535 字节）后 UTF-8 的容量匹配；错误信息写明上限 |
+| 前端 | 长文本（`valueType=string` 且超 80 字）在表格里只放 60 字摘要 + 「编辑正文（N 字）」按钮，点开是 `rows=18` 的多行 textarea 弹窗，带实时字数；判定用「原值与当前值的较大者」，避免编辑中删短就掉回单行控件 |
+
+新增 `AdminSysConfigLongTextTest`（3 个用例）：用**库里那条真实 619 字正文**做样本原样写回
+（用构造的短串测的话，500 的上限也能过，测试等于没写）+ 20000 字边界通过 + 20001 字被拒且提示上限。
+
+`verify-g3-longtext.js` 用真实 Chrome 跑完整交互 **14/14 通过**：
+摘要渲染 → 弹窗 `rows=18` → 输入 252 字含 9 个换行且**换行真的保留** → 「确定」进待保存 →
+「保存修改」+ 二次确认落库 → 列表摘要变成新正文 → 最后走 API 恢复原值（`operation_log` 里改动与恢复成对）。
+
+**踩坑记录（CDP 验收）**：Chrome 会把后台标签页的 `requestAnimationFrame` 节流，
+RuoYi layout 用 `<transition>` 包 `router-view`，一被节流就永远停在 `fade-transform-leave-active`，
+**路由匹配对了、面包屑都变了，内容区还是上一页**。三处修复：Chrome 启动加
+`--disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-renderer-backgrounding`；
+脚本里 `Page.bringToFront`；切路由用 `router.push` 而不是给 `location.hash` 赋值
+（hash 已是目标值时不会触发 `hashchange`）。
+
+### 4. `docs/README.md` 基线号补齐 + 落款纠正
+
+v1.43 收口时这份索引没同步（§7.47 已登记），基线号停在 v1.42。另外发现它的**落款写错了**：
+§1.1 规定落款是「该文档第一次纳入基线的版本」并专门举例「根 README 落款仍是 v1.0」，
+但 v1.36 起被改成当前基线号后一路跟着升。本次改回 `v1.0` 并在 §1.1 补历史说明。
+
+### 收口
+
+| 项 | 结果 |
+|---|---|
+| 后端用例 | 48 → **54**（G-9 三条 + G-3 三条），全绿 |
+| 审计权限 | 6 项探针全过；已接入 `verify-seg1.ps1` 第 7 步作一票否决项 |
+| G-3 浏览器实测 | 14/14 通过（`deploy/verify-g3-longtext.js`，已入库） |
+| 段 1 完整验收 | `verify-seg1.ps1` 全绿：54/54 用例 → 对账差异 0 → 管理端 23/23 → 端到端 38/38 → 错误态 7/7 → **数据库权限 7 项**；**十条锚点全 PASS**，判定「可以收口」。证据 `docs/acceptance/seg1/verify-seg1-20261105-195014.log` |
+| 基线 | v1.43 → **v1.44**，资产数仍 **43**，内容变更 **1 份**（`docs/README.md`） |
+
+**本次没做的事**：`faze_app` 仍能 `SELECT` 全部业务表（含 `app_user.password_hash`、`realname_auth` 密文列），
+列级授权会让 MyBatis 的 `SELECT *` 直接报错，段 1 不动；`operation_log` 的超期清理仍然没有脚本
+（规范要求人工审批 + 先归档，属于运维流程而不是代码）。
+
+---
+
 ## 2026-11-05 · 第 1 段收口：APP 18 页 + 端到端验收，十条锚点全 PASS（基线 v1.43）
 
 **范围**：G 组（APP 18 页）/ H1（锚点验收）/ H2（收口五件套）。**真机口径全部改为浏览器验收**（负责人 2026-11-05 决定），
