@@ -1,8 +1,8 @@
 {
-  "runAt": "2026-11-04T20:25:39.465Z",
-  "phone": "13800003796",
-  "minorPhone": "13700003796",
-  "userId": "120",
+  "runAt": "2026-11-05T11:53:21.205Z",
+  "phone": "13800003568",
+  "minorPhone": "13700003568",
+  "userId": "9028",
   "results": [
     {
       "id": "E2E-0",
@@ -14,13 +14,13 @@
       "id": "1A1-1",
       "desc": "注册成功（发码+注册）",
       "ok": true,
-      "detail": "code=200 userId=120 sms=200"
+      "detail": "code=200 userId=9028 sms=200"
     },
     {
       "id": "1A1-2",
       "desc": "登录态可取资料（手机号脱敏）",
       "ok": true,
-      "detail": "phoneMasked=138****3796"
+      "detail": "phoneMasked=138****3568"
     },
     {
       "id": "FIX-1",
