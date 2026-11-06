@@ -1,5 +1,6 @@
 {
   "fallbackText": "内容暂时无法显示，请稍后重试",
+  "aiGeneratedLabel": "本内容由 AI 生成，仅供参考",
   "state": {
     "loading": "加载中",
     "empty": "暂无内容",
