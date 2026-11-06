@@ -922,7 +922,10 @@
 1. 文案来源：《i18n 规范》§10.4 L461 已定 **`common.aiGeneratedLabel` = 「本内容由 AI 生成，仅供参考」**。**直接用这个 key，不新造。**
 2. 组件：`shared/components/AiGeneratedLabel.tsx`
    - 用 `<LocalizedText>`（AGENTS §4.5：所有用户可见文本走 `t()`，禁裸 `<Text>`）
-   - 视觉：`tokens.fontSize.xs` + `tokens.color.textMuted`，`marginTop tokens.spacing.xs`
+   - 视觉：`tokens.fontSize.micro` + `tokens.color.text.muted`，`marginTop tokens.spacing.xs`
+     （**2026-11-07 施工回写**：原文写的是 `fontSize.xs` / `color.textMuted`，这两个令牌在
+     `apps/mobile-app/shared/theme/tokens.ts` 里不存在，实际是 `fontSize.micro` / `color.text.muted`；
+     另见 §十一 第 19 条：`text.muted` 对比度 2.85:1 低于 WCAG AA，是否升 `text.secondary` 待负责人拍板）
    - **固定挂载点**：每条 `role='assistant'` 消息气泡的**正下方**，不含用户消息
 3. **可断言的钩子（这是 `3-A5` 的核心，也是 121 E2E 的抓手）**：
    | 钩子 | 值 | 为什么 |
@@ -2164,7 +2167,28 @@ ON DUPLICATE KEY UPDATE
 
 | # | 计划 | 实际 | 偏差原因 | 影响 |
 |---|---|---|---|---|
-| | | | | |
+| 1 | A1：三张表 7/16/10 字段，`V300` 建表，空库可重放 | **一致**。开发库与临时库双验证：7/16/10、`COLLATE` 全对、`ai_message` 有 `updated_at`、`uk_ai_message_content_id` 唯一；18 个迁移在空库 `faze_seg3_replay` 顺序重放全 `exit=0`，重放库已删 | — | 无 |
+| 2 | A2：`law_item` 12→15，裁决不加 `ft_law_keywords` | **一致**。`is_enabled` 为 `NOT NULL DEFAULT 1`，V2 的 5 条自动为 1；`ft_on_keywords=0` | — | 无 |
+| 3 | A3：`V302` 是模板 + 首批法条 | **偏差**：`V302` 只放 **1 条**（民法典第 679 条），不是本文档 §五.8 的 5 条 | 段 0 施工时 `V2` 已灌 5 条，但实际内容（464/509/667/680/1079）与 §五.8 列的那组（679/577/1062/1165/47）**不是同一组**（段 0 已按负责人口径回写）。V302 只补 V2 缺的 679，避免同一迁移链里重复灌同一条 | 无。§五.8 与 `V2` 实际内容的不一致属段 0 的资产口径问题，不在本段修 |
+| 4 | A3：配置种子文件 `database/seed/sys_config_ai.sql` | **偏差**：实际文件名 `database/seed/seg3_config.sql` | 与段 1/段 2 的 `seg1_config.sql` / `seg2_config.sql` 命名保持一致；文件名不影响内容与幂等性 | 无。§五.7 的表格应回写为新名字 |
+| 5 | A4：首批约 50 个术语 | **一致**：51 条（技术路线 §13.8 的 40 个 + 补 11 个），全部 `zh-Hans`、`target_text` 空串、藏/维/哈行数 0 | — | 无 |
+| 6 | B1：`LawHit` 字段按 L420 的 8 个 | **偏差**：另加 `effectiveDate`（`LocalDate`）与 `status`（`String`） | D4 的 `refs` schema（L874–L885）要求冻结这两个字段，B1 字段表漏列 | 无（D4 与 A-28 都要用） |
+| 7 | B1：新建 `modules/ai/service/LawSearchService` | **偏差（施工事故）**：与段 0 的 `infra/law/LawSearchService` 简单类名相同，Spring 默认 bean 名撞车 → `ConflictingBeanDefinitionException` → **应用启动失败** | 两套检索共用一个 Mapper 是对的，但类名重复没预料到 | 无（已修：本段类改为 `@Service("aiLawSearchService")`，段 0 的类未动；按类型注入不受影响） |
+| 8 | B2：分页返回 `total` | **偏差**：`kw` 非空且候选取数超 200 条时 `total=-1`（`PageResult` 的「未统计」语义） | 深分页不重复扫全量；`-1` 是既有语义，不是本段新造 | 无（已在类注释与 B2 验收文档写明） |
+| 9 | C1：真豆包 key 跑真链路 | **偏差**：key 未到位，全程 `DoubaoClientStub`（每 60ms 一块，含真条号） | 本文档 §十 第 7 项（唯一未结案项） | **`3-A2` / `3-A3` / `3-A4` / `3-A8` 四条锚点挂账不判过**（mock 结果一律注明「本次为 mock」） |
+| 10 | C3：每 20 delta 用 `UPDATE ... SET content = CONCAT(content, ?)` | **偏差**：改成「每 20 delta / 2 秒刷**当前累积的全量**」 | 语义等价，且不把模型输出拼进 SQL（避免输出里的引号/反斜杠进入 SQL 文本） | 无。结束时的「写全量」与之幂等 |
+| 11 | C3/C4：中断即 `Disposable.dispose()` 取消上游 | **偏差**：断线后**不立即取消**，继续写 Redis/刷库并挂 30 秒回收；30 秒内无人重连才 `dispose()` 并记 `UPSTREAM_CANCELED` | RN 的 `abort()` 与服务端「客户端断线」在 HTTP 层不可区分；立即取消会让 `3-A8`「断网 10 秒重连从断点接上」物理上做不到 | **`3-A8` 的判定依赖这个实现**，`3-A8` 文档必须写明 |
+| 12 | C3：`event: start` 字段名 | **偏差（缺陷，已修）**：实测还带着旧字段 `sessionId`，已删除，只留 `conversationId` / `messageId` / `model` | 技术路线改名后残留 | 无 |
+| 13 | C1：配置项全部从 `sys_config` 读 | **偏差**：`ai_ark_base_url` **不**种进 `sys_config` | baseUrl 是部署环境参数，不是运营可调参数；放环境变量（`FAZE_ARK_BASE_URL`）更合适，`sys_config` 覆盖只作排障口子 | 无。§五.5 的键表本就没有它 |
+| 14 | D1：`【检索到的法条】`给条文全文 | **偏差**：全文由 `LawItemMapper.selectByIds` **回查数据库**，不用 `LawHit.content` | L758 要求给全文、L420 要求 `LawHit.content` 截断 200 字——两者冲突；全文只能回查 | 无（`selectBatchIds` 在 MP 3.5.18.1 已 `@Deprecated`，改用 `selectByIds`） |
+| 15 | D3：`PARTIAL_MISS` 删条号；`508002` 只给「所有条号都不存在且无法降级」 | **偏差**：统一为「**先删条号，再判剩余**」——删完去空白与标点后 <20 字 → `508002`；≥20 字 → 返回删除版 + 追加核实提示 | L845 与锚点 `3-A3`（L1691–1693）表面冲突，按「无法降级」的文义统一；20 字阈值定义「无法降级」 | `3-A3` 的两支都可用单测断言 |
+| 16 | D4：`refs` schema 里 `lawItemId` 是数字 | **偏差**：实际序列化为**字符串**（`"lawItemId":"7"`） | 项目全局规则「Long 型 ID 一律序列化为字符串」（AGENTS §4 第 7 条 + `JacksonConfig`），`refs` 里的 Long 也被这条规则覆盖 | 段 4 / A-28 读 `refs` 时要按字符串解析或兼容两种；B4 的 `JSON_TABLE ... BIGINT PATH '$.lawItemId'` **实测能正确转换**（679 → 2 次、7 → 7 次） |
+| 17 | E1：组件用 `tokens.fontSize.xs` + `tokens.color.textMuted` | **偏差**：实际令牌是 `fontSize.micro` + `color.text.muted` | 本文档 L925 写的令牌名在 `shared/theme/tokens.ts` 里不存在 | 本文档 L925 已按实际改写 |
+| 18 | E1：四语言 json 同一 key 都要有位置 | **偏差**：`bo` / `ug-Arab-CN` / `kk-Arab-CN` **不写 null**，只由脚本登记进 `.i18n-pending.json` | 现有 `check-i18n.ps1` 把「key 存在且值为 null」视作已存在 → 缺译登记失效；且 pending 文件是脚本生成、无 reason 字段 | 段 8 收口时必须清零该 key；本段记录在 `E1-label.md` |
+| 19 | E1：标识用 `textMuted` | **偏差（遗留风险）**：`textMuted #999999` 实测对比度 on `#FFF` = 2.85:1，低于 WCAG AA 4.5:1 | 令牌本身的问题，不是本段引入 | **需负责人拍板**是否把标识文案升到 `color.text.secondary`（5.74:1）。本段按文档用了 `textMuted` |
+| 20 | 工程：C2~C5 的线程/调度基础设施 | **偏差（施工事故，已修）**：`AiStreamSchedulerConfig` 的 `@Bean` 直接返回 `ScheduledExecutorService`，命中 Boot 的 `TaskExecutionAutoConfiguration#@ConditionalOnMissingBean(Executor.class)` → `applicationTaskExecutor` 不再创建 → `ProbeController` 注入失败 → **应用启动失败** | 容器装配错误只能在启动时暴露（javac 自检验不出） | 无（已修：新增包装类 `AiStreamScheduler`，不实现 `Executor`，线程池与策略全部保留） |
+| 21 | 全量测试 | **通过**：注入 `deploy/.env` 的 `FAZE_*` 后 `mvn -B -o test` **316 tests / 0 failures / 0 errors / 0 skipped** | — | 无 |
+| 22 | 工程：SSE 断线后的异步分派 | **偏差（基础设施缺陷，已修）**：`SseEmitter` 完成/超时后容器做 `DispatcherType.ASYNC` 重新分派，此时 `JwtAuthenticationFilter` 跳过、`SecurityContext` 已清 → `AuthorizationFilter` 拒绝 → 日志刷 `AuthorizationDeniedException` + `Cannot render error page`（数据不受影响，但日志被污染、看起来像 401） | `authorizeHttpRequests` 只按「请求路径」授权，而 ASYNC 分派复用的是同一路径 | 已在 `SecurityConfig` 最前面加 `.dispatcherTypeMatchers(DispatcherType.ASYNC).permitAll()`（只放行异步分派这一种 type，普通 `REQUEST` 仍走 `authenticated()`）。修后实测：一次完整 SSE 的新增日志里该类异常 **0 条** |
 
 ---
 

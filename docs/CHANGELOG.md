@@ -4,6 +4,66 @@
 
 ---
 
+## 2026-11-07 · 段 3 A~E 组施工（AI 法律顾问：地基 / 检索 / 流式 / 防护 / 留存，基线 v1.49）
+
+> 负责人指令：「从 A 组、B 组一直做到 E 组结束，中间遇到必须我解答的问题留到 E 组做完之后再问」。
+> 本轮只做 **A（数据与地基）/ B（检索内核）/ C（豆包接入与 SSE）/ D（三层防护）/ E（合规留存）** 五组共 20 个任务，
+> **F（APP AI 页）/ G（历史页）/ H（PC 两页）/ I（收口）四组没做**。
+
+### 1. 五组各自的结论
+
+| 组 | 任务 | 结论 | 关键证据 |
+|---|---|---|---|
+| **A** | A1 三张表 / A2 `law_item` 补字段 / A3 导入通道 / A4 术语表 | **全部通过** | 字段数实测 **7 / 16 / 10**、`law_item` **12→15**、`ft_on_keywords=0`；18 个迁移在临时库 `faze_seg3_replay` **顺序重放全 exit=0**（结果与开发库一致，重放库已删）；`i18n_glossary` **51 条全 `zh-Hans`**、藏/维/哈行数 **0** |
+| **B** | B1 四路径检索 / B2 `pub/law-items` / B3 条号校验 / B4 引用统计 | **全部通过** | `EXPLAIN` 全文走 `type=fulltext key=ft_law_content`；`kw=借条`→total=1、`kw=婚`（单字）→2 条不报错、`pageSize=999→50`、**第 61 次请求 = 401007**；中文数字 1~1260 往返 0 失败；B4 真库 **679:2 / 1042:1** |
+| **C** | C1 豆包客户端 / C2 提交 / C3 SSE 续传 / C4 中断与超时 / C5 配额 | **代码全部落地，判定挂账** | mock 下 SSE 全链路实测通：`start`→55×`delta`→`refs`→`done{finishReason:"stop",promptTokens:128,completeTokens:96}`；配额 Lua 判超+回退原子（redis-cli 实测） |
+| **D** | D1 Prompt 组装 / D2 输入拦截 / D3 输出校验 / D4 `refs` 快照 | **全部通过（机制层）** | 37 个单测；`3-A4` 三句（含英文）→`408005`、`离婚能赔多少钱`→`408004`、`借款能要回来吗`→PASS；真库事务证据：改 `law_item.content` 前后 `MD5(refs)` 完全相同 |
+| **E** | E1 显式标识 / E2 内容编号 / E3 留存策略 | **E1/E2 机制层通过，E3 成文** | `testID="ai-generated-label"` + `accessibilityLabel` + `nativeID` 三套钩子；`content_id` 全匹配 `^AI-[0-9a-f]{32}$`；`AI对话留存策略.md` 五问齐全 |
+
+### 2. 代码
+
+- **迁移 4 个**：`V300__create_ai_tables.sql`（3 张表，无数据）、`V301__alter_law_item.sql`（+3 列 +1 索引，**不加 `ft_law_keywords`**）、`V302__import_law_items.sql`（模板 + 首批 1 条：民法典第 679 条）、`V303__init_i18n_glossary.sql`（51 条中文术语）。开发库 `flyway_schema_history` 四条全 `success=1`。
+- **配置种子 1 个**：`database/seed/seg3_config.sql`（8 个键，**不进 Flyway**，沿用段 1/2 的 seed 口径）：`ai_enabled` / `ai_model` / `ai_daily_quota` / `ai_search_topn` / `ai_timeout_seconds` / `ai_first_byte_timeout_ms` / `ai_message_retention_days` / `law_search_rate_per_min`。
+- **服务端**：`modules/ai/{entity,mapper,dto,service,controller,support,util,config}` 新建；`infra/ai/`（豆包客户端 + Stub，**段 0 的 `infra/probe/DoubaoClient` 一个字没动**）；`infra/law/mapper/LawItemMapper` 追加 6 条查询（`searchByNgram` 段 0 冻结未动）；`ErrorCode` 补 `408001`~`408005` + `508002`；`pom.xml` 加 `spring-boot-starter-webflux`（只为 `WebClient`）。
+- **移动端**：`shared/components/AiGeneratedLabel.tsx` + `zh-Hans/common.json` 一行 + `.i18n-pending.json` 三语缺译登记（**没编造少数民族文字译文**）。
+
+### 3. 两起「应用起不来」的施工事故（已修，必须留档）
+
+| 事故 | 现象 | 根因 | 修法 |
+|---|---|---|---|
+| ① bean 名撞车 | `ConflictingBeanDefinitionException: bean name 'lawSearchService' ... conflicts with ... [com.faze.infra.law.LawSearchService]` | 本段 `modules/ai/service/LawSearchService` 与段 0 探针**简单类名相同**，`@Service` 默认 bean 名一样 | 本段类改 `@Service("aiLawSearchService")`，段 0 的类未动 |
+| ② 调度器污染自动配置 | `APPLICATION FAILED TO START`：`ProbeController` 的 `@Qualifier("applicationTaskExecutor") TaskExecutor` 注入失败 | `AiStreamSchedulerConfig` 的 `@Bean` 直接返回 `ScheduledExecutorService`，命中 Boot `TaskExecutionAutoConfiguration` 的 `@ConditionalOnMissingBean(Executor.class)`（它是 `Executor` 子类型）→ `applicationTaskExecutor` 不再创建 | 新增包装类 `AiStreamScheduler`（持有线程池、**不实现 `Executor`**），配置类返回它 |
+
+> **教训**：`javac` 自检只能验语法，**容器装配错误只有启动才暴露**。两次都是「编译 exit=0、启动 exit=1」。
+
+**另修一处基础设施缺陷（第 3 起，非「起不来」但污染日志）**：
+
+| 缺陷 | 现象 | 根因 | 修法 |
+|---|---|---|---|
+| SSE 断线后的异步分派被拒 | 一次断线重连后日志出现 3 条 `AuthorizationDeniedException` + `Cannot render error page`（数据不受影响，但看起来像 401） | `SseEmitter` 完成/超时后容器做 `DispatcherType.ASYNC` 重新分派，此时 `JwtAuthenticationFilter` 已跳过、`SecurityContext` 已清，而 `authorizeHttpRequests` 只按路径判 → `/api/v1/app/**` 要求 `authenticated()` → 拒绝这次内部分派 | `SecurityConfig` 的授权链最前面加 `.dispatcherTypeMatchers(DispatcherType.ASYNC).permitAll()`（Spring Security 对异步分派的标准做法；**只放行 ASYNC 这一种 dispatcher type**，普通 `REQUEST` 仍走原来的规则） |
+
+修后实测：一次完整 SSE（`start`→`delta`×N→`refs`→`done`）在新增的 102 行日志里该类异常 **0 条**。
+
+### 4. 测试
+
+- **本段单测 70 个全部通过**（`mvn -B -o -Dtest=... test`，surefire 报告在 `target/surefire-reports`）：B 组 33 + D 组 24 + E2 9 + 其他 4。
+- **全量回归**：注入 `deploy/.env` 的 `FAZE_*` 环境变量后 `mvn -B -o test` → **316 tests / 0 failures / 0 errors / 0 skipped，BUILD SUCCESS**。**注意**：不注入环境变量直接跑会有 5 个 `@SpringBootTest` 报 `Could not resolve placeholder 'FAZE_DB_URL'`——那是环境缺失，不是段 3 回归（已实测同一批测试注入后 5/5 全绿）。
+
+### 5. 文档
+
+- **新增 2 份**（基线 v1.49 登记）：`docs/standards/法条数据录入规范.md`、`docs/standards/AI对话留存策略.md`。
+- **验收证据 19 份**：`docs/acceptance/seg3/{A1,A2,A3,A4,B1,B2,B3,B4,C1,C2,C3,C4,C5,D1,D2,D3,D4,E1,E2}.md`（C 组的 mock 挂账见各文件挂账表）。
+- 回写：《第 3 段工作流》§十一 写满 22 条偏差 + L925 令牌名改正；《依赖清单》+webflux；`docs/README.md` +2 行索引与基线号；`docs/BASELINE.md` v1.48→**v1.49**（新增 2 + 变更 3）。
+
+### 6. 明确没做的与挂账
+
+- **F/G/H/I 四组未开工**：APP AI 页与历史页、PC A-27/A-28、黄金 30 题与 `3-A1`~`3-A8` 收口。因此**段 3 尚未出口**。
+- **豆包 key 仍未提供**（工作流 §十 第 7 项）：C 组全程 `DoubaoClientStub`，**`3-A2` / `3-A3` / `3-A4` / `3-A8` 四条锚点不判过**。key 到位后只需在 `deploy/.env` 填 `FAZE_ARK_API_KEY` + 把 `FAZE_AI_MOCK` 置 `false`，不用改代码。
+- **`3-A5` 真机判定挂账**：本机 `adb devices` = 0、无模拟器，E1 只交钩子清单与静态证据。
+- **两处需负责人拍板**（已记在《第 3 段工作流》§十一 第 19 条与 E1 验收文档）：①`color.text.muted` 对比度 2.85:1 低于 WCAG AA，AI 标识文案是否升 `text.secondary`（5.74:1）；②`refs` 里 `lawItemId` 因全局 Long→String 规则被序列化成**字符串**，段 4 读 `refs` 时要按字符串解析（`JSON_TABLE ... BIGINT PATH` 实测可正确转换，不影响 B4）。
+
+---
+
 ## 2026-11-07 · 段 3 开工前清账（11 份文档，基线 v1.48）
 
 > 负责人指令：段 3 开工前先核查前提，查出问题先报；报完后定「**先清账**」。本轮**未写任何段 3 代码**。

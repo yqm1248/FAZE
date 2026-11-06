@@ -93,6 +93,8 @@
 | 怎么打一个能装到手机的 APK（换机器怎么重建） | [standards/构建路径.md](standards/构建路径.md) |
 | 藏文/阿拉伯系用哪个字体（授权与加载） | [standards/字体选型.md](standards/字体选型.md) |
 | SSE 流式怎么收、探针怎么用、首字节怎么量 | [standards/探针与流式约定.md](standards/探针与流式约定.md) |
+| 法条怎么录（逐字准确、两个条号字段、Flyway 与运营期两条路） | [standards/法条数据录入规范.md](standards/法条数据录入规范.md) |
+| AI 对话存多久、脱敏与否、导出什么格式（留存策略） | [standards/AI对话留存策略.md](standards/AI对话留存策略.md) |
 | 为什么不用原项目那套代码 | [analysis/原项目技术债清单.md](analysis/原项目技术债清单.md) |
 | 这三份规范从哪来 | [analysis/参考项目规范提取.md](analysis/参考项目规范提取.md) |
 | 协作规则、禁止事项 | [../AGENTS.md](../AGENTS.md) |
@@ -104,7 +106,7 @@
 ```text
 docs/
   README.md                              本索引
-  BASELINE.md                            ★ 文档基线 v1.45 —— 一切文档从这里开始（43 份资产 + SHA256 指纹）
+  BASELINE.md                            ★ 文档基线 v1.49 —— 一切文档从这里开始（45 份资产 + SHA256 指纹）
   CHANGELOG.md                           每次推送的完整变更说明（改了什么 / 为什么 / 影响面 / 核对结果）
   architecture/                          ★ 只留现行版，历史版本在 git 里
     法泽FAZE_开发计划总纲_v1.0.md          ★ 起点：9 段顺序、每段边界、页面归属（68+28）、79 条验收锚点、段的门禁
