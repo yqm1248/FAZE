@@ -106,7 +106,8 @@
 | 6 | 手动触发对账 | `RECONCILE_RUN` | ⚠️ 建议（不改钱，但会产生差异工单） |
 | 6 | 对账差异处理（标记已处理） | `RECONCILE_HANDLE` | ✅ **必须**（等于确认「这笔差异不用管了」） |
 | 7 | 文章上架 / 下架 | `ARTICLE_PUBLISH` / `ARTICLE_OFFLINE` | ✅ 必须 |
-| 7 | 法条修订 | `LAW_ITEM_EDIT` | ✅ 必须（AI 引用它） |
+| **3** | 法条修订（A-27） | `LAW_ITEM_EDIT` | ✅ 必须（AI 引用它；A-27 归段 3 实现，原写「段 7」有误，2026-11-06 更正） |
+| **3** | **AI 对话导出**（A-28 单条导出 JSON） | `AI_CONVERSATION_EXPORT` | ✅ **必须**（`ai_message.content` 是 L4 级敏感数据，导出离开系统管控；2026-11-01 负责人定：**查看不审计，只审计导出**） |
 | 7 | 敏感词增删改 | `SENSITIVE_WORD_*` | ✅ 必须 |
 | 7 | 公告推送 | `ANNOUNCEMENT_PUSH` | ✅ 必须（触达全量用户） |
 | 7 | 内容审核处置 | `CONTENT_REVIEW_*` | ✅ 必须 |

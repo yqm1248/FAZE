@@ -1112,6 +1112,10 @@
 
 - **生成日期**：2026-11-01。
 - **依据的实测**：仓库 HEAD `bb824c4`（分支 `UI设计`）；数据表规范附录 A 49 张表逐行读过；技术路线 10 张表 DDL 行号逐张核对（10/10 准确）；字段数比对 10/10 一致；`conversation` / `orders` / `payment_record` / `refund_record` / `review` / `lawyer` 的 DDL 逐个读过；设计稿 `11-order-detail.html` / `31-pay.html` / `02-lawyer.html` 的关键区块读过。
+- **段 3 回写（2026-11-06）**：
+  1. **消息气泡组件未抽到 `shared/`**：段 2 的 `features/conversation/pages/ChatPage.tsx` 自带一套气泡实现，段 3 按 AGENTS §3.1「两个以上业务域复用放 `shared/components/`」抽成 `shared/components/MessageBubble.tsx`。段 2 的 `ChatPage` **本段不改**（已验收，改动会触发回归），后续段统一切到 shared 组件；登记为遗留项，不是缺陷。
+  2. **AI 计费**：段 2 的 `deduct()` 不含 AI（AI 不计费，2026-11-01 负责人定）；`3-A8` 的「计费」即配额。
+
 - **已知局限**：
   1. **段 0、段 1 的施工都没开始**，所以本文档的「前置检查」是**对段 1 出口的预测性要求**，不是实测现状。开工前必须逐条复查。
   2. **接口数量是按技术路线 §4.8.2 清点的**（App 27 + PC 11），若《接口规范》有增减，以那份为准并回改本文档 §五.2。

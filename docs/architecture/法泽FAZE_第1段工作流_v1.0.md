@@ -200,7 +200,7 @@
 
 #### A1 · 12 张表的 DDL 定稿与 Flyway 迁移脚本
 
-**目标**：12 张表进 `V2__`~`V5__` 迁移脚本，`mvn flyway:migrate` 一次跑通，空库可重放。
+**目标**：12 张表进 `V3__`~`V6__` 迁移脚本（**2026-11-06 更正**：本篇原写 `V2__`~`V5__`，但 `V2` 已被段 0 的 `V2__init_law_items.sql` 占用，实际执行时顺延为 `V3`~`V6`；后续段 1 补丁迁移到 `V12`），`mvn flyway:migrate` 一次跑通，空库可重放。
 
 **前置**：A3 通过；MySQL 凭据可用（前置 #8）。
 
@@ -235,10 +235,10 @@
 
 1. 定位迁移目录（段 0 已定，预期 `services/faze-api/src/main/resources/db/migration`）
 2. **按业务闭包拆 4 个脚本**（不是按表数平均）：
-   - `V2__account_auth.sql`：`realname_auth`、`enterprise_auth`、`user_device`、`login_log`
-   - `V3__lawyer.sql`：`lawyer`、`lawyer_application`、`lawyer_application_log`
-   - `V4__wallet.sql`：`user_balance`、`lawyer_balance`、`balance_flow`
-   - `V5__ops_config.sql`：`sys_config`、`operation_log`
+   - `V3__account_auth.sql`：`realname_auth`、`enterprise_auth`、`user_device`、`login_log`（实际文件名，原写 `V2__`）
+   - `V4__lawyer.sql`：`lawyer`、`lawyer_application`、`lawyer_application_log`（实际文件名，原写 `V3__`）
+   - `V5__wallet.sql`：`user_balance`、`lawyer_balance`、`balance_flow`（实际文件名，原写 `V4__`）
+   - `V6__ops_config.sql`：`sys_config`、`operation_log`（实际文件名，原写 `V5__`）
 3. 每张表 `CREATE TABLE IF NOT EXISTS`（救「手工建过表」后的重放）
 4. **每个字段带 `COMMENT`**（《数据表规范》强制条款）
 5. `mvn -o flyway:info` → `mvn -o flyway:migrate`

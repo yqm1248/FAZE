@@ -772,10 +772,12 @@ public class R<T> implements Serializable {
 | | `GET /app/case-library` · `GET /app/case-library/{id}` | 案例库 |
 | | `GET /pub/law-items?kw=` | 法条检索（AI 与搜索共用） |
 | | `GET /app/search?kw=&type=` | 全局搜索 |
-| **ai** | `POST /app/ai/sessions` | 提交问题 |
-| | `GET /app/ai/stream?sessionId=&fromSeq=` | SSE 订阅 |
-| | `GET /app/ai/sessions` · `GET /{id}/messages` | 历史 |
-| | `DELETE /app/ai/sessions/{id}` | 会话删除 |
+| **ai** | `POST /app/ai/conversations` | 提交问题（返回 `streamUrl` + 追踪用 `messageId`，真实 assistant id 在 `event: start` 给） |
+| | `GET /app/ai/stream?conversationId=&fromSeq=` | SSE 订阅 + 断线续传 |
+| | `GET /app/ai/conversations` · `GET /{id}/messages` | 历史（含摘要，后端聚合） |
+| | `DELETE /app/ai/conversations/{id}` | 会话软删（`deleted_at`） |
+| | `GET /app/ai/quota` | 今日剩余轮次（**段 3 新增，技术路线原文没有**） |
+| | `GET /pub/sys-config?keys=` | 公开白名单配置（**段 3 新增**，只读白名单键，供 AI 开关降级与配额显示） |
 | **ops** | `GET /app/notifications` · `POST /{id}/read` | 消息中心（段 2）；read 时**公告的 `open_count` +1**（段 7） |
 | | `POST /app/complaints` · `GET /app/complaints` | 投诉提交与我的列表（**GET 为段 7 新增**） |
 | | `POST /app/feedback` · `GET /app/feedback` | 反馈提交与我的列表（**GET 为段 7 新增**） |
@@ -1011,10 +1013,10 @@ HTTP 状态码：**成功一律 200**（含业务失败也返回 200 + code）�
 | `GET /admin/login-logs/export` | **导出登录日志**（CSV，审计 `LOG_EXPORT`，段 7 新增） | `login_log` |
 | `GET /admin/ops/health-report` | **每日巡检报告**（5xx / P95 / 备份 / 磁盘 / 待处理数，段 7 新增） | 跨域聚合 |
 | `GET /admin/exports/{taskId}/download` | **异步导出下载**（> 5000 行时走任务，段 7 新增） | `task_queue` |
-| `GET /admin/ai-sessions?userId=&beginTime=&endTime=&refStatus=` | AI 会话检索（**A-28，归段 3 实现**，列在此组仅为按页面编号归位） | `ai_conversation` |
-| `GET /admin/ai-sessions/{id}/messages` | 问答原文 + 生成时冻结的 `refs` 快照 | `ai_message` |
-| `POST /admin/ai-sessions/{id}/review` | 标记已复核（只写复核状态，不改原文） | `ai_conversation` |
-| `GET /admin/ai-sessions/{id}/export` | 导出本条记录（合规追溯留档） | 同上 |
+| `GET /admin/ai-conversations?userId=&beginTime=&endTime=&pageNum=&pageSize=` | AI 会话检索（**A-28，归段 3 实现**；**含已软删会话**，带 `deletedAt` 供页面标「用户已删除」） | `ai_conversation` |
+| `GET /admin/ai-conversations/{id}/messages` | 问答原文 + 生成时冻结的 `refs` 快照 + `model` | `ai_message` |
+| ~~`POST /admin/ai-conversations/{id}/review`~~ | **段 3 明确不做**（2026-11-01 负责人定：去掉复核字段与 UI，只保留输出侧存在性校验机制） | — |
+| `GET /admin/ai-conversations/{id}/export` | 导出本条记录（JSON，脱敏；审计动作 `AI_CONVERSATION_EXPORT`） | `ai_message` |
 
 > **A-28 的 `refs` 快照是生成时冻结的**：法条修订不回溯改历史记录；回答里引的条文与快照内容不一致时，说明法条在回答之后被改过。
 
@@ -1076,7 +1078,7 @@ HTTP 状态码：**成功一律 200**（含业务失败也返回 200 + code）�
 | 25 | `feedback` | 意见反馈 |
 | 26 | `login_log` | 登录日志 |
 | 27 | `operation_log` | 操作日志 |
-| 28 | `ai_session` | AI 会话 |
+| 28 | `ai_conversation` | AI 会话（原 `ai_session`，2026-11-01 更名） |
 | 29 | `ai_message` | AI 消息 |
 | 30 | `faq` | 常见问题 |
 
@@ -1934,8 +1936,8 @@ CREATE TABLE operation_log (
   KEY idx_oplog_module (module)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 28. AI 会话
-CREATE TABLE ai_session (
+-- 28. AI 会话（原 ai_session；2026-11-01 更名。实际迁移见段 3 的 V300__create_ai_tables.sql）
+CREATE TABLE ai_conversation (
   id          BIGINT PRIMARY KEY AUTO_INCREMENT,
   user_id     BIGINT NOT NULL,
   title       VARCHAR(200),
@@ -1943,13 +1945,13 @@ CREATE TABLE ai_session (
   created_at  DATETIME NOT NULL,
   updated_at  DATETIME NOT NULL,
   deleted_at  DATETIME,
-  KEY idx_ai_session_user (user_id)
+  KEY idx_ai_conversation_user (user_id, deleted_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 29. AI 消息
+-- 29. AI 消息（字段数以《数据表规范》附录 A 的 **16** 字段为准，本 DDL 仅示意；类别 C 状态机）
 CREATE TABLE ai_message (
   id              BIGINT PRIMARY KEY AUTO_INCREMENT,
-  session_id      BIGINT NOT NULL,
+  conversation_id BIGINT NOT NULL,
   user_id         BIGINT NOT NULL,
   role            VARCHAR(10) NOT NULL,       -- user / assistant / system
   content         MEDIUMTEXT,
@@ -1958,9 +1960,10 @@ CREATE TABLE ai_message (
   complete_tokens INT,
   refs            JSON,                       -- 引用的法条
   lang            VARCHAR(20),
-  safety_passed   TINYINT DEFAULT 1,
+  is_safety_passed TINYINT DEFAULT 1,
   created_at      DATETIME NOT NULL,
-  KEY idx_ai_message_session (session_id)
+  updated_at      DATETIME NOT NULL,            -- C 类必须有
+  KEY idx_ai_message_conversation (conversation_id, id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 ```
 
@@ -2368,7 +2371,7 @@ app_user 1───* social_action          （favorite / follow / like / histor
 app_user 1───* notification
 app_user 1───* complaint
 app_user 1───* feedback
-app_user 1───* ai_session 1───* ai_message
+app_user 1───* ai_conversation 1───* ai_message
 app_user 1───* service_ticket *───0..1 agent
 
 # ── 基础设施 ──
@@ -2708,8 +2711,8 @@ data: {"code":80001,"msg":"AI 服务暂时不可用，请稍后重试"}
 
 | 步骤 | 接口 | 说明 |
 |---|---|---|
-| 1. 提交问题 | `POST /api/v1/ai/sessions` body: `{ sessionId?, question, lang, attachments? }` | 返回 `{ sessionId, messageId, streamUrl }` |
-| 2. 订阅流 | `GET /api/v1/ai/stream?sessionId=&fromSeq=0` | SSE 长连接，服务端把该会话的回答逐段推送 |
+| 1. 提交问题 | `POST /api/v1/app/ai/conversations` body: `{ conversationId?, question }` | 返回 `{ conversationId, messageId, streamUrl }`。**没有 `lang`**（固定简体中文，段 3 §零.3 第 4 项）、**没有 `attachments`**（附件不做，§零.3 第 16 项）。`messageId` 是本次请求的追踪 id，assistant 真实 id 在 `event: start` 给 |
+| 2. 订阅流 | `GET /api/v1/app/ai/stream?conversationId=&fromSeq=0` | SSE 长连接，服务端把该会话的回答逐段推送 |
 | 3. 断线重连 | 重连时带 `fromSeq=<已收到的事件序号>` | 服务端从该序号继续推送，**不重复不丢失** |
 
 | 项 | 实现 |
@@ -2718,7 +2721,7 @@ data: {"code":80001,"msg":"AI 服务暂时不可用，请稍后重试"}
 | 渲染 | 收到 `delta` 追加文本，打字机效果 |
 | 中断 | 页面卸载或用户点停止 → `abort()`，后端同步取消上游豆包请求 |
 | 失败 | 显示重试按钮，重试复用同一 `sessionId` 与新 `messageId` |
-| 落库时机 | **每个 delta 事件到达即落库**（V2.1 只在 `done` 落库，断线会丢整段回答） |
+| 落库时机 | ~~每个 delta 事件到达即落库~~ → **Redis 暂存 delta + 每 20 个 delta 或每 2 秒刷一次库 + 结束时写全量**（段 3 §三 C3 第 7 条实测定：每 token 一次 UPDATE 是性能灾难；最多丢 20 个 token，用户感知不到） |
 
 ---
 
@@ -3077,13 +3080,15 @@ public interface PaymentGateway {
 5. 不得回答与中华人民共和国法律无关的问题
 
 【语言】
-按用户当前语言回答（zh-Hans / bo / ug-Arab-CN / kk-Arab-CN）
+始终使用简体中文回答，不使用其他语言。（2026-11-01 负责人定：段 3 不做多语言 AI 回答，四语言留段 8 复评）
 
 【固定结尾】
 本回答由 AI 生成，仅供了解法律信息，不构成正式法律意见，具体案件请咨询执业律师。
 ```
 
 ## 11.4 多语言
+
+> **段 3 裁决（2026-11-01 负责人）**：**AI 不做多语言回答**，Prompt 固定「始终用简体中文」。下面四条整体留段 8 复评，段 3 不实现；术语表 `i18n_glossary` 段 3 只做中文源术语与读法，不编藏/维/哈译文。
 
 - 后端按 App 当前语言（`zh-Hans` / `bo` / `ug-Arab-CN` / `kk-Arab-CN`）追加语言指令
 - **豆包对藏文/维吾尔文/哈萨克文的生成能力需上线前实测**；若质量不足，降级策略为：
@@ -3188,6 +3193,8 @@ public String validateOutput(String answer) {
 注意：本节结论仅适用于当前阶段。上线前须由项目负责人复核一次。
 
 ## 12.2 AI 内容安全
+
+> **段 3 裁决（2026-11-01 负责人）**：**不接第三方内容安全 API**。段 3 只做「提示注入 / 越界意图」识别（输入侧）+「禁语与条文号存在性」校验（输出侧）；《生成式 AI 服务管理办法》意义上的机审由后台人工审核 + 121 E2E 覆盖，段 7 内容审核体系再评估。下表是段 7 的目标态，**不是段 3 的实现要求**。
 
 | 环节 | 措施 |
 |---|---|
@@ -3556,6 +3563,8 @@ export function formatRelative(date: Date, lang: Lang): string;
 
 技术：阿里云内容安全（文本/图片/视频），机审不通过转人工。
 
+> **段 3 不接**（2026-11-01 负责人定）：AI 对话侧只做输入意图识别与输出条文号校验，不接第三方机审；本条适用于段 7 的内容审核体系。
+
 ## 16.2 敏感词过滤（V2.3 重写）
 
 > **V2.2 的错误**：原文写「实时替换/拦截」。**在法律业务里"替换"是有害的**——
@@ -3575,7 +3584,7 @@ export function formatRelative(date: Date, lang: Lang): string;
 
 | 层 | 职责 | 说明 |
 |---|---|---|
-| **主：阿里云内容安全** | 中文实时文本审核 | 覆盖广、持续更新、有官方合规背书 |
+| **主：阿里云内容安全** | 中文实时文本审核 | 覆盖广、持续更新、有官方合规背书（**段 3 不接**，见 §12.2 的裁决注记；本条适用于段 7） |
 | **辅：本地 `sensitive_word` 词库** | ①阿里云超时/失败时兜底 ②业务自定义词（如"包过""稳赢"这类法律行业禁语）③小语种关键词 | 不追求全面 |
 | **小语种** | **机器审核覆盖率低，必须配人工审核岗** | 维吾尔文/哈萨克文/藏文内容上线前人工过一遍 |
 
@@ -4099,7 +4108,7 @@ volumes:
 ### 24.1.2 法条基础数据
 
 `law_item` 的 2000–3000 条**不是种子，是基础数据**，作为 Flyway 迁移随版本发布：
-`V2__init_law_items.sql`
+段 0 的 `V2__init_law_items.sql` 只放 **5 条**（探针用）；全量走段 3 的 **`V302__import_law_items.sql`**（模板 + `ON DUPLICATE KEY UPDATE`，可重复执行）。**运营期新增法条不走迁移**，走后台 A-27 批量导入或直接 SQL（见 `docs/standards/法条数据录入规范.md`）。
 
 ### 24.1.3 一键重置脚本
 

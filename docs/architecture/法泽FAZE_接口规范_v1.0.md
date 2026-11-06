@@ -732,7 +732,7 @@ if (o == null) throw new BusinessException(TRADE_ORDER_NOT_FOUND);
 
 | 项 | 规则 |
 |---|---|
-| 路径 | `GET /api/v1/app/ai/stream?sessionId=&fromSeq=` |
+| 路径 | `GET /api/v1/app/ai/stream?conversationId=&fromSeq=`（2026-11-01 改名：`sessionId` → `conversationId`，与 `ai_conversation` 表名一致） |
 | 鉴权 | **RN 用 `fetch` 读流，不用 `EventSource`**——`EventSource` 不能带自定义头，token 只能进 URL。RN 的 `fetch` 支持 `response.body.getReader()`，可以带 `Authorization` 头。**这是本项目的硬裁决**，不接受 `EventSource` |
 | 断线续传 | 客户端记录 `fromSeq`，重连带 `fromSeq` 从断点续；服务端按 `seq` 重放 |
 | 首字节 | 服务端必须在 5 秒内出首字节（锚点 `0-A5`），否则返回 `508001 ai.service-down` |
@@ -765,6 +765,16 @@ if (o == null) throw new BusinessException(TRADE_ORDER_NOT_FOUND);
 | 4 | `GET /api/v1/app/account/profile` | **唯一目的是提供一个「需鉴权资源」，让 `0-A2` 能验 401** | access token | 见 §7.2 资料组 | `0-A2` |
 | 5 | `POST /api/v1/pub/probe/ai` | 触发豆包 SSE 探针，验首字节 | 无（`@Profile("!prod")`） | SSE 流 | `0-A5` |
 | 6 | `GET /api/v1/pub/probe/law?kw=` | 用 ngram 检索 `law_item`，验命中 | 无（`@Profile("!prod")`） | `{hits: [{id, lawCode, articleNo, snippet, score}]}` | `0-A5` |
+
+### 7.1.1 段 3 新增（2 个，2026-11-06 登记）
+
+| # | 方法与路径 | 用途 | 鉴权 | 响应 |
+|---|---|---|---|---|
+| 1 | `GET /api/v1/app/ai/quota` | 今日剩余 AI 轮次（F5 在输入框上方显示「今日还剩 N 次」） | access token | `{used, limit, resetAt}` |
+| 2 | `GET /api/v1/pub/sys-config?keys=ai_enabled,ai_daily_quota` | 公开白名单配置，供 `3-A7` 降级判断与配额显示 | 无 | `{ai_enabled: true, ai_daily_quota: 50}`；**只允许白名单键**，非白名单键返回空且不报 500 |
+
+> 这两个接口技术路线原文没有，是《第 3 段工作流》C5（`/app/ai/quota`）与 F4（`/pub/sys-config`）定下的。`/pub/sys-config` **必须白名单**——否则 `sys_config` 里的敏感配置会泄漏。
+> 段 3 的完整接口清单（16 个）见《第 3 段工作流》§五.2；本表只登记「上游文档没有、由段 3 新增」的两条。
 
 **2026-10-31 修正（本节原写「3 个」，是漏项，不是契约变更）**：原文只列了 3 个 `pub` 探针接口，并写「除上述 3 个 + RuoYi 自带登录外不实现任何业务接口」。这与本文件 §2.2 第 1 组「登录组 **落段 = 0**、覆盖锚点 `0-A2`」直接矛盾；也不满足 `0-A2` 的判据——它要求「token 失效后请求**任一需鉴权接口**，自动清 token 回登录页」，而原 3 个接口**全部是 `pub`（无鉴权）**，物理上无法验出 401。`POST /pub/auth/login/sms` **段 0 不做**（短信通道未定，段 1 才允许固定码）。结论：**以 §2.2 为准补回登录组，并补一个受保护资源作为 401 的验证载体**。
 

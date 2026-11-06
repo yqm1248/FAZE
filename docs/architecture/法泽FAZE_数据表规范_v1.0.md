@@ -443,13 +443,15 @@ COMMENT='订单主表；状态枚举：created/paid/accepted/completed/cancelled
 | 类型 | 放哪 | 进 Flyway 吗 | 可重复执行 |
 |---|---|---|---|
 | **最小必要数据**（法条 5 条、系统参数默认值） | `V2__init_law_items.sql` | **进**（不可变） | 否（迁移只跑一次） |
-| **全量基础数据**（法条 2000–3000 条） | `database/seed/law_items_full.sql` | **不进** | 是 |
+| **全量基础数据**（法条 2000–3000 条） | `V302__import_law_items.sql`（段 3） | **进**（可重复执行） | 是（`ON DUPLICATE KEY UPDATE`） |
 | **开发/演示数据** | `database/seed/dev.sql` / `demo.sql` | 不进 | 是 |
 | **测试数据** | `database/seed/test.sql` | 不进 | 是 |
 
-**裁决**：`V2__init_law_items.sql` 只放 **5 条**（够段 0 探针用）。全量 2000–3000 条走 `database/seed/law_items_full.sql`。
+**裁决（2026-11-06 段 3 反转，原裁决作废）**：`V2__init_law_items.sql` 只放 **5 条**（够段 0 探针用）；**全量 2000–3000 条改走 Flyway `V302__import_law_items.sql`（段 3）**，不再走 `database/seed/law_items_full.sql`。
 
-理由：迁移不可变，把 2000 条塞进 `V2` 以后就没法改（法条修订、错字纠正都会变成补丁地狱）；而种子数据天然要迭代。
+理由（反转的原因）：法条是**版本资产**，不是可随手改的种子——它被 AI 回答引用、被 `refs` 快照冻结、被 `3-A1` 校验，改一条就要能追溯到版本。走迁移的好处是「版本发布即带入、环境可重放、改动进 git 历史」；代价是每次加数据要发版本，所以**运营期新增法条不走迁移，走后台 A-27 批量导入接口或直接 SQL**。两条路的边界见 `docs/standards/法条数据录入规范.md`。
+
+迁移必须可重复执行（`ON DUPLICATE KEY UPDATE`），这一点与 §8.3 一致。
 
 ---
 
@@ -541,7 +543,7 @@ COMMENT='订单主表；状态枚举：created/paid/accepted/completed/cancelled
 | 24 | `article_translation` | A | 12 | content | 段 2 | 非中文译文 |
 | 25 | `case_library` | A | 21 | content | 段 5 | 案例库主表（**v1.30 补 2 字段**：`category` 细分分类、`court_case_no` 法院案号；`case_no` 存平台编号 `CL`） |
 | 26 | `case_library_translation` | A | 13 | content | 段 5 | 案例译文 |
-| 27 | `law_item` | D | 12 | content | 段 0 | 法条库；AI 只能引用本表条文 |
+| 27 | `law_item` | D | **15** | content | 段 0 | 法条库；AI 只能引用本表条文（**v1.48 段 3 补 3 字段**：`is_enabled` / `created_by` / `created_by_type`，由 `V301__alter_law_item.sql` 追加；段 0 的 12 字段原样不动） |
 | 28 | `social_action` | A | 8 | content | 段 2 | 收藏/关注（合并表） |
 | 29 | `notification` | A | 12 | content | 段 7 | 站内通知 |
 | 30 | `complaint` | C | 12 | ops | 段 7 | 投诉 |
@@ -549,8 +551,8 @@ COMMENT='订单主表；状态枚举：created/paid/accepted/completed/cancelled
 | 32 | `faq` | D | 9 | content | 段 7 | 常见问题 |
 | 33 | `login_log` | B | 10 | account | 段 1 | 登录日志；留存 ≥6 个月 |
 | 34 | `operation_log` | B | 11 | ops | 段 1 | 敏感操作审计 |
-| 35 | `ai_session` | A | 7 | ai | 段 3 | AI 会话 |
-| 36 | `ai_message` | B | 12 | ai | 段 3 | AI 消息，含 refs 快照 |
+| 35 | `ai_conversation` | A | 7 | ai | 段 3 | AI 会话（**v1.48 更名**：原 `ai_session`；第 3 段 §零.3 第 7 项定名 `ai_conversation`，外键字段 `conversation_id`，索引 `idx_ai_conversation_user`） |
+| 36 | `ai_message` | **C** | **16** | ai | 段 3 | AI 消息，含 refs 快照（**v1.48 类别 B→C、12→16**：导出回写 `is_exported` / `export_urls` 需要 UPDATE，B 类「只插入不修改」承载不了，故补 `updated_at` 并改 C 类） |
 | 37 | `user_device` | A | 12 | account | 段 1 | 设备与推送标识 |
 | 38 | `user_violation` | A | 14 | ops | 段 7 | 违规与处罚 |
 | 39 | `lawyer_application_log` | B | 10 | lawyer | 段 1 | 入驻审核流水 |
@@ -563,7 +565,7 @@ COMMENT='订单主表；状态枚举：created/paid/accepted/completed/cancelled
 | 46 | `invoice` | C | 15 | trade | **不建** | 发票；V1 明确不做 |
 | 47 | `file_record` | A | 14 | infra | 段 4 | 上传文件登记 |
 | 48 | `share_poster` | A | 8 | content | 段 7 | 分享海报与短链 |
-| 49 | `i18n_glossary` | D | 9 | content | 段 3 | 法律术语对照表 |
+| 49 | `i18n_glossary` | D | **10** | content | 段 3 | 法律术语对照表（**v1.48 9→10**：D 类表必须有 `is_enabled`，停用而非删除） |
 | 50 | `order_status_log` | B | 8 | trade | 段 2 | 订单状态迁移流水，只追加（段 2 新增，此前漏登记） |
 | 51 | `task_queue` | B | 12 | infra | 段 2 | 异步任务表：CAS 领取 + 租约回收 + 指数退避（段 2 新增，此前漏登记） |
 | 52 | `lawyer_income_settlement` | C | 14 | trade | **段 5** | 结算批次：一位律师 × 一个账期一条；**只是状态记录，不是资金真相**（真相永远是 `balance_flow`）；确认结算不改余额、不写流水 |
@@ -572,7 +574,7 @@ COMMENT='订单主表；状态枚举：created/paid/accepted/completed/cancelled
 | 55 | `announcement` | C | 15 | ops | **段 7** | 公告批次主表：`announcement_no` 前缀 `AN` / `title` / `content` / `target_type` + `target_value`（JSON 人群）/ `channels`（JSON 渠道）/ `status`（draft/scheduled/sending/sent/failed）/ `scheduled_at` / `sent_at` / `reach_count` / `open_count` / `created_by` / 时间戳（**v1.34 新建**；A-23「触达/打开率」的唯一落点） |
 
 **合计 55 张，要建 54 张。** 段分布：段 0 = 2、段 1 = 12、段 2 = 12、段 3 = 3、段 4 = 4、**段 5 = 8**、段 6 = 1、**段 7 = 11**（10 张在册 − `share_poster` 1 张 + 新增 2 张）、段 8 = 0。
-类别分布：A 业务实体 21、B 追加型 14、**C 状态机 13**、D 基础数据 7。
+类别分布：A 业务实体 21、B 追加型 **13**、**C 状态机 14**、D 基础数据 7（v1.48：`ai_message` 由 B 改 C，总数 55 不变）。
 
 > **v1.34 补登记（2026-11-02，段 7 定稿）**：新增第 54 张 `sensitive_word_appeal`（上游有 2 个申诉接口 + A-25 设计稿画了申诉复核，但表从未登记）、第 55 张 `announcement`（A-23 要「触达/打开率」，而 `notification` 是每人一行的通知，没有公告批次概念）。同时 `share_poster` **段 7 不做**（总纲 §5.8 未列、无对应页面、无验收锚点）。详见《[法泽FAZE_第7段工作流_v1.0.md](法泽FAZE_第7段工作流_v1.0.md)》§零之二 第 3~5 项、第 11 项。
 
@@ -620,6 +622,8 @@ COMMENT='订单主表；状态枚举：created/paid/accepted/completed/cancelled
 | 10 | 外键不建约束 | 现状已符合（`FOREIGN KEY` 0 次） | 保持，补「注释写明引用表」与孤儿检查 |
 | 11 | IP 长度标准 | 统一 `VARCHAR(50)` | 规范为 45，旧表不必改（偏差可接受） |
 | 12 | 文件登记与业务表的 oss_key 一致性 | `file_record` 用 `oss_key`，其余表用 URL | 统一为 `oss_key` |
+| 13 | D 类表必须有 `is_enabled` / `created_by` / `created_by_type` | 段 0 的 `law_item` DDL 只有 12 字段，缺这三个 | 段 3 用 `V301__alter_law_item.sql` 追加，**不改段 0 的 `V1`**（迁移不可变） |
+| 14 | B 类表不得有 `updated_at`、不得回写 | `ai_message` 原标 B 类（12 字段），但导出要回写 `is_exported` / `export_urls` | 改 **C 类（16 字段，含 `updated_at`）**，由段 3 的 `V300` 建 |
 
 ---
 
