@@ -847,6 +847,7 @@ GET  /admin/dashboard/ping
 | 11 | `POST /app/conversations/{id}/read` | 标记已读（WS 断线兜底） | App JWT + 成员校验 | 按 `lastReadSeq` 幂等 | `404001` / `404002` | 段 2 G6.4 |
 | 12 | `GET /app/workbench/conversations` | 律师端会话列表 | App JWT | 只读（非律师返回空页） | — | 段 2 G6.1 |
 | 13 | **`WS /ws/chat`** | IM 长连接（握手 JWT，type 见技术路线 §7.2） | 握手 query token | `clientMsgId` 去重 | `404002`（`chat.error`） | 段 2 G6.2 |
+| 14 | `GET /app/conversations/{id}` | 查单个会话（推送点击直达用） | App JWT + 成员校验 | 只读 | `404001` / `404002` | 段 2 G7.3 |
 
 > **错误码说明**：第 6、7 项用 `405021` / `405022`，不复用 `405012` / `405013` ——
 > 《错误码规范》§三 已把 405008~405020 预留给段 5，两个评价码登记在 §三 的「段 2 施工登记」。

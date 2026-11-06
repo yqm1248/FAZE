@@ -4,6 +4,43 @@
 
 ---
 
+## 2026-11-06 · 段 2 G7 离线推送（任务与重试 / 点击直达逻辑；通道接入挂账）
+
+### 1. G7.1 推送通道接入 —— **挂账，不做假实现**
+
+个推应用 + 四厂商通道凭据未提供（总纲 §九 L855 的承诺未兑现）。冻结 `PushSender` 接口 +
+`PushMessage` 载荷（userId / title / body / payload），实现层是 `DisabledPushSender`：
+**明确抛 `PushUnavailableException`，不静默成功**。工作流 §二 第 11 项禁止「假装通过」，
+所以未接入就让任务失败 → 重试 → 死信，行为可观测。凭据到位后加
+`GetuiPushSender implements PushSender`，调用方零改动。
+
+### 2. G7.2 推送任务与重试（`task_queue` 第二个消费者）
+
+消息落库后由 `MessagePushService` 入队（**只在对方离线时**；`hasActiveTask(push, messageId)` 判重），
+`PushTask` 每 15 秒领一批：解析 messageId → 查消息/会话 → 推导接收方（律师发→用户、用户发→律师账号）
+→ 接收方已在线则跳过（客户端会走补推）→ 调 `PushSender`。
+失败按 `2^retry` 分钟退避，`retry_count >= 5` 进死信（PC A-26 可见，段 2 只落数据）。
+推送正文**不含聊天内容**（技术路线 §7.5：锁屏可见 = 隐私红线）。
+
+`task_queue` 补**按类型领取**（`claimBatch(worker, types)` + XML `task_type IN (...)`）：
+段 2 起有两个消费者，不筛类型会互相抢任务并互标失败。`OrderCloseTask` 显式只领订单两类任务。
+
+### 3. G7.3 点击直达会话（客户端逻辑完成，真机验证挂账）
+
+`features/conversation/push.ts`：payload 解析（只认 conversationId / messageId，非法不跳首页）+
+意图注册表（`emitPushIntent`）+ 未读求和；`_layout.tsx` 注册处理器：未登录先
+`savePendingHref` 再跳登录，**登录成功后 `LoginPage` 消费 pending 直接回该会话**；
+`ChatPage` 新增 `conversationId` 直达入口（`GET /app/conversations/{id}` 取对端 → 拉历史 → 连 WS）。
+**没有推送 SDK，杀进程收到通知这一步无法验**，`2-A3` 判未通过，挂段 8 真机。
+
+### 4. 证据
+
+`docs/acceptance/seg2/G7-push.md`：完成度表（G7.1 挂账 / G7.2 完成 / G7.3 逻辑完成）、
+真实 task_queue 入队记录、5 轮失败到死信的实测、幂等说明、客户端逻辑逐项、6 条偏差。
+`mvn test` **201 项全绿**（新增 `PushTaskTest` 6 项）；前端四项门禁通过。
+
+---
+
 ## 2026-11-06 · 段 2 G6 IM 会话（REST / WebSocket / 已读撤回 / 断线重连 / 离线消息）
 
 ### 1. G6.1 会话与消息 REST
