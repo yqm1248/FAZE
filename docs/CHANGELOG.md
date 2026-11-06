@@ -52,7 +52,7 @@
 ### 5. 文档
 
 - **新增 2 份**（基线 v1.49 登记）：`docs/standards/法条数据录入规范.md`、`docs/standards/AI对话留存策略.md`。
-- **验收证据 19 份**：`docs/acceptance/seg3/{A1,A2,A3,A4,B1,B2,B3,B4,C1,C2,C3,C4,C5,D1,D2,D3,D4,E1,E2}.md`（C 组的 mock 挂账见各文件挂账表）。
+- **验收证据 20 份**：`docs/acceptance/seg3/{A1,A2,A3,A4,B1,B2,B3,B4,C1,C2,C3,C4,C5,D1,D2,D3,D4,E1,E2,E3}.md`（C 组的 mock 挂账、E1 的真机挂账、E3 的 G2/H2 待复核，分别写在各自文件的挂账表里）。
 - 回写：《第 3 段工作流》§十一 写满 22 条偏差 + L925 令牌名改正；《依赖清单》+webflux；`docs/README.md` +2 行索引与基线号；`docs/BASELINE.md` v1.48→**v1.49**（新增 2 + 变更 3）。
 
 ### 6. 明确没做的与挂账
