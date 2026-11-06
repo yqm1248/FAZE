@@ -218,6 +218,7 @@ for ($i = 0; $i -lt $cols.Count; $i++) {
 }
 $toDelete = [int]$vals[1]
 $protectedByPattern = [int]$vals[2]
+$orphanRows = [int]$vals[13]
 
 if ($protectedByPattern -gt 0) {
     Write-Host ''
@@ -243,11 +244,19 @@ Write-Host ("  {0,-26} {1}" -f 'operation_log', '审计只追加不可改删（�
 Write-Host ("  {0,-26} {1}" -f 'sys_config', '配置是内容不是测试数据')
 Write-Host ("  {0,-26} {1}" -f 'law_item', '法条库是内容不是测试数据')
 
-if ($toDelete -eq 0) {
+# 提前退出必须同时满足「没有用户要删」**且**「没有悬挂行要清」。
+# 只看用户数会漏掉后者：跑一次 mvn test 就会造出新的悬挂 login_log（测试建了用户、
+# 断言完把 app_user 删掉，登录留痕还在），于是「没有测试用户可以清了」和
+# 「库里其实还有 10 条孤儿」同时成立（2026-11-06 实测踩到）。
+if ($toDelete -eq 0 -and $orphanRows -eq 0) {
     Write-Host ''
-    Write-Ok '没有需要清理的测试用户。'
+    Write-Ok '没有需要清理的测试用户，也没有悬挂行。'
     $env:MYSQL_PWD = $null
     exit 0
+}
+if ($toDelete -eq 0 -and $orphanRows -gt 0) {
+    Write-Host ''
+    Write-Warn2 "没有用户要删，但有 $orphanRows 条悬挂行要清（指向已不存在的用户/申请）"
 }
 
 if (-not $Execute) {
@@ -373,7 +382,8 @@ SELECT CONCAT(
    + (SELECT COUNT(*) FROM balance_flow f WHERE f.owner_type='user'
         AND NOT EXISTS (SELECT 1 FROM app_user a WHERE a.id = f.owner_id))
    + (SELECT COUNT(*) FROM lawyer_application_log g
-        WHERE NOT EXISTS (SELECT 1 FROM lawyer_application p WHERE p.id = g.application_id)));
+        WHERE NOT EXISTS (SELECT 1 FROM lawyer_application p WHERE p.id = g.application_id)))
+  );
 "@) | Select-Object -First 1
 $rp = $recon -split '\|'
 if ($rp[0] -ne $rp[1]) {
