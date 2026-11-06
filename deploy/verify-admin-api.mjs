@@ -66,6 +66,19 @@ function check(id, name, r, predicate, note = '') {
   if (!ok) console.log(`       ↳ ${r.text.slice(0, 240)}`);
 }
 
+/**
+ * 显式跳过：没有前置数据时用它。
+ *
+ * 为什么不写成 `if (data) { check(...) }` 一句话了事：那样这一项会**静默消失**，
+ * 分母从 23 变成 22，汇总依然显示「22/22 通过」——看着全绿，实际覆盖面悄悄缩水。
+ * 2026-11-05 清库后就是这么发现的（待审队列为空，A-05-2 直接不见了）。
+ * 跳过必须被记下来、被看见，并且让退出码非 0，别让「没验到」冒充「验过了」。
+ */
+function skip(id, name, why) {
+  results.push({ id, name, ok: false, skipped: true, status: '-', code: '-', note: why });
+  console.log(`SKIP  ${id}  ${name}  [${why}]`);
+}
+
 const is200 = r => r.status === 200 && r.json?.code === 200;
 const isList = r => is200(r) && Array.isArray(r.json.rows) && typeof r.json.total === 'number';
 const isErr = expected => r => r.json?.code === expected;
@@ -115,6 +128,11 @@ const firstApp = apps.json?.rows?.[0];
 if (firstApp) {
   check('A-05-2', '四步详情 + 审核流水', curl(`/api/v1/admin/lawyer-applications/${firstApp.id}`, { token }),
     r => is200(r) && !!r.json.data?.form && Array.isArray(r.json.data?.logs));
+} else {
+  // 队列为空时以前是静默跳过：汇总从 23 项变成 22 项，看着还是「全通过」。
+  // 清库之后必然遇到这种状态，所以改成显式 SKIP（详见 skip() 的注释）。
+  skip('A-05-2', '四步详情 + 审核流水',
+    '待审队列为空（库里没有 pending 的入驻申请），无法验证详情接口；先造一条申请再跑');
 }
 
 // ── A-06 律师 ────────────────────────────────────────────────────────────
@@ -172,11 +190,18 @@ check('A-09-3', '手动巡检', curl('/api/v1/admin/reconciliation/run', { metho
 
 // ── 汇总 ────────────────────────────────────────────────────────────────
 const pass = results.filter(r => r.ok).length;
-console.log(`\n========== 管理端接口复核：${pass}/${results.length} 通过 ==========`);
-const failed = results.filter(r => !r.ok);
+const skipped = results.filter(r => r.skipped);
+const failed = results.filter(r => !r.ok && !r.skipped);
+console.log(`\n========== 管理端接口复核：${pass} 通过 / ${failed.length} 失败 / ${skipped.length} 跳过（共 ${results.length}） ==========`);
+if (skipped.length) {
+  console.log('跳过项（没有前置数据，**不算通过**）：');
+  for (const s of skipped) console.log(` - ${s.id} ${s.name}：${s.note}`);
+}
 if (failed.length) {
   console.log('失败项：');
   for (const f of failed) console.log(` - ${f.id} ${f.name} [HTTP ${f.status} code=${f.code}]`);
-  process.exit(1);
 }
+if (failed.length) process.exit(1);
+// 有跳过时退出码 2：不是失败，但也不能让调用方以为「全验过了」
+if (skipped.length) process.exit(2);
 process.exit(0);

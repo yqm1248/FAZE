@@ -158,15 +158,26 @@ $r['1-A7'] = $balanceOk
 # ── 4. 管理端接口复核（21 个 + 锚点 1-A4 的幂等）────────────────────────────
 Say "`n===== 4. 管理端接口复核 verify-admin-api.mjs =====" 'Cyan'
 $adminOk = $false
+# 退出码 2 = 有「因没有前置数据而跳过」的项（例如清库后待审队列为空，A-05-2 没数据可查）。
+# 不能当成通过：那会让「没验到」冒充「验过了」。
+$adminSkipped = $false
 $nodeExe = (Get-Command node -ErrorAction SilentlyContinue)
 if (-not $nodeExe) {
     Say '  [SKIP] 找不到 node，跳过管理端复核' 'Yellow'
+    $adminSkipped = $true
 } else {
     & node (Join-Path $scriptDir 'verify-admin-api.mjs') 2>&1 | ForEach-Object {
         Say ("  " + $_)
     }
-    $adminOk = ($LASTEXITCODE -eq 0)
-    Say ("  {0} 管理端 23 项接口复核" -f $(if ($adminOk) { '[OK]  ' } else { '[FAIL]' })) $(if ($adminOk) { 'DarkGray' } else { 'Red' })
+    $adminExit = $LASTEXITCODE
+    # $adminOk 的语义是「**没有失败**」：退出码 2 = 有跳过项但一项没失败，仍然算 ok，
+    # 只是同时把 $adminSkipped 置上，让「能否收口」停下来。
+    # 若把 2 也算成失败，汇总会报「有失败项」——那是措辞错，会让人去找不存在的失败。
+    $adminOk = ($adminExit -eq 0 -or $adminExit -eq 2)
+    $adminSkipped = ($adminExit -eq 2)
+    $state = if ($adminOk) { '[OK]  ' } elseif ($adminSkipped) { '[SKIP]' } else { '[FAIL]' }
+    $color = if ($adminOk) { 'DarkGray' } elseif ($adminSkipped) { 'Yellow' } else { 'Red' }
+    Say ("  {0} 管理端接口复核" -f $state) $color
 }
 
 # ── 5. 端到端验收（写操作全链，锚点 1-A1/A2/A3/A4/A10 的 App 半边）────────
@@ -297,6 +308,8 @@ foreach ($row in $rows) {
 }
 # 设计稿把 1-A4 的「幂等重放」也算在锚点里，这里把接口复核结果并进去
 if (-not $adminOk) { $allAutoPass = $false }
+# 管理端复核里有「因缺前置数据而跳过」的项时，不算失败但必须让「能否收口」停下来
+if ($adminSkipped) { $hasSkip = $true }
 # 数据库权限不是「十锚点」之一，但它决定审计证据成不成立，所以同样是一票否决项
 if (-not $grantsOk) { $allAutoPass = $false }
 if ($grantsSkip) { $hasSkip = $true }
