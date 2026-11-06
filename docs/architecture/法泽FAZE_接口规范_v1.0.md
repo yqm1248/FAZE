@@ -841,9 +841,16 @@ GET  /admin/dashboard/ping
 | 5 | `GET /app/orders/{id}/review` | 查本订单评价（评价页只读态 + 订单详情判断是否已评价） | App JWT + 归属 | 只读 | `405002` | 段 2 G5.1 |
 | 6 | `POST /app/orders/{id}/review` | 提交评价（**工作流 §五 第 24 条已列**） | App JWT + 归属 | `uk_review_order` + 应用层先查 | `405003` / `405022` | 段 2 G5.1 |
 | 7 | `POST /app/reviews/{id}/reply` | 律师回复评价（**工作流 §五 第 27 条已列**，技术路线未列） | App JWT + 必须是该评价的被评价律师 | 覆盖式更新 | `405021` / `401008` | 段 2 G5.1 |
+| 8 | `GET /app/conversations` | C 端会话列表 | App JWT | 只读 | — | 段 2 G6.1 |
+| 9 | `POST /app/conversations` | 创建或获取会话（`(user_id,lawyer_id)` 唯一） | App JWT | 唯一键冲突即返回已有会话 | `401004` | 段 2 G6.1 |
+| 10 | `GET /app/conversations/{id}/messages` | 历史消息（`seq` 游标） | App JWT + 成员校验 | 只读 | `404001` / `404002` | 段 2 G6.1 |
+| 11 | `POST /app/conversations/{id}/read` | 标记已读（WS 断线兜底） | App JWT + 成员校验 | 按 `lastReadSeq` 幂等 | `404001` / `404002` | 段 2 G6.4 |
+| 12 | `GET /app/workbench/conversations` | 律师端会话列表 | App JWT | 只读（非律师返回空页） | — | 段 2 G6.1 |
+| 13 | **`WS /ws/chat`** | IM 长连接（握手 JWT，type 见技术路线 §7.2） | 握手 query token | `clientMsgId` 去重 | `404002`（`chat.error`） | 段 2 G6.2 |
 
 > **错误码说明**：第 6、7 项用 `405021` / `405022`，不复用 `405012` / `405013` ——
 > 《错误码规范》§三 已把 405008~405020 预留给段 5，两个评价码登记在 §三 的「段 2 施工登记」。
+> 第 8~13 项的会话码 `404001` / `404002` 是《错误码规范》§3.4 已冻结的码，此处只是登记使用。
 
 
 ### 7.3.1 段 6 的 8 个接口（v1.32 新增，2026-11-02）

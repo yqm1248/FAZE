@@ -4,6 +4,62 @@
 
 ---
 
+## 2026-11-06 · 段 2 G6 IM 会话（REST / WebSocket / 已读撤回 / 断线重连 / 离线消息）
+
+### 1. G6.1 会话与消息 REST
+
+`GET|POST /app/conversations`（创建或获取，`(user_id,lawyer_id)` 唯一 → 一个律师一个会话）、
+`GET /app/conversations/{id}/messages`（seq 游标，不用 OFFSET）、`POST /app/conversations/{id}/read`、
+`GET /app/workbench/conversations`（律师端独立端点，不给同一接口加 role 参数）。
+`ConversationService#assertMember` 是**全域唯一鉴权入口**：REST 与 WS 都走它，
+非成员一律 404002（HTTP 403），与「会话不存在 404001」区分。
+新增 `CursorResult<T>`（接口规范 §5.2 的游标分页结构，此前只有文档没有实现）。
+
+### 2. G6.2 WebSocket 服务端
+
+`/ws/chat`（Spring 原生 `WebSocketHandler`，不用 `@ServerEndpoint`）；`ChatHandshakeInterceptor`
+在握手阶段验 JWT（token 走 query，Security 对该路径 permitAll —— 握手没有 Authorization 头）。
+`ChatWebSocketHandler` 只管生命周期与按 type 分发，五种 type 各一个处理器（send/read/recall/typing/history）。
+在线表 `OnlineRegistry`：内存 map 是本实例真相 + Redis `faze:im:online:{userId}` 标记（120 秒 TTL）；
+同一账号新连接踢旧连接并推 `chat.kicked`；心跳 90 秒无消息主动关闭（应用层记活跃时间 + 定时扫描，
+因为 `WebSocketSession` 接口没有 setMaxIdleTimeout）。
+
+### 3. G6.3 聊天页（17-chat）
+
+`ChatPage.tsx` + `useChatSocket` hook：文本收发、首屏 20 条、上翻加载更早（seq 游标）、
+对方输入状态、断线橙色提示条、已读小字、长按撤回。订单详情「联系律师」改为跳转
+（按 lawyerId 建/取会话）。`conversation` namespace 21 个 key（该 namespace 此前是空文件）。
+
+### 4. G6.4 已读、撤回、输入状态
+
+已读：`seq <= lastReadSeq` 的**对端**消息批量标 `read_by_*_at`，未读数按消息表重算（不信冗余计数）；
+WS `chat.read` 与 REST 已读兜底调**同一个** `MessageService#markRead`（各写一份必然漂移）。
+撤回：四条校验（成员 / 消息属于该会话 / 发送者本人 / 2 分钟内），只置 `recalled_at`、不改 `msg_type`，
+历史接口对撤回行返回 `recalled=true` 且**不带 content/fileUrl**；双方都会收到 `chat.recall`。
+typing：只转推、不落库，但仍然做成员校验（否则等于开放「给任意会话推假正在输入」）。
+
+### 5. G6.5 断线重连（2-A9）
+
+客户端指数退避（1/2/4/8/16/30s，不死循环猛连）+ 重连后发 `chat.history(afterSeq=已收最大 seq)`
+只补增量；服务端 `incremental` 按 seq 升序返回。`seq` 由 Redis `INCR` 与库内最大值取 max：
+Redis 重启后 INCR 从 1 开始，不取 max 会直接撞 `uk_msg_conversation_seq`。
+`client_msg_id` 去重：重发返回已有消息（`duplicated=true`），不插第二行、不再推对端。
+
+### 6. G6.6 离线消息
+
+`message_offline`：对端离线才入队（先按 `(user_id,message_id)` 查重），连接建立即补推，
+**推一条删一条、每批 50**；`OfflineMessageCleanupTask` 每天 04:30 清理超期（保留期读
+`sys_config.im.offline_retention_days`，默认 7 天）。清理不等同丢消息：正文在 `conversation_message` 里。
+
+### 7. 证据
+
+`docs/acceptance/seg2/G6-im.md`：REST 7 项、WS 双向 45ms（`2-A2` 后半段）、断线 3 条全收（`2-A9`）、
+非成员 403、REST 已读兜底、库内数据、25 项单测、页面清单、7 条偏差。
+`mvn test` **195 项全绿**（新增 `ConversationServiceTest` 8 / `MessageServiceTest` 13 /
+`OfflineMessageServiceTest` 4）；前端 `verify` 四项门禁通过。
+
+---
+
 ## 2026-11-06 · 段 2 G5 评价（提交 / 评分回写 / 律师回复）
 
 ### 1. G5.1 评价提交
