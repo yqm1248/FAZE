@@ -61,4 +61,18 @@ public interface OrderService {
      * @param orderId 订单主键
      */
     void cancel(Long userId, Long orderId);
+
+    /**
+     * 用账户余额支付订单（G2.2）。
+     *
+     * <p>只支持余额一种方式；已支付的订单重复调用返回 `duplicated=true` 的成功结果，
+     * 不会重复扣款。</p>
+     *
+     * @param userId  当前用户
+     * @param orderId 订单主键
+     * @param request 支付密码
+     * @return 支付结果
+     */
+    com.faze.modules.trade.vo.PayResultVO pay(Long userId, Long orderId,
+                                             com.faze.modules.trade.bo.PayBO request);
 }

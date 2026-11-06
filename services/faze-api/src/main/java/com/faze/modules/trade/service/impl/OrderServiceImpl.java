@@ -24,6 +24,7 @@ import com.faze.modules.account.entity.Lawyer;
 import com.faze.modules.account.service.LawyerQueryService;
 import com.faze.modules.trade.bo.OrderCreateBO;
 import com.faze.modules.trade.bo.OrderQueryBO;
+import com.faze.modules.trade.bo.PayBO;
 import com.faze.modules.trade.converter.OrderConverter;
 import com.faze.modules.trade.entity.Orders;
 import com.faze.modules.trade.enums.OperatorRole;
@@ -34,9 +35,12 @@ import com.faze.modules.trade.service.OrderCreateExecutor;
 import com.faze.modules.trade.service.OrderIdempotencyGuard;
 import com.faze.modules.trade.service.OrderService;
 import com.faze.modules.trade.service.OrderStateService;
+import com.faze.modules.trade.service.BalanceQueryService;
+import com.faze.modules.trade.service.OrderPayExecutor;
 import com.faze.modules.trade.service.TaskQueueService;
 import com.faze.modules.trade.vo.OrderDetailVO;
 import com.faze.modules.trade.vo.OrderVO;
+import com.faze.modules.trade.vo.PayResultVO;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -65,6 +69,8 @@ public class OrderServiceImpl implements OrderService {
     private final LawyerQueryService lawyerQueryService;
     private final OrderStateService orderStateService;
     private final TaskQueueService taskQueueService;
+    private final OrderPayExecutor orderPayExecutor;
+    private final BalanceQueryService balanceQueryService;
 
     /**
      * 下单。
@@ -172,6 +178,50 @@ public class OrderServiceImpl implements OrderService {
         }
         // 关单任务已无意义：取消未执行的那一条（已领取的会自己看状态跳过）
         taskQueueService.cancelPending(TaskQueueService.TYPE_ORDER_CLOSE, order.getOrderNo());
+    }
+
+    /**
+     * 用账户余额支付订单。
+     *
+     * <p>已支付的订单重复调用返回 `duplicated=true` 的成功结果（2-A8 ②「连点只扣一次」）：
+     * 第二次进来时状态已是 PAID，**不再走扣款**。</p>
+     *
+     * @param userId  当前用户
+     * @param orderId 订单主键
+     * @param request 支付密码
+     * @return 支付结果
+     * @throws BusinessException 405002 订单不存在 / 405003 状态不允许支付
+     */
+    @Override
+    public PayResultVO pay(Long userId, Long orderId, PayBO request) {
+        Orders order = findOwned(orderId, userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.TRADE_ORDER_NOT_FOUND));
+        OrderStatus status = OrderStatus.of(order.getStatus());
+        if (status == OrderStatus.PAID) {
+            return duplicatedPayResult(order);
+        }
+        if (status != OrderStatus.PENDING) {
+            throw new BusinessException(ErrorCode.TRADE_ORDER_STATE_INVALID);
+        }
+        return orderPayExecutor.pay(order, request.getPayPassword());
+    }
+
+    /**
+     * 构造「已支付」的幂等结果（不扣款）。
+     *
+     * @param order 已支付的订单
+     * @return 支付结果（duplicated=true）
+     */
+    private PayResultVO duplicatedPayResult(Orders order) {
+        PayResultVO vo = new PayResultVO();
+        vo.setOrderId(order.getId());
+        vo.setOrderNo(order.getOrderNo());
+        vo.setStatus(order.getStatus());
+        vo.setAmountCents(order.getAmountCents());
+        vo.setPaidAt(order.getPaidAt());
+        vo.setBalanceAfterCents(balanceQueryService.getAvailableCents(order.getUserId()));
+        vo.setDuplicated(true);
+        return vo;
     }
 
     /**

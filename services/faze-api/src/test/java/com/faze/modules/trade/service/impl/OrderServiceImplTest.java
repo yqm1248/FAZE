@@ -22,9 +22,12 @@ import com.faze.modules.trade.enums.OrderStatus;
 import com.faze.modules.trade.mapper.OrdersMapper;
 import com.faze.modules.trade.service.OrderCreateExecutor;
 import com.faze.modules.trade.service.OrderIdempotencyGuard;
+import com.faze.modules.trade.service.OrderPayExecutor;
+import com.faze.modules.trade.service.BalanceQueryService;
 import com.faze.modules.trade.service.OrderStateService;
 import com.faze.modules.trade.service.TaskQueueService;
 import com.faze.modules.trade.vo.OrderDetailVO;
+import com.faze.modules.trade.vo.PayResultVO;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -38,6 +41,7 @@ import org.mockito.quality.Strictness;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -77,6 +81,12 @@ class OrderServiceImplTest {
 
     @Mock
     private TaskQueueService taskQueueService;
+
+    @Mock
+    private OrderPayExecutor orderPayExecutor;
+
+    @Mock
+    private BalanceQueryService balanceQueryService;
 
     @InjectMocks
     private OrderServiceImpl orderService;
@@ -190,6 +200,42 @@ class OrderServiceImplTest {
                 () -> orderService.cancel(USER_ID, ORDER_ID));
 
         assertEquals(ErrorCode.TRADE_ORDER_STATE_INVALID, ex.getErrorCode());
+    }
+
+    @Test
+    @DisplayName("重复支付：订单已 PAID 时返回 duplicated=true，不再调扣款执行器（2-A8 ②）")
+    void payAlreadyPaidIsIdempotent() {
+        Orders order = pendingOrder();
+        order.setStatus(OrderStatus.PAID.getCode());
+        when(ordersMapper.selectOne(any(Wrapper.class))).thenReturn(order);
+        when(balanceQueryService.getAvailableCents(USER_ID)).thenReturn(12_000L);
+
+        PayResultVO vo = orderService.pay(USER_ID, ORDER_ID, payRequest());
+
+        assertTrue(vo.isDuplicated());
+        assertEquals(OrderStatus.PAID.getCode(), vo.getStatus());
+        assertEquals(12_000L, vo.getBalanceAfterCents());
+        verify(orderPayExecutor, never()).pay(any(), anyString());
+    }
+
+    @Test
+    @DisplayName("支付：非待支付状态直接拒（405003），不进入扣款")
+    void payNonPendingRejected() {
+        Orders order = pendingOrder();
+        order.setStatus(OrderStatus.CANCELLED.getCode());
+        when(ordersMapper.selectOne(any(Wrapper.class))).thenReturn(order);
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> orderService.pay(USER_ID, ORDER_ID, payRequest()));
+
+        assertEquals(ErrorCode.TRADE_ORDER_STATE_INVALID, ex.getErrorCode());
+        verify(orderPayExecutor, never()).pay(any(), anyString());
+    }
+
+    private com.faze.modules.trade.bo.PayBO payRequest() {
+        com.faze.modules.trade.bo.PayBO bo = new com.faze.modules.trade.bo.PayBO();
+        bo.setPayPassword("123456");
+        return bo;
     }
 
     private Orders pendingOrder() {        Orders order = new Orders();

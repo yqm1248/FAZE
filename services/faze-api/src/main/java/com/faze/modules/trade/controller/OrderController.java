@@ -17,9 +17,11 @@ import com.faze.common.exception.ErrorCode;
 import com.faze.common.pojo.PageResult;
 import com.faze.modules.trade.bo.OrderCreateBO;
 import com.faze.modules.trade.bo.OrderQueryBO;
+import com.faze.modules.trade.bo.PayBO;
 import com.faze.modules.trade.service.OrderService;
 import com.faze.modules.trade.vo.OrderDetailVO;
 import com.faze.modules.trade.vo.OrderVO;
+import com.faze.modules.trade.vo.PayResultVO;
 import com.faze.security.LoginUser;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -99,6 +101,21 @@ public class OrderController {
                           @AuthenticationPrincipal LoginUser loginUser) {
         orderService.cancel(requireLogin(loginUser).getUserId(), id);
         return R.ok();
+    }
+
+    /**
+     * 用账户余额支付订单（G2.2）。
+     *
+     * @param id        订单主键
+     * @param request   支付密码
+     * @param loginUser 当前认证主体
+     * @return 支付结果（含变动后余额）
+     */
+    @PostMapping("/{id}/pay")
+    public R<PayResultVO> pay(@PathVariable Long id,
+                              @Valid @RequestBody PayBO request,
+                              @AuthenticationPrincipal LoginUser loginUser) {
+        return R.ok(orderService.pay(requireLogin(loginUser).getUserId(), id, request));
     }
 
     /**
