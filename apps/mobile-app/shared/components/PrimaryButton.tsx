@@ -20,6 +20,7 @@ import { color, radius, shadow, size, spacing, typography } from '@/shared/theme
  * @param disabled 禁用态：降低不透明度并拦截点击
  * @param danger 危险操作：仅对 `outline` / `text` 生效，文字与描边转为红色
  * @param fullWidth 是否占满父级宽度，默认 `true`
+ * @param testID 自动化测试标识（E2E 用；不传则不渲染该属性）
  */
 export function PrimaryButton({
   label,
@@ -29,6 +30,7 @@ export function PrimaryButton({
   danger = false,
   fullWidth = true,
   style,
+  testID,
 }: {
   label: string;
   onPress: () => void;
@@ -37,11 +39,13 @@ export function PrimaryButton({
   danger?: boolean;
   fullWidth?: boolean;
   style?: StyleProp<ViewStyle>;
+  testID?: string;
 }) {
   const isSolid = variant === 'solid';
 
   return (
     <Pressable
+      testID={testID}
       onPress={disabled ? undefined : onPress}
       disabled={disabled}
       accessibilityRole="button"

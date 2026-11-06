@@ -110,6 +110,16 @@ export const PAGE_ROUTES = {
   lawyerOrders: '/lawyer-orders' as Href,
   /** 律师工作台（段 2 G3.4）。 */
   lawyerWorkbench: '/lawyer-workbench' as Href,
+
+  // ── 段 3 F1：底部 tab 内的两条新路由 ────────────────────────────────
+  /** 智能体 tab（AI 对话页，段 3 F1/F2；对应 `(tabs)/agent.tsx`）。 */
+  agent: '/agent' as Href,
+  /** 案件 tab（段 3 F1 的占位空态；段 5 收口时替换为真实案件列表）。 */
+  case: '/case' as Href,
+  /** 律师 tab（`(tabs)/lawyer.tsx`；F3 的「转人工律师」跳这里，工作流 F3 第 6 条）。 */
+  lawyerTab: '/lawyer' as Href,
+  /** 对话历史页（段 3 G1；二级页，入口在 AI 对话页顶栏）。 */
+  aiHistory: '/ai-history' as Href,
 } as const;
 
 /** 路由常量表的值类型（用于接收「任一页面路径」的参数）。 */
@@ -211,6 +221,20 @@ export function chatHref(lawyerId: string): Href {
  */
 export function chatByConversationHref(conversationId: string): Href {
   return `${String(PAGE_ROUTES.chat)}?conversationId=${encodeURIComponent(conversationId)}` as Href;
+}
+
+/**
+ * 拼「回看某个历史会话」的 AI 对话页路由（带 `conversationId` 查询参数，段 3 G1）。
+ *
+ * 为什么用分组形式 `/(tabs)/agent`：expo-router 的 `(tabs)` 是 route group，不占 URL 段，
+ * `/(tabs)/agent` 与 `/agent` 同屏；这里按工作流 G1 第 5 条的约定写分组形式，
+ * F2 侧用 `useLocalSearchParams<{ conversationId?: string }>()` 读取即可（两种形式都能读到）。
+ *
+ * @param conversationId 会话主键（字符串形式的 Long）
+ * @returns 可传给 `router.push` 的 Href
+ */
+export function aiChatConversationHref(conversationId: string): Href {
+  return `/(tabs)/agent?conversationId=${encodeURIComponent(conversationId)}` as Href;
 }
 
 /**

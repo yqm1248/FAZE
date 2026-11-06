@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 找律师页。
  *
  * 职责：G3.1 的律师列表——搜索 + 5 档分类 + 律师卡片 + 分页 + 四态。
@@ -241,8 +241,13 @@ export function LawyerListPage() {
   };
 
   return (
-    <Screen edges={['top', 'left', 'right', 'bottom']}>
-      <AppHeader title={t('lawyer.browse.title')} />
+    <Screen edges={['top', 'left', 'right']}>
+      {/*
+        tab 内页是栈底，没有可返回的目标（点返回会 replace('/')），所以关掉返回箭头。
+        段 3 F1 唯一允许改本页的地方：只改这个开关，业务不动。
+        仍走 `/lawyer-list` 路由壳（首页入口 / F3 转人工）时也是栈底，箭头同样无意义。
+      */}
+      <AppHeader title={t('lawyer.browse.title')} showBack={false} />
       <View style={styles.topbar}>
         <SearchBar
           value={keywordInput}

@@ -27,6 +27,8 @@ export type ErrorStateProps = {
   error: AppError;
   /** 重试回调。 */
   onRetry: () => void;
+  /** 重试按钮的 testID（E2E 用；可选，不传则不渲染该属性）。 */
+  retryTestID?: string;
 };
 
 /**
@@ -55,7 +57,7 @@ function textKeyOf(error: AppError): MessageKey {
  * @param props 错误与重试回调
  * @returns 说明文案 + 可选 traceId + 重试按钮
  */
-export function ErrorState({ error, onRetry }: ErrorStateProps) {
+export function ErrorState({ error, onRetry, retryTestID }: ErrorStateProps) {
   const { t } = useI18n();
   return (
     <View style={styles.container} accessibilityRole="alert">
@@ -68,7 +70,7 @@ export function ErrorState({ error, onRetry }: ErrorStateProps) {
         </LocalizedText>
       ) : null}
       <View style={styles.retry}>
-        <PrimaryButton label={t('common.state.retry')} onPress={onRetry} />
+        <PrimaryButton label={t('common.state.retry')} onPress={onRetry} testID={retryTestID} />
       </View>
     </View>
   );

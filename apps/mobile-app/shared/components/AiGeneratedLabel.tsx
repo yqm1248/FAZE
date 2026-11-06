@@ -23,7 +23,10 @@
  *      - `accessibilityRole="text"`：保证被识别为可读文本；
  *      - `nativeID="ai-generated-label"`：Android 原生 `resource-id`（E2E 的第三套兜底）。
  *   4. 视觉只用令牌：字号取 `typography.micro`（= `fontSize.micro`，11dp，全仓最小字号；
- *      **令牌里没有 `fontSize.xs`**）、颜色取 `color.text.muted`、上间距取 `spacing.xs`。
+ *      **令牌里没有 `fontSize.xs`**）、颜色取 `color.text.secondary`、上间距取 `spacing.xs`。
+ *      颜色用 `secondary`（`#666666`，白底对比度 5.74:1）而不是 `muted`（`#999999`，2.85:1）：
+ *      **负责人 2026-11 决定：合规标识必须达到 WCAG AA 4.5:1**（E1 原按 `textMuted` 施工，
+ *      段 3 施工中按该决定改为选项 A）。
  *      不写颜色/字号字面量，不用 `left` / `right`（RTL 用 `start` / `end`）。
  *   5. 外层 `View` 只承担上间距与 `style` 透传：`style` 的类型是 `ViewStyle`，
  *      不能直接塞给 `LocalizedText` 的 `TextStyle`（实测 `tsc` 报 TS2322：
@@ -83,6 +86,6 @@ const styles = StyleSheet.create({
   },
   text: {
     ...typography.micro,
-    color: color.text.muted,
+    color: color.text.secondary,
   },
 });

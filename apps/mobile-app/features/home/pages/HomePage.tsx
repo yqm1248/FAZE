@@ -49,7 +49,7 @@ const QUICK_ENTRIES: ReadonlyArray<{
   { key: 'lawyers', labelKey: 'home.quickFindLawyer', icon: 'people-outline', href: String(PAGE_ROUTES.lawyerList) },
   { key: 'orders', labelKey: 'home.quickMyOrders', icon: 'receipt-outline', href: String(PAGE_ROUTES.orders) },
   { key: 'messages', labelKey: 'home.quickMessages', icon: 'notifications-outline', href: String(PAGE_ROUTES.messages) },
-  { key: 'ai', labelKey: 'home.quickAi', icon: 'sparkles-outline' },
+  { key: 'ai', labelKey: 'home.quickAi', icon: 'sparkles-outline', href: String(PAGE_ROUTES.agent) },
 ];
 
 /**
@@ -83,7 +83,8 @@ export function HomePage() {
   }, [loadArticles]);
 
   return (
-    <Screen edges={['top', 'left', 'right', 'bottom']}>
+    <Screen edges={['top', 'left', 'right']}>
+      {/* 底部安全区由 tab bar 负责（段 3 F1）：页面不再取 bottom，否则 tab 下会多一段空白。 */}
       <ScrollView contentContainerStyle={styles.body}>
         <View style={styles.header}>
           <View style={styles.brand}>
@@ -137,7 +138,7 @@ export function HomePage() {
             <LocalizedText numberOfLines={1} style={styles.aiTitle}>{t('home.aiTitle')}</LocalizedText>
           </View>
           <LocalizedText numberOfLines={2} style={styles.aiDesc}>{t('home.aiDesc')}</LocalizedText>
-          <Pressable onPress={() => toast.show(t('home.soon'))} accessibilityRole="button" style={styles.aiCta}>
+          <Pressable onPress={() => router.push(PAGE_ROUTES.agent)} accessibilityRole="button" style={styles.aiCta}>
             <LocalizedText numberOfLines={1} style={styles.aiCtaText}>{t('home.aiCta')}</LocalizedText>
           </Pressable>
         </AppCard>

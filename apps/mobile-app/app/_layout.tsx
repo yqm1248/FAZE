@@ -13,6 +13,10 @@
  *      （唯一允许两套文案的地方，见 B4「卡住怎么办」第 3 条）。
  *   4. `reloadAsync` 不可用时方向仍会在下次冷启动生效（`forceRTL` 写原生标记），
  *      所以这里只调用 `ensureDirection` 做一致性纠正，**不阻塞渲染**。
+ *   5. **`GestureHandlerRootView` 必须在最外层**（段 3 G2）：`react-native-gesture-handler`
+ *      的手势协商要求整棵树在它的根视图内，否则左滑删除的 `Swipeable` 在原生端不响应、
+ *      Web 端会报 "GestureHandlerRootView not found"。它只加一层根视图，
+ *      不改变 Provider 顺序，也不改变 `ErrorBoundary` 的导出。
  */
 
 import type { ErrorBoundaryProps } from 'expo-router';
@@ -21,6 +25,7 @@ import { useFonts } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { setUnauthorizedHandler } from '@/shared/api/authEvents';
@@ -160,17 +165,22 @@ export default function RootLayout() {
   }
 
   return (
-    <SafeAreaProvider>
-      {/* 页面底色为浅色，状态栏固定使用深色文字。 */}
-      <StatusBar style="dark" />
-      <I18nProvider>
-        <RootNavigator />
-      </I18nProvider>
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={styles.gestureRoot}>
+      <SafeAreaProvider>
+        {/* 页面底色为浅色，状态栏固定使用深色文字。 */}
+        <StatusBar style="dark" />
+        <I18nProvider>
+          <RootNavigator />
+        </I18nProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
 
 const styles = StyleSheet.create({
+  gestureRoot: {
+    flex: 1,
+  },
   boot: {
     flex: 1,
     backgroundColor: color.background.canvas,
