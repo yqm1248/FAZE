@@ -39,4 +39,26 @@
         GROUP BY jt.law_item_id
     </select>
 
+    <!--
+      A-28 单条导出回写：is_exported=1 + export_urls 追加一条 {type:"json", at:"..."}。
+      要点：
+        1. export_urls 是 JSON 列，用 JSON_ARRAY_APPEND **只追加不覆盖**（《AI对话留存策略》§四）；
+        2. 列为 NULL 时先 COALESCE 成 JSON_ARRAY()，否则 JSON_ARRAY_APPEND(NULL, ...) 返回 NULL；
+        3. 只更新本次真正导出的消息 id（≤200 条），并带 conversation_id 作附加条件防越界；
+        4. updated_at 是 C 类表的必填列，回写也算一次更新，同步刷新。
+    -->
+    <update id="markExported">
+        UPDATE ai_message
+        SET is_exported = 1,
+            export_urls = JSON_ARRAY_APPEND(
+                COALESCE(export_urls, JSON_ARRAY()), '$',
+                JSON_OBJECT('type', 'json', 'at', #{at})),
+            updated_at = UTC_TIMESTAMP()
+        WHERE conversation_id = #{conversationId}
+          AND id IN
+          <foreach collection="ids" item="id" open="(" separator="," close=")">
+              #{id}
+          </foreach>
+    </update>
+
 </mapper>

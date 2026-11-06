@@ -34,4 +34,22 @@ public interface AiMessageMapper extends BaseMapper<AiMessage> {
      * @return 每个命中的 lawItemId 与次数；未被引用过的 id 不出现在结果里
      */
     List<RefCountRow> selectRefCounts(@Param("ids") List<Long> ids);
+
+    /**
+     * 标记一批消息「已被导出」并追加一条导出记录（A-28 单条导出用）。
+     *
+     * <p>`export_urls` 用 `JSON_ARRAY_APPEND` **追加**（不是覆盖），元素形如
+     * `{"type":"json","at":"2026-11-07T02:10:00Z"}`；`export_urls` 为 NULL 时先
+     * `COALESCE(..., JSON_ARRAY())` 再追加，保证结果是数组而不是 NULL。</p>
+     *
+     * <p>只更新本次真正写进导出文件的那些消息（上限 200 条），不整会话无脑刷。</p>
+     *
+     * @param conversationId 会话 id（附加条件，防越界写别的会话）
+     * @param ids            本次导出的消息 id 集合（调用方保证非空）
+     * @param at             导出时间（ISO-8601 UTC，形如 2026-11-07T02:10:00Z）
+     * @return 实际更新行数
+     */
+    int markExported(@Param("conversationId") Long conversationId,
+                     @Param("ids") List<Long> ids,
+                     @Param("at") String at);
 }

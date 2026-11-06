@@ -226,7 +226,16 @@ public class AiQuestionService {
     }
 
     /**
-     * 写一条 user 消息（原文落库，一个字不改）。
+     * 写一条 user 消息（原文落库，一个字不改），并刷新会话的「最后活跃时间」。
+     *
+     * <p><b>为什么在这里刷 `ai_conversation.updated_at`</b>（lead 2026-11-07 裁决，§十一：
+     * C 组遗留缺陷、H1/G1 阶段修）：G1 历史列表的「按 updated_at DESC 排序」与 `lastMessageAt`
+     * 都以它为准，而原来只有建会话时才写一次 → 老会话问第二句不会回到列表顶部。
+     * 放在「写 user 消息之后」而不是「assistant 落库之后」的原因：assistant 消息由 C3 的
+     * `AiStreamService` 写入（流式过程中反复 UPDATE），而**输入拦截分支**的固定引导文案是在本类
+     * `insertGuideMessage` 里写的、根本不经过 AiStreamService；刷在 user 消息这一处，
+     * 每轮提问（含被拦截的轮次）都会刷到，且回答完成距提问只有秒级，对 G1 的排序/分组无影响。
+     * 只改这一处，不重构 C 组（be-stream 的文件不动）。</p>
      *
      * @param conversationId 会话 id
      * @param userId         用户 id
@@ -246,6 +255,11 @@ public class AiQuestionService {
         message.setCreatedAt(now);
         message.setUpdatedAt(now);
         aiMessageMapper.insert(message);
+        // 刷新会话最后活跃时间（与上面同一方法、同一时刻；CAS 意义不大——这里只可能往后推，
+        // 且并发提问本来就该以更晚的那次为准，直接用 UPDATE）。
+        aiConversationMapper.update(null, Wrappers.<AiConversation>lambdaUpdate()
+                .eq(AiConversation::getId, conversationId)
+                .set(AiConversation::getUpdatedAt, now));
         return message;
     }
 

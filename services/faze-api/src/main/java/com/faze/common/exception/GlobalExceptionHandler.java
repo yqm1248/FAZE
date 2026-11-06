@@ -1,5 +1,5 @@
 /*
- * 职责：全局异常处理器。把 13 类异常统一转成 R 响应，并保证「对外稳定文案 + 对内完整日志」双轨。
+ * 职责：全局异常处理器。把 Spring MVC 的各类异常统一转成 R 响应，并保证「对外稳定文案 + 对内完整日志」双轨。
  * 调用方：Spring MVC 自动调用（@RestControllerAdvice），任何 Controller 抛出的异常都到这里。
  * 数据来源：异常对象本身；错误码一律取自 ErrorCode 枚举。
  * 注意：
@@ -10,6 +10,9 @@
  *   3. 参数类异常要把**全部**字段错误聚合成一条 msg，只报第一个会让前端反复试错。
  *   4. 业务异常（BusinessException）是预期分支：log.warn + 不打印堆栈；其余未知异常
  *      log.error + 打印全栈。混用会让日志要么淹没在堆栈里，要么查不到故障。
+ *   5. **multipart 类异常必须单列**（2026-11-07 补）：`MaxUploadSizeExceededException` 是
+ *      RuntimeException，落到兜底会回 501001「服务器内部错误」，把「文件太大」误报成「后端坏了」。
+ *      见 handleMaxUploadSize / handleMultipart 两条分支。
  */
 package com.faze.common.exception;
 
@@ -32,6 +35,8 @@ import org.springframework.web.context.request.async.AsyncRequestNotUsableExcept
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.MultipartException;
 import org.springframework.web.servlet.NoHandlerFoundException;
 
 /**
@@ -283,6 +288,45 @@ public class GlobalExceptionHandler {
                                                           HttpServletRequest req) {
         log.warn("缺少必填参数 path={} param={}", req.getRequestURI(), e.getParameterName());
         return ResponseEntity.ok(R.<Void>fail(ErrorCode.COMMON_PARAM_MISSING, e.getParameterName() + ": 不能为空"));
+    }
+
+    /**
+     * 拦截「上传文件超过 multipart 上限」。
+     *
+     * <p>**为什么要单列**（2026-11-07 实测缺陷修复，lead 验收发现）：超限时 Spring 抛
+     * {@code MaxUploadSizeExceededException}（RuntimeException），原先落到
+     * {@link #handleRuntime} 兜底分支回 `501001 服务器内部错误`——用户/运维会以为后端坏了，
+     * 实际只是文件太大。A-27 的「批量导入」支持 multipart 上传（工作流 H1 第 3 条，上限 5MB），
+     * 超限属于**客户端参数问题**，必须回可读的 401001，而不是 501001。
+     * msg 里的 5MB 与 `application.yml` 的 `spring.servlet.multipart.max-file-size` 对应，
+     * 改上限时要同步改这里（当前 multipart max-file-size=5MB / max-request-size=6MB）。</p>
+     *
+     * @param e   上传超限异常
+     * @param req 当前请求
+     * @return HTTP 200 + 401001，msg 说明文件过大
+     */
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<R<Void>> handleMaxUploadSize(MaxUploadSizeExceededException e,
+                                                       HttpServletRequest req) {
+        log.warn("上传文件超过上限 path={}", req.getRequestURI());
+        return ResponseEntity.ok(R.<Void>fail(ErrorCode.COMMON_PARAM_INVALID, "上传文件超过 5MB 上限"));
+    }
+
+    /**
+     * 拦截其它 multipart 解析失败（兜底防「容器层异常被当成 501001」）。
+     *
+     * <p>`MaxUploadSizeExceededException` 是 {@code MultipartException} 的子类，会被上面的分支优先命中；
+     * 这里处理的是「multipart 结构损坏 / 临时目录不可写」等同类客户端请求错误。
+     * 不吞成 501001 的原因同上：客户端能按 401001 自行修正请求。</p>
+     *
+     * @param e   multipart 解析异常
+     * @param req 当前请求
+     * @return HTTP 200 + 401001
+     */
+    @ExceptionHandler(MultipartException.class)
+    public ResponseEntity<R<Void>> handleMultipart(MultipartException e, HttpServletRequest req) {
+        log.warn("multipart 请求解析失败 path={} error={}", req.getRequestURI(), e.getClass().getSimpleName());
+        return ResponseEntity.ok(R.<Void>fail(ErrorCode.COMMON_PARAM_INVALID, "上传文件解析失败，请检查文件大小与格式"));
     }
 
     /**

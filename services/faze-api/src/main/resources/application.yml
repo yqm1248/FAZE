@@ -24,6 +24,13 @@ spring:
     resources:
       # 段 0 服务端是纯 API，没有静态资源；开着会把 /api/** 的 404 变成静态资源 404
       add-mappings: false
+  # 第 3 段 H1：A-27 法条「批量导入」允许 multipart 上传 JSON 文件（≤5MB，工作流 H1 第 3 条）。
+  # Boot 默认 max-file-size 只有 1MB，不配这两项时 5MB 文件会在进 Controller 前被容器拒掉
+  # （表现是 501001「服务器内部错误」，不是业务错误，排查时容易误判）。
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 6MB
   datasource:
     url: ${FAZE_DB_URL}
     username: ${FAZE_DB_USER}

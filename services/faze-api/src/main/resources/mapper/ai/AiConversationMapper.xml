@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ai_conversation 自定义 SQL（段 3 G1/G2/H2）
+  职责：
+    1. G1  APP 对话历史列表：会话行 + 首条 assistant 摘要 + 总数，一条 SQL（窗口函数 + COUNT(*) OVER ()）；
+    2. G2  用户软删会话（只写 deleted_at）与「是否属于该用户」的判定；
+    3. H2  A-28 管理端会话检索：含已软删、带用户展示名 / 问题摘要 / 引用条数 / 总数。
+  调用方：com.faze.modules.ai.mapper.AiConversationMapper
+          ← modules/ai/service/AiConversationService（G1/G2）
+          ← modules/ai/admin/service/AiConversationAdminService（H2）
+  数据来源：MySQL faze.ai_conversation / faze.ai_message / faze.app_user
+  注意事项：
+    1. 全部参数用 #{} 绑定，禁用 `${}`（《后端代码规范》§8.2 硬规则）；LIMIT/OFFSET 也走 #{}。
+    2. 用户软删只写 deleted_at，**不物理删除、不删 ai_message**（合规留痕，《AI对话留存策略》§三）。
+    3. C 端列表（G1）必须带 `deleted_at IS NULL`；管理端（H2）**故意不带**，要能查已软删会话。
+    4. 摘要用 `LEFT(content, 30)` 在 SQL 里截断：列表不需要消息全文，避免把 L4 内容整段读进内存。
+    5. `COUNT(*) OVER ()` 在 LEFT JOIN 之后、LIMIT 之前计算，所以每行带的是「满足条件的总行数」；
+       两个 LEFT JOIN 的右表都保证「一会话至多一行」（ROW_NUMBER 已过滤 rn=1 / GROUP BY 已聚合），
+       不会放大行数。
+    6. `refs` 是 JSON 列，JSON 路径必须是 '$.lawItemId'（D4 冻结的字段名，写成 snake_case 会静默计成 0）。
+    7. 时间字段存 UTC，`beginTime/endTime` 按 UTC 直接比较；SQL 里不写时区转换。
+-->
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.faze.modules.ai.mapper.AiConversationMapper">
+
+    <!--
+      G1：APP 对话历史列表（1 条 SQL）。
+      first_assistant：每个会话的首条 assistant 消息（含拦截时写入的固定引导文案，口径同「首条 AI 回答」）。
+      summary 取前 30 字（按字符，MySQL LEFT 对 utf8mb4 按字符计，切不坏中文）。
+      排序：updated_at DESC（工作流 G1 第 2 条）+ id DESC 兜底，保证同一时间戳下顺序稳定。
+    -->
+    <select id="selectHistoryPage" resultType="com.faze.modules.ai.mapper.AiConversationListRow">
+        WITH first_assistant AS (
+            SELECT m.conversation_id AS conversation_id,
+                   m.content        AS content,
+                   ROW_NUMBER() OVER (PARTITION BY m.conversation_id ORDER BY m.id ASC) AS rn
+            FROM ai_message m
+            WHERE m.user_id = #{userId}
+              AND m.role = 'assistant'
+        )
+        SELECT c.id                    AS id,
+               c.title                 AS title,
+               c.updated_at            AS lastMessageAt,
+               LEFT(f.content, 30)     AS summary,
+               COUNT(*) OVER ()        AS total
+        FROM ai_conversation c
+        LEFT JOIN first_assistant f
+               ON f.conversation_id = c.id
+              AND f.rn = 1
+        WHERE c.user_id = #{userId}
+          AND c.deleted_at IS NULL
+        ORDER BY c.updated_at DESC, c.id DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <!--
+      G2：软删（幂等）。`deleted_at IS NULL` 让「重复删」自然返回 0 行，
+      由 service 再区分「已删过（幂等成功）」与「不属于该用户（401008）」。
+    -->
+    <update id="softDelete">
+        UPDATE ai_conversation
+        SET deleted_at = UTC_TIMESTAMP()
+        WHERE id = #{id}
+          AND user_id = #{userId}
+          AND deleted_at IS NULL
+    </update>
+
+    <!-- G2：该 id 是否属于该用户（含已软删行；只回行数，不读内容） -->
+    <select id="countOwned" resultType="long">
+        SELECT COUNT(*)
+        FROM ai_conversation
+        WHERE id = #{id}
+          AND user_id = #{userId}
+    </select>
+
+    <!--
+      H2：A-28 管理端会话检索（1 条 SQL）。
+      first_user：每个会话的首条 user 消息（= 设计稿左栏「问题摘要」）。
+      ref_agg：  每个会话 assistant 消息 refs 的总条数（JSON_TABLE 展开后 COUNT；NULL/[] 不产生行）。
+      userName： 昵称优先，昵称空回退手机号；app_user 是逻辑引用（无物理外键），LEFT JOIN 不会因缺用户丢会话。
+      **不带 deleted_at 过滤**：后台要能查「用户已删除」的会话。
+    -->
+    <select id="selectAdminPage" resultType="com.faze.modules.ai.mapper.AdminAiConversationRow">
+        WITH first_user AS (
+            SELECT m.conversation_id AS conversation_id,
+                   m.content        AS content,
+                   ROW_NUMBER() OVER (PARTITION BY m.conversation_id ORDER BY m.id ASC) AS rn
+            FROM ai_message m
+            WHERE m.role = 'user'
+        ),
+        ref_agg AS (
+            SELECT m.conversation_id      AS conversation_id,
+                   COUNT(jt.law_item_id)  AS ref_count
+            FROM ai_message m,
+                 JSON_TABLE(m.refs, '$[*]' COLUMNS (law_item_id BIGINT PATH '$.lawItemId')) AS jt
+            WHERE m.role = 'assistant'
+              AND m.refs IS NOT NULL
+            GROUP BY m.conversation_id
+        )
+        SELECT c.id                        AS id,
+               c.user_id                   AS userId,
+               COALESCE(NULLIF(u.nickname, ''), u.phone) AS userName,
+               c.title                     AS title,
+               c.lang                      AS lang,
+               c.created_at                AS createdAt,
+               c.updated_at                AS updatedAt,
+               c.deleted_at                AS deletedAt,
+               LEFT(f.content, 30)         AS questionSummary,
+               COALESCE(r.ref_count, 0)    AS refCount,
+               COUNT(*) OVER ()            AS total
+        FROM ai_conversation c
+        LEFT JOIN app_user u        ON u.id = c.user_id
+        LEFT JOIN first_user f      ON f.conversation_id = c.id AND f.rn = 1
+        LEFT JOIN ref_agg r         ON r.conversation_id = c.id
+        <where>
+            <if test="userId != null">
+                AND c.user_id = #{userId}
+            </if>
+            <if test="beginTime != null">
+                AND c.created_at &gt;= #{beginTime}
+            </if>
+            <if test="endTime != null">
+                AND c.created_at &lt;= #{endTime}
+            </if>
+        </where>
+        ORDER BY c.updated_at DESC, c.id DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <!--
+      A-28 详情：取用户展示名。昵称优先，昵称空串回退手机号；
+      用户不存在（历史数据指向已注销用户）时返回 null，由 service 原样透出。
+    -->
+    <select id="selectUserName" resultType="string">
+        SELECT COALESCE(NULLIF(u.nickname, ''), u.phone)
+        FROM app_user u
+        WHERE u.id = #{userId}
+    </select>
+
+</mapper>
