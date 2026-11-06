@@ -398,7 +398,7 @@ const styles = StyleSheet.create({
   heroSlogan: {
     ...typography.h1,
     color: color.text.onBrand,
-    letterSpacing: 1,
+    // 段 2 收口：去掉 letterSpacing（阿拉伯系连写会被字间距断开）
   },
   heroScale: {
     position: 'absolute',

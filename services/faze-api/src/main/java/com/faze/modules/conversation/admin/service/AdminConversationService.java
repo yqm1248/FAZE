@@ -53,11 +53,11 @@ public class AdminConversationService {
      * @return 游标结果（list 按 seq **升序**）
      * @throws BusinessException 404001 会话不存在
      */
-    @OperationLog(module = "conversation", action = "CHAT_VIEW", targetType = "CONVERSATION")
+    @OperationLog(module = "conversation", action = "CONVERSATION_VIEW", targetType = "CONVERSATION")
     public CursorResult<AdminChatMessageVO> messages(Long conversationId, Long beforeSeq, Integer limit) {
         // 审计的业务定位由切面从 AuditContext 取：这里补 targetId，否则 operation_log
         // 只有 module/action、看不出「看了哪个会话」。无审计上下文时 mark 是 no-op。
-        com.faze.common.audit.AuditContext.mark("conversation", "CHAT_VIEW", "CONVERSATION",
+        com.faze.common.audit.AuditContext.mark("conversation", "CONVERSATION_VIEW", "CONVERSATION",
                 conversationId == null ? null : String.valueOf(conversationId), null);
         Conversation conversation = conversationId == null ? null
                 : conversationMapper.selectById(conversationId);

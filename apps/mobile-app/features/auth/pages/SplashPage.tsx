@@ -136,7 +136,8 @@ const styles = StyleSheet.create({
     lineHeight: 38,
     color: color.text.onBrand,
     marginTop: spacing.xxl,
-    letterSpacing: 4,
+    // 段 2 收口：去掉 letterSpacing。阿拉伯系文字一旦有字间距，连写会被断开（i18n 规范）；
+    // 品牌名在 RTL 语言下也可能被翻译，不能假设它永远是中文。
   },
   slogan: {
     ...typography.bodyLarge,
