@@ -119,7 +119,6 @@
     "cancelSuccess": "订单已取消",
     "payPending": "支付页将在下一步接上",
     "refundPending": "退款申请在后续步骤接上",
-    "chatPending": "会话在后续步骤接上",
     "actViewReview": "查看评价"
   },
   "pay": {

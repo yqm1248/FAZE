@@ -1,1 +1,23 @@
-{}
+{
+  "title": "咨询律师",
+  "connecting": "正在连接…",
+  "reconnecting": "连接已断开，正在重连",
+  "kicked": "账号在其他设备登录，连接已断开",
+  "inputPlaceholder": "描述你的问题…",
+  "send": "发送",
+  "sendFailed": "发送失败",
+  "typing": "对方正在输入…",
+  "read": "已读",
+  "loadEarlier": "加载更早的消息",
+  "emptyTitle": "还没有聊天记录",
+  "emptyDesc": "说说你遇到的情况，律师看到后会尽快回复。别在这里发身份证号、银行卡号这类信息。",
+  "quick1": "我想咨询一下法律问题",
+  "quick2": "我的情况需要准备哪些材料",
+  "quick3": "大概需要多久能解决",
+  "recallTitle": "撤回这条消息？",
+  "recallBody": "撤回后对方看不到内容，但超过 2 分钟的消息不能撤回。",
+  "recallConfirm": "撤回",
+  "recallHint": "长按可撤回",
+  "recalled": "消息已撤回",
+  "imageMessage": "[图片]"
+}

@@ -37,7 +37,7 @@ import { InfoRow } from '@/shared/components/SettingRow';
 import { useI18n } from '@/shared/i18n';
 import type { MessageKey } from '@/shared/i18n';
 import { useAsyncResource } from '@/shared/hooks/useAsyncResource';
-import { payHref, refundHref, reviewHref } from '@/shared/navigation/routes';
+import { chatHref, payHref, refundHref, reviewHref } from '@/shared/navigation/routes';
 import { color, radius, size, spacing, typography } from '@/shared/theme';
 import { centsFromServer } from '@/shared/utils/money';
 import { formatServerDateTime } from '@/shared/utils/serverTime';
@@ -271,7 +271,11 @@ export function OrderDetailPage() {
         router.push(reviewHref(data.id));
         return;
       case 'enter_chat':
-        toast.show(t('trade.order.chatPending'));
+        if (data.lawyerId === null) {
+          toast.show(t('trade.order.lawyerMissing'));
+          return;
+        }
+        router.push(chatHref(data.lawyerId));
         return;
       default:
         return;

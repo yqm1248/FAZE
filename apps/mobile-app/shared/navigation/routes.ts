@@ -86,6 +86,8 @@ export const PAGE_ROUTES = {
   refund: '/refund' as Href,
   /** 评价页（段 2 G5.1），需带 `id` 参数。 */
   review: '/review' as Href,
+  /** 一对一聊天页（段 2 G6.3），需带 `lawyerId` 参数。 */
+  chat: '/chat' as Href,
 
   // ── 段 2 G3：律师浏览与律师侧 ───────────────────────────────────────
   /** 找律师页（段 2 G3.1）。 */
@@ -171,4 +173,17 @@ export function refundHref(orderId: string): Href {
  */
 export function reviewHref(orderId: string): Href {
   return `${String(PAGE_ROUTES.review)}?id=${encodeURIComponent(orderId)}` as Href;
+}
+
+/**
+ * 拼聊天页路由（带 `lawyerId` 查询参数）。
+ *
+ * 为什么传律师 id 而不是会话 id：入口（订单详情「联系律师」）手上只有 lawyerId，
+ * 而 `POST /app/conversations` 是「创建或获取」——由聊天页统一取会话，入口不用先建一遍。
+ *
+ * @param lawyerId 律师主键
+ * @returns 可传给 `router.push` 的 Href
+ */
+export function chatHref(lawyerId: string): Href {
+  return `${String(PAGE_ROUTES.chat)}?lawyerId=${encodeURIComponent(lawyerId)}` as Href;
 }
