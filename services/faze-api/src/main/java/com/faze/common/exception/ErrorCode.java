@@ -116,8 +116,25 @@ public enum ErrorCode {
     CONVERSATION_FORBIDDEN(404002, 403, "error.conversation.forbidden", "无权访问该会话"),
 
     // ── AI 域 08 ─────────────────────────────────────────────────────────
+    /*
+     * 段 3 施工登记（2026-11-07）：按《错误码规范》§3.8 补齐 408001~408005 与 508002。
+     * 编号与 msgKey 逐字照 §3.8 的表，**不许改含义**——408002 在本段是「每日轮次配额超限」
+     * （总纲已裁决 AI 不计费，见 §零之二 第 5 项：「计费」口径统一改为「配额」）。
+     */
+    /** 未在法条库检索到相关条文（**不编造，直接告知**）。HTTP 200。 */
+    AI_NO_LAW_MATCHED(408001, 200, "error.ai.no-law-matched", "未在法条库检索到相关条文"),
+    /** AI 每日调用轮次超限（响应带 `retryAfterSeconds`）。HTTP 200。 */
+    AI_QUOTA_EXCEEDED(408002, 200, "error.ai.quota-exceeded", "AI 调用次数超限"),
+    /** 内容被安全策略拦截（**段 3 不接机审，本段不产出该码**，《错误码规范》§3.8 预留）。HTTP 200。 */
+    AI_CONTENT_BLOCKED(408003, 200, "error.ai.content-blocked", "内容被安全策略拦截"),
+    /** 超出可咨询范围（诉讼策略 / 胜诉率 / 金额与刑期预测 / 代写可递交文书）。HTTP 200。 */
+    AI_OUT_OF_SCOPE(408004, 200, "error.ai.out-of-scope", "超出可咨询范围"),
+    /** 检测到 Prompt 注入企图。HTTP 200。 */
+    AI_PROMPT_INJECTED(408005, 200, "error.ai.prompt-injected", "检测到 Prompt 注入企图"),
     /** 豆包服务不可用 / 5 秒内未出首字节。HTTP 200。 */
-    AI_SERVICE_DOWN(508001, 200, "error.ai.service-down", "AI 服务暂不可用");
+    AI_SERVICE_DOWN(508001, 200, "error.ai.service-down", "AI 服务暂不可用"),
+    /** AI 输出校验失败（回答里所有条文号都不存在且无法降级）。HTTP 200。 */
+    AI_OUTPUT_INVALID(508002, 200, "error.ai.output-invalid", "AI 输出校验失败，请重试");
 
     /** 6 位业务码（前 3 位是 HTTP 语义家族，第 4~5 位是业务域）。 */
     private final int code;

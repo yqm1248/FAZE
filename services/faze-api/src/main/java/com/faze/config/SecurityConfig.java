@@ -67,6 +67,13 @@ public class SecurityConfig {
                 .logout(AbstractHttpConfigurer::disable)
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        // ASYNC 分派必须放行（第 3 段 C3 的 SSE）。
+                        // 为什么：SseEmitter 完成/超时后容器会做一次 DispatcherType.ASYNC 的重新分派，
+                        // 此时 JwtAuthenticationFilter 跳过、SecurityContext 已清，若这里不放行，
+                        // 授权链会以「未认证」拒绝这次内部分派，日志刷出 AuthorizationDeniedException
+                        // 与 "Cannot render error page"（数据不受影响，但日志被污染，且看起来像 401）。
+                        // 只放行「异步分派」这一种 dispatcher type，普通 REQUEST 仍走下面的 authenticated()。
+                        .dispatcherTypeMatchers(jakarta.servlet.DispatcherType.ASYNC).permitAll()
                         // pub：公开接口（ping / 登录 / 探针），探针的「仅非生产」由 @Profile 控制而非这里
                         .requestMatchers("/api/v1/pub/**").permitAll()
                         // /error：容器内部转发用，必须放行，否则异常响应会被 401 覆盖

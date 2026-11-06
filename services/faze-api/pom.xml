@@ -72,6 +72,16 @@
       <artifactId>spring-boot-starter-websocket</artifactId>
     </dependency>
 
+    <!-- WebFlux（只用 WebClient，不切响应式容器）：第 3 段 C1 的豆包 SSE 流式调用。
+         理由：技术路线 §11.2 L2869 明确要求用 `WebClient`；阻塞式 RestClient 无法把
+         `text/event-stream` 逐块交给 SseEmitter。项目已有 spring-boot-starter-web，
+         Boot 会按 SERVLET 启动（webflux 只在 classpath 上提供 WebClient），不会变成 Reactive 应用。
+         本段不用 RouterFunction / WebFilter。登记见 docs/architecture/依赖清单.md。 -->
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-webflux</artifactId>
+    </dependency>
+
     <!-- MyBatis-Plus：SB4 starter + 分页插件（两个都要，版本一致） -->
     <dependency>
       <groupId>com.baomidou</groupId>

@@ -15,6 +15,12 @@ spring:
 faze:
   jwt:
     secret: faze-local-dev-only-secret-key-0123456789abcdef
+  ai:
+    # 第 3 段 C1：豆包 client。true 时走 DoubaoClientStub（每 60ms 一块的固定中文，不联网不花钱）。
+    # 为什么 dev 默认 mock：本机 deploy/.env 的 FAZE_ARK_API_KEY 为空（负责人最后配），
+    # 不 mock 的话每次提问都会 508001，C2~C5 无法自测。
+    # 真 key 到位后改成 false（或设 FAZE_AI_MOCK=false）即走真实实现；日志出现 AI_MOCK_ACTIVE 表示仍是 mock。
+    mock: ${FAZE_AI_MOCK:true}
   crypto:
     # 身份证号 AES-256-GCM 密钥，必须正好 32 字节；生产由 FAZE_IDCARD_SECRET 提供
     id-card-key: ${FAZE_IDCARD_SECRET:faze-local-idcard-key-32-bytes!!}

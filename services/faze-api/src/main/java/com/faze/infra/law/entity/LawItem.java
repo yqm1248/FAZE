@@ -56,6 +56,21 @@ public class LawItem {
     /** 检索用关键词，人工维护。 */
     private String keywords;
 
+    /**
+     * 是否启用（1 = 启用，0 = 停用）。
+     *
+     * <p>段 3 A2 追加（`V301__alter_law_item.sql`）。停用而非删除——《数据表规范》§4.1
+     * 对 D 类表的硬要求；检索与存在性校验必须同时过滤 `is_enabled = 1`，
+     * 否则停用的法条仍会被 AI 引用。</p>
+     */
+    private Integer isEnabled;
+
+    /** 录入人（管理员用户 id）；系统迁移写入的行为 NULL。段 3 A2 追加。 */
+    private Long createdBy;
+
+    /** 录入人类型：`admin` / `system`。段 3 A2 追加。 */
+    private String createdByType;
+
     /** 创建时间。 */
     private LocalDateTime createdAt;
 
