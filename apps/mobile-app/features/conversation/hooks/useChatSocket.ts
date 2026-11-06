@@ -307,6 +307,34 @@ export function useChatSocket(conversationId: string, handlers: ChatSocketHandle
   );
 
   /**
+   * 发图片 / 文件消息（G6.3 第 6 条：先上传拿对象 key，再把 key 作为 fileUrl 发出去）。
+   *
+   * <p>服务端存 key、出参换签名地址，所以这里传的是 **key 而不是 URL**。</p>
+   *
+   * @param kind     消息类型：image / file
+   * @param fileKey  上传后拿到的对象 key
+   * @param fileName 文件名（file 消息展示用）
+   * @param fileSize 文件大小（字节）
+   * @returns clientMsgId；连接不在线返回 null
+   */
+  const sendAttachment = useCallback(
+    (kind: 'image' | 'file', fileKey: string, fileName: string, fileSize: number): string | null => {
+      const clientMsgId = `c-${String(Date.now())}-${String(Math.trunc(Math.random() * 1_000_000))}`;
+      const sent = send('chat.send', {
+        conversationId,
+        msgType: kind,
+        content: '',
+        fileUrl: fileKey,
+        fileName,
+        fileSize,
+        clientMsgId,
+      });
+      return sent ? clientMsgId : null;
+    },
+    [conversationId, send],
+  );
+
+  /**
    * 上报已读。
    *
    * @param lastReadSeq 已读到的最大 seq
@@ -342,5 +370,5 @@ export function useChatSocket(conversationId: string, handlers: ChatSocketHandle
     [send],
   );
 
-  return { status, sendText, sendRead, sendTyping, recallMessage };
+  return { status, sendText, sendAttachment, sendRead, sendTyping, recallMessage };
 }

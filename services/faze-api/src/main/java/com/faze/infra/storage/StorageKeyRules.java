@@ -24,14 +24,14 @@ import java.util.regex.Pattern;
 public final class StorageKeyRules {
 
     /** 允许的场景白名单。 */
-    public static final Set<String> ALLOWED_SCENES = Set.of("realname", "identity", "license", "avatar");
+    public static final Set<String> ALLOWED_SCENES = Set.of("realname", "identity", "license", "avatar", "chat");
 
     /** 允许的扩展名白名单。 */
     private static final Set<String> ALLOWED_EXT = Set.of("jpg", "jpeg", "png", "webp", "pdf");
 
     /** 完整 key 正则：与生成规则严格一致。 */
     private static final Pattern KEY_PATTERN = Pattern.compile(
-            "^private/(realname|identity|license|avatar)/\\d{6}/\\d+/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.(jpg|jpeg|png|webp|pdf)$");
+            "^private/(realname|identity|license|avatar|chat)/\\d{6}/\\d+/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.(jpg|jpeg|png|webp|pdf)$");
 
     private StorageKeyRules() {
     }

@@ -24,6 +24,7 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.faze.common.exception.BusinessException;
 import com.faze.common.exception.ErrorCode;
 import com.faze.common.pojo.CursorResult;
+import com.faze.infra.storage.FileStorage;
 import com.faze.modules.conversation.entity.Conversation;
 import com.faze.modules.conversation.entity.ConversationMessage;
 import com.faze.modules.conversation.enums.MsgType;
@@ -77,6 +78,9 @@ public class MessageService {
     private final ConversationMessageMapper messageMapper;
     private final ConversationService conversationService;
     private final StringRedisTemplate redis;
+
+    /** 文件存储：图片/文件消息库里存 OSS key，出参前换签名地址。 */
+    private final FileStorage fileStorage;
 
     /**
      * 发送一条消息。
@@ -337,7 +341,7 @@ public class MessageService {
         boolean recalled = message.getRecalledAt() != null;
         vo.setRecalled(recalled);
         vo.setContent(recalled ? null : message.getContent());
-        vo.setFileUrl(recalled ? null : message.getFileUrl());
+        vo.setFileUrl(recalled ? null : signFileUrl(message.getFileUrl()));
         vo.setFileName(recalled ? null : message.getFileName());
         vo.setFileSize(recalled ? null : message.getFileSize());
         // 「对端已读」只对自己发的消息有意义：自己发 → 看对方的已读时间
@@ -351,6 +355,30 @@ public class MessageService {
         }
         vo.setCreatedAt(message.getCreatedAt());
         return vo;
+    }
+
+    /**
+     * 把库里存的 OSS key 换成可读签名地址。
+     *
+     * <p>图片/文件消息库里存的是对象 key（`private/chat/...`），客户端拿 key 打不开；
+     * 签名地址有效期 60 秒，够即时查看与历史翻页当场加载。</p>
+     *
+     * @param raw OSS key（或已是 http(s) 地址）
+     * @return 签名地址；空值或签名失败返回 null
+     */
+    private String signFileUrl(String raw) {
+        if (!StringUtils.hasText(raw)) {
+            return null;
+        }
+        if (raw.startsWith("http://") || raw.startsWith("https://")) {
+            return raw;
+        }
+        try {
+            return fileStorage.presignDownload(raw).url();
+        } catch (RuntimeException e) {
+            log.warn("聊天文件签名失败 keyLength={} 原因={}", raw.length(), e.getClass().getSimpleName());
+            return null;
+        }
     }
 
     /**

@@ -24,9 +24,9 @@ import lombok.Data;
 @Data
 public class UploadBO {
 
-    /** 场景：realname / identity / license / avatar。 */
+    /** 场景：realname / identity / license / avatar / chat（`chat` 为段 2 G6 聊天附件）。 */
     @NotBlank(message = "场景不能为空")
-    @Pattern(regexp = "^(realname|identity|license|avatar)$", message = "场景不在白名单内")
+    @Pattern(regexp = "^(realname|identity|license|avatar|chat)$", message = "场景不在白名单内")
     private String scene;
 
     /** 原始文件名（只用于取扩展名）。 */

@@ -14,17 +14,21 @@
  *      重发不会产生两条）。
  *   3. **已读上报**：进入页面时按最大 seq 上报一次；收到对方新消息且页面在前台时再报一次。
  *      WS 断线时改走 REST 兜底（`markConversationRead`）。
- *   4. **图片/文件消息**：服务端已支持（`msgType=image|file` + fileUrl），
- *      但客户端选图/选文件需要 `expo-image-picker` / `expo-document-picker`（新增依赖须先登记），
- *      段 2 不做；本页对收到的图片消息按「图片已发送」占位渲染（不打挂）。
+ *   4. **图片/文件消息**（段 2 G6.3 第 6 条）：服务端已支持（`msgType=image|file` + fileUrl）。
+ *      客户端链路是「选图/选文件（`expo-image-picker` / `expo-document-picker`）→ 上传拿对象 key
+ *      → 把 key 当 `fileUrl` 发出」。本页只负责选择、上传、发送与挂载；缩略图/文件卡片/全屏
+ *      查看在 `features/conversation/components/` 下的三个组件里。上传期间输入区禁用，防重复点击。
  *   5. 撤回入口：长按自己的消息 → 确认框 → `chat.recall`（服务端还会校验 2 分钟窗口）。
  */
 
 import { Ionicons } from '@expo/vector-icons';
+import * as DocumentPicker from 'expo-document-picker';
+import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
+import { uploadFile } from '@/features/account/api/upload';
 import {
   createConversation,
   getConversation,
@@ -32,6 +36,9 @@ import {
   markConversationRead,
 } from '@/features/conversation/api/conversations';
 import type { ChatMessage, ConversationItem } from '@/features/conversation/api/conversations';
+import { AttachSheet } from '@/features/conversation/components/AttachSheet';
+import { MessageFile } from '@/features/conversation/components/MessageFile';
+import { MessageImage } from '@/features/conversation/components/MessageImage';
 import { useChatSocket } from '@/features/conversation/hooks/useChatSocket';
 import type { AppError } from '@/shared/api/types';
 import { AppCard } from '@/shared/components/AppCard';
@@ -61,12 +68,20 @@ const QUICK_KEYS: ReadonlyArray<MessageKey> = [
   'conversation.quick3',
 ];
 
-/** 本地「发送中」气泡。 */
+/** 本地「发送中」气泡（文本 / 图片 / 文件三种）。 */
 type PendingMessage = {
   /** 客户端幂等键。 */
   clientMsgId: string;
-  /** 文本。 */
+  /** 文本内容（图片/文件为空串）。 */
   content: string;
+  /** 消息类型：text / image / file。 */
+  kind: 'text' | 'image' | 'file';
+  /** 本地预览地址（图片/文件发送中显示用；发送成功后由服务端消息替代）。 */
+  localUri?: string;
+  /** 文件名（文件消息）。 */
+  fileName?: string;
+  /** 文件大小（字节，文件消息；确认后用服务端消息替代，期间卡片要能显示大小）。 */
+  fileSize?: number;
   /** 是否失败（点按重发）。 */
   failed: boolean;
 };
@@ -96,8 +111,14 @@ export function ChatPage() {
   const [draft, setDraft] = useState('');
   const [peerTyping, setPeerTyping] = useState(false);
   const [recallTarget, setRecallTarget] = useState<ChatMessage | null>(null);
+  /** 附件上传中（输入区禁用 + 转圈提示，防重复点击）。 */
+  const [uploading, setUploading] = useState(false);
+  /** 附件选择面板可见性。 */
+  const [attachVisible, setAttachVisible] = useState(false);
 
   const scrollRef = useRef<ScrollView | null>(null);
+  /** 上传中的同步守卫：state 更新有一帧延迟，连点会进两次上传。 */
+  const uploadingRef = useRef(false);
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastTypingSentRef = useRef(false);
   const conversationId = conversation?.id ?? '';
@@ -150,15 +171,15 @@ export function ChatPage() {
   const pendingRef = useRef<PendingMessage[]>([]);
   pendingRef.current = pending;
 
-  const { status: socketStatus, sendText, sendRead, sendTyping, recallMessage } = useChatSocket(
-    phase === 'ready' ? conversationId : '',
-    {
+  const { status: socketStatus, sendText, sendAttachment, sendRead, sendTyping, recallMessage } =
+    useChatSocket(phase === 'ready' ? conversationId : '', {
       onMessage: (message) => {
         mergeMessage(message);
         setPending((current) => current.filter((item) => item.clientMsgId !== message.clientMsgId));
       },
       onAck: (ack) => {
-        // 服务端确认：把「发送中」替换成真实消息（内容取自本地 pending）
+        // 服务端确认：把「发送中」替换成真实消息（类型/内容取自本地 pending；
+        // 附件先用本地 URI 显示/打开，下次拉历史会拿到服务端签名地址）
         setPending((current) => current.filter((item) => item.clientMsgId !== ack.clientMsgId));
         setMessages((existing) => {
           if (existing.some((item) => item.id === ack.messageId)) {
@@ -175,11 +196,12 @@ export function ChatPage() {
             clientMsgId: ack.clientMsgId,
             senderRole: 'user',
             senderId: '',
-            msgType: 'text',
-            content: local.content,
-            fileUrl: null,
-            fileName: null,
-            fileSize: null,
+            msgType: local.kind,
+            content: local.content === '' ? null : local.content,
+            fileUrl: local.localUri ?? null,
+            fileName: local.fileName ?? null,
+            // 附件大小在 pending 里是 number 字节；确认消息要转回服务端的字符串口径
+            fileSize: local.fileSize === undefined ? null : String(local.fileSize),
             recalled: false,
             readByPeer: false,
             createdAt: ack.createdAt,
@@ -279,12 +301,150 @@ export function ChatPage() {
       toast.show(t('conversation.reconnecting'));
       return;
     }
-    setPending((current) => [...current, { clientMsgId, content: trimmed, failed: false }]);
+    setPending((current) => [
+      ...current,
+      { clientMsgId, content: trimmed, kind: 'text', failed: false },
+    ]);
     setDraft('');
     setTyping(false);
     setTimeout(() => {
       scrollRef.current?.scrollToEnd({ animated: true });
     }, 50);
+  };
+
+  /**
+   * 选图/选文件 → 上传 → 发消息（G6.3 第 6 条）。
+   *
+   * <p>先申请上传凭证拿到对象 key，再把 key 作为 `fileUrl` 发出去；服务端存 key、
+   * 出参换签名地址。上传失败不产生消息（不插「发送中」气泡，只提示）。</p>
+   */
+
+  /** 选图并发送（用户取消静默返回；权限被拒要提示）。 */
+  const pickImage = async (): Promise<void> => {
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        toast.show(t('conversation.composer.permissionDenied'));
+        return;
+      }
+      const picked = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        quality: 0.8,
+      });
+      // 取消选择不是错误：不插消息、不弹提示（完成标准第 6 条）
+      if (picked.canceled || picked.assets.length === 0) {
+        return;
+      }
+      // 数组下标在 noUncheckedIndexedAccess 下可能为 undefined，必须显式判空
+      const asset = picked.assets[0];
+      if (asset === undefined) {
+        return;
+      }
+      const fileName = asset.fileName ?? `image-${String(Date.now())}.jpg`;
+      await uploadAndSend('image', asset.uri, fileName, asset.mimeType ?? 'image/jpeg', asset.fileSize ?? 0);
+    } catch {
+      // 系统选择器偶发失败（权限弹窗被系统回收、Web FileReader 失败等）：给提示，不插消息
+      toast.show(t('conversation.message.pickFailed'));
+    }
+  };
+
+  /** 选文件并发送（后端只允许 PDF；取消同样的静默处理）。 */
+  const pickFile = async (): Promise<void> => {
+    try {
+      const picked = await DocumentPicker.getDocumentAsync({
+        type: 'application/pdf',
+        copyToCacheDirectory: true,
+      });
+      if (picked.canceled || picked.assets.length === 0) {
+        return;
+      }
+      const asset = picked.assets[0];
+      if (asset === undefined) {
+        return;
+      }
+      await uploadAndSend(
+        'file',
+        asset.uri,
+        asset.name,
+        asset.mimeType ?? 'application/pdf',
+        asset.size ?? 0,
+      );
+    } catch {
+      toast.show(t('conversation.message.pickFailed'));
+    }
+  };
+
+  /**
+   * 上传并发送一个附件。
+   *
+   * @param kind        消息类型
+   * @param uri         本地 URI
+   * @param fileName    文件名
+   * @param contentType MIME 类型（后端白名单：图片 jpeg/png/webp、文件 pdf）
+   * @param size        字节数
+   */
+  const uploadAndSend = async (
+    kind: 'image' | 'file',
+    uri: string,
+    fileName: string,
+    contentType: string,
+    size: number,
+  ): Promise<void> => {
+    // 防重复：上传中再点一次直接返回（ref 是同步的，state 有一帧延迟）
+    if (uploadingRef.current) {
+      return;
+    }
+    uploadingRef.current = true;
+    setUploading(true);
+    try {
+      const blob = await (await fetch(uri)).blob();
+      // 选择器给的大小可能与真实字节不同（web 的 blob 一定准），以实际字节为准
+      const bytes = size > 0 ? size : blob.size;
+      const uploaded = await uploadFile('chat', {
+        fileName,
+        size: bytes,
+        contentType,
+        body: blob,
+      });
+      if (!uploaded.ok) {
+        toast.show(t('conversation.message.uploadFailed'));
+        return;
+      }
+      const clientMsgId = sendAttachment(kind, uploaded.data, fileName, bytes);
+      if (clientMsgId === null) {
+        toast.show(t('conversation.reconnecting'));
+        return;
+      }
+      setPending((current) => [
+        ...current,
+        {
+          clientMsgId,
+          content: '',
+          kind,
+          // 图片要拿 localUri 立刻预览；文件也留着，确认前点卡片可先用本地副本打开
+          localUri: uri,
+          fileName: kind === 'file' ? fileName : undefined,
+          fileSize: kind === 'file' ? bytes : undefined,
+          failed: false,
+        },
+      ]);
+      setTimeout(() => {
+        scrollRef.current?.scrollToEnd({ animated: true });
+      }, 50);
+    } catch {
+      toast.show(t('conversation.message.uploadFailed'));
+    } finally {
+      uploadingRef.current = false;
+      setUploading(false);
+    }
+  };
+
+  /** 打开附件选择面板（图片 / PDF 文件）；上传中不允许再开。 */
+  const openAttachSheet = (): void => {
+    if (uploadingRef.current) {
+      return;
+    }
+    setAttachVisible(true);
   };
 
   /** 输入状态上报（3 秒无输入发 false）。 */
@@ -400,7 +560,19 @@ export function ChatPage() {
             {pending.map((item) => (
               <View key={item.clientMsgId} style={[styles.row, styles.rowOut]}>
                 <View style={[styles.bubble, styles.bubbleOut]}>
-                  <LocalizedText numberOfLines={8} style={styles.bubbleTextOut}>{item.content}</LocalizedText>
+                  {item.kind === 'image' ? (
+                    // 本地 pending 图：先拿 localUri 预览，确认后由服务端消息替代
+                    <MessageImage uri={item.localUri ?? null} out />
+                  ) : item.kind === 'file' ? (
+                    <MessageFile
+                      fileName={item.fileName ?? null}
+                      fileSize={item.fileSize === undefined ? null : String(item.fileSize)}
+                      uri={item.localUri ?? null}
+                      out
+                    />
+                  ) : (
+                    <LocalizedText numberOfLines={8} style={styles.bubbleTextOut}>{item.content}</LocalizedText>
+                  )}
                   {item.failed ? (
                     <LocalizedText numberOfLines={1} style={styles.failedText}>
                       {t('conversation.sendFailed')}
@@ -421,32 +593,66 @@ export function ChatPage() {
             ) : null}
           </ScrollView>
 
-          <View style={styles.composer}>
-            <TextInput
-              value={draft}
-              onChangeText={(text) => {
-                setDraft(text);
-                setTyping(text.length > 0);
-              }}
-              placeholder={t('conversation.inputPlaceholder')}
-              placeholderTextColor={color.text.muted}
-              style={styles.input}
-              multiline
-              maxLength={2000}
-              accessibilityLabel={t('conversation.inputPlaceholder')}
-            />
-            <Pressable
-              onPress={() => send(draft)}
-              style={[styles.sendButton, draft.trim() === '' ? styles.sendDisabled : null]}
-              accessibilityRole="button"
-              accessibilityLabel={t('conversation.send')}
-              disabled={draft.trim() === ''}
-            >
-              <Ionicons name="send" size={18} color={color.text.onBrand} />
-            </Pressable>
+          <View style={styles.composerWrap}>
+            {uploading ? (
+              <View style={styles.uploadingRow}>
+                <ActivityIndicator size="small" color={color.brand.primary} />
+                <LocalizedText numberOfLines={1} style={styles.uploadingText}>
+                  {t('conversation.composer.uploading')}
+                </LocalizedText>
+              </View>
+            ) : null}
+            <View style={styles.composer}>
+              <Pressable
+                onPress={openAttachSheet}
+                style={[styles.attachButton, uploading ? styles.buttonDisabled : null]}
+                accessibilityRole="button"
+                accessibilityLabel={t('conversation.composer.attach')}
+                accessibilityState={{ disabled: uploading }}
+                disabled={uploading}
+              >
+                <Ionicons name="add-circle-outline" size={size.cardIcon} color={color.brand.primary} />
+              </Pressable>
+              <TextInput
+                value={draft}
+                onChangeText={(text) => {
+                  setDraft(text);
+                  setTyping(text.length > 0);
+                }}
+                placeholder={t('conversation.inputPlaceholder')}
+                placeholderTextColor={color.text.muted}
+                style={styles.input}
+                multiline
+                maxLength={2000}
+                accessibilityLabel={t('conversation.inputPlaceholder')}
+              />
+              <Pressable
+                onPress={() => send(draft)}
+                style={[styles.sendButton, draft.trim() === '' || uploading ? styles.sendDisabled : null]}
+                accessibilityRole="button"
+                accessibilityLabel={t('conversation.send')}
+                accessibilityState={{ disabled: draft.trim() === '' || uploading }}
+                disabled={draft.trim() === '' || uploading}
+              >
+                <Ionicons name="send" size={18} color={color.text.onBrand} />
+              </Pressable>
+            </View>
           </View>
         </View>
       ) : null}
+
+      <AttachSheet
+        visible={attachVisible}
+        onClose={() => setAttachVisible(false)}
+        onPickImage={() => {
+          setAttachVisible(false);
+          void pickImage();
+        }}
+        onPickFile={() => {
+          setAttachVisible(false);
+          void pickFile();
+        }}
+      />
 
       <ConfirmDialog
         visible={recallTarget !== null}
@@ -491,9 +697,14 @@ function MessageBubble({ message, onLongPress }: { message: ChatMessage; onLongP
             {t('conversation.recalled')}
           </LocalizedText>
         ) : message.msgType === 'image' ? (
-          <LocalizedText numberOfLines={2} style={out ? styles.bubbleTextOut : styles.bubbleTextIn}>
-            {t('conversation.imageMessage')}
-          </LocalizedText>
+          <MessageImage uri={message.fileUrl} out={out} />
+        ) : message.msgType === 'file' ? (
+          <MessageFile
+            fileName={message.fileName}
+            fileSize={message.fileSize}
+            uri={message.fileUrl}
+            out={out}
+          />
         ) : (
           <LocalizedText numberOfLines={12} style={out ? styles.bubbleTextOut : styles.bubbleTextIn}>
             {message.content ?? ''}
@@ -661,15 +872,39 @@ const styles = StyleSheet.create({
     color: color.text.muted,
     marginStart: spacing.xs,
   },
+  composerWrap: {
+    borderTopWidth: size.hairline,
+    borderTopColor: color.border.divider,
+    backgroundColor: color.background.surface,
+  },
+  uploadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+  },
+  uploadingText: {
+    ...typography.caption,
+    color: color.text.secondary,
+  },
   composer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     gap: spacing.sm,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
-    borderTopWidth: size.hairline,
-    borderTopColor: color.border.divider,
-    backgroundColor: color.background.surface,
+  },
+  attachButton: {
+    width: size.inputHeight,
+    height: size.inputHeight,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: color.background.input,
+  },
+  buttonDisabled: {
+    opacity: 0.4,
   },
   input: {
     flex: 1,

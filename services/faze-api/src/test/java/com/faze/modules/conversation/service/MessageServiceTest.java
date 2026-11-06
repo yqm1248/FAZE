@@ -79,6 +79,9 @@ class MessageServiceTest {
     @Mock
     private ValueOperations<String, String> valueOperations;
 
+    @Mock
+    private com.faze.infra.storage.FileStorage fileStorage;
+
     private MessageService messageService;
 
     /**
@@ -94,7 +97,8 @@ class MessageServiceTest {
 
     @BeforeEach
     void setUp() {
-        messageService = new MessageService(conversationMapper, messageMapper, conversationService, redis);
+        messageService = new MessageService(conversationMapper, messageMapper, conversationService, redis,
+                fileStorage);
         when(redis.opsForValue()).thenReturn(valueOperations);
     }
 

@@ -17,8 +17,8 @@
 import { get, post, putBinary } from '@/shared/api/client';
 import type { ApiResult } from '@/shared/api/types';
 
-/** 上传场景（后端白名单）。 */
-export type UploadScene = 'realname' | 'identity' | 'license' | 'avatar';
+/** 上传场景（后端白名单）。`chat` 是段 2 G6 补的聊天附件场景（图片 / PDF）。 */
+export type UploadScene = 'realname' | 'identity' | 'license' | 'avatar' | 'chat';
 
 /** 上传凭证出参（`UploadTokenVO`）。 */
 export type UploadTokenData = {

@@ -19,6 +19,7 @@ import com.faze.common.audit.OperationLog;
 import com.faze.common.exception.BusinessException;
 import com.faze.common.exception.ErrorCode;
 import com.faze.common.pojo.CursorResult;
+import com.faze.infra.storage.FileStorage;
 import com.faze.modules.conversation.admin.vo.AdminChatMessageVO;
 import com.faze.modules.conversation.entity.Conversation;
 import com.faze.modules.conversation.entity.ConversationMessage;
@@ -43,6 +44,9 @@ public class AdminConversationService {
 
     private final ConversationMapper conversationMapper;
     private final ConversationMessageMapper conversationMessageMapper;
+
+    /** 文件存储：图片/文件消息的出参要换签名地址，否则管理端打不开附件。 */
+    private final FileStorage fileStorage;
 
     /**
      * 按 seq 游标查聊天记录（含已撤回原文）。
@@ -97,10 +101,31 @@ public class AdminConversationService {
         vo.setSenderId(message.getSenderId());
         vo.setMsgType(message.getMsgType());
         vo.setContent(message.getContent());
-        vo.setFileUrl(message.getFileUrl());
+        vo.setFileUrl(signFileUrl(message.getFileUrl()));
         vo.setFileName(message.getFileName());
         vo.setRecalled(message.getRecalledAt() != null);
         vo.setCreatedAt(message.getCreatedAt());
         return vo;
+    }
+
+    /**
+     * 把库里存的 OSS key 换成可读签名地址（与 C 端同一口径）。
+     *
+     * @param raw OSS key（或已是 http(s) 地址）
+     * @return 签名地址；空值或签名失败返回 null
+     */
+    private String signFileUrl(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        if (raw.startsWith("http://") || raw.startsWith("https://")) {
+            return raw;
+        }
+        try {
+            return fileStorage.presignDownload(raw).url();
+        } catch (RuntimeException e) {
+            log.warn("管理端聊天文件签名失败 keyLength={} 原因={}", raw.length(), e.getClass().getSimpleName());
+            return null;
+        }
     }
 }
