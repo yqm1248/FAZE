@@ -36,7 +36,7 @@ import { PrimaryButton } from '@/shared/components/PrimaryButton';
 import { Screen } from '@/shared/components/Screen';
 import { useI18n } from '@/shared/i18n';
 import type { MessageKey } from '@/shared/i18n';
-import { orderDetailHref } from '@/shared/navigation/routes';
+import { orderDetailHref, payHref } from '@/shared/navigation/routes';
 import { color, radius, size, spacing, typography } from '@/shared/theme';
 import { centsFromServer } from '@/shared/utils/money';
 import { formatServerDateTime } from '@/shared/utils/serverTime';
@@ -288,7 +288,7 @@ export function OrderListPage() {
                 key={item.id}
                 item={item}
                 onPress={() => router.push(orderDetailHref(item.id))}
-                onPay={() => toast.show(t('trade.order.payPending'))}
+                onPay={() => router.push(payHref(item.id))}
               />
             ))}
             <View style={styles.loadMore}>

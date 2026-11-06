@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 订单详情页。
  *
  * 职责：G2.1 的订单详情——状态头（含待支付倒计时）+ 服务信息 + 服务律师 + 费用明细 +
@@ -15,7 +15,7 @@
  */
 
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
@@ -37,6 +37,7 @@ import { InfoRow } from '@/shared/components/SettingRow';
 import { useI18n } from '@/shared/i18n';
 import type { MessageKey } from '@/shared/i18n';
 import { useAsyncResource } from '@/shared/hooks/useAsyncResource';
+import { payHref } from '@/shared/navigation/routes';
 import { color, radius, size, spacing, typography } from '@/shared/theme';
 import { centsFromServer } from '@/shared/utils/money';
 import { formatServerDateTime } from '@/shared/utils/serverTime';
@@ -237,6 +238,7 @@ function OrderBody({ order }: { order: OrderDetail }) {
 export function OrderDetailPage() {
   const { t } = useI18n();
   const toast = useToast();
+  const router = useRouter();
   const params = useLocalSearchParams<{ id?: string }>();
   const orderId = typeof params.id === 'string' ? params.id : '';
   const resource = useAsyncResource<OrderDetail>(() => getOrderDetail(orderId), { enabled: orderId !== '' });
@@ -257,7 +259,7 @@ export function OrderDetailPage() {
     }
     switch (action) {
       case 'pay':
-        toast.show(t('trade.order.payPending'));
+        router.push(payHref(data.id));
         return;
       case 'cancel':
         setCancelOpen(true);

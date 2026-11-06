@@ -99,3 +99,32 @@ export type PageRoute = (typeof PAGE_ROUTES)[keyof typeof PAGE_ROUTES];
 export function orderDetailHref(orderId: string): Href {
   return `${String(PAGE_ROUTES.orderDetail)}?id=${encodeURIComponent(orderId)}` as Href;
 }
+
+/**
+ * 拼支付页路由（带 `id` 查询参数）。
+ *
+ * @param orderId 订单主键
+ * @returns 可传给 `router.push` 的 Href
+ */
+export function payHref(orderId: string): Href {
+  return `${String(PAGE_ROUTES.pay)}?id=${encodeURIComponent(orderId)}` as Href;
+}
+
+/**
+ * 拼支付结果页路由。
+ *
+ * 失败原因**传 i18n key 而不是中文**：中文里传中文会让 RTL 语言页面显示中文，
+ * 而且以后改文案要改两处。`reason` 缺省时按「未知原因」处理。
+ *
+ * @param orderId 订单主键
+ * @param success 是否支付成功
+ * @param reason  失败原因的 i18n key（如 `trade.payResult.reasonBalance`）
+ * @returns 可传给 `router.replace` 的 Href
+ */
+export function payResultHref(orderId: string, success: boolean, reason?: string): Href {
+  const params = new URLSearchParams({ id: orderId, ok: success ? '1' : '0' });
+  if (reason !== undefined) {
+    params.set('reason', reason);
+  }
+  return `${String(PAGE_ROUTES.payResult)}?${params.toString()}` as Href;
+}

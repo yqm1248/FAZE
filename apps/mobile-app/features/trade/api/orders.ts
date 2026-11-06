@@ -77,6 +77,24 @@ export type OrderDetail = OrderItem & {
   actions: OrderAction[];
 };
 
+/** 支付结果（`PayResultVO`）。 */
+export type PayResult = {
+  /** 订单主键。 */
+  orderId: string;
+  /** 业务单号。 */
+  orderNo: string;
+  /** 订单状态（支付成功后是 paid）。 */
+  status: string;
+  /** 实付金额（分）。 */
+  amountCents: string;
+  /** 支付时间（UTC）。 */
+  paidAt: string | null;
+  /** 变动后账户余额（分）。 */
+  balanceAfterCents: string;
+  /** 是否幂等命中（这笔之前已经付过）。 */
+  duplicated: boolean;
+};
+
 /** 订单分页响应（`PageResult`）。 */
 export type OrderPage = {
   list: OrderItem[];
@@ -152,6 +170,19 @@ export function createOrder(
   const headers: Record<string, string> | undefined =
     idempotencyKey === undefined ? undefined : { 'Idempotency-Key': idempotencyKey };
   return post<OrderDetail>('/api/v1/app/orders', payload, { headers });
+}
+
+/**
+ * 用账户余额支付订单（G2.2）。
+ *
+ * 已支付的订单重复调用返回 `duplicated=true` 的成功结果，不会重复扣款。
+ *
+ * @param orderId     订单主键
+ * @param payPassword 6 位支付密码
+ * @returns 成功时 `data` 为支付结果（含变动后余额）
+ */
+export function payOrder(orderId: string, payPassword: string): Promise<ApiResult<PayResult>> {
+  return post<PayResult>(`/api/v1/app/orders/${encodeURIComponent(orderId)}/pay`, { payPassword });
 }
 
 /**
