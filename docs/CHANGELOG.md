@@ -4,6 +4,56 @@
 
 ---
 
+## 2026-11-06 · 段 2 G9 PC 后台 4 页（订单列表 / 订单详情 / 文章列表 / 文章编辑）
+
+### 1. G9.1 A-11 订单列表
+
+后端 `GET /api/v1/admin/orders`（RuoYi 口径 rows/total；状态/时间区间/律师/用户筛选；
+用户手机号脱敏；金额整数分）。前端 `views/biz/trade/order/index.vue`：8 状态筛选、时间区间、
+分页、CSV 导出（当前筛选，上限 1000 行，代码注释标明段 7 改异步导出）。
+
+### 2. G9.2 A-12 订单详情
+
+后端 `GET /admin/orders/{id}`（含支付记录、退款单、**关联会话 id**）、
+`GET /admin/orders/{id}/status-log`（来自 `order_status_log`，**不是四个时间戳拼的**）。
+前端 `detail.vue`：信息卡 + 状态流转时间线（实测 9 节点含 refunding/refund_rejected）+
+支付记录（段 2 两条，负数=退款）+ 退款单表与审批弹窗（驳回必填原因，调 G4.2 接口）+
+关联会话与**聊天记录抽屉**（seq 游标分页，已撤回消息给原文）。
+
+### 3. G9.3 A-14 文章列表
+
+后端 `GET /admin/articles`：服务端一次聚合四语言完成度（`languages`，标题与正文都非空才算完整），
+支持状态/语言/关键词筛选。前端 `index.vue`：4/4 徽标 + 上架/下架；**四语言不齐时前端本地预判
+并提示缺失语言**（服务端只回通用 msg，理由见验收文档偏差 3），服务端仍兜底拒绝。
+
+### 4. G9.4 A-15 文章编辑
+
+后端 `POST/PUT/GET /admin/articles[/{id}]`、`publish`、`offline`：保存只接受 draft/archived
+（上架必须走 publish 校验）；`publish` 校验简体 + 藏/维/哈的标题与正文都齐全；
+正文只校验「合法 JSON 数组」，块类型不锁枚举；译文按 `uk_art_trans` upsert。
+前端 `edit.vue`：源内容 + 三个译文 tab + 正文 JSON 块编辑（富文本会丢 law_ref 绑定，
+按工作流允许用 textarea 兜底）+ 保存草稿 / 保存并上架。
+
+### 5. 审计
+
+4 个文章写方法各一个 `@OperationLog`（ARTICLE_CREATE / UPDATE / PUBLISH / OFFLINE）；
+**聊天记录查看破例审计**（拍板第 7 项）：`CHAT_VIEW` + `target_id`=会话 id
+（`AuditContext.mark` 补），每次打开抽屉与翻页都留痕。
+
+### 6. 菜单
+
+`faze_admin.sys_menu` 插入 2109~2112（订单管理 / 订单详情[隐藏] / 文章管理 / 文章编辑[隐藏]），
+admin 角色默认全通过。生产部署要把这段 SQL 纳入部署脚本（段 8）。
+
+### 7. 证据
+
+`docs/acceptance/seg2/G9-admin.md`：11 项接口实测（真实 RuoYi token）、审计留痕 SQL、
+`2-A7` 全链路（PC 录入 → 上架 → APP 可见 → 维语视图 → 下架不可见）、7 条偏差。
+`vite build` 通过。**页面级浏览器截图未做**（菜单与接口已就绪，缺人工/自动化点击），
+在收口清单记为待补；管理端 Service 无单测（同样记入收口缺口）。
+
+---
+
 ## 2026-11-06 · 段 2 G8 内容与消息中心（文章四语言 / 首页与文章两页 / 消息中心空态）
 
 ### 1. G8.1 文章接口（四语言 + 降级）
