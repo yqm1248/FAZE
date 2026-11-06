@@ -4,6 +4,43 @@
 
 ---
 
+## 2026-11-06 · 段 2 G1 交易地基（12 表 + 状态机 + 单号 + 扣款适配）
+
+### 1. G1.1 建 12 张表（V200）
+
+按《数据表规范》§8.1 用 V200 区间建段 2 的 10 张既有表 + 2 张新增表。
+orders.status 补 
+efund_rejected（八态）、payment_record.channel 补 alance、
+
+efund_record 补 udit_remark。实测迁移 0.653s，12 张字段数与附录 A 逐个一致，索引均 <=6。
+新表需 sync-db-grants.ps1 同步逐表授权（已执行，27 张表）。
+
+> 偏差：段 1 实际用 V3~V12（占段 0 区间），未按 §8.1 的 V100~V199；已执行的迁移不改，段 2 起按规则用 V200。
+
+### 2. G1.2 状态机
+
+8 态 + 10 条状态对 + 14 个触发分支；OrderStatusMachine 是纯规则类。
+OrderStatusMachineTest 6 例全绿，含 8x8=64 组合穷举。
+
+已知缺口：PAID 阶段退款被驳回缺 REFUND_REJECTED->PAID 一条边（记在类注释）。
+
+### 3. G1.3 单号生成器
+
+OR/RF/RC + yyyyMMdd + 6 位，Redis INCR 按天分桶，东八区取日期。
+单测 3 例全绿：格式 / 100 并发无重复 / 跨天从 000001 重开。
+
+### 4. G1.4 扣款适配层
+
+BalancePayAdapter：先 PayPasswordService.verify 再 DeductService.deduct，不重写扣款。
+4 个 Mockito 用例全绿（密码错时断言 deduct 一次未调用）。
+
+### 5. 证据
+
+docs/acceptance/seg2/G1-tables.md。合计 13 个新单测全绿。
+未完成：清库重放（会清段 1 数据，记为待办）。
+
+---
+
 ## 2026-11-06 · 第 2 段开工前复核：3 项拍板 + 6 份文档回写 + WebSocket 依赖
 
 ### 1. 三项拍板（负责人 2026-11-06）
