@@ -56,6 +56,18 @@ function Read-EnvFile([string]$path) {
 
 $envPath = if ([System.IO.Path]::IsPathRooted($EnvFile)) { $EnvFile } else { Join-Path $PSScriptRoot $EnvFile }
 $cfg = Read-EnvFile $envPath
+
+# ── 把 .env 注入进程环境 ─────────────────────────────────────────────────────
+# 为什么必须注入：application.yml / application-dev.yml 里数据源是 `${FAZE_DB_URL}` 等占位符
+# （无默认值），`mvn -B verify` 启动的 Spring 上下文只继承**进程环境**，不读 deploy\.env。
+# 先前本脚本只把 .env 读进局部 map 给 preflight 用，没注入进程环境，结果后端门禁会以
+# `Could not resolve placeholder 'FAZE_DB_URL'` 整体失败——表现为「测试报错」而不是「跳过」，
+# 与第 4 步旧注释写的「无 FAZE_DB_URL 时整类跳过」不符（2026-11-07 修正）。
+# 只注入合法环境变量名，非法键（含空格的注释残留）直接跳过。
+foreach ($name in $cfg.Keys) {
+  if ($name -match '^[A-Za-z_][A-Za-z0-9_]*$') { Set-Item -Path "Env:$name" -Value $cfg[$name] }
+}
+
 $dbUrl = $cfg['FAZE_DB_URL']; $dbUser = $cfg['FAZE_DB_USER']; $dbPass = $cfg['FAZE_DB_PASSWORD']
 $apiPort = if ($cfg['FAZE_API_PORT']) { [int]$cfg['FAZE_API_PORT'] } else { 8081 }
 $redisHost = '127.0.0.1'; $redisPort = 6379
@@ -146,7 +158,9 @@ Step '后端门禁' {
       Write-Host ("[FAIL] mvn -B verify 退出码 {0}" -f $code)
       $script:Failures.Add('后端门禁')
     } else {
-      # 测试可能是 skipped（无 FAZE_DB_URL 时整类跳过）——这里不判假绿，只把实况打出来
+      # 注意：`.env` 已在脚本开头注入进程环境（见「把 .env 注入进程环境」段），
+      # 因此这里不会出现「无 FAZE_DB_URL 整类跳过」的假绿；若注入缺失，Spring 上下文会
+      # 以 `Could not resolve placeholder` 直接报错并让本步 FAIL（2026-11-07 修正旧注释）。
       $testsLine = ($out | Select-String -Pattern 'Tests run:.*Skipped' | Select-Object -Last 1)
       Write-Host ("[ OK ] mvn -B verify 通过{0}" -f $(if ($testsLine) { "（$($testsLine.Line.Trim())）" } else { '' }))
     }
