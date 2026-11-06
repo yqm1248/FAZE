@@ -25,7 +25,12 @@ import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
-import { createConversation, getMessages, markConversationRead } from '@/features/conversation/api/conversations';
+import {
+  createConversation,
+  getConversation,
+  getMessages,
+  markConversationRead,
+} from '@/features/conversation/api/conversations';
 import type { ChatMessage, ConversationItem } from '@/features/conversation/api/conversations';
 import { useChatSocket } from '@/features/conversation/hooks/useChatSocket';
 import type { AppError } from '@/shared/api/types';
@@ -74,8 +79,10 @@ type PendingMessage = {
  * @returns 聊天界面
  */
 export function ChatPage() {
-  const params = useLocalSearchParams<{ lawyerId?: string }>();
+  const params = useLocalSearchParams<{ lawyerId?: string; conversationId?: string }>();
   const lawyerId = typeof params.lawyerId === 'string' ? params.lawyerId : '';
+  const conversationIdParam = typeof params.conversationId === 'string' ? params.conversationId : '';
+  const isDirect = conversationIdParam !== '';
   const { t } = useI18n();
   const toast = useToast();
 
@@ -111,10 +118,12 @@ export function ChatPage() {
     });
   }, []);
 
-  /** 首屏：建会话 + 拉历史。 */
+  /** 首屏：建会话（或按 conversationId 直达）+ 拉历史。 */
   const load = useCallback(async (): Promise<void> => {
     setPhase('loading');
-    const created = await createConversation(lawyerId);
+    // 两种入口：订单详情「联系律师」只给 lawyerId → 创建或获取；
+    // 推送点击直达（G7.3）只给 conversationId → 直接查会话
+    const created = isDirect ? await getConversation(conversationIdParam) : await createConversation(lawyerId);
     if (!created.ok) {
       setError(created.error);
       setPhase('error');
@@ -131,7 +140,7 @@ export function ChatPage() {
     setMessages(history.data.list);
     setHasMore(history.data.hasMore);
     setPhase('ready');
-  }, [lawyerId]);
+  }, [lawyerId, isDirect, conversationIdParam]);
 
   useEffect(() => {
     void load();

@@ -17,12 +17,14 @@
  *      不做「前端过了后端不过」的两套规则。
  */
 
+import type { Href } from 'expo-router';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { login } from '@/features/auth/api/login';
 import type { LoginData } from '@/features/auth/api/login';
+import { takePendingHref } from '@/shared/api/pendingIntent';
 import type { AppError } from '@/shared/api/types';
 import { LocalizedText } from '@/shared/components/LocalizedText';
 import { PrimaryButton } from '@/shared/components/PrimaryButton';
@@ -90,8 +92,10 @@ export function LoginPage({ onSuccess }: LoginPageProps) {
         return;
       }
       onSuccess?.(result.data);
-      // 登录成功回首页（段 0 没有真实首页，先回启动分流器）。
-      router.replace('/');
+      // 登录成功：若之前因点推送被拦到登录页，先回该目标（G7.3 第 3 条：不丢目标）；
+      // 否则回启动分流器（段 0 没有真实首页）。
+      const pendingHref = takePendingHref();
+      router.replace((pendingHref ?? '/') as Href);
     } finally {
       setSubmitting(false);
     }

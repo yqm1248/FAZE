@@ -113,6 +113,16 @@ export function getConversations(pageNum: number, pageSize: number): Promise<Api
 }
 
 /**
+ * 查单个会话（推送点击直达时客户端只有 conversationId）。
+ *
+ * @param conversationId 会话主键
+ * @returns 成功时 `data` 为会话（按当前用户视角）
+ */
+export function getConversation(conversationId: string): Promise<ApiResult<ConversationItem>> {
+  return get<ConversationItem>(`/api/v1/app/conversations/${encodeURIComponent(conversationId)}`);
+}
+
+/**
  * 拉历史消息（seq 游标，向更早翻）。
  *
  * @param conversationId 会话主键

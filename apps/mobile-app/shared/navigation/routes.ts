@@ -187,3 +187,16 @@ export function reviewHref(orderId: string): Href {
 export function chatHref(lawyerId: string): Href {
   return `${String(PAGE_ROUTES.chat)}?lawyerId=${encodeURIComponent(lawyerId)}` as Href;
 }
+
+/**
+ * 拼聊天页路由（带 `conversationId` 查询参数）。
+ *
+ * 推送点击直达（G7.3）手里只有 `conversationId`：聊天页据此走 `GET /app/conversations/{id}`
+ * 拿对端信息并拉历史，不再走「按律师建会话」。
+ *
+ * @param conversationId 会话主键
+ * @returns 可传给 `router.push` 的 Href
+ */
+export function chatByConversationHref(conversationId: string): Href {
+  return `${String(PAGE_ROUTES.chat)}?conversationId=${encodeURIComponent(conversationId)}` as Href;
+}

@@ -24,11 +24,15 @@ import { StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { setUnauthorizedHandler } from '@/shared/api/authEvents';
+import { savePendingHref } from '@/shared/api/pendingIntent';
+import { readSession } from '@/shared/api/tokenStore';
 import { PrimaryButton } from '@/shared/components/PrimaryButton';
 import { ToastProvider } from '@/shared/components/AppToast';
 import { LocalizedText } from '@/shared/components/LocalizedText';
+import { setPushIntentHandler } from '@/features/conversation/push';
 import { I18nProvider, useI18n } from '@/shared/i18n';
 import { ensureDirection } from '@/shared/i18n/rtl';
+import { chatByConversationHref } from '@/shared/navigation/routes';
 import { color, FONT_ASSETS, spacing, typography } from '@/shared/theme';
 
 /** 错误边界的兜底文案：i18n 未就绪时也要能显示（不查 `t()`）。 */
@@ -85,6 +89,29 @@ function RootNavigator() {
     });
     return () => {
       setUnauthorizedHandler(null);
+    };
+  }, []);
+
+  useEffect(() => {
+    // 推送点击直达（G7.3 客户端部分）：推送 SDK 尚未接入（G7.1 挂账），
+    // 这里只注册意图处理器——SDK 到位后由原生回调调 emitPushIntent(payload) 即生效。
+    // 未登录时先记住目标再跳登录（登录成功后由 LoginPage 消费，不丢目标）。
+    setPushIntentHandler((intent) => {
+      if (intent.conversationId === null) {
+        return;
+      }
+      const href = chatByConversationHref(intent.conversationId);
+      void readSession().then((session) => {
+        if (session === null) {
+          savePendingHref(String(href));
+          router.replace('/login');
+          return;
+        }
+        router.push(href);
+      });
+    });
+    return () => {
+      setPushIntentHandler(null);
     };
   }, []);
 
