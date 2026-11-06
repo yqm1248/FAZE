@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 我的订单页。
  *
  * 职责：G2.1 的订单列表——状态筛选（5 档）+ 分页 + 待支付卡片倒计时 + 四态。
@@ -25,7 +25,6 @@ import { OrderStatusPill } from '@/features/trade/components/OrderStatusPill';
 import { PayCountdown } from '@/features/trade/components/PayCountdown';
 import type { AppError } from '@/shared/api/types';
 import { AppHeader } from '@/shared/components/AppHeader';
-import { useToast } from '@/shared/components/AppToast';
 import { EmptyState } from '@/shared/components/EmptyState';
 import { ErrorState } from '@/shared/components/ErrorState';
 import { LocalizedText } from '@/shared/components/LocalizedText';
@@ -163,7 +162,6 @@ function OrderCard({
 export function OrderListPage() {
   const { t } = useI18n();
   const router = useRouter();
-  const toast = useToast();
   const [filter, setFilter] = useState<FilterKey>('all');
   const [items, setItems] = useState<OrderItem[]>([]);
   const [phase, setPhase] = useState<'loading' | 'error' | 'success' | 'empty'>('loading');
