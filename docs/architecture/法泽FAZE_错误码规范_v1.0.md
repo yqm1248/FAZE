@@ -159,6 +159,26 @@ NNN = 3 位：域内序号，从 001 起
 | `505002` | 200 | `error.trade.reconcile-diff` | 对账存在差异，需人工处理 |
 | `505003` | 200 | `error.trade.flow-write-failed` | 流水写入失败（资金链路致命错误） |
 
+### 3.5.1 段 2 施工登记（2026-11-06）
+
+> **这一段是冲突登记，不是新分配。** 段 2 施工时实际落地的几个 trade 码**与本表 3.5 的段 5 预留段重叠**
+> （`405008`~`405011` 在表里是提现/结算，代码里已被律师不可用/退款单不存在占用）。
+> 本任务只把既成事实登记在此，**段 5 开工前必须由负责人裁决**：
+> 是把段 5 的码往后挪，还是改段 2 已交付的 4 个码（改码会牵动 C 端文案映射与已出的验收证据）。
+
+| code | HTTP | msgKey（代码实际值） | 段 2 用途 | 与 3.5 表的关系 |
+|---|---|---|---|---|
+| `405008` | 200 | `error.trade.lawyer-unavailable` | 律师当前不可接单（G2.1） | **冲突**：3.5 表是 `withdraw-below-min` |
+| `405009` | 200 | `error.trade.service-unavailable` | 律师未开通该服务（G2.1） | **冲突**：3.5 表是 `withdraw-insufficient` |
+| `405010` | 200 | `error.trade.lawyer-offline` | 律师当前不在线（G3.3） | **冲突**：3.5 表是 `withdraw-state-invalid` |
+| `405011` | 200 | `error.trade.refund-not-found` | 退款单不存在（G4.1） | **冲突**：3.5 表是 `settlement-mismatch` |
+| `405021` | 200 | `error.trade.review-not-found` | 评价不存在（G5.1 律师回复） | 避开预留段，取 3.5 表之后的新号 |
+| `405022` | 200 | `error.trade.review-duplicate` | 该订单已评价（G5.1） | 同上 |
+
+> 代码侧对应 `com.faze.common.exception.ErrorCode`；C 端文案在
+> `apps/mobile-app/shared/i18n/resources/zh-Hans/error.json`，其余三语已登记缺译。
+
+
 ## 3.6 文书域 `06`
 
 | code | HTTP | msgKey | 场景 |

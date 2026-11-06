@@ -4,6 +4,55 @@
 
 ---
 
+## 2026-11-06 · 段 2 G5 评价（提交 / 评分回写 / 律师回复）
+
+### 1. G5.1 评价提交
+
+`POST /app/orders/{id}/review`（rating 1-5 必填、tags ≤6 个每个 ≤20 字、content ≤500、isAnonymous 缺省 false）、
+`GET /app/orders/{id}/review`（评价页只读态与订单详情判断用）。
+前置：订单属于当前用户且 `COMPLETED`；**一单一次**用两层保证——应用层先查（给可读的 405022）+
+`uk_review_order` 兜底（`DuplicateKeyException` 也转 405022）。
+`OrderDetailVO.reviewed`：已评价时服务端把 `review` 从 `actions` 去掉，C 端按钮变「查看评价」。
+
+### 2. G5.1 律师回复（段 2 新增接口）
+
+`POST /app/reviews/{id}/reply`：技术路线 §4.8.2 没有这个接口，工作流 §五 第 27 条已登记为新增；
+`ReviewController` + `ReviewReplyBO`。归属校验是「lawyer.user_id 命中**且** lawyer.id == review.lawyer_id」
+——只判「是律师」会让任何律师回别人的评价（401008 已实测）。回复允许覆盖（工作流未规定次数，
+评价不可改而回复可修正错别字），每次覆盖更新 `updated_at`。
+
+### 3. G5.2 评分回写
+
+`ReviewService#recalcLawyerRating`：与插评价**同一事务**，`SELECT AVG(rating), COUNT(*) WHERE lawyer_id=?`
+后 `UPDATE lawyer SET rating, review_count`；**整表重算、不做增量**（增量算法在历史评价被人工改过之后会永久错）。
+`rating` 四舍五入到 1 位小数（`DECIMAL(2,1)`），无缓存——律师详情直接读 `lawyer` 行。
+实测：种子 `5.0 / 0`（不自洽的假数据）→ 4 星评价后 `4.0 / 1` → 再 5 星评价后 `4.5 / 2`，
+与 `SELECT AVG(rating), COUNT(*)` 完全一致。
+
+### 4. 错误码与接口登记
+
+新增 `TRADE_REVIEW_NOT_FOUND(405021)`、`TRADE_REVIEW_DUPLICATE(405022)`。
+**不复用 405012 / 405013**：那两个已被《错误码规范》§三 预留给段 5（提现/渠道）。
+同时补两处登记：① 《错误码规范》§三.5.1「段 2 施工登记」——段 2 已实际占用 405008~405011，
+与 §3.5 的段 5 预留冲突，**段 5 开工前必须裁决**；② 《接口规范》§7.3.0——段 2 施工实际落地
+而技术路线 §4.8.2 未列的 7 个接口（G4 的 4 个 + G5 的 3 个）。
+
+### 5. APP 评价页（34-review）
+
+`ReviewPage.tsx`：星级（初始 0、未打分底部置灰、触控区 45×45）、6 个标签多选、正文 200 字计数、
+匿名开关（整行可点）、「律师可以回复」「发布后不能修改」提示、已评价只读态（星级/标签/正文/匿名标记/律师回复）、四态。
+`OrderDetailPage` 的「评价服务」改为跳转评价页；`app/review.tsx` + `routes.ts` 的 `review` / `reviewHref`。
+i18n：`trade.review.*` 33 个 key + `trade.order.actViewReview` + `error.trade.review-not-found` /
+`error.trade.review-duplicate`；**删除占位 key `trade.order.reviewPending`**（入口已实现）。
+
+### 6. 证据
+
+`docs/acceptance/seg2/G5-review.md`（提交 / 匿名 / 律师回复 / 评分即时回写 / 库内数据 / 页面清单 / 偏差）。
+`mvn test` **170 项**（新增 `ReviewServiceTest` 13 项 + `OrderServiceImplTest#detailDropsReviewActionWhenReviewed`）；
+前端 `verify` 四项门禁通过。`2-A4` 接口级通过，页面级截图证据待段 2 收口统一补。
+
+---
+
 ## 2026-11-06 · 段 2 G4 退款（申请 / 审批 / 入账）
 
 ### 1. G4.1 退款申请
