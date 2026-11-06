@@ -77,4 +77,12 @@ public class OrderDetailVO {
 
     /** 当前可执行动作（服务端按状态机推导，仅供渲染按钮）。 */
     private List<String> actions;
+
+    /**
+     * 本单是否已评价（G5.1）。
+     *
+     * <p>已评价时 `actions` 里**不再有 `review`**：按钮要变成「查看评价」而不是「去评价」，
+     * 而「查看」与「去评价」是两个跳转意图，靠一个 action 表达不了。</p>
+     */
+    private Boolean reviewed;
 }

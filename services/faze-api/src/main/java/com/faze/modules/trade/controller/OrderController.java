@@ -19,12 +19,15 @@ import com.faze.modules.trade.bo.OrderCreateBO;
 import com.faze.modules.trade.bo.OrderQueryBO;
 import com.faze.modules.trade.bo.PayBO;
 import com.faze.modules.trade.bo.RefundApplyBO;
+import com.faze.modules.trade.bo.ReviewSubmitBO;
 import com.faze.modules.trade.service.OrderService;
 import com.faze.modules.trade.service.RefundService;
+import com.faze.modules.trade.service.ReviewService;
 import com.faze.modules.trade.vo.OrderDetailVO;
 import com.faze.modules.trade.vo.OrderVO;
 import com.faze.modules.trade.vo.PayResultVO;
 import com.faze.modules.trade.vo.RefundVO;
+import com.faze.modules.trade.vo.ReviewVO;
 import com.faze.security.LoginUser;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -51,6 +54,8 @@ public class OrderController {
     private final OrderService orderService;
 
     private final RefundService refundService;
+
+    private final ReviewService reviewService;
 
     /**
      * 下单。
@@ -151,6 +156,37 @@ public class OrderController {
     public R<RefundVO> refundDetail(@PathVariable Long id,
                                     @AuthenticationPrincipal LoginUser loginUser) {
         return R.ok(refundService.latestOfOrder(requireLogin(loginUser).getUserId(), id));
+    }
+
+    /**
+     * 提交评价（G5.1）。
+     *
+     * <p>只允许 COMPLETED 的订单提交，且**一单只能评一次**（`uk_review_order` 兜底）。
+     * 提交成功会在同一事务内重算律师评分（G5.2），所以返回时评分已是最新。</p>
+     *
+     * @param id        订单主键
+     * @param request   评分 / 标签 / 正文 / 是否匿名
+     * @param loginUser 当前认证主体
+     * @return 新建的评价
+     */
+    @PostMapping("/{id}/review")
+    public R<ReviewVO> review(@PathVariable Long id,
+                              @Valid @RequestBody ReviewSubmitBO request,
+                              @AuthenticationPrincipal LoginUser loginUser) {
+        return R.ok(reviewService.submit(requireLogin(loginUser).getUserId(), id, request));
+    }
+
+    /**
+     * 查本订单的评价（G5.1，评价页与订单详情判断「去评价 / 查看评价」）。
+     *
+     * @param id        订单主键
+     * @param loginUser 当前认证主体
+     * @return 评价；未评价时 data 为 null
+     */
+    @GetMapping("/{id}/review")
+    public R<ReviewVO> reviewDetail(@PathVariable Long id,
+                                    @AuthenticationPrincipal LoginUser loginUser) {
+        return R.ok(reviewService.myReview(requireLogin(loginUser).getUserId(), id));
     }
 
     /**

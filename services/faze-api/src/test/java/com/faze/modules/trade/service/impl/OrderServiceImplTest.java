@@ -25,13 +25,16 @@ import com.faze.modules.trade.service.OrderIdempotencyGuard;
 import com.faze.modules.trade.service.OrderPayExecutor;
 import com.faze.modules.trade.service.BalanceQueryService;
 import com.faze.modules.trade.service.OrderStateService;
+import com.faze.modules.trade.service.ReviewService;
 import com.faze.modules.trade.service.TaskQueueService;
 import com.faze.modules.trade.vo.OrderDetailVO;
 import com.faze.modules.trade.vo.PayResultVO;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -43,6 +46,8 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -88,6 +93,9 @@ class OrderServiceImplTest {
     @Mock
     private BalanceQueryService balanceQueryService;
 
+    @Mock
+    private ReviewService reviewService;
+
     @InjectMocks
     private OrderServiceImpl orderService;
 
@@ -99,7 +107,7 @@ class OrderServiceImplTest {
         when(ordersMapper.selectOne(any(Wrapper.class))).thenReturn(existing);
         when(lawyerQueryService.findById(anyLong())).thenReturn(Optional.empty());
         OrderDetailVO expected = new OrderDetailVO();
-        when(orderConverter.toDetailVO(eq(existing), any(), any())).thenReturn(expected);
+        when(orderConverter.toDetailVO(eq(existing), any(), any(), anyBoolean())).thenReturn(expected);
 
         OrderDetailVO result = orderService.create(USER_ID, request(), IDEM_KEY);
 
@@ -115,7 +123,7 @@ class OrderServiceImplTest {
         when(idempotencyGuard.tryStart(USER_ID, IDEM_KEY)).thenReturn(Optional.empty());
         when(orderCreateExecutor.create(eq(USER_ID), any())).thenReturn(created);
         when(lawyerQueryService.findById(anyLong())).thenReturn(Optional.empty());
-        when(orderConverter.toDetailVO(eq(created), any(), any())).thenReturn(new OrderDetailVO());
+        when(orderConverter.toDetailVO(eq(created), any(), any(), anyBoolean())).thenReturn(new OrderDetailVO());
 
         orderService.create(USER_ID, request(), IDEM_KEY);
 
@@ -154,12 +162,31 @@ class OrderServiceImplTest {
         Orders order = pendingOrder();
         when(ordersMapper.selectOne(any(Wrapper.class))).thenReturn(order);
         when(lawyerQueryService.findById(anyLong())).thenReturn(Optional.empty());
-        when(orderConverter.toDetailVO(eq(order), any(), any())).thenReturn(new OrderDetailVO());
+        when(orderConverter.toDetailVO(eq(order), any(), any(), anyBoolean())).thenReturn(new OrderDetailVO());
 
         orderService.detail(USER_ID, ORDER_ID);
 
         // 条件拼装由 MP 生成，这里断言「查了一次且使用 Wrapper」，具体 SQL 由集成验证覆盖
         verify(ordersMapper).selectOne(any(Wrapper.class));
+    }
+
+    @Test
+    @DisplayName("详情：已评价的订单不再下发 review 动作（G5.1）")
+    void detailDropsReviewActionWhenReviewed() {
+        Orders order = pendingOrder();
+        order.setStatus(OrderStatus.COMPLETED.getCode());
+        when(ordersMapper.selectOne(any(Wrapper.class))).thenReturn(order);
+        when(lawyerQueryService.findById(anyLong())).thenReturn(Optional.empty());
+        when(reviewService.existsOfOrder(ORDER_ID)).thenReturn(true);
+        when(orderConverter.toDetailVO(eq(order), any(), anyList(), anyBoolean())).thenReturn(new OrderDetailVO());
+
+        orderService.detail(USER_ID, ORDER_ID);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<String>> captor = ArgumentCaptor.forClass(List.class);
+        verify(orderConverter).toDetailVO(eq(order), any(), captor.capture(), eq(true));
+        // COMPLETED 用户侧只有 review 一个动作，去掉后就该是空列表
+        assertTrue(captor.getValue().isEmpty());
     }
 
     @Test

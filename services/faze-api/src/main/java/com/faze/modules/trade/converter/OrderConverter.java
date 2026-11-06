@@ -59,12 +59,13 @@ public class OrderConverter {
     /**
      * 订单行 → 详情 VO。
      *
-     * @param order   订单实体
-     * @param lawyer  承办律师；可为 null
-     * @param actions 已推导好的可执行动作（见 OrderActionResolver）
+     * @param order    订单实体
+     * @param lawyer   承办律师；可为 null
+     * @param actions  已推导好的可执行动作（见 OrderActionResolver）
+     * @param reviewed 本单是否已评价（G5.1；已评价时动作里不会有 review）
      * @return 详情 VO
      */
-    public OrderDetailVO toDetailVO(Orders order, Lawyer lawyer, List<String> actions) {
+    public OrderDetailVO toDetailVO(Orders order, Lawyer lawyer, List<String> actions, boolean reviewed) {
         OrderDetailVO vo = new OrderDetailVO();
         vo.setId(order.getId());
         vo.setOrderNo(order.getOrderNo());
@@ -79,6 +80,7 @@ public class OrderConverter {
         vo.setFinishedAt(order.getFinishedAt());
         vo.setCancelledAt(order.getCancelledAt());
         vo.setActions(actions == null ? List.of() : actions);
+        vo.setReviewed(reviewed);
         if (lawyer != null) {
             vo.setLawyerName(lawyer.getRealName());
             vo.setLawyerAvatarUrl(lawyer.getAvatarUrl());

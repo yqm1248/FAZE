@@ -37,6 +37,7 @@ import com.faze.modules.trade.service.OrderService;
 import com.faze.modules.trade.service.OrderStateService;
 import com.faze.modules.trade.service.BalanceQueryService;
 import com.faze.modules.trade.service.OrderPayExecutor;
+import com.faze.modules.trade.service.ReviewService;
 import com.faze.modules.trade.service.TaskQueueService;
 import com.faze.modules.trade.vo.OrderDetailVO;
 import com.faze.modules.trade.vo.OrderVO;
@@ -71,6 +72,7 @@ public class OrderServiceImpl implements OrderService {
     private final TaskQueueService taskQueueService;
     private final OrderPayExecutor orderPayExecutor;
     private final BalanceQueryService balanceQueryService;
+    private final ReviewService reviewService;
 
     /**
      * 下单。
@@ -242,7 +244,7 @@ public class OrderServiceImpl implements OrderService {
     }
 
     /**
-     * 把订单实体渲染成详情 VO（查一次律师 + 推导动作）。
+     * 把订单实体渲染成详情 VO（查一次律师 + 推导动作 + 判断是否已评价）。
      *
      * @param order 订单实体
      * @return 详情 VO
@@ -254,7 +256,14 @@ public class OrderServiceImpl implements OrderService {
         OrderStatus status = OrderStatus.of(order.getStatus());
         // 能走到这里的都是「用户查自己的单」，所以 ownerIsViewer = true
         List<String> actions = OrderActionResolver.resolve(status, true);
-        return orderConverter.toDetailVO(order, lawyer, actions);
+        // G5.1：已评价的订单不再给「去评价」按钮（动作由服务端推导，客户端不写第二份判断）
+        boolean reviewed = reviewService.existsOfOrder(order.getId());
+        if (reviewed) {
+            actions = actions.stream()
+                    .filter(action -> !OrderActionResolver.ACTION_REVIEW.equals(action))
+                    .toList();
+        }
+        return orderConverter.toDetailVO(order, lawyer, actions, reviewed);
     }
 
     /**
