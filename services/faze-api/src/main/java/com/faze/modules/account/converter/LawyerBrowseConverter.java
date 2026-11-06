@@ -13,6 +13,7 @@ package com.faze.modules.account.converter;
 
 import com.faze.modules.account.entity.Lawyer;
 import com.faze.modules.account.vo.LawyerCardVO;
+import com.faze.modules.account.vo.LawyerDetailVO;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -53,6 +54,37 @@ public class LawyerBrowseConverter {
         vo.setConsultPriceCents(lawyer.getConsultPriceCents());
         vo.setPhonePriceCents(lawyer.getPhonePriceCents());
         vo.setDocumentPriceCents(lawyer.getDocumentPriceCents());
+        return vo;
+    }
+
+    /**
+     * 律师行 → 详情（在卡片基础上补简介、服务开关、关注状态）。
+     *
+     * @param lawyer   律师实体
+     * @param followed 当前登录用户是否已关注（未登录传 false）
+     * @return 详情 VO
+     */
+    public LawyerDetailVO toDetail(Lawyer lawyer, boolean followed) {
+        LawyerDetailVO vo = new LawyerDetailVO();
+        vo.setId(lawyer.getId());
+        vo.setRealName(lawyer.getRealName());
+        vo.setAvatarUrl(lawyer.getAvatarUrl());
+        vo.setLawFirm(lawyer.getLawFirm());
+        vo.setRegion(lawyer.getRegion());
+        vo.setPracticeYears(lawyer.getPracticeYears());
+        vo.setSpecialties(parseSpecialties(lawyer.getSpecialties()));
+        vo.setRating(lawyer.getRating());
+        vo.setReviewCount(lawyer.getReviewCount());
+        vo.setOrderCount(lawyer.getOrderCount());
+        vo.setOnlineStatus(lawyer.getOnlineStatus());
+        vo.setConsultPriceCents(lawyer.getConsultPriceCents());
+        vo.setPhonePriceCents(lawyer.getPhonePriceCents());
+        vo.setDocumentPriceCents(lawyer.getDocumentPriceCents());
+        vo.setBio(lawyer.getBio());
+        vo.setServiceTextOn(lawyer.getServiceTextOn());
+        vo.setServicePhoneOn(lawyer.getServicePhoneOn());
+        vo.setServiceDocOn(lawyer.getServiceDocOn());
+        vo.setFollowed(followed);
         return vo;
     }
 

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 律师浏览接口（列表 / 详情 / 评价 / 关注）。
  *
  * 职责：`features/lawyer` 下浏览类页面的唯一数据入口。
@@ -110,6 +110,57 @@ export type LawyerDetail = LawyerCard & {
  */
 export function getLawyerDetail(lawyerId: string): Promise<ApiResult<LawyerDetail>> {
   return get<LawyerDetail>(`/api/v1/app/lawyers/${encodeURIComponent(lawyerId)}`);
+}
+
+/** 律师评价行（`LawyerReviewVO`）。 */
+export type LawyerReview = {
+  /** 评价主键。 */
+  id: string;
+  /** 评分 1~5。 */
+  rating: number;
+  /** 标签数组。 */
+  tags: string[];
+  /** 评价正文。 */
+  content: string | null;
+  /** 律师回复。 */
+  lawyerReply: string | null;
+  /** 是否匿名。 */
+  anonymous: boolean;
+  /** 评价人昵称；匿名为 null。 */
+  userNickname: string | null;
+  /** 评价时间（UTC）。 */
+  createdAt: string;
+};
+
+/** 评价分页响应。 */
+export type LawyerReviewPage = {
+  list: LawyerReview[];
+  total: number;
+  pageNum: number;
+  pageSize: number;
+  hasMore: boolean;
+};
+
+/**
+ * 查询某律师的评价（分页）。
+ *
+ * @param lawyerId 律师主键
+ * @param pageNum  页码（从 1 开始）
+ * @param pageSize 每页条数
+ * @returns 成功时 `data` 为评价分页结果
+ */
+export function getLawyerReviews(
+  lawyerId: string,
+  pageNum: number,
+  pageSize: number,
+): Promise<ApiResult<LawyerReviewPage>> {
+  const params = new URLSearchParams({
+    pageNum: String(pageNum),
+    pageSize: String(pageSize),
+  });
+  return get<LawyerReviewPage>(
+    `/api/v1/app/lawyers/${encodeURIComponent(lawyerId)}/reviews?${params.toString()}`,
+  );
 }
 
 /** 关注律师（需登录）。 */

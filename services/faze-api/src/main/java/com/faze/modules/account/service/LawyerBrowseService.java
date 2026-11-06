@@ -21,17 +21,27 @@
 package com.faze.modules.account.service;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.faze.common.exception.BusinessException;
+import com.faze.common.exception.ErrorCode;
 import com.faze.common.pojo.PageResult;
 import com.faze.modules.account.bo.LawyerListQueryBO;
 import com.faze.modules.account.converter.LawyerBrowseConverter;
+import com.faze.modules.account.entity.AppUser;
 import com.faze.modules.account.entity.Lawyer;
+import com.faze.modules.account.mapper.AccountMapper;
 import com.faze.modules.account.mapper.LawyerMapper;
 import com.faze.modules.account.vo.LawyerCardVO;
+import com.faze.modules.account.vo.LawyerDetailVO;
+import com.faze.modules.account.vo.LawyerReviewVO;
 import com.faze.modules.ops.service.SysConfigQueryService;
+import com.faze.modules.trade.entity.Review;
+import com.faze.modules.trade.mapper.ReviewMapper;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -71,6 +81,9 @@ public class LawyerBrowseService {
     private final LawyerBrowseConverter lawyerBrowseConverter;
     private final SysConfigQueryService sysConfigQueryService;
     private final JsonMapper jsonMapper;
+    private final LawyerFollowService lawyerFollowService;
+    private final ReviewMapper reviewMapper;
+    private final AccountMapper accountMapper;
 
     /**
      * 分页查询律师列表。
@@ -94,8 +107,128 @@ public class LawyerBrowseService {
     }
 
     /**
-     * 把分类名展开成 specialties 值数组。
+     * 查询律师详情（G3.2）。
      *
+     * @param lawyerId     律师主键
+     * @param viewerUserId 当前登录用户；游客传 null
+     * @return 律师详情（含是否已关注）
+     * @throws BusinessException 401004 律师不存在或不可见
+     */
+    public LawyerDetailVO detail(Long lawyerId, Long viewerUserId) {
+        Lawyer lawyer = requireVisibleLawyer(lawyerId);
+        boolean followed = lawyerFollowService.isFollowing(viewerUserId, lawyerId);
+        return lawyerBrowseConverter.toDetail(lawyer, followed);
+    }
+
+    /**
+     * 分页查询某律师的评价（G3.2）。
+     *
+     * @param lawyerId 律师主键
+     * @param rawPage  页码（可空）
+     * @param rawSize  每页条数（可空）
+     * @return 评价分页结果
+     * @throws BusinessException 401004 律师不存在或不可见
+     */
+    public PageResult<LawyerReviewVO> reviews(Long lawyerId, Integer rawPage, Integer rawSize) {
+        requireVisibleLawyer(lawyerId);
+        int pageNum = rawPage == null || rawPage < 1 ? 1 : rawPage;
+        int pageSize = rawSize == null ? 20 : Math.min(Math.max(rawSize, 1), 100);
+        IPage<Review> page = reviewMapper.selectPage(new Page<>(pageNum, pageSize),
+                Wrappers.<Review>lambdaQuery()
+                        .eq(Review::getLawyerId, lawyerId)
+                        .orderByDesc(Review::getCreatedAt)
+                        .orderByDesc(Review::getId));
+        List<Review> rows = page.getRecords();
+        Map<Long, String> nicknames = loadNicknames(rows);
+        List<LawyerReviewVO> list = rows.stream()
+                .map(review -> toReviewVO(review, nicknames))
+                .collect(Collectors.toList());
+        return PageResult.of(list, page.getTotal(), pageNum, pageSize);
+    }
+
+    /**
+     * 取一个「对 C 端可见」的律师（存在 + 已审核 + 未软删）。
+     *
+     * @param lawyerId 律师主键
+     * @return 律师实体
+     * @throws BusinessException 401004 不可见
+     */
+    private Lawyer requireVisibleLawyer(Long lawyerId) {
+        Lawyer lawyer = lawyerId == null ? null : lawyerMapper.selectOne(
+                Wrappers.<Lawyer>lambdaQuery()
+                        .eq(Lawyer::getId, lawyerId)
+                        .eq(Lawyer::getAuditStatus, "approved")
+                        .isNull(Lawyer::getDeletedAt));
+        if (lawyer == null) {
+            throw new BusinessException(ErrorCode.COMMON_NOT_FOUND);
+        }
+        return lawyer;
+    }
+
+    /**
+     * 批量取评价人昵称（匿名的不取）。
+     *
+     * @param rows 评价行
+     * @return 用户主键 → 昵称
+     */
+    private Map<Long, String> loadNicknames(List<Review> rows) {
+        Set<Long> userIds = rows.stream()
+                .filter(review -> !Boolean.TRUE.equals(review.getIsAnonymous()))
+                .map(Review::getUserId)
+                .filter(id -> id != null)
+                .collect(Collectors.toSet());
+        if (userIds.isEmpty()) {
+            return Map.of();
+        }
+        return accountMapper.selectBatchIds(userIds).stream()
+                .filter(user -> user.getId() != null)
+                .collect(Collectors.toMap(AppUser::getId, AppUser::getNickname, (left, right) -> left));
+    }
+
+    /**
+     * 评价行 → VO。
+     *
+     * @param review    评价实体
+     * @param nicknames 昵称表
+     * @return 评价 VO
+     */
+    private LawyerReviewVO toReviewVO(Review review, Map<Long, String> nicknames) {
+        LawyerReviewVO vo = new LawyerReviewVO();
+        vo.setId(review.getId());
+        vo.setRating(review.getRating());
+        vo.setTags(parseTags(review.getTags()));
+        vo.setContent(review.getContent());
+        vo.setLawyerReply(review.getLawyerReply());
+        boolean anonymous = Boolean.TRUE.equals(review.getIsAnonymous());
+        vo.setAnonymous(anonymous);
+        // 匿名时昵称必须为 null：回传任何可反查的标识都等于没匿名
+        vo.setUserNickname(anonymous ? null : nicknames.get(review.getUserId()));
+        vo.setCreatedAt(review.getCreatedAt());
+        return vo;
+    }
+
+    /**
+     * 解析评价标签 JSON。
+     *
+     * @param raw JSON 字符串
+     * @return 数组；空值或解析失败返回空列表
+     */
+    private List<String> parseTags(String raw) {
+        if (!StringUtils.hasText(raw)) {
+            return List.of();
+        }
+        try {
+            List<String> values = jsonMapper.readValue(raw, new TypeReference<List<String>>() {
+            });
+            return values == null ? List.of() : values;
+        } catch (RuntimeException e) {
+            log.warn("评价标签 JSON 解析失败，按空处理 rawLength={}", raw.length());
+            return List.of();
+        }
+    }
+
+    /**
+     * 把分类名展开成 specialties 值数组。     *
      * @param category 分类名；空表示「全部」
      * @return 值数组；空表示不筛分类
      */
