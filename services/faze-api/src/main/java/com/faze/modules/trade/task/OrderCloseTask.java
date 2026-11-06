@@ -46,12 +46,26 @@ public class OrderCloseTask {
     private final OrderTimeoutService orderTimeoutService;
 
     /**
+     * 启动时登记一行日志。
+     *
+     * <p>为什么需要它：`@Scheduled` 没生效时**没有任何报错**，表现只是「订单不自动关闭」。
+     * 有了这行日志，运维看启动日志就能确认「调度器活着」；没有这行就是调度没注册。
+     * （2026-11-06 实测踩过：扫描器未执行时，日志里静默无任何痕迹。）</p>
+     */
+    @jakarta.annotation.PostConstruct
+    void logRegistered() {
+        log.info("订单超时扫描器已注册：fixedDelay={}ms initialDelay={}ms worker={}",
+                SCAN_INTERVAL_MS, INITIAL_DELAY_MS, WORKER_NAME);
+    }
+
+    /**
      * 扫描并执行到期的订单超时任务。
      *
      * <p>副作用：领取任务、改订单状态、可能触发退款、更新任务状态。</p>
      */
     @Scheduled(fixedDelay = SCAN_INTERVAL_MS, initialDelay = INITIAL_DELAY_MS)
     public void scan() {
+        log.debug("扫描触发");
         List<TaskQueue> tasks;
         try {
             tasks = taskQueueService.claimBatch(WORKER_NAME);
@@ -61,6 +75,7 @@ public class OrderCloseTask {
             return;
         }
         if (tasks.isEmpty()) {
+            log.debug("本轮没有到期任务");
             return;
         }
         String owner = taskQueueService.ownerOf(WORKER_NAME);

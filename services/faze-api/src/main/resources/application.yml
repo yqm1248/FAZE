@@ -48,6 +48,15 @@ spring:
     url: ${FAZE_DB_URL}
     user: ${FAZE_DB_MIGRATE_USER}
     password: ${FAZE_DB_MIGRATE_PASSWORD}
+  # 定时任务调度：pool-size 必须显式配（默认 1 个线程，所有 @Scheduled 串行，
+  # 一个慢任务会把扫单任务饿死，表现是「订单不自动关闭」且日志无异常）。
+  # 用 Boot 的配置项而不是自定义 ThreadPoolTaskScheduler bean：自定义会与自动配置
+  # 各注册一个 TaskExecutor，ProbeController 注入 TaskExecutor 时歧义导致启动失败。
+  task:
+    scheduling:
+      pool:
+        size: 10
+      thread-name-prefix: faze-task-
   jackson:
     default-property-inclusion: always
     # 2026-11-02 复核：Spring Boot 4 已换 Jackson 3（tools.jackson），

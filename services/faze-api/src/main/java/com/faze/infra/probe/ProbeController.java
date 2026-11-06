@@ -36,6 +36,7 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
 import org.springframework.core.env.Environment;
@@ -90,14 +91,18 @@ public class ProbeController {
      *
      * @param lawSearchService 法条检索服务
      * @param doubaoClient     豆包客户端
-     * @param taskExecutor     Spring 异步执行器（用于把 SSE 写入放到工作线程）
+     * @param taskExecutor     Spring 异步执行器（用于把 SSE 写入放到工作线程）。
+     *                         **必须用 @Qualifier 指定 applicationTaskExecutor**：
+     *                         开启 @EnableScheduling 后容器里会同时存在
+     *                         applicationTaskExecutor 与 taskScheduler 两个 TaskExecutor，
+     *                         不限定会启动失败（2026-11-06 实测）。
      * @param environment      运行环境（取 active profiles）
      * @param appName          应用名（`spring.application.name`）
      * @param version          版本号（`faze.api.version`，缺省取 Maven 版本）
      */
     public ProbeController(LawSearchService lawSearchService,
                            DoubaoClient doubaoClient,
-                           TaskExecutor taskExecutor,
+                           @Qualifier("applicationTaskExecutor") TaskExecutor taskExecutor,
                            Environment environment,
                            @Value("${spring.application.name:faze-api}") String appName,
                            @Value("${faze.api.version:0.0.1-SNAPSHOT}") String version) {
