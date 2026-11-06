@@ -64,6 +64,14 @@
       <artifactId>spring-boot-starter-data-redis</artifactId>
     </dependency>
 
+    <!-- WebSocket：第 2 段 G6 的 IM 长连接（端点 /ws/chat）。
+         理由：2-A2 要求消息 ≤2 秒、2-A9 要求断线 30 秒后重连补齐，轮询不满足这两个锚点；
+         版本随 Boot 父 POM，不单独锁。登记见 docs/architecture/依赖清单.md。 -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-websocket</artifactId>
+    </dependency>
+
     <!-- MyBatis-Plus：SB4 starter + 分页插件（两个都要，版本一致） -->
     <dependency>
       <groupId>com.baomidou</groupId>
