@@ -19,11 +19,13 @@ import request from '@/api/biz/request'
  * @returns {Promise<{code:number,msg:string,total:number,rows:Array<object>}>} RuoYi 分页响应
  */
 export function listOrders(query) {
+  // 注意：列表接口是 RuoYi 口径（顶层 rows/total，不包 R.data），
+  // request 拦截器已把 body 原样返回，所以**不能再取 res.data**——取 `.data` 会得到 undefined。
   return request({
     url: '/api/v1/admin/orders',
     method: 'get',
     params: query
-  }).then((res) => res.data)
+  })
 }
 
 /**

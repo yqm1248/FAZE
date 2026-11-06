@@ -19,11 +19,12 @@ import request from '@/api/biz/request'
  * @returns {Promise<{code:number,msg:string,total:number,rows:Array<object>}>} 分页响应（行内含 languages）
  */
 export function listArticles(query) {
+  // 列表是 RuoYi 口径（顶层 rows/total）：拦截器返回的就是 body，**不能再取 .data**
   return request({
     url: '/api/v1/admin/articles',
     method: 'get',
     params: query
-  }).then((res) => res.data)
+  })
 }
 
 /**
