@@ -1,1 +1,20 @@
-{}
+{
+  "brand": "法泽",
+  "slogan": "普惠法律服务，就在身边",
+  "mineEntry": "我的",
+  "searchPlaceholder": "搜律师、查法条、找文书",
+  "searchPending": "搜索功能即将开放",
+  "soon": "该功能即将开放",
+  "quickFindLawyer": "找律师",
+  "quickMyOrders": "我的订单",
+  "quickMessages": "消息中心",
+  "quickAi": "AI 咨询",
+  "aiTitle": "AI 法律助手",
+  "aiDesc": "描述你的情况，AI 先帮你理清思路，再决定要不要找律师。",
+  "aiCta": "立即体验",
+  "dailyTitle": "每日学法",
+  "viewMore": "查看更多",
+  "articlesFailed": "文章加载失败，点这里重试",
+  "articlesEmpty": "还没有文章",
+  "disclaimer": "法泽是面向新疆伊犁地区的法律服务平台，提供律师咨询、文书代写与法律知识。"
+}

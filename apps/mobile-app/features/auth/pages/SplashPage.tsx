@@ -30,7 +30,7 @@ import { color, gradient, radius, spacing, typography } from '@/shared/theme';
 const MIN_SPLASH_MS = 900;
 
 /** 分流目标。 */
-type SplashTarget = '/profile' | '/login';
+type SplashTarget = '/home' | '/profile' | '/login';
 
 /**
  * 启动页。
@@ -60,7 +60,9 @@ export function SplashPage() {
       try {
         const session = await readSession();
         if (!cancelled) {
-          setTarget(session === null ? '/login' : '/profile');
+          // 段 2 引入首页后，登录态用户进首页（此前是「我的」）。
+          // 首页再提供「我的」入口，导航层级与设计稿一致（01-home 是主入口）。
+          setTarget(session === null ? '/login' : '/home');
         }
       } catch {
         // 读存储异常也必须有去路：直接去登录页，绝不空白。

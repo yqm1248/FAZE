@@ -1,1 +1,35 @@
-{}
+{
+  "list": {
+    "title": "每日学法",
+    "categoryAll": "全部",
+    "categoryLoan": "借款纠纷",
+    "categoryFamily": "婚姻家事",
+    "categoryLabor": "劳动争议",
+    "categoryContract": "合同纠纷",
+    "emptyTitle": "这个分类下还没有文章",
+    "emptyDesc": "换个分类看看，或者过几天再来。",
+    "langFallback": "暂无该语言版本",
+    "viewCount": "{{count}} 次阅读",
+    "loadMore": "加载更多",
+    "noMore": "没有更多了"
+  },
+  "detail": {
+    "title": "文章详情",
+    "langFallback": "暂无该语言版本，以下为简体中文内容。",
+    "empty": "这篇文章还没有正文内容。",
+    "disclaimer": "本文仅作一般性法律知识参考，不构成针对具体个案的法律意见。遇到具体纠纷，请结合证据咨询执业律师。"
+  },
+  "messages": {
+    "title": "消息中心",
+    "emptyTitle": "暂无通知",
+    "emptyDesc": "系统通知、订单提醒、律师回复都会出现在这里。",
+    "soon": "通知功能即将开放",
+    "lawyerEntry": "去找律师",
+    "backHome": "返回首页"
+  },
+  "messageDetail": {
+    "title": "消息详情",
+    "emptyTitle": "没有可展示的消息",
+    "emptyDesc": "通知功能开放后，点开一条通知就会在这里看到详情。"
+  }
+}

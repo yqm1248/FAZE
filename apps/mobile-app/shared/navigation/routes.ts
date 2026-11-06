@@ -89,6 +89,18 @@ export const PAGE_ROUTES = {
   /** 一对一聊天页（段 2 G6.3），需带 `lawyerId` 参数。 */
   chat: '/chat' as Href,
 
+  // ── 段 2 G8：内容与消息中心 ──────────────────────────────────────────
+  /** 首页（段 2 G8.2）。 */
+  home: '/home' as Href,
+  /** 文章列表页（段 2 G8.2）。 */
+  articles: '/articles' as Href,
+  /** 文章详情页（段 2 G8.2），需带 `id` 参数。 */
+  article: '/article' as Href,
+  /** 消息中心（段 2 G8.3，空态）。 */
+  messages: '/messages' as Href,
+  /** 消息详情（段 2 G8.3，占位）。 */
+  messageDetail: '/message-detail' as Href,
+
   // ── 段 2 G3：律师浏览与律师侧 ───────────────────────────────────────
   /** 找律师页（段 2 G3.1）。 */
   lawyerList: '/lawyer-list' as Href,
@@ -199,4 +211,27 @@ export function chatHref(lawyerId: string): Href {
  */
 export function chatByConversationHref(conversationId: string): Href {
   return `${String(PAGE_ROUTES.chat)}?conversationId=${encodeURIComponent(conversationId)}` as Href;
+}
+
+/**
+ * 拼文章列表路由。
+ *
+ * @param category 分类（可空；空表示全部）
+ * @returns 可传给 `router.push` 的 Href
+ */
+export function articlesHref(category?: string): Href {
+  if (category === undefined || category === '') {
+    return PAGE_ROUTES.articles;
+  }
+  return `${String(PAGE_ROUTES.articles)}?category=${encodeURIComponent(category)}` as Href;
+}
+
+/**
+ * 拼文章详情路由（带 `id` 查询参数）。
+ *
+ * @param articleId 文章主键
+ * @returns 可传给 `router.push` 的 Href
+ */
+export function articleHref(articleId: string): Href {
+  return `${String(PAGE_ROUTES.article)}?id=${encodeURIComponent(articleId)}` as Href;
 }
