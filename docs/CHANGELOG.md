@@ -4,6 +4,96 @@
 
 ---
 
+## 2026-11-06 · 段 2 G3 律师侧与展示（列表 / 详情 / 订单 / 工作台）
+
+### 1. G3.1 律师列表
+
+`GET /app/lawyers`：分类 4 档 + 关键词 + 排序白名单（`online_rating` / `rating_desc`）+ 分页。
+分类靠 `sys_config.lawyer_specialty_enum`（JSON：tab → 擅长领域值数组）展开成 `JSON_CONTAINS`，
+排序靠 `<choose>` 白名单，XML 内零 `${}`。前端 `LawyerListPage.tsx`。
+
+### 2. G3.2 律师详情 / 评价 / 关注
+
+`GET /app/lawyers/{id}`（资料 + 评分/评价数/接单数 + 三个服务价格与上下架 + `followed`）、
+`GET /app/lawyers/{id}/reviews`（分页，匿名评价不返回任何可反查标识）、
+`POST|DELETE /app/lawyers/{id}/follow`（`social_action` 软删取关，幂等）。前端 `LawyerDetailPage.tsx`。
+
+> 偏差：设计稿 `14-lawyer-detail.html` 无价格区 / 评价区，按工作流 G3.2 补齐；「立即咨询」= 下单，
+> 不是进会话（拍板第 6 项：下单与会话解耦）。
+
+### 3. G3.3 律师侧订单
+
+`GET /app/lawyer/orders`、`POST /app/orders/{id}/accept|reject|complete`。
+律师身份从 token 反查 `lawyer.id`，归属校验进 SQL（405002）；非律师 401008（403）。
+拒单 = `PAID→REFUNDING`（LAWYER）+ `OrderRefundService.settleRefund`（退款单 + 入账 + 支付负行 + 置 REFUNDED），
+与超时自动退共用一份实现。接单用原子 SQL 自增 `order_count`。前端 `LawyerOrdersPage.tsx`（10 秒轮询）。
+
+> 偏差：工作流未给律师侧列表端点（计划缺口），补 `GET /app/lawyer/orders`。
+
+### 4. G3.4 律师工作台
+
+`GET /app/workbench/summary`（今日订单 / 今日与累计预计收入 / 待接单 / 服务中 / 在线状态 / 价格与开关）、
+`PUT /app/workbench/online-status`、`PUT /app/workbench/service-settings`。
+「今日」按东八区切日；收入是 `lawyer_income_cents`（金额 − 15% 平台费），页面注明「预计收入，结算见段 5」。
+前端 `WorkbenchPage.tsx`。
+
+### 5. 本次修掉的 4 个缺陷
+
+1. **`@Scheduled` 静默不执行**（G2.4 遗留）：自定义 `taskScheduler` + `@EnableScheduling` 放在普通配置类里，
+   扫描器一次没跑。改为主类 `@EnableScheduling` + `spring.task.scheduling.*`，`ProbeController` 注入加
+   `@Qualifier`；`OrderCloseTask` 加启动登记日志。实测订单 1/3/4 被自动关闭（`task_queue` 三条 done）。
+2. **服务设置「部分更新」误清字段**：只传图文价格时，电话/文书价格被清 NULL、上架开关被置 0。
+   改为价格条件 `set` + 开关 `resolveSwitch`（null 保持现值），补 6 项单测。
+3. **分类 tab 映射词表错误**：初版把 tab 名（`民事纠纷`/`劳动纠纷`/`合同纠纷`）当成擅长领域值，
+   而入驻页标签真值是 `民商事纠纷`/`劳动争议`/`合同审查`，导致「民事纠纷」tab `total=0`。
+   已改用标签原词（归类口径不变，仍是负责人 2026-11-06 拍板的那套）。
+4. **`OrderListPage` 未使用 `toast`**：G3.1 提交带入的 eslint 红，已删。
+
+> 部署注意：`seg2_config.sql` 是种子且 `ON DUPLICATE KEY UPDATE` **不覆盖 `config_value`**，
+> 已初始化的库必须手工 `UPDATE lawyer_specialty_enum`，否则线上仍是旧映射。
+
+### 6. 证据
+
+`docs/acceptance/seg2/G3-lawyer.md`（列表 / 详情 / 接单完成 / 拒单退款 / 工作台 / 定时任务修复 / 锚点判定）。
+`mvn test` **145 项全绿**（26 个测试类）；前端四项门禁通过；i18n 新增 33 个 key（仅 zh-Hans 有译文，其余登记缺译）。
+`2-A2` 只验了前半段（接单链路），IM 实时部分待 G6，**整条不判通过**。
+
+---
+
+## 2026-11-06 · 段 2 G2 下单与支付（订单两页 / 余额支付 / 支付结果 / 超时关单）
+
+> 补记：本条目在 G3 收口时补写入，当时只出了证据文件、漏了 CHANGELOG（已记一次）。
+
+### 1. G2.1 下单接口 + 订单两页
+
+`POST /app/orders`（金额服务端按律师价格算，客户端传了也忽略；`Idempotency-Key` 幂等）、
+`GET /app/orders`、`GET /app/orders/{id}`，`OrderActionResolver` 按状态推导动作。
+订单列表 5 档 tab（`refunding`/`refund_rejected` 归「进行中」）、订单详情页。
+
+### 2. G2.2 余额支付
+
+`POST /app/orders/{id}/pay`：支付密码校验 → `BalancePayAdapter` → `DeductService.deduct`（唯一扣款入口）
+→ `payment_record` 正行 → `PENDING→PAID`。密码错时不扣款、不迁移状态。
+
+### 3. G2.3 支付页 + 结果页
+
+`31-pay`、`32-pay-result`：只做余额一种支付方式，无渠道选择控件（段 2「四条不许」第 2 条）。
+
+### 4. G2.4 超时关单与自动退款
+
+`task_queue` 任务表 + `TaskQueueService`（CAS 领取 / 租约回收 / 指数退避 / 死信）、
+`OrderTimeoutService`（PENDING 15 分钟关单；PAID 30 分钟无人接自动全额退款）、
+`OrderRefundService.autoRefundFull`、`RefundCreditService`（幂等键 = orderId）、
+`POST /app/orders/{id}/cancel`。
+
+> 已知问题：本组交付时 `@Scheduled` 实际未生效（见 G3 条目第 5.1 条），G3 期间才修复并实测。
+
+### 5. 证据
+
+`docs/acceptance/seg2/G2-order-pay.md`；`mvn test` 122 项全绿（当时）。
+
+---
+
 ## 2026-11-06 · 段 2 G1 交易地基（12 表 + 状态机 + 单号 + 扣款适配）
 
 ### 1. G1.1 建 12 张表（V200）
