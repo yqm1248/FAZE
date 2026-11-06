@@ -110,7 +110,8 @@ public class LawyerWorkbenchService {
      * 修改服务设置（价格与上架开关）。
      *
      * <p>规则一：字段为 null 表示**本次不改这一项**（与 {@code ServiceSettingsBO} 的字段注释一致），
-     * 只有传了才写库。之前无条件 {@code set} 会把没传的价格清成 NULL，是隐藏的数据丢失。</p>
+     * 只有传了才写库。无条件 {@code set} 会把没传的字段写成 NULL / false，是隐藏的数据丢失：
+     * 2026-11-06 实测「只传 consultPriceCents + serviceTextOn」把电话与文书的**上架开关全关了**。</p>
      *
      * <p>规则二：价格为 null 或 <= 0 时，对应服务**强制下架**——否则会出现「上架但 0 元」的律师，
      * 用户点下单直接 405009，是必然的客诉。本次没传价格时用**库内现值**判断能不能上架，
@@ -140,16 +141,29 @@ public class LawyerWorkbenchService {
                 .set(consult != null, Lawyer::getConsultPriceCents, consult)
                 .set(phone != null, Lawyer::getPhonePriceCents, phone)
                 .set(document != null, Lawyer::getDocumentPriceCents, document)
-                .set(Lawyer::getServiceTextOn, Boolean.TRUE.equals(request.getServiceTextOn())
-                        && positive(effectiveConsult))
-                .set(Lawyer::getServicePhoneOn, Boolean.TRUE.equals(request.getServicePhoneOn())
-                        && positive(effectivePhone))
-                .set(Lawyer::getServiceDocOn, Boolean.TRUE.equals(request.getServiceDocOn())
-                        && positive(effectiveDocument))
+                .set(Lawyer::getServiceTextOn,
+                        resolveSwitch(request.getServiceTextOn(), lawyer.getServiceTextOn(), effectiveConsult))
+                .set(Lawyer::getServicePhoneOn,
+                        resolveSwitch(request.getServicePhoneOn(), lawyer.getServicePhoneOn(), effectivePhone))
+                .set(Lawyer::getServiceDocOn,
+                        resolveSwitch(request.getServiceDocOn(), lawyer.getServiceDocOn(), effectiveDocument))
                 .set(Lawyer::getUpdatedAt, LocalDateTime.now(ZoneOffset.UTC))
                 .eq(Lawyer::getId, lawyer.getId()));
         log.info("律师改服务设置 lawyerId={} consult={} phone={} doc={}",
                 lawyer.getId(), consult, phone, document);
+    }
+
+    /**
+     * 解析某个服务的上架开关。
+     *
+     * @param requested  请求值；null 表示本次不修改，保持库内现值
+     * @param current    库内现值
+     * @param priceCents 本次生效的价格（本次传了用新值，没传用库内现值）
+     * @return 最终是否上架（价格无效时一律下架）
+     */
+    private boolean resolveSwitch(Boolean requested, Boolean current, long priceCents) {
+        boolean wanted = requested == null ? Boolean.TRUE.equals(current) : requested;
+        return wanted && priceCents > 0;
     }
 
     /**
@@ -162,16 +176,6 @@ public class LawyerWorkbenchService {
         if (price != null && price < 0) {
             throw new BusinessException(ErrorCode.TRADE_AMOUNT_INVALID);
         }
-    }
-
-    /**
-     * 价格是否有效（> 0）。
-     *
-     * @param price 价格
-     * @return 有效返回 true
-     */
-    private boolean positive(Long price) {
-        return price != null && price > 0;
     }
 
     /**
