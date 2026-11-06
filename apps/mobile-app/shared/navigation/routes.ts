@@ -72,7 +72,30 @@ export const PAGE_ROUTES = {
   notifySettings: '/notify-settings' as Href,
   /** 隐私设置页。 */
   privacySettings: '/privacy-settings' as Href,
+
+  // ── 段 2 G2：交易（订单 / 支付）──────────────────────────────────────
+  /** 我的订单页（段 2 G2.1）。 */
+  orders: '/orders' as Href,
+  /** 订单详情页（段 2 G2.1），需带 `id` 参数。 */
+  orderDetail: '/order-detail' as Href,
+  /** 支付页（段 2 G2.3），需带 `id` 参数。 */
+  pay: '/pay' as Href,
+  /** 支付结果页（段 2 G2.3），需带 `id` 与 `ok` 参数。 */
+  payResult: '/pay-result' as Href,
 } as const;
 
 /** 路由常量表的值类型（用于接收「任一页面路径」的参数）。 */
 export type PageRoute = (typeof PAGE_ROUTES)[keyof typeof PAGE_ROUTES];
+
+/**
+ * 拼订单详情路由（带 `id` 查询参数）。
+ *
+ * 为什么不直接在页面里写模板串：路由拼装集中在本文件，改路径时不用全仓搜字符串；
+ * 也避免页面里出现 `'/order-detail?id='` 这样的裸路径（routes.ts 的既有约定）。
+ *
+ * @param orderId 订单主键
+ * @returns 可传给 `router.push` 的 Href
+ */
+export function orderDetailHref(orderId: string): Href {
+  return `${String(PAGE_ROUTES.orderDetail)}?id=${encodeURIComponent(orderId)}` as Href;
+}

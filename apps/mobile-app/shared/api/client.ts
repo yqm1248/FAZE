@@ -67,6 +67,13 @@ export type RequestOptions = {
   auth?: boolean;
   /** 超时毫秒数，默认 15 秒。 */
   timeoutMs?: number;
+  /**
+   * 额外请求头（如下单的 `Idempotency-Key`）。
+   *
+   * 只允许业务头；`X-Request-Id` / `Accept-Language` / `Authorization` 这些由
+   * `buildHeaders` 统一生成，**传进来也盖不掉**（后写覆盖会破坏 401 重放的链路一致性）。
+   */
+  headers?: Record<string, string>;
 };
 
 /**
@@ -182,7 +189,7 @@ async function sendOnce<T>(
   const useAuth = options.auth !== false && session !== null;
   const accessToken = useAuth ? session.accessToken : null;
 
-  const headers = await buildHeaders(requestId, accessToken, options.body !== undefined);
+  const headers = await buildHeaders(requestId, accessToken, options.body !== undefined, options.headers);
   const url = BASE_URL + (path.startsWith('/') ? path : `/${path}`);
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), options.timeoutMs ?? DEFAULT_TIMEOUT_MS);
@@ -266,6 +273,7 @@ async function buildHeaders(
   requestId: string,
   accessToken: string | null,
   hasBody: boolean,
+  extra?: Record<string, string>,
 ): Promise<Record<string, string>> {
   const lang = (await readStoredLang()) ?? 'zh-Hans';
   const deviceId = await getDeviceId();
@@ -281,6 +289,15 @@ async function buildHeaders(
   }
   if (accessToken !== null) {
     headers.Authorization = `Bearer ${accessToken}`;
+  }
+  // 业务额外头放最后，但**不允许覆盖上面 6 个框架头**：覆盖 X-Request-Id 会让
+  // 服务端把同一次逻辑请求的两次重放当成两个请求（401 重放的链路一致性靠它）。
+  if (extra !== undefined) {
+    for (const [name, value] of Object.entries(extra)) {
+      if (!(name in headers)) {
+        headers[name] = value;
+      }
+    }
   }
   return headers;
 }

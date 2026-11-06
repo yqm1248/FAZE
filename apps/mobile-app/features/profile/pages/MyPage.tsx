@@ -324,7 +324,7 @@ export function MyPage() {
                     />
                     <SettingRow
                       label={t('profile.my.menuOrders')}
-                      onPress={() => toast.show(t('profile.my.menuOrdersPending'))}
+                      onPress={() => router.push(PAGE_ROUTES.orders)}
                     />
                   </View>
                 </View>
