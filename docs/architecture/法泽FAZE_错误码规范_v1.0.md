@@ -142,11 +142,11 @@ NNN = 3 位：域内序号，从 001 起
 | `405005` | 200 | `error.trade.refund-exceeds` | 退款金额超出可退上限 |
 | `405006` | 200 | `error.trade.amount-invalid` | 金额非法（负数、超限、非整数分） |
 | `405007` | **403** | `error.trade.not-order-owner` | 非本人订单 |
-| `405008` | 200 | `error.trade.withdraw-below-min` | 提现金额低于最低限额（`sys_config.withdraw.min_amount_cents`，当前 10 分） |
-| `405009` | 200 | `error.trade.withdraw-insufficient` | 可提现余额不足（`lawyer_balance.available_cents`） |
-| `405010` | 200 | `error.trade.withdraw-state-invalid` | 提现单状态非法，当前操作不允许（非法迁移一律 403 语义走 200 + 本码） |
-| `405011` | 200 | `error.trade.settlement-mismatch` | 结算数据不一致（流水净额 ≠ 订单收入 − 服务费，**发现即停**，不许写结算单） |
-| `405012` | 200 | `error.trade.withdraw-too-frequent` | 提现过于频繁（单日笔数超限） |
+| `405023` | 200 | `error.trade.withdraw-below-min` | 提现金额低于最低限额（`sys_config.withdraw.min_amount_cents`，当前 10 分） |
+| `405024` | 200 | `error.trade.withdraw-insufficient` | 可提现余额不足（`lawyer_balance.available_cents`） |
+| `405025` | 200 | `error.trade.withdraw-state-invalid` | 提现单状态非法，当前操作不允许（非法迁移一律 403 语义走 200 + 本码） |
+| `405026` | 200 | `error.trade.settlement-mismatch` | 结算数据不一致（流水净额 ≠ 订单收入 − 服务费，**发现即停**，不许写结算单） |
+| `405027` | 200 | `error.trade.withdraw-too-frequent` | 提现过于频繁（单日笔数超限） |
 | `405013` | 200 | `error.trade.channel-disabled` | 支付渠道未启用（`sys_config.pay.*.enabled=false`）；**不许静默回退到 Mock** |
 | `405014` | 200 | `error.trade.recharge-amount-invalid` | 充值金额超出单笔区间（`recharge.min_cents` ~ `recharge.max_amount_cents`，当前 0.1~5000 元） |
 | `405015` | 200 | `error.trade.recharge-state-invalid` | 充值单状态非法，当前操作不允许（非法迁移一律 200 + 本码） |
@@ -161,22 +161,25 @@ NNN = 3 位：域内序号，从 001 起
 
 ### 3.5.1 段 2 施工登记（2026-11-06）
 
-> **这一段是冲突登记，不是新分配。** 段 2 施工时实际落地的几个 trade 码**与本表 3.5 的段 5 预留段重叠**
-> （`405008`~`405011` 在表里是提现/结算，代码里已被律师不可用/退款单不存在占用）。
-> 本任务只把既成事实登记在此，**段 5 开工前必须由负责人裁决**：
-> 是把段 5 的码往后挪，还是改段 2 已交付的 4 个码（改码会牵动 C 端文案映射与已出的验收证据）。
+> **✅ 冲突已裁决（2026-11-06，负责人）：段 5 的 5 个交易域码整体顺延。**
+> 段 2 施工时实际落地的 `405008`~`405011` 与 §3.5 表原本给段 5（提现 / 结算）的预留号重叠；
+> 负责人选择**不动已交付的段 2 码**（改段 2 会牵动 C 端文案映射与已出的 4 份验收证据），
+> 把段 5 的 5 个码从 `405008`~`405012` **顺延到 `405023`~`405027`**（§3.5 表已同步）。
+> 段 6 的 `405013`~`405020` 与段 2 无交集，**保持不动**。
+> 段 5、段 6 工作流与《接口规范》的相关表述已同步更新。
 
-| code | HTTP | msgKey（代码实际值） | 段 2 用途 | 与 3.5 表的关系 |
+| code | HTTP | msgKey（代码实际值） | 段 2 用途 | 说明 |
 |---|---|---|---|---|
-| `405008` | 200 | `error.trade.lawyer-unavailable` | 律师当前不可接单（G2.1） | **冲突**：3.5 表是 `withdraw-below-min` |
-| `405009` | 200 | `error.trade.service-unavailable` | 律师未开通该服务（G2.1） | **冲突**：3.5 表是 `withdraw-insufficient` |
-| `405010` | 200 | `error.trade.lawyer-offline` | 律师当前不在线（G3.3） | **冲突**：3.5 表是 `withdraw-state-invalid` |
-| `405011` | 200 | `error.trade.refund-not-found` | 退款单不存在（G4.1） | **冲突**：3.5 表是 `settlement-mismatch` |
-| `405021` | 200 | `error.trade.review-not-found` | 评价不存在（G5.1 律师回复） | 避开预留段，取 3.5 表之后的新号 |
+| `405008` | 200 | `error.trade.lawyer-unavailable` | 律师当前不可接单（G2.1） | 段 2 占用；段 5 原定此号已顺延到 `405023` |
+| `405009` | 200 | `error.trade.service-unavailable` | 律师未开通该服务（G2.1） | 同上（段 5 原定 → `405024`） |
+| `405010` | 200 | `error.trade.lawyer-offline` | 律师当前不在线（G3.3） | 同上（段 5 原定 → `405025`） |
+| `405011` | 200 | `error.trade.refund-not-found` | 退款单不存在（G4.1） | 同上（段 5 原定 → `405026`） |
+| `405021` | 200 | `error.trade.review-not-found` | 评价不存在（G5.1 律师回复） | 段 2 占用（段 6 文档曾写「段 7 从 405021 起编」，段 7 实际用 `410xxx`，故无冲突） |
 | `405022` | 200 | `error.trade.review-duplicate` | 该订单已评价（G5.1） | 同上 |
 
 > 代码侧对应 `com.faze.common.exception.ErrorCode`；C 端文案在
 > `apps/mobile-app/shared/i18n/resources/zh-Hans/error.json`，其余三语已登记缺译。
+
 
 
 ## 3.6 文书域 `06`
