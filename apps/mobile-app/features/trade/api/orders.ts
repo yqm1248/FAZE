@@ -75,6 +75,12 @@ export type OrderDetail = OrderItem & {
   cancelledAt: string | null;
   /** 当前可执行动作。 */
   actions: OrderAction[];
+  /**
+   * 本单是否已评价（G5.1）。
+   *
+   * 已评价时 `actions` 里不再有 `review`，页面据此把按钮换成「查看评价」。
+   */
+  reviewed: boolean;
 };
 
 /** 支付结果（`PayResultVO`）。 */

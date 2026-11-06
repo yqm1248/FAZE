@@ -119,8 +119,8 @@
     "cancelSuccess": "订单已取消",
     "payPending": "支付页将在下一步接上",
     "refundPending": "退款申请在后续步骤接上",
-    "reviewPending": "评价在后续步骤接上",
-    "chatPending": "会话在后续步骤接上"
+    "chatPending": "会话在后续步骤接上",
+    "actViewReview": "查看评价"
   },
   "pay": {
     "title": "支付",
@@ -251,5 +251,40 @@
     "existingTitle": "这笔订单已有退款申请",
     "backToOrder": "返回订单详情",
     "notApplicable": "当前订单状态不能申请退款"
+  },
+  "review": {
+    "title": "评价服务",
+    "doneTitle": "我的评价",
+    "sectionRating": "服务评分",
+    "noteRequired": "必选",
+    "starHint": "点星星打分",
+    "star1": "1 星，很不满意",
+    "star2": "2 星，不太满意",
+    "star3": "3 星，一般",
+    "star4": "4 星，满意",
+    "star5": "5 星，非常满意",
+    "sectionTags": "律师哪些地方做得好",
+    "noteTagOptional": "可多选，也可以不选",
+    "tagProfessional": "专业能力强",
+    "tagReply": "回复及时",
+    "tagPatient": "态度耐心",
+    "tagClear": "讲解清楚",
+    "tagTransparent": "收费透明",
+    "tagPractical": "建议实用",
+    "sectionContent": "写点具体的",
+    "noteContentOptional": "选填",
+    "contentLabel": "文字评价",
+    "contentPlaceholder": "请描述律师提供的帮助，对其他正在选择律师的用户有参考价值",
+    "anonymous": "匿名评价",
+    "anonymousDesc": "其他用户看不到你的头像和昵称，律师仍能看到评价内容",
+    "anonymousBadge": "已匿名",
+    "tip": "评价发布后不能修改，也不能删除。请你如实填写，不要包含身份证号、手机号、住址这类个人信息，也不要写与本次服务无关的内容。律师可以回复你的评价。",
+    "submit": "发布评价",
+    "submitting": "发布中…",
+    "submitted": "评价已发布",
+    "ratingMissing": "请先点星星打分",
+    "notApplicable": "这单还不能评价。服务完成后才能评价，且每单只能评一次。",
+    "backToOrder": "返回订单详情",
+    "lawyerReply": "律师回复"
   }
 }

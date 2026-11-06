@@ -24,5 +24,7 @@
   "error.trade.balance-insufficient": "账户余额不足",
   "error.trade.amount-invalid": "金额不合法",
   "error.ai.service-down": "AI 服务暂时不可用",
-  "error.trade.refund-not-found": "退款单不存在"
+  "error.trade.refund-not-found": "退款单不存在",
+  "error.trade.review-not-found": "评价不存在",
+  "error.trade.review-duplicate": "该订单已评价，不能重复评价"
 }

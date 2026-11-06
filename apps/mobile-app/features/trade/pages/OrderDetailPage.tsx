@@ -37,7 +37,7 @@ import { InfoRow } from '@/shared/components/SettingRow';
 import { useI18n } from '@/shared/i18n';
 import type { MessageKey } from '@/shared/i18n';
 import { useAsyncResource } from '@/shared/hooks/useAsyncResource';
-import { payHref, refundHref } from '@/shared/navigation/routes';
+import { payHref, refundHref, reviewHref } from '@/shared/navigation/routes';
 import { color, radius, size, spacing, typography } from '@/shared/theme';
 import { centsFromServer } from '@/shared/utils/money';
 import { formatServerDateTime } from '@/shared/utils/serverTime';
@@ -268,7 +268,7 @@ export function OrderDetailPage() {
         router.push(refundHref(data.id));
         return;
       case 'review':
-        toast.show(t('trade.order.reviewPending'));
+        router.push(reviewHref(data.id));
         return;
       case 'enter_chat':
         toast.show(t('trade.order.chatPending'));
@@ -310,7 +310,7 @@ export function OrderDetailPage() {
         {(order) => <OrderBody order={order} />}
       </AsyncBoundary>
 
-      {data !== null && data.actions.length > 0 ? (
+      {data !== null && (data.actions.length > 0 || data.reviewed) ? (
         <ActionBar>
           <View style={styles.actionRow}>
             {data.actions
@@ -325,6 +325,15 @@ export function OrderDetailPage() {
                   style={styles.actionGhost}
                 />
               ))}
+            {/* 已评价时服务端已把 review 动作去掉（G5.1），这里补一个「查看评价」（只读展示） */}
+            {data.reviewed ? (
+              <PrimaryButton
+                label={t('trade.order.actViewReview')}
+                variant="outline"
+                onPress={() => router.push(reviewHref(data.id))}
+                style={styles.actionGhost}
+              />
+            ) : null}
             {data.actions.some((action) => action === 'pay') ? (
               <PrimaryButton
                 label={t('trade.order.actPay')}
