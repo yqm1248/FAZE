@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  职责：orders 表的聚合查询（律师工作台看板 G3.4）。
+  调用方：com.faze.modules.trade.mapper.OrdersMapper#selectWorkbenchStats。
+  数据来源：faze.orders。
+  注意：
+    1. **不含 ${}**：所有条件与参数都用 #{}。
+    2. 一次查询算出 5 个指标：避免 5 条 SQL 在同一个看板请求里打 5 次库。
+    3. `todayIncomeCents` 只算 in_service / completed：已支付未接单的收入还不是律师的。
+    4. SUM 在无匹配行时返回 NULL，Java 侧要按 0 处理（VO 字段是包装类型 Long）。
+-->
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.faze.modules.trade.mapper.OrdersMapper">
+
+    <select id="selectWorkbenchStats" resultType="com.faze.modules.trade.vo.WorkbenchSummaryVO">
+        SELECT
+            COALESCE(SUM(CASE WHEN created_at &gt;= #{beginUtc} THEN 1 ELSE 0 END), 0) AS today_order_count,
+            COALESCE(SUM(CASE WHEN created_at &gt;= #{beginUtc} AND status IN ('in_service', 'completed')
+                              THEN lawyer_income_cents ELSE 0 END), 0) AS today_income_cents,
+            COALESCE(SUM(CASE WHEN status IN ('in_service', 'completed')
+                              THEN lawyer_income_cents ELSE 0 END), 0) AS total_income_cents,
+            COALESCE(SUM(CASE WHEN status = 'paid' THEN 1 ELSE 0 END), 0) AS pending_accept_count,
+            COALESCE(SUM(CASE WHEN status = 'in_service' THEN 1 ELSE 0 END), 0) AS in_service_count
+        FROM orders
+        WHERE lawyer_id = #{lawyerId}
+          AND deleted_at IS NULL
+    </select>
+
+</mapper>

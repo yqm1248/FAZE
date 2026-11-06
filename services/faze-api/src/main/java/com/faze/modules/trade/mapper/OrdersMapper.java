@@ -15,9 +15,24 @@ package com.faze.modules.trade.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.faze.modules.trade.entity.Orders;
+import com.faze.modules.trade.vo.WorkbenchSummaryVO;
+import java.time.LocalDateTime;
+import org.apache.ibatis.annotations.Param;
 
 /**
  * 订单 Mapper。
  */
 public interface OrdersMapper extends BaseMapper<Orders> {
+
+    /**
+     * 律师工作台看板聚合（G3.4）。
+     *
+     * <p>一次查询算今日订单数、今日预计收入、累计预计收入、待接单数、服务中数。</p>
+     *
+     * @param lawyerId 律师主键
+     * @param beginUtc 今日 0 点（东八区）对应的 UTC 时间
+     * @return 聚合结果（字段均为非负计数/金额）
+     */
+    WorkbenchSummaryVO selectWorkbenchStats(@Param("lawyerId") Long lawyerId,
+                                            @Param("beginUtc") LocalDateTime beginUtc);
 }

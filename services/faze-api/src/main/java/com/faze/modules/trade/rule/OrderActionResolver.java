@@ -36,6 +36,15 @@ public final class OrderActionResolver {
     /** 进会话。 */
     public static final String ACTION_ENTER_CHAT = "enter_chat";
 
+    /** 律师接单（G3.3）。 */
+    public static final String ACTION_ACCEPT = "accept";
+
+    /** 律师拒单（G3.3）。 */
+    public static final String ACTION_REJECT = "reject";
+
+    /** 律师结束服务（G3.4）。 */
+    public static final String ACTION_COMPLETE = "complete";
+
     private OrderActionResolver() {
     }
 
@@ -50,7 +59,7 @@ public final class OrderActionResolver {
         if (status == null) {
             return List.of();
         }
-        // 律师视角的动作（接单/拒单/完成）在 G3 的 ActionResolver 里补，本段先只用用户视角
+        // 律师视角的动作见 resolveForLawyer（G3.3/G3.4）
         if (!ownerIsViewer) {
             return List.of();
         }
@@ -62,6 +71,29 @@ public final class OrderActionResolver {
             case REFUND_REJECTED -> List.of(ACTION_ENTER_CHAT, ACTION_REFUND);
             // PAID 是「等律师接单」，REFUNDING 是「退款审核中」，都不是可点动作
             case PAID, CANCELLED, REFUNDING, REFUNDED -> List.of();
+        };
+    }
+
+    /**
+     * 推导律师视角的可执行动作。
+     *
+     * <p>与用户视角**完全分开**：律师在 PAID 状态能做的是接单/拒单，而用户在 PAID 状态什么都做不了
+     * （只能等）。合成一个方法必然写出「用户也能接单」这种权限漏洞。</p>
+     *
+     * <p>`REFUND_REJECTED` 律师端也不给动作：驳回后由系统回退到服务中或已完成
+     * （状态机只允许 SYSTEM 触发），律师不需要在这个中间态操作。</p>
+     *
+     * @param status 订单当前状态
+     * @return 动作 code 列表；无动作返回空列表
+     */
+    public static List<String> resolveForLawyer(OrderStatus status) {
+        if (status == null) {
+            return List.of();
+        }
+        return switch (status) {
+            case PAID -> List.of(ACTION_ACCEPT, ACTION_REJECT);
+            case IN_SERVICE -> List.of(ACTION_COMPLETE);
+            default -> List.of();
         };
     }
 }

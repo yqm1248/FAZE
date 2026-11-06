@@ -1,4 +1,4 @@
-﻿{
+{
   "browse": {
     "title": "找律师",
     "searchPlaceholder": "搜索律师姓名、事务所",
@@ -55,6 +55,52 @@
     "ordering": "正在创建订单…",
     "orderCreated": "订单已创建，去支付",
     "loginRequired": "请先登录后再咨询"
+  },
+  "orders": {
+    "title": "我的订单",
+    "filterPending": "待接单",
+    "filterDoing": "进行中",
+    "filterCompleted": "已完成",
+    "filterCancelled": "已取消",
+    "filterAll": "全部",
+    "incomeLabel": "预计收入",
+    "accept": "接单",
+    "reject": "拒单",
+    "complete": "结束服务",
+    "acceptTitle": "确认接单？",
+    "rejectTitle": "拒绝这个订单？",
+    "rejectBody": "拒单后会立刻把这一单的钱全额退回给用户，订单关闭。拒单会影响你的接单率，确认前请想清楚。",
+    "accepted": "已接单，记得尽快联系用户",
+    "rejected": "已拒单，款项已退回用户",
+    "completed": "服务已结束，用户可以评价了",
+    "actionFailed": "操作没有成功，请重试",
+    "empty": "这里暂时没有订单",
+    "emptyDesc": "有新订单会自动出现在这里（每 10 秒刷新一次）。也可以切到其它分类看看。",
+    "refresh": "立即刷新",
+    "openWorkbench": "回工作台"
+  },
+  "workbench": {
+    "title": "律师工作台",
+    "currentStatus": "当前工作状态",
+    "online": "在线",
+    "busy": "忙碌",
+    "offline": "离线",
+    "statusHint": "离线时不显示在线标识，也不会被分配新单。切换随时生效，不影响已接的订单。",
+    "onlineSaved": "工作状态已更新",
+    "todayOrders": "今日订单",
+    "pendingAccept": "待接单",
+    "inService": "服务中",
+    "todayIncome": "今日预计收入",
+    "incomeHint": "以上是预计收入，来自订单记账口径；真实结算与提现见后续版本。",
+    "openOrders": "去订单管理",
+    "serviceSettings": "服务设置",
+    "priceLabel": "价格（元）",
+    "pricePlaceholder": "例如 50.00",
+    "save": "保存设置",
+    "saveSuccess": "设置已保存",
+    "saveFailed": "保存失败，请重试",
+    "priceInvalid": "价格格式不对，填数字，最多两位小数",
+    "priceHint": "价格为 0 或留空时，该服务会自动下架——避免用户看到「可咨询」但下单时报未开通。"
   },
   "join": {
     "title": "律师入驻",
