@@ -226,5 +226,30 @@
     "verified": "支付密码验证通过",
     "required": "请先输入支付密码",
     "codeInvalid": "验证码为 6 位数字"
+  },
+  "refund": {
+    "title": "申请退款",
+    "amountLabel": "退款金额",
+    "amountReadOnly": "金额由平台按规则核定，不可自行填写",
+    "ruleNote": "平台退的是平台收取的服务费；诉讼费等由法院收取的费用不在退款范围。",
+    "reasonTitle": "退款原因（单选）",
+    "reasonNotStarted": "服务还没开始，不需要了",
+    "reasonNoContact": "律师未在约定时间联系我",
+    "reasonMismatch": "服务内容与页面描述不符",
+    "reasonDuplicate": "重复下单，多付了一次",
+    "reasonOther": "其他原因",
+    "otherPlaceholder": "请填写具体原因（至少 5 个字）",
+    "otherRequired": "选择「其他原因」时必须填写说明",
+    "submit": "提交申请",
+    "submitting": "提交中…",
+    "success": "退款申请已提交，等待平台审核",
+    "failed": "提交失败，请重试",
+    "statusApplying": "审核中",
+    "statusRefunded": "已退款",
+    "statusRejected": "已驳回",
+    "auditRemark": "审核意见",
+    "existingTitle": "这笔订单已有退款申请",
+    "backToOrder": "返回订单详情",
+    "notApplicable": "当前订单状态不能申请退款"
   }
 }

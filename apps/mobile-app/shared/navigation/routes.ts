@@ -82,6 +82,8 @@ export const PAGE_ROUTES = {
   pay: '/pay' as Href,
   /** 支付结果页（段 2 G2.3），需带 `id` 与 `ok` 参数。 */
   payResult: '/pay-result' as Href,
+  /** 退款申请页（段 2 G4.1），需带 `id` 参数。 */
+  refund: '/refund' as Href,
 
   // ── 段 2 G3：律师浏览与律师侧 ───────────────────────────────────────
   /** 找律师页（段 2 G3.1）。 */
@@ -147,4 +149,14 @@ export function payResultHref(orderId: string, success: boolean, reason?: string
  */
 export function lawyerDetailHref(lawyerId: string): Href {
   return `${String(PAGE_ROUTES.lawyerDetail)}?id=${encodeURIComponent(lawyerId)}` as Href;
+}
+
+/**
+ * 拼退款申请页路由（带 `id` 查询参数）。
+ *
+ * @param orderId 订单主键
+ * @returns 可传给 `router.push` 的 Href
+ */
+export function refundHref(orderId: string): Href {
+  return `${String(PAGE_ROUTES.refund)}?id=${encodeURIComponent(orderId)}` as Href;
 }

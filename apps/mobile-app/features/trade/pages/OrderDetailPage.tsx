@@ -37,7 +37,7 @@ import { InfoRow } from '@/shared/components/SettingRow';
 import { useI18n } from '@/shared/i18n';
 import type { MessageKey } from '@/shared/i18n';
 import { useAsyncResource } from '@/shared/hooks/useAsyncResource';
-import { payHref } from '@/shared/navigation/routes';
+import { payHref, refundHref } from '@/shared/navigation/routes';
 import { color, radius, size, spacing, typography } from '@/shared/theme';
 import { centsFromServer } from '@/shared/utils/money';
 import { formatServerDateTime } from '@/shared/utils/serverTime';
@@ -265,7 +265,7 @@ export function OrderDetailPage() {
         setCancelOpen(true);
         return;
       case 'refund':
-        toast.show(t('trade.order.refundPending'));
+        router.push(refundHref(data.id));
         return;
       case 'review':
         toast.show(t('trade.order.reviewPending'));

@@ -23,5 +23,6 @@
   "error.auth.sms-send-failed": "验证码发送失败，请稍后重试",
   "error.trade.balance-insufficient": "账户余额不足",
   "error.trade.amount-invalid": "金额不合法",
-  "error.ai.service-down": "AI 服务暂时不可用"
+  "error.ai.service-down": "AI 服务暂时不可用",
+  "error.trade.refund-not-found": "退款单不存在"
 }
