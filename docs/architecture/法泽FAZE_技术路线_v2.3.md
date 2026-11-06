@@ -207,7 +207,7 @@
 | 数据库 | MySQL | 8.0（utf8mb4） |
 | 缓存 | Redis | 7.x |
 | 分布式锁 | **Redisson** | 3.35.x |
-| 消息队列 | RabbitMQ | 3.13（管理界面） |
+| 异步任务 | **数据库任务表 `task_queue` + 定时重试**（总纲 §7.5 定：不用 MQ） | — |
 | 实时通信 | spring-boot-starter-websocket | 随 Boot |
 | HTTP 客户端 | WebClient（spring-webflux） | 随 Boot |
 | 接口文档 | springdoc-openapi | 2.8.9 |
@@ -494,7 +494,7 @@ services/faze-api/
    ├─ config/
    │  ├─ WebMvcConfig WebSocketConfig RedisConfig MybatisPlusConfig
    │  ├─ ThreadPoolConfig CryptoConfig OpenApiConfig WebClientConfig
-   │  ├─ RabbitMQConfig RateLimitConfig FlywayConfig
+   │  ├─ TaskQueueConfig RateLimitConfig FlywayConfig
    ├─ security/
    │  ├─ JwtFilter JwtUtil CurrentUser SecurityContext
    ├─ filter/
@@ -654,7 +654,7 @@ public class R<T> implements Serializable {
 |---|---|
 | **Flyway 数据库迁移** | 表结构变更版本化，`V1__init.sql`、`V2__add_xxx.sql`，启动自动执行，禁止手动改库 |
 | **定时任务** | 订单超时取消（每分钟扫描）、提现处理（每小时）、每日统计（凌晨）、IM 离线消息清理 |
-| **RabbitMQ 消息队列** | 异步发短信、推送、生成文书、内容审核，主流程不阻塞，失败重试 + 死信队列 |
+| **异步任务表（不用 MQ）** | `task_queue` 表 + 定时重试：CAS 领取、租约回收、指数退避、死信可见（《后端代码规范》§9.2）。承载发短信、推送、生成文书、内容审核；**事务内不发消息，提交后由定时任务捞取** |
 | **Actuator 健康检查** | `/actuator/health`、`/actuator/metrics`，容器和负载均衡依赖 |
 | **分布式锁** | Redisson，防止并发重复下单、重复提现、重复接单 |
 | **服务降级** | 豆包 API 故障时返回兜底文案，不白屏；推送/短信故障不影响主流程 |
@@ -869,7 +869,7 @@ HTTP 状态码：**成功一律 200**（含业务失败也返回 200 + code）�
 | 方法与路径 | 用途 | 主要表 |
 |---|---|---|
 | `GET /admin/users` | 用户列表（昵称 / 手机号 / 用户 ID / 实名状态 / 账号状态） | `app_user` |
-| `GET /admin/users/{id}` | 用户详情（含累计消费、订单数、设备） | `app_user`、`legal_order` |
+| `GET /admin/users/{id}` | 用户详情（含累计消费、订单数、设备） | `app_user`、`orders` |
 | `POST /admin/users/{id}/ban` | 封禁（body 含原因与期限） | `app_user`、`user_violation` |
 | `POST /admin/users/{id}/unban` | 解封 | `app_user` |
 | `GET /admin/verifications?type=realname\|enterprise&status=` | 待审队列（实名与企业认证**同一队列两种类型**） | `app_user`、`lawyer`、`file_record` |
@@ -907,10 +907,10 @@ HTTP 状态码：**成功一律 200**（含业务失败也返回 200 + code）�
 
 | 方法与路径 | 用途 | 主要表 |
 |---|---|---|
-| `GET /admin/orders` | 订单列表（**已有**，4.8.2） | `legal_order` |
-| `GET /admin/orders/{id}` | 订单详情 | `legal_order`、`payment_record` |
+| `GET /admin/orders` | 订单列表（**已有**，4.8.2） | `orders` |
+| `GET /admin/orders/{id}` | 订单详情 | `orders`、`payment_record` |
 | `GET /admin/orders/{id}/status-log` | 状态流转记录（详情页时间线） | `order_status_log` |
-| `POST /admin/refunds/{id}/audit` | 退款审批（**已有**，4.8.2） | `legal_order`、`balance_flow` |
+| `POST /admin/refunds/{id}/audit` | 退款审批（**已有**，4.8.2） | `orders`、`balance_flow` |
 | `GET /admin/lawyer-settlements?lawyerId=&status=` | 结算单列表 | `lawyer_income_settlement` |
 | `POST /admin/lawyer-settlements/generate` | 生成结算单（按律师 + 账期） | 同上 |
 | `GET /admin/lawyer-settlements/{id}` | 结算单详情 | 同上 |
@@ -924,23 +924,23 @@ HTTP 状态码：**成功一律 200**（含业务失败也返回 200 + code）�
 
 | 方法与路径 | 用途 | 主要表 |
 |---|---|---|
-| `GET /admin/articles?category=&status=&lang=` | 文章列表（含 4 语言完成度） | `law_article` |
-| `POST /admin/articles` | 新建文章 | `law_article` |
-| `GET /admin/articles/{id}` | 文章详情（含 4 语言版本） | `law_article`、`law_article_translation` |
+| `GET /admin/articles?category=&status=&lang=` | 文章列表（含 4 语言完成度） | `article` |
+| `POST /admin/articles` | 新建文章 | `article` |
+| `GET /admin/articles/{id}` | 文章详情（含 4 语言版本） | `article`、`article_translation` |
 | `PUT /admin/articles/{id}` | 保存文章（正文 + 法条引用绑定） | 同上 |
-| `POST /admin/articles/{id}/publish` | 上架 | `law_article` |
-| `POST /admin/articles/{id}/offline` | 下架 | `law_article` |
+| `POST /admin/articles/{id}/publish` | 上架 | `article` |
+| `POST /admin/articles/{id}/offline` | 下架 | `article` |
 | `GET /admin/case-library?category=&status=` | 案例列表 | `case_library` |
 | `POST /admin/case-library` | 新建案例 | `case_library` |
 | `GET /admin/case-library/{id}` | 案例详情 | 同上 + translation |
 | `PUT /admin/case-library/{id}` | 保存案例 | 同上 |
-| `GET /admin/translations/pending?lang=` | 待翻译 / 待更新队列 | `law_article_translation`、`case_library_translation` |
+| `GET /admin/translations/pending?lang=` | 待翻译 / 待更新队列 | `article_translation`、`case_library_translation` |
 | `GET /admin/glossary?lang=` | 术语表 | `i18n_glossary` |
 | `POST /admin/glossary` | 新增术语 | `i18n_glossary` |
 | `PUT /admin/glossary/{id}` | 修改术语 | `i18n_glossary` |
-| `GET /admin/doc-templates?type=` | 文书模板列表 | `document_template` |
-| `POST /admin/doc-templates` | 新建模板 | `document_template` |
-| `PUT /admin/doc-templates/{id}` | 保存 / 启停模板（含字段定义与 4 语言） | `document_template` |
+| `GET /admin/doc-templates?type=` | 文书模板列表 | `doc_template` |
+| `POST /admin/doc-templates` | 新建模板 | `doc_template` |
+| `PUT /admin/doc-templates/{id}` | 保存 / 启停模板（含字段定义与 4 语言） | `doc_template` |
 | `GET /admin/law-items?lawCode=&articleNo=&kw=&status=` | 法条库列表 | `law_item` |
 | `GET /admin/law-items/{id}` | 法条详情 | `law_item` |
 | `PUT /admin/law-items/{id}` | 修正条文（写新版本，不改旧行） | `law_item` |
@@ -1311,7 +1311,7 @@ CREATE TABLE orders (
   amount_cents       BIGINT NOT NULL,
   platform_fee_cents BIGINT DEFAULT 0,
   lawyer_income_cents BIGINT DEFAULT 0,
-  status             VARCHAR(20) NOT NULL,   -- pending / paid / in_service / completed / cancelled / refunding / refunded
+  status             VARCHAR(20) NOT NULL,   -- pending / paid / in_service / completed / cancelled / refunding / refunded / refund_rejected（段 2 实现 8 态；disputed / settled 段 5 追加）
   paid_at            DATETIME,
   accepted_at        DATETIME,
   finished_at        DATETIME,
@@ -1330,7 +1330,7 @@ CREATE TABLE orders (
 CREATE TABLE payment_record (
   id             BIGINT PRIMARY KEY AUTO_INCREMENT,
   order_id       BIGINT NOT NULL,
-  channel        VARCHAR(20) NOT NULL,       -- wechat / alipay / mock
+  channel        VARCHAR(20) NOT NULL,       -- balance（段 2 订单支付/退款）/ wechat / alipay / mock（段 6 充值）
   transaction_id VARCHAR(64) NOT NULL,
   amount_cents   BIGINT NOT NULL,
   status         VARCHAR(20),                -- success / failed / pending
@@ -1348,6 +1348,7 @@ CREATE TABLE refund_record (
   amount_cents   BIGINT NOT NULL,
   status         VARCHAR(20) NOT NULL,       -- applying / approved / rejected / refunded
   transaction_id VARCHAR(64),
+  audit_remark   VARCHAR(500),                -- 审批意见 / 驳回原因（段 2 拍板：驳回必须留原因）
   audited_by     BIGINT,
   audited_at      DATETIME,
   refunded_at    DATETIME,
@@ -2740,7 +2741,7 @@ public interface PaymentGateway {
 | `AlipayPaymentGateway` | 支付宝（生产） |
 | `MockPaymentGateway` | 开发/测试，1 秒回调成功；**段 6 的 4 条可验锚点全在它上面验**（`mock.result` 可配 `success` / `fail` / `callback_lost`，用于造掉单与失败态） |
 
-> **v1.32 补充（2026-11-02）**：本接口**只服务充值**。段 2 的订单支付走余额抵扣（`channel='balance'`），不经过渠道，所以 `prepay()` 的 `order` 参数在充值场景传 `RechargeOrder` 视图（`orderNo` / `amountCents` / `channel` / `expireAt`），不传 `legal_order` 实体。
+> **v1.32 补充（2026-11-02）**：本接口**只服务充值**。段 2 的订单支付走余额抵扣（`channel='balance'`），不经过渠道，所以 `prepay()` 的 `order` 参数在充值场景传 `RechargeOrder` 视图（`orderNo` / `amountCents` / `channel` / `expireAt`），不传 `orders` 实体。
 > `refund()` 在段 6 **只实现「重复支付自动原路退回」一个用途**，不做用户主动退款（退款走段 2 的余额体系）。
 
 ## 9.2 订单状态机（V2.2 补全出边）
@@ -2802,6 +2803,8 @@ public interface PaymentGateway {
 ```
 
 ### 9.2.1 状态迁移表（服务端唯一依据）
+
+> **段 2 只实现前 8 态**：`PENDING` / `PAID` / `IN_SERVICE` / `COMPLETED` / `CANCELLED` / `REFUNDING` / `REFUNDED` / `REFUND_REJECTED`。`DISPUTED` / `SETTLED` 与 `COMPLETED→COMPLETED`（冻结期解冻）属段 5，本段不建、不测（`orders.status` 是 VARCHAR，段 5 加值零 DDL 代价）。
 
 | 当前状态 | 允许操作 | 目标状态 | 触发方 |
 |---|---|---|---|
@@ -4170,11 +4173,10 @@ volumes:
 | 服务 | 端口 |
 |---|---|
 | Nginx HTTP/HTTPS | 80 / 443 |
-| API | 8080 |
-| Admin | 8081 |
+| faze-api | 8081 |
+| RuoYi 管理端 | 8080 |
 | MySQL | 3306 |
 | Redis | 6379 |
-| RabbitMQ | 5672 / 15672 |
 | Prometheus | 9090 |
 | Grafana | 3000 |
 

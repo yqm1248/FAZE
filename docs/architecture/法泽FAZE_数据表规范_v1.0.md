@@ -525,7 +525,7 @@ COMMENT='订单主表；状态枚举：created/paid/accepted/completed/cancelled
 | 8 | `message_offline` | B | 6 | conversation | 段 2 | 离线消息队列；推送成功后清理 |
 | 9 | `orders` | A | 17 | trade | 段 2 | 订单主表（复数名，唯一例外） |
 | 10 | `payment_record` | B | 9 | trade | 段 2 | 支付记录 |
-| 11 | `refund_record` | C | 11 | trade | 段 2 | 退款单 |
+| 11 | `refund_record` | C | **12** | trade | 段 2 | 退款单（**v1.45 补 `audit_remark`**：退款审批意见 / 驳回原因；段 2 拍板「驳回必须留原因」） |
 | 12 | `review` | A | 11 | trade | 段 2 | 评价 |
 | 13 | `withdraw_record` | C | 21 | trade | 段 5 | 律师提现申请（**v1.30 补 6 字段**：`withdraw_no` / `fee_cents` / `actual_cents` / `voucher_file_id` / `bank_name` / `bank_account_tail`） |
 | 14 | `user_balance` | A | 7 | trade | 段 1 | 用户余额缓存（balance_flow 为真相） |

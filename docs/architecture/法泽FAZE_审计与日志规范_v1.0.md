@@ -93,6 +93,7 @@
 | 1 | 律师入驻审核 | `LAWYER_APPROVE` / `LAWYER_REJECT` | ✅ 必须（`1-A3`） |
 | 1 | 用户注销 | `ACCOUNT_CANCEL` | ✅ 必须（涉个保法） |
 | 2 | 订单改价 / 手动退款 | `ORDER_PRICE_EDIT` / `ORDER_REFUND` | ✅ 必须 |
+| 2 | 查看聊天记录（片段 + 上下文） | `CONVERSATION_VIEW` | ✅ **必须**（虽是 GET，但涉隐私；**只允许「命中片段 + 前后各 3 条」**，禁止全量导出；口径见《第 7 段工作流》§零之二 第 13 项） |
 | 2 | 律师违规处理 | `LAWYER_VIOLATION` | ✅ 必须 |
 | 5 | 提现审核（出款） | `WITHDRAW_APPROVE` / `WITHDRAW_REJECT` | ✅ **必须**（钱出去） |
 | 5 | 结算单确认 | `SETTLEMENT_CONFIRM` | ✅ 必须 |

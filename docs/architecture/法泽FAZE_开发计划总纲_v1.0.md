@@ -362,7 +362,7 @@ AGENTS.md 写的是「9 个段严格串行，不许两段并行」。这句要�
 | APP 页（16） | 见 §4.1 |
 | PC 页（4） | A-11、A-12、A-14、A-15 |
 | 服务端 | `lawyer`：列表、筛选、详情、评分统计；`trade`：下单、余额扣减（校验支付密码）、订单状态机、退款入口与退款单、评价；`conversation`：WebSocket 连接、消息收发、已读、撤回、重连、离线推送；`content`：文章列表与详情（含四语言译文）；`social`：收藏 / 关注的数据结构（页面在段 7）；离线推送接入 |
-| 数据库 | `legal_order`、`order_item`、`order_status_log`、`payment_record`、`refund_order`、`review`、`conversation`、`conversation_message`、`user_device`、`law_article`、`law_article_translation`、`law_article_category`、`social_action` |
+| 数据库 | 段 2 建 **12 张**（《数据表规范》附录 A）：`conversation`、`conversation_message`、`message_offline`、`orders`、`payment_record`、`refund_record`、`review`、`article`、`article_translation`、`social_action` + 新增 `order_status_log`、`task_queue`。**`user_device` 属段 1，不重复建**；`order_item` / `law_article_category` 在附录 A 中不存在（旧清单的编造项） |
 | 接口 | §4.8.4「交易」组 + App 侧订单 / 会话 / 内容接口 |
 
 **必须做**
