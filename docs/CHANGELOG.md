@@ -4,6 +4,40 @@
 
 ---
 
+## 2026-11-06 · 段 2 G8 内容与消息中心（文章四语言 / 首页与文章两页 / 消息中心空态）
+
+### 1. G8.1 文章接口（四语言 + 降级）
+
+`GET /api/v1/pub/articles`、`GET /api/v1/pub/articles/{id}`（同一实现也挂在 `/app/articles`：
+游客读首页「每日学法」用 `/pub`，登录用户走 `/app`）。`ArticleService` + `ArticleBlockConverter`，
+实体 `Article` / `ArticleTranslation`，可见性只看主表 `status='published'`（译文状态只表示质量阶段）。
+语言取 `lang` 参数或 `Accept-Language`；**标题、摘要、正文各自降级**，任一降级即
+`langFallback=true`（运营只录了标题译文时，正文是中文必须标降级，不能冒充译文）。
+法条引用块（`law_ref`）批量补 `law_item` 原文，避免逐块查询。
+
+### 2. G8.2 首页 + 文章列表 + 文章详情
+
+`HomePage`（01-home）：搜索入口、快捷入口、AI 咨询卡（段 3 占位）、**「每日学法」接真实接口**
+（区块自带 loading/error/empty 三态，文章接口挂了不拖垮首页）；`SplashPage` 登录态分流改为进首页。
+`ArticleListPage`（12-articles）：分类 5 档 + 分页 + 四态 + 语言降级角标。
+`ArticleDetailPage`（13-article）：五类正文块渲染（paragraph / heading / law_ref / list / image），
+法条引用块展示法名+条号+原文，未知块类型忽略不崩；底部免责声明。
+
+### 3. G8.3 消息中心两页（空态 + 入口占位）
+
+`MessagesPage`（38-messages）与 `MessageDetailPage`（39-message-detail）：**不建表、不调接口**，
+空态 +「通知功能即将开放」+ 真实出口（找律师/返回首页）；首页「消息中心」入口保留
+（工作流 G8.3 第 3 条：不因没数据就隐藏入口）。
+
+### 4. 证据
+
+`docs/acceptance/seg2/G8-content.md`：接口 6 项实测（游客可读 / 三种语言降级 / 9 个内容块 /
+法条原文补全 / 401004）、页面清单、7 项单测、6 条偏差。
+`mvn test` 新增 `ArticleServiceTest` 7 项；前端四项门禁通过。
+i18n：`content` 23 key + `home` 20 key（两个 namespace 此前都是空文件）。
+
+---
+
 ## 2026-11-06 · 段 2 G7 离线推送（任务与重试 / 点击直达逻辑；通道接入挂账）
 
 ### 1. G7.1 推送通道接入 —— **挂账，不做假实现**
