@@ -1,10 +1,12 @@
 /*
- * 职责：OrderStatusMachine 的单测——穷举 8×8=64 组合，断言只有 10 条合法、角色判定正确。
+ * 职责：OrderStatusMachine 的单测——穷举 8×8=64 组合，断言只有 13 条合法、角色判定正确。
  * 调用方：mvn test（不启动 Spring，纯 JUnit）。
  * 数据来源：段 2 工作流 G1.2 的迁移表；期望值在测试里**硬编码**，不从生产代码读，
  *          否则「用被测对象验证被测对象」等于没测。
  * 注意：
- *   1. 64 组合里 10 条合法 / 54 条非法，数字变了就是状态机被改了，必须解释。
+ *   1. 64 组合里 13 条合法 / 51 条非法，数字变了就是状态机被改了，必须解释
+ *      （G4 把 10 条改成 13 条：补了 REFUND_REJECTED→PAID 与 REFUNDING→PAID/IN_SERVICE，
+ *      原因见 OrderStatusMachine 类注释第 4 条）。
  *   2. 每条边的触发方也逐个断言：新增一条边却没加角色，或给了不该给的角色的权限，都会红。
  */
 package com.faze.modules.trade.rule;
@@ -34,7 +36,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class OrderStatusMachineTest {
 
     /**
-     * 期望的迁移表（10 条状态对 → 允许的触发方）。
+     * 期望的迁移表（13 条状态对 → 允许的触发方）。
      *
      * <p>与 OrderStatusMachine 里的表**独立维护**：改了一边不改另一边，测试就会失败。</p>
      */
@@ -52,14 +54,17 @@ class OrderStatusMachineTest {
                 OrderStatus.REFUNDING, Set.of(OperatorRole.USER, OperatorRole.LAWYER)));
         EXPECTED.put(OrderStatus.REFUNDING, Map.of(
                 OrderStatus.REFUNDED, Set.of(OperatorRole.ADMIN, OperatorRole.SYSTEM),
-                OrderStatus.REFUND_REJECTED, Set.of(OperatorRole.ADMIN)));
+                OrderStatus.REFUND_REJECTED, Set.of(OperatorRole.ADMIN),
+                OrderStatus.PAID, Set.of(OperatorRole.ADMIN, OperatorRole.SYSTEM),
+                OrderStatus.IN_SERVICE, Set.of(OperatorRole.ADMIN, OperatorRole.SYSTEM)));
         EXPECTED.put(OrderStatus.REFUND_REJECTED, Map.of(
                 OrderStatus.IN_SERVICE, Set.of(OperatorRole.SYSTEM),
-                OrderStatus.COMPLETED, Set.of(OperatorRole.SYSTEM)));
+                OrderStatus.COMPLETED, Set.of(OperatorRole.SYSTEM),
+                OrderStatus.PAID, Set.of(OperatorRole.SYSTEM)));
     }
 
     @Test
-    @DisplayName("穷举 8×8=64 组合，只有 10 条状态对合法")
+    @DisplayName("穷举 8×8=64 组合，只有 13 条状态对合法")
     void onlyTenLegalPairs() {
         List<String> legalPairs = new ArrayList<>();
         for (OrderStatus from : OrderStatus.values()) {
@@ -71,8 +76,8 @@ class OrderStatusMachineTest {
                 }
             }
         }
-        assertEquals(10, legalPairs.size(), "合法状态对必须 10 条，实际: " + legalPairs);
-        assertEquals(10, OrderStatusMachine.legalPairCount(), "legalPairCount() 与实际表不一致");
+        assertEquals(13, legalPairs.size(), "合法状态对必须 13 条，实际: " + legalPairs);
+        assertEquals(13, OrderStatusMachine.legalPairCount(), "legalPairCount() 与实际表不一致");
     }
 
     @Test

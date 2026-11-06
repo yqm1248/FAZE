@@ -97,6 +97,9 @@ public enum ErrorCode {
     /** 律师不在线且平台要求在线才可下单（开关 `order_require_lawyer_online`）。HTTP 200。 */
     TRADE_LAWYER_OFFLINE(405010, 200, "error.trade.lawyer-offline", "该律师当前不在线"),
 
+    /** 退款单不存在（G4.2 审批时按 id 查不到）。 */
+    TRADE_REFUND_NOT_FOUND(405011, 200, "error.trade.refund-not-found", "退款单不存在"),
+
     // ── AI 域 08 ─────────────────────────────────────────────────────────
     /** 豆包服务不可用 / 5 秒内未出首字节。HTTP 200。 */
     AI_SERVICE_DOWN(508001, 200, "error.ai.service-down", "AI 服务暂不可用");

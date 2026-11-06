@@ -5,7 +5,7 @@
  * 注意：
  *   1. **顺序与 DeductService 同构**：幂等预查 → 锁余额行 → 锁后复查 → 插流水 → 更新缓存。
  *      顺序错了会出现「有流水没入账」或「入了账没流水」。
- *   2. **幂等键用 (user, refund, orderId)**：一单只退一次。重复调用返回已有流水的 id，
+ *   2. **幂等键用 (user, refund, refundId)**：一张退款单只入账一次。重复调用返回已有流水的 id，
  *      不抛异常（重复请求是正常场景：任务重试、审批重放）。
  *   3. **隔离级别必须 READ_COMMITTED**：REPEATABLE READ 下锁后复查看不到并发事务刚提交的流水，
  *      幂等只能靠唯一键异常兜底（与 DeductService 的实测结论一致）。
@@ -52,26 +52,26 @@ public class RefundCreditService {
      * <p>副作用：插一条 refund 流水（正数）、更新 user_balance 的可用余额。</p>
      *
      * @param userId      退款接收人
-     * @param orderId     订单主键（同时作为幂等键）
+     * @param refundId    退款单主键（同时作为幂等键；一单可多次退款，每次一张退款单）
      * @param amountCents 退款金额（分，> 0）
      * @param remark      流水备注
      * @return 退款流水主键（用于 payment_record.transaction_id = BAL-&lt;flowId&gt;）
      * @throws BusinessException 405006 金额非法 / 401004 余额行不存在
      */
     @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
-    public Long credit(Long userId, Long orderId, long amountCents, String remark) {
+    public Long credit(Long userId, Long refundId, long amountCents, String remark) {
         // 任务 1：参数校验
         if (amountCents <= 0) {
             throw new BusinessException(ErrorCode.TRADE_AMOUNT_INVALID);
         }
-        if (orderId == null) {
+        if (refundId == null) {
             throw new BusinessException(ErrorCode.COMMON_PARAM_MISSING);
         }
 
         // 任务 2：幂等预查（锁外快速路径）
-        BalanceFlow existing = findRefundFlow(userId, orderId);
+        BalanceFlow existing = findRefundFlow(userId, refundId);
         if (existing != null) {
-            log.info("退款入账幂等命中 userId={} orderId={} flowId={}", userId, orderId, existing.getId());
+            log.info("退款入账幂等命中 userId={} refundId={} flowId={}", userId, refundId, existing.getId());
             return existing.getId();
         }
 
@@ -83,10 +83,10 @@ public class RefundCreditService {
         }
 
         // 任务 4：锁后复查幂等（READ_COMMITTED 下能看到最新提交）
-        BalanceFlow afterLock = findRefundFlow(userId, orderId);
+        BalanceFlow afterLock = findRefundFlow(userId, refundId);
         if (afterLock != null) {
-            log.info("退款入账幂等命中（锁后复查） userId={} orderId={} flowId={}",
-                    userId, orderId, afterLock.getId());
+            log.info("退款入账幂等命中（锁后复查） userId={} refundId={} flowId={}",
+                    userId, refundId, afterLock.getId());
             return afterLock.getId();
         }
 
@@ -99,7 +99,7 @@ public class RefundCreditService {
         flow.setOwnerType(BalanceService.OWNER_USER);
         flow.setOwnerId(userId);
         flow.setBizType(BIZ_TYPE_REFUND);
-        flow.setBizId(orderId);
+        flow.setBizId(refundId);
         flow.setDeltaCents(amountCents);
         flow.setBalanceAfter(totalBefore + amountCents);
         flow.setRemark(remark);
@@ -108,7 +108,7 @@ public class RefundCreditService {
             balanceFlowMapper.insert(flow);
         } catch (DuplicateKeyException e) {
             // 并发兜底：唯一键拦住了第二个请求，把已有流水返回（不抛）
-            BalanceFlow first = findRefundFlow(userId, orderId);
+            BalanceFlow first = findRefundFlow(userId, refundId);
             if (first == null) {
                 throw e;
             }
@@ -119,8 +119,8 @@ public class RefundCreditService {
         cache.setBalanceCents(available + amountCents);
         cache.setUpdatedAt(now);
         userBalanceMapper.updateById(cache);
-        log.info("退款入账成功 userId={} orderId={} amountCents={} flowId={} totalAfter={}",
-                userId, orderId, amountCents, flow.getId(), totalBefore + amountCents);
+        log.info("退款入账成功 userId={} refundId={} amountCents={} flowId={} totalAfter={}",
+                userId, refundId, amountCents, flow.getId(), totalBefore + amountCents);
         return flow.getId();
     }
 
@@ -128,14 +128,14 @@ public class RefundCreditService {
      * 查已存在的退款流水。
      *
      * @param userId  用户主键
-     * @param orderId 订单主键
+     * @param refundId 退款单主键
      * @return 流水；不存在返回 null
      */
-    private BalanceFlow findRefundFlow(Long userId, Long orderId) {
+    private BalanceFlow findRefundFlow(Long userId, Long refundId) {
         return balanceFlowMapper.selectOne(Wrappers.<BalanceFlow>lambdaQuery()
                 .eq(BalanceFlow::getOwnerType, BalanceService.OWNER_USER)
                 .eq(BalanceFlow::getOwnerId, userId)
                 .eq(BalanceFlow::getBizType, BIZ_TYPE_REFUND)
-                .eq(BalanceFlow::getBizId, orderId));
+                .eq(BalanceFlow::getBizId, refundId));
     }
 }

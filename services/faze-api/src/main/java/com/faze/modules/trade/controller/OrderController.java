@@ -18,10 +18,13 @@ import com.faze.common.pojo.PageResult;
 import com.faze.modules.trade.bo.OrderCreateBO;
 import com.faze.modules.trade.bo.OrderQueryBO;
 import com.faze.modules.trade.bo.PayBO;
+import com.faze.modules.trade.bo.RefundApplyBO;
 import com.faze.modules.trade.service.OrderService;
+import com.faze.modules.trade.service.RefundService;
 import com.faze.modules.trade.vo.OrderDetailVO;
 import com.faze.modules.trade.vo.OrderVO;
 import com.faze.modules.trade.vo.PayResultVO;
+import com.faze.modules.trade.vo.RefundVO;
 import com.faze.security.LoginUser;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -46,6 +49,8 @@ public class OrderController {
     private static final String HEADER_IDEMPOTENCY = "Idempotency-Key";
 
     private final OrderService orderService;
+
+    private final RefundService refundService;
 
     /**
      * 下单。
@@ -116,6 +121,36 @@ public class OrderController {
                               @Valid @RequestBody PayBO request,
                               @AuthenticationPrincipal LoginUser loginUser) {
         return R.ok(orderService.pay(requireLogin(loginUser).getUserId(), id, request));
+    }
+
+    /**
+     * 申请退款（G4.1）。
+     *
+     * <p>只允许 PAID / IN_SERVICE 的订单发起；COMPLETED 之后的争议属段 5。</p>
+     *
+     * @param id        订单主键
+     * @param request   退款原因（必填）与可选金额（不传 = 全额）
+     * @param loginUser 当前认证主体
+     * @return 新建的退款单
+     */
+    @PostMapping("/{id}/refund")
+    public R<RefundVO> applyRefund(@PathVariable Long id,
+                                   @Valid @RequestBody RefundApplyBO request,
+                                   @AuthenticationPrincipal LoginUser loginUser) {
+        return R.ok(refundService.apply(requireLogin(loginUser).getUserId(), id, request));
+    }
+
+    /**
+     * 查订单最新的退款单（G4.1，退款进度展示）。
+     *
+     * @param id        订单主键
+     * @param loginUser 当前认证主体
+     * @return 最新退款单；从未申请过时 data 为 null
+     */
+    @GetMapping("/{id}/refund")
+    public R<RefundVO> refundDetail(@PathVariable Long id,
+                                    @AuthenticationPrincipal LoginUser loginUser) {
+        return R.ok(refundService.latestOfOrder(requireLogin(loginUser).getUserId(), id));
     }
 
     /**

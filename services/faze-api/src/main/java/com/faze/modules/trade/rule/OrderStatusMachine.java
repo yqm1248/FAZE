@@ -6,9 +6,13 @@
  *   1. 纯规则类：不注入 Spring、不查库、无状态，可直接静态调用做单测（后端规范 §3.8）。
  *   2. 非法迁移抛 BusinessException(405003)，**不许静默忽略**（工作流 G1.2 第 3 条）。
  *   3. 创建订单是唯一允许 from = null 的迁移（null → PENDING）；其余 null 一律非法。
- *   4. 已知缺口（不擅自补）：PAID 阶段发起退款被驳回时，迁移表里没有
- *      REFUND_REJECTED → PAID 这条边——工作流的拆分只给了回退到 IN_SERVICE / COMPLETED。
- *      业务上应避免 PAID 直接进入退款审批，或由业务层直接退款不审批。见 G1.2 完成记录。
+ *   4. **G4 补了 3 条边**（2026-11-06，原 10 条 → 13 条）：
+ *      - `REFUND_REJECTED → PAID`（SYSTEM）：驳回后回退到「已付款待接单」。原表只给了回退到
+ *        IN_SERVICE / COMPLETED，但 G4.1 允许 **PAID 状态也能申请退款**，驳回后必须能回到 PAID，
+ *        否则订单卡死在 REFUND_REJECTED（G1.2 记录的已知缺口，G4 必须补）。
+ *      - `REFUNDING → PAID` / `REFUNDING → IN_SERVICE`（ADMIN、SYSTEM）：**部分退款审批通过**
+ *        后订单回到退款前状态（G4.3 裁决：部分退不代表订单作废）。不能走「先 REFUNDED 再回退」，
+ *        因为 REFUNDED 是终态、没有出边。
  */
 package com.faze.modules.trade.rule;
 
@@ -35,7 +39,7 @@ public final class OrderStatusMachine {
     }
 
     /**
-     * 10 条状态对 → 该迁移允许的触发方。
+     * 13 条状态对 → 该迁移允许的触发方。
      *
      * <p>14 个触发分支的对应关系（同一状态对合并成一条，按角色区分权限）：
      * <pre>
@@ -47,8 +51,11 @@ public final class OrderStatusMachine {
      * IN_SERVICE → REFUNDING   用户申请退款(USER) / 律师放弃(LAWYER)
      * REFUNDING → REFUNDED     后台审核通过(ADMIN) / 自动全额退(SYSTEM)
      * REFUNDING → REFUND_REJECTED 后台驳回(ADMIN)
+     * REFUNDING → PAID         部分退款通过后回退(ADMIN) / 系统回退(SYSTEM)
+     * REFUNDING → IN_SERVICE   部分退款通过后回退(ADMIN) / 系统回退(SYSTEM)
      * REFUND_REJECTED → IN_SERVICE  驳回后回退(SYSTEM)
      * REFUND_REJECTED → COMPLETED   驳回后回退(SYSTEM)
+     * REFUND_REJECTED → PAID        驳回后回退(SYSTEM)
      * </pre>
      */
     private static final Map<OrderStatus, Map<OrderStatus, Set<OperatorRole>>> TABLE = buildTable();
@@ -70,11 +77,16 @@ public final class OrderStatusMachine {
 
         table.put(OrderStatus.REFUNDING, Map.of(
                 OrderStatus.REFUNDED, Set.of(OperatorRole.ADMIN, OperatorRole.SYSTEM),
-                OrderStatus.REFUND_REJECTED, Set.of(OperatorRole.ADMIN)));
+                OrderStatus.REFUND_REJECTED, Set.of(OperatorRole.ADMIN),
+                // 部分退款：钱退了但订单继续，回退到退款前状态（G4.3 裁决）
+                OrderStatus.PAID, Set.of(OperatorRole.ADMIN, OperatorRole.SYSTEM),
+                OrderStatus.IN_SERVICE, Set.of(OperatorRole.ADMIN, OperatorRole.SYSTEM)));
 
         table.put(OrderStatus.REFUND_REJECTED, Map.of(
                 OrderStatus.IN_SERVICE, Set.of(OperatorRole.SYSTEM),
-                OrderStatus.COMPLETED, Set.of(OperatorRole.SYSTEM)));
+                OrderStatus.COMPLETED, Set.of(OperatorRole.SYSTEM),
+                // PAID 阶段发起的退款被驳回：必须能回到 PAID（G4 补）
+                OrderStatus.PAID, Set.of(OperatorRole.SYSTEM)));
 
         return Collections.unmodifiableMap(table);
     }
