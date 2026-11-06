@@ -88,3 +88,23 @@ Copy-Item deploy\.env.example deploy\.env
 - 不启 `faze-api` / RuoYi（A3、PC 侧各自启动）；
 - 不用 docker / WSL；
 - 不自动提权（UAC 子进程环境不可控，会制造「看起来成功」的假绿）。
+---
+
+## 6. 新增表之后必须做的事（`migrate.ps1`）
+
+`faze_app` 是**逐表授权**（库级权限已清空），Flyway 建出新表后它默认**看不到新表**：
+应用报「表不存在」，但用 root / `faze_migrate` 查一切正常——很容易被误判成代码 bug。
+（2026-11-06 段 2 G1.1 踩过：12 张新表，`information_schema` 完全查不到。）
+
+以后凡是新迁移里有 `CREATE TABLE`，**跑这一条就够**：
+
+```powershell
+.\deploy\migrate.ps1              # 重启 API 执行 Flyway → 同步授权 → 复核
+.\deploy\migrate.ps1 -SkipRestart # 迁移已执行过，只补授权
+```
+
+退出码：`0` 成功 / `2` .env 缺失 / `3` 缺必需变量 / `4` 迁移失败 / `5` 授权同步失败 / `6` 授权复核有差异。
+
+> 它内部就是 `restart-api.ps1` + `sync-db-grants.ps1`（两遍：写库 + `-Verify`），
+> 没有重新实现授权逻辑，只是把「三步忘记一步就出事」的流程固化成一条命令。
+
