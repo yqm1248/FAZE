@@ -26,12 +26,15 @@ import com.faze.modules.trade.bo.OrderCreateBO;
 import com.faze.modules.trade.bo.OrderQueryBO;
 import com.faze.modules.trade.converter.OrderConverter;
 import com.faze.modules.trade.entity.Orders;
+import com.faze.modules.trade.enums.OperatorRole;
 import com.faze.modules.trade.enums.OrderStatus;
 import com.faze.modules.trade.mapper.OrdersMapper;
 import com.faze.modules.trade.rule.OrderActionResolver;
 import com.faze.modules.trade.service.OrderCreateExecutor;
 import com.faze.modules.trade.service.OrderIdempotencyGuard;
 import com.faze.modules.trade.service.OrderService;
+import com.faze.modules.trade.service.OrderStateService;
+import com.faze.modules.trade.service.TaskQueueService;
 import com.faze.modules.trade.vo.OrderDetailVO;
 import com.faze.modules.trade.vo.OrderVO;
 import java.util.ArrayList;
@@ -44,6 +47,7 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 /**
@@ -59,6 +63,8 @@ public class OrderServiceImpl implements OrderService {
     private final OrderIdempotencyGuard idempotencyGuard;
     private final OrderConverter orderConverter;
     private final LawyerQueryService lawyerQueryService;
+    private final OrderStateService orderStateService;
+    private final TaskQueueService taskQueueService;
 
     /**
      * 下单。
@@ -137,6 +143,35 @@ public class OrderServiceImpl implements OrderService {
         Orders order = findOwned(orderId, userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.TRADE_ORDER_NOT_FOUND));
         return render(order);
+    }
+
+    /**
+     * 取消待支付订单。
+     *
+     * <p>副作用：CAS 把状态改成 CANCELLED、写状态流水、取消那条 15 分钟关单任务。</p>
+     *
+     * @param userId  当前用户
+     * @param orderId 订单主键
+     * @throws BusinessException 405002 订单不存在 / 405003 当前状态不允许取消
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void cancel(Long userId, Long orderId) {
+        Orders order = findOwned(orderId, userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.TRADE_ORDER_NOT_FOUND));
+        OrderStatus status = OrderStatus.of(order.getStatus());
+        if (status == OrderStatus.CANCELLED) {
+            // 幂等：重复点取消不报错（用户看到的结果一致）
+            return;
+        }
+        boolean ok = orderStateService.transit(orderId, status, OrderStatus.CANCELLED,
+                OperatorRole.USER, userId, "用户取消订单");
+        if (!ok) {
+            // CAS 未命中：并发下状态刚被别人改过（例如刚好支付成功）
+            throw new BusinessException(ErrorCode.TRADE_ORDER_STATE_INVALID);
+        }
+        // 关单任务已无意义：取消未执行的那一条（已领取的会自己看状态跳过）
+        taskQueueService.cancelPending(TaskQueueService.TYPE_ORDER_CLOSE, order.getOrderNo());
     }
 
     /**

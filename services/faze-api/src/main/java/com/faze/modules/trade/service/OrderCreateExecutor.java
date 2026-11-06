@@ -17,6 +17,7 @@
  */
 package com.faze.modules.trade.service;
 
+import com.faze.common.R;
 import com.faze.common.exception.BusinessException;
 import com.faze.common.exception.ErrorCode;
 import com.faze.modules.account.entity.Lawyer;
@@ -28,12 +29,14 @@ import com.faze.modules.trade.enums.OperatorRole;
 import com.faze.modules.trade.enums.OrderStatus;
 import com.faze.modules.trade.enums.ServiceType;
 import com.faze.modules.trade.mapper.OrdersMapper;
+import com.faze.modules.trade.rule.OrderTimeoutPolicy;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -72,6 +75,7 @@ public class OrderCreateExecutor {
     private final OrderStatusLogService orderStatusLogService;
     private final LawyerQueryService lawyerQueryService;
     private final SysConfigQueryService sysConfigQueryService;
+    private final TaskQueueService taskQueueService;
 
     /**
      * 创建订单（PENDING，不扣款）。
@@ -126,6 +130,9 @@ public class OrderCreateExecutor {
             // 任务 7：写状态流水（订单创建：from = NULL → to = pending）
             orderStatusLogService.record(order.getId(), null, OrderStatus.PENDING,
                     OperatorRole.USER, userId, "用户下单");
+            // 任务 8：投递 15 分钟关单任务（与下单同事务：下单回滚，任务也不该留下）
+            taskQueueService.enqueue(TaskQueueService.TYPE_ORDER_CLOSE, order.getOrderNo(),
+                    OrderTimeoutPolicy.payExpireAt(order.getCreatedAt()), MDC.get(R.TRACE_ID_MDC_KEY));
             log.info("订单创建成功 orderId={} orderNo={} userId={} lawyerId={} amountCents={}",
                     order.getId(), order.getOrderNo(), userId, lawyer.getId(), amountCents);
             return order;

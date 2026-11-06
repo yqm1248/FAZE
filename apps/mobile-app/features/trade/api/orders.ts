@@ -160,8 +160,8 @@ export function createOrder(
  * 只对 `pending` 有效；已支付的订单只能退款，不能取消（服务端状态机会拒绝）。
  *
  * @param orderId 订单主键
- * @returns 成功时 `data` 为取消后的订单详情
+ * @returns 成功时 `data` 为 null；调用方成功后重新拉详情
  */
-export function cancelOrder(orderId: string): Promise<ApiResult<OrderDetail>> {
-  return post<OrderDetail>(`/api/v1/app/orders/${encodeURIComponent(orderId)}/cancel`);
+export function cancelOrder(orderId: string): Promise<ApiResult<null>> {
+  return post<null>(`/api/v1/app/orders/${encodeURIComponent(orderId)}/cancel`);
 }

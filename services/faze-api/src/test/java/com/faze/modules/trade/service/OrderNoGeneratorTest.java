@@ -5,6 +5,8 @@
  * 注意：
  *   1. 并发用例用 16 线程发 100 个号，断言 100 个互不重复。
  *   2. 跨天用例用**未来日期**（2099 年）的固定时钟，保证 key 是全新的，不污染当天序号。
+ *   3. 跨天用例开头**必须清掉那两个 2099 年的 key**：否则用例只能跑一次，
+ *      第二次执行时序号已被上一次累加（2026-11-06 实测：第二次跑必红）。
  */
 package com.faze.modules.trade.service;
 
@@ -76,6 +78,12 @@ class OrderNoGeneratorTest {
     @Test
     @DisplayName("跨天序号从 000001 重新开始（用 2099 年的固定时钟）")
     void crossDay() {
+        // **先清 key**：这个用例断言的是「全新一天的第一个号」。
+        // 不清的话第二次执行时 Redis 里已有 seq=2，期望 000001 实际 000003 直接失败
+        // （2026-11-06 实测过：该用例第一次跑绿、第二次必红，属于测试不自洁）。
+        redis.delete("faze:order:seq:OR:20990101");
+        redis.delete("faze:order:seq:OR:20990102");
+
         Clock day1 = Clock.fixed(Instant.parse("2099-01-01T02:00:00Z"), ZONE);
         Clock day2 = Clock.fixed(Instant.parse("2099-01-02T02:00:00Z"), ZONE);
         OrderNoGenerator g1 = new OrderNoGenerator(redis, day1);

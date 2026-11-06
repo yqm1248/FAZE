@@ -50,4 +50,15 @@ public interface OrderService {
      * @return 订单详情（含服务端推导的可执行动作）
      */
     OrderDetailVO detail(Long userId, Long orderId);
+
+    /**
+     * 取消待支付订单。
+     *
+     * <p>只允许 `PENDING`：已支付的订单只能走退款（状态机会拒绝 PENDING 以外的取消）。
+     * 重复取消按幂等成功处理（第二次调用不报错）。</p>
+     *
+     * @param userId  当前用户
+     * @param orderId 订单主键
+     */
+    void cancel(Long userId, Long orderId);
 }

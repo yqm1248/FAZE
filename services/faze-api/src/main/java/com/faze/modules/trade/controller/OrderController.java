@@ -88,6 +88,20 @@ public class OrderController {
     }
 
     /**
+     * 取消待支付订单。
+     *
+     * @param id        订单主键
+     * @param loginUser 当前认证主体
+     * @return 空响应；客户端取消成功后重新拉详情
+     */
+    @PostMapping("/{id}/cancel")
+    public R<Void> cancel(@PathVariable Long id,
+                          @AuthenticationPrincipal LoginUser loginUser) {
+        orderService.cancel(requireLogin(loginUser).getUserId(), id);
+        return R.ok();
+    }
+
+    /**
      * 断言已登录（Controller 只做这一件事，业务校验在 Service）。
      *
      * @param loginUser 认证主体

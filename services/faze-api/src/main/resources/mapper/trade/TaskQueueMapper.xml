@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  职责：task_queue 的 CAS 领取与租约相关 SQL。
+  调用方：TaskQueueMapper。
+  数据来源：faze.task_queue。
+  注意：
+    1. **不含任何 ${}**（规范 §7.3 禁字符串拼接）：本文件没有动态列名/排序。
+    2. 时间一律由参数传入，不写 NOW()——见 Mapper 接口注释第 2 条。
+    3. `claim` / `release` / `mark*` 的 where 都带状态或 owner 条件，按影响行数判断真伪；
+       去掉这些条件会变成「盲更新」，两个消费者互相覆盖。
+-->
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.faze.modules.trade.mapper.TaskQueueMapper">
+
+    <select id="selectCandidateIds" resultType="java.lang.Long">
+        SELECT id
+        FROM task_queue
+        WHERE status = 'pending'
+          AND next_retry_at &lt;= #{now}
+        ORDER BY next_retry_at ASC, id ASC
+        LIMIT #{limit}
+    </select>
+
+    <update id="claimByIds">
+        UPDATE task_queue
+        SET status = 'claimed',
+            lock_owner = #{owner},
+            lock_expire_at = #{lockExpireAt},
+            updated_at = #{now}
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+          AND status = 'pending'
+          AND next_retry_at &lt;= #{now}
+    </update>
+
+    <update id="releaseExpired">
+        UPDATE task_queue
+        SET status = 'pending',
+            retry_count = retry_count + 1,
+            lock_owner = NULL,
+            lock_expire_at = NULL,
+            next_retry_at = #{now},
+            updated_at = #{now}
+        WHERE status = 'claimed'
+          AND lock_expire_at IS NOT NULL
+          AND lock_expire_at &lt; #{now}
+    </update>
+
+    <update id="markDone">
+        UPDATE task_queue
+        SET status = 'done',
+            lock_owner = NULL,
+            lock_expire_at = NULL,
+            updated_at = #{now}
+        WHERE id = #{id}
+          AND status = 'claimed'
+          AND lock_owner = #{owner}
+    </update>
+
+    <update id="markFailed">
+        UPDATE task_queue
+        SET status = 'pending',
+            retry_count = retry_count + 1,
+            last_error = #{error},
+            lock_owner = NULL,
+            lock_expire_at = NULL,
+            next_retry_at = #{nextRetryAt},
+            updated_at = #{now}
+        WHERE id = #{id}
+          AND status = 'claimed'
+          AND lock_owner = #{owner}
+    </update>
+
+    <update id="markDead">
+        UPDATE task_queue
+        SET status = 'dead',
+            last_error = #{error},
+            lock_owner = NULL,
+            lock_expire_at = NULL,
+            updated_at = #{now}
+        WHERE id = #{id}
+          AND status = 'claimed'
+          AND lock_owner = #{owner}
+    </update>
+
+    <update id="cancelByBizNo">
+        UPDATE task_queue
+        SET status = 'done',
+            lock_owner = NULL,
+            lock_expire_at = NULL,
+            updated_at = #{now}
+        WHERE task_type = #{taskType}
+          AND biz_no = #{bizNo}
+          AND status = 'pending'
+    </update>
+
+</mapper>

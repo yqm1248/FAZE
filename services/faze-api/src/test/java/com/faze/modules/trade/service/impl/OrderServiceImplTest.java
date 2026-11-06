@@ -22,6 +22,8 @@ import com.faze.modules.trade.enums.OrderStatus;
 import com.faze.modules.trade.mapper.OrdersMapper;
 import com.faze.modules.trade.service.OrderCreateExecutor;
 import com.faze.modules.trade.service.OrderIdempotencyGuard;
+import com.faze.modules.trade.service.OrderStateService;
+import com.faze.modules.trade.service.TaskQueueService;
 import com.faze.modules.trade.vo.OrderDetailVO;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
@@ -69,6 +71,12 @@ class OrderServiceImplTest {
 
     @Mock
     private LawyerQueryService lawyerQueryService;
+
+    @Mock
+    private OrderStateService orderStateService;
+
+    @Mock
+    private TaskQueueService taskQueueService;
 
     @InjectMocks
     private OrderServiceImpl orderService;
@@ -144,8 +152,47 @@ class OrderServiceImplTest {
         verify(ordersMapper).selectOne(any(Wrapper.class));
     }
 
-    private Orders pendingOrder() {
-        Orders order = new Orders();
+    @Test
+    @DisplayName("取消：PENDING → CANCELLED，并取消关单任务")
+    void cancelPendingOrder() {
+        Orders order = pendingOrder();
+        when(ordersMapper.selectOne(any(Wrapper.class))).thenReturn(order);
+        when(orderStateService.transit(eq(ORDER_ID), eq(OrderStatus.PENDING), eq(OrderStatus.CANCELLED),
+                any(), eq(USER_ID), anyString())).thenReturn(true);
+
+        orderService.cancel(USER_ID, ORDER_ID);
+
+        verify(taskQueueService).cancelPending(eq(TaskQueueService.TYPE_ORDER_CLOSE),
+                eq("OR20261106000001"));
+    }
+
+    @Test
+    @DisplayName("取消：已取消的订单再取消是幂等成功（不报错、不重复写流水）")
+    void cancelIsIdempotent() {
+        Orders order = pendingOrder();
+        order.setStatus(OrderStatus.CANCELLED.getCode());
+        when(ordersMapper.selectOne(any(Wrapper.class))).thenReturn(order);
+
+        orderService.cancel(USER_ID, ORDER_ID);
+
+        verify(orderStateService, never()).transit(anyLong(), any(), any(), any(), anyLong(), anyString());
+    }
+
+    @Test
+    @DisplayName("取消：CAS 未命中（刚好支付成功）→ 405003")
+    void cancelCasMiss() {
+        Orders order = pendingOrder();
+        when(ordersMapper.selectOne(any(Wrapper.class))).thenReturn(order);
+        when(orderStateService.transit(anyLong(), any(), any(), any(), anyLong(), anyString()))
+                .thenReturn(false);
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> orderService.cancel(USER_ID, ORDER_ID));
+
+        assertEquals(ErrorCode.TRADE_ORDER_STATE_INVALID, ex.getErrorCode());
+    }
+
+    private Orders pendingOrder() {        Orders order = new Orders();
         order.setId(ORDER_ID);
         order.setOrderNo("OR20261106000001");
         order.setUserId(USER_ID);

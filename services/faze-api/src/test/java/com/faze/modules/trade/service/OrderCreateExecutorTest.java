@@ -71,6 +71,9 @@ class OrderCreateExecutorTest {
     @Mock
     private SysConfigQueryService sysConfigQueryService;
 
+    @Mock
+    private TaskQueueService taskQueueService;
+
     @InjectMocks
     private OrderCreateExecutor executor;
 
@@ -120,6 +123,9 @@ class OrderCreateExecutorTest {
 
         verify(orderStatusLogService).record(eq(3003L), isNull(), eq(OrderStatus.PENDING),
                 eq(OperatorRole.USER), eq(USER_ID), anyString());
+        // 15 分钟关单任务必须与下单同事务入队（G2.4）
+        verify(taskQueueService).enqueue(eq(TaskQueueService.TYPE_ORDER_CLOSE), eq("OR20261106000001"),
+                any(), any());
     }
 
     @Test
