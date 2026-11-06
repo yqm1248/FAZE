@@ -36,7 +36,7 @@ import { PrimaryButton } from '@/shared/components/PrimaryButton';
 import { Screen } from '@/shared/components/Screen';
 import { useI18n } from '@/shared/i18n';
 import type { MessageKey } from '@/shared/i18n';
-import { orderDetailHref, payHref } from '@/shared/navigation/routes';
+import { PAGE_ROUTES, orderDetailHref, payHref } from '@/shared/navigation/routes';
 import { color, radius, size, spacing, typography } from '@/shared/theme';
 import { centsFromServer } from '@/shared/utils/money';
 import { formatServerDateTime } from '@/shared/utils/serverTime';
@@ -275,7 +275,7 @@ export function OrderListPage() {
             <PrimaryButton
               label={t('trade.order.emptyAction')}
               variant="outline"
-              onPress={() => toast.show(t('trade.order.emptyActionPending'))}
+              onPress={() => router.push(PAGE_ROUTES.lawyerList)}
               style={styles.emptyAction}
             />
           </View>

@@ -17,6 +17,21 @@ VALUES
     --   打开后，online_status != 'online' 的律师不可被下单，返回 405010。
     ('order_require_lawyer_online', 'false', 'bool', 'trade',
      '下单是否要求律师在线（true=离线不可下单；默认 false，避免律师没开 App 就被误杀）',
+     1, UTC_TIMESTAMP(), UTC_TIMESTAMP()),
+    -- G3.1「分类 tab → 擅长领域」的展开表（JSON 对象）。
+    --   设计稿的 5 个分类是固定的，而入驻页（段 1）提交的是 10 个预定义标签的多选。
+    --   **默认值是同名 1:1 映射，刻意不替业务做归类决定**（把「劳动纠纷」归进「民事纠纷」是业务判断）。
+    --   要把某几类并进某个 tab，改这里即可，不用改代码、不用建分类关联表
+    --   （新建关联表会与段 1 的 JSON 字段形成双真相）。
+    ('lawyer_specialty_enum',
+     '{"民事纠纷":["民事纠纷"],"刑事辩护":["刑事辩护"],"婚姻家事":["婚姻家事"],"合同纠纷":["合同纠纷"]}',
+     'json', 'lawyer',
+     '律师分类 tab → 擅长领域值数组（JSON）；默认同名 1:1，扩展归类只改这里',
+     1, UTC_TIMESTAMP(), UTC_TIMESTAMP()),
+    -- G3.1 列表排序键（白名单：online_rating / rating_desc）。
+    --   值不直接进 SQL，只决定 LawyerMapper.xml 里走哪个 choose 分支（规范禁 ${} 拼排序）。
+    ('lawyer_list_sort', 'online_rating', 'string', 'lawyer',
+     '律师列表排序键：online_rating（在线优先+评分+订单数）/ rating_desc（评分降序）',
      1, UTC_TIMESTAMP(), UTC_TIMESTAMP())
 ON DUPLICATE KEY UPDATE
     value_type = VALUES(value_type),

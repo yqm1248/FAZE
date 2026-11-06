@@ -82,6 +82,16 @@ export const PAGE_ROUTES = {
   pay: '/pay' as Href,
   /** 支付结果页（段 2 G2.3），需带 `id` 与 `ok` 参数。 */
   payResult: '/pay-result' as Href,
+
+  // ── 段 2 G3：律师浏览与律师侧 ───────────────────────────────────────
+  /** 找律师页（段 2 G3.1）。 */
+  lawyerList: '/lawyer-list' as Href,
+  /** 律师详情页（段 2 G3.2），需带 `id` 参数。 */
+  lawyerDetail: '/lawyer-detail' as Href,
+  /** 律师订单管理页（段 2 G3.3）。 */
+  lawyerOrders: '/lawyer-orders' as Href,
+  /** 律师工作台（段 2 G3.4）。 */
+  lawyerWorkbench: '/lawyer-workbench' as Href,
 } as const;
 
 /** 路由常量表的值类型（用于接收「任一页面路径」的参数）。 */
@@ -127,4 +137,14 @@ export function payResultHref(orderId: string, success: boolean, reason?: string
     params.set('reason', reason);
   }
   return `${String(PAGE_ROUTES.payResult)}?${params.toString()}` as Href;
+}
+
+/**
+ * 拼律师详情路由（带 `id` 查询参数）。
+ *
+ * @param lawyerId 律师主键
+ * @returns 可传给 `router.push` 的 Href
+ */
+export function lawyerDetailHref(lawyerId: string): Href {
+  return `${String(PAGE_ROUTES.lawyerDetail)}?id=${encodeURIComponent(lawyerId)}` as Href;
 }

@@ -75,6 +75,11 @@ public class SecurityConfig {
                         // 若落进下面的 authenticated() 就永远刷不了（客户端会卡在 401）。
                         // 它的「鉴权」是请求体里的 refreshToken，由 AuthService 校验。
                         .requestMatchers(HttpMethod.POST, "/api/v1/app/auth/refresh").permitAll()
+                        // 律师浏览（G3.1/G3.2）：**找律师对游客开放**。
+                        // 首页与「找律师」入口在未登录时也要能点开，否则游客看到的是 401。
+                        // 只放行 GET 的浏览路径；同前缀下的律师侧写接口（工作台等）仍走下面的 authenticated。
+                        .requestMatchers(HttpMethod.GET, "/api/v1/app/lawyers", "/api/v1/app/lawyers/*",
+                                "/api/v1/app/lawyers/*/reviews").permitAll()
                         // app：需 access token，是 0-A2 验 401 的唯一载体
                         .requestMatchers("/api/v1/app/**").authenticated()
                         // admin：管理端写接口（第 1 段 D4 起）。用 hasRole 而不是 authenticated，

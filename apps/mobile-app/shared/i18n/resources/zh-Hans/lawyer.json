@@ -1,4 +1,31 @@
-{
+﻿{
+  "browse": {
+    "title": "找律师",
+    "searchPlaceholder": "搜索律师姓名、事务所",
+    "categoryAll": "全部",
+    "categoryCivil": "民事纠纷",
+    "categoryCriminal": "刑事辩护",
+    "categoryFamily": "婚姻家事",
+    "categoryContract": "合同纠纷",
+    "online": "在线",
+    "busy": "忙碌",
+    "offline": "离线",
+    "years": "执业{{years}}年",
+    "consulted": "已咨询 {{count}}",
+    "cta": "立即咨询",
+    "noRating": "暂无评分",
+    "priceLabel": "起价",
+    "empty": "没有找到符合条件的律师",
+    "emptyDesc": "换个分类或关键词试试；也可以清空搜索看全部律师。",
+    "emptyReset": "清空筛选",
+    "loadMore": "加载更多",
+    "noMore": "没有更多了",
+    "errorTitle": "律师列表没有加载出来",
+    "errorDesc": "网络不稳定或者服务器维护中。请稍后重试。",
+    "detailErrorTitle": "律师资料没有加载出来",
+    "detailErrorDesc": "可能已下架，返回列表看看其他律师。",
+    "defaultName": "律师"
+  },
   "join": {
     "title": "律师入驻",
     "subtitle": "提交资质后由平台审核，通过后即可接单",

@@ -14,10 +14,29 @@
 package com.faze.modules.account.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.faze.modules.account.entity.Lawyer;
+import java.util.List;
+import org.apache.ibatis.annotations.Param;
 
 /**
  * 律师表 Mapper。
  */
 public interface LawyerMapper extends BaseMapper<Lawyer> {
+
+    /**
+     * C 端律师列表分页查询（G3.1）。
+     *
+     * <p>只返回「审核通过 + 未软删」的律师；分类按 `specialties` 的 JSON 成员判断。</p>
+     *
+     * @param page            分页参数（MP 自动拼 LIMIT）
+     * @param keyword         关键词（姓名 / 地区 / 律所），可空
+     * @param specialtyValues 分类展开后的 specialties 值列表；空列表表示不筛分类
+     * @param sortKey         排序键：online_rating（默认）/ rating_desc
+     * @return 分页结果
+     */
+    IPage<Lawyer> selectBrowsePage(IPage<Lawyer> page,
+                                   @Param("keyword") String keyword,
+                                   @Param("specialtyValues") List<String> specialtyValues,
+                                   @Param("sortKey") String sortKey);
 }
