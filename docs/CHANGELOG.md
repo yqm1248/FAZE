@@ -4,6 +4,48 @@
 
 ---
 
+## 2026-11-06 · 段 2 G4 退款（申请 / 审批 / 入账）
+
+### 1. G4.1 退款申请
+
+`POST /app/orders/{id}/refund`（reason 必填、amountCents 空=全额）、`GET /app/orders/{id}/refund`。
+只允许 PAID / IN_SERVICE；同一订单只允许一张 `applying` 退款单（重复申请 405004）；超额 405005。
+前端 `RefundPage.tsx`（33-refund）：金额只读、5 个单选原因（其他必填说明）、已有退款单时展示进度。
+
+### 2. G4.2 PC 审批
+
+`POST /admin/refunds/{id}/audit`（approved + remark）、`GET /admin/refunds?orderId=`。
+通过 → 退款单 refunded + 入账 + 订单 REFUNDED（全额）或回退款前状态（部分）；
+驳回 → 退款单 rejected + REFUNDING→REFUND_REJECTED→退款前状态。
+`RefundAuditExecutor#approve` / `#reject` 各标一个 `@OperationLog`，detail 存 before/after。
+**PC 审批弹窗属 G9.2**（工作流 G9.2 第 6 条把退款审批入口归到订单详情页），本组用真实 admin token 验接口。
+
+### 3. G4.3 入账
+
+复用 `RefundCreditService`；`OrderRefundService` 抽出 `creditRefund`（入账 + 回写流水号 + payment 负数行），
+新增 `settleApprovedRefund` / `rejectRefund`。**退款不动律师余额**（段 2 无结算，代码注释已写明）。
+
+### 4. 状态机补 3 条边（10 → 13）
+
+`REFUND_REJECTED→PAID`（驳回回已付款）、`REFUNDING→PAID` / `REFUNDING→IN_SERVICE`
+（部分退款通过后回退款前状态，不能走 REFUNDED 终态再回退）。
+
+### 5. 修掉一个会吞钱的缺陷：退款入账幂等键
+
+`balance_flow.biz_id` 在 G2.4 记的是**订单 id**、G4 改用**退款单 id**，两套 id 数值区间重叠：
+新退款单 id=6 命中订单 6 的旧流水，被判「幂等命中」→ 审批成功、退款单显示已到账、**用户余额没变**。
+修法：`RefundCreditService` 幂等键改退款单 id + `V201` 迁移把历史退款流水 `biz_id` 改成退款单 id。
+迁移第一版用 `CREATE TEMPORARY TABLE` 直接失败（`faze_migrate` 逐表授权、无 `CREATE TEMPORARY TABLES` 权限，
+Error 1044），改为纯 UPDATE JOIN。
+
+### 6. 证据
+
+`docs/acceptance/seg2/G4-refund.md`（申请 / 审批全额 / 部分 / 驳回 / 边界 / 状态流水 / 审计 / 缺陷）。
+`mvn test` **156 项全绿**（新增 `RefundServiceTest` 11 项）；前端四项门禁通过。
+`2-A6` 接口级通过，PC 页面级证据待 G9.2。
+
+---
+
 ## 2026-11-06 · 段 2 G3 律师侧与展示（列表 / 详情 / 订单 / 工作台）
 
 ### 1. G3.1 律师列表
