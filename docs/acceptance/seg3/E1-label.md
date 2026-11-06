@@ -6,6 +6,10 @@
 > 结论：**组件 + 四套可断言钩子就绪；`zh-Hans` 文案落地；`bo` / `ug-Arab-CN` / `kk-Arab-CN`
 > 按登记式缺译（脚本生成，无 reason 字段）；真机截图与「挂载后每条回答都有标识」属挂账，
 > 由 lead 在 I 组用真机/模拟器验。** 本节所有命令输出均为本机真实执行结果（Windows / PowerShell 5.1 / Node v24.16.0）。
+>
+> **2026-11-07 追记（E1 选项 A，负责人已拍板）**：标识颜色由 `color.text.muted`（`#999999`，
+> 2.85:1）改为 `color.text.secondary`（`#666666`，5.74:1），满足 WCAG AA 4.5:1；
+> 本文件第二、六、七节的行号与结论已同步更新（组件现 91 行）。
 
 ---
 
@@ -13,7 +17,7 @@
 
 | 文件 | 状态 | 说明 |
 |---|---|---|
-| `apps/mobile-app/shared/components/AiGeneratedLabel.tsx` | **新建**（88 行） | 显式标识组件，文案固定走 `common.aiGeneratedLabel` |
+| `apps/mobile-app/shared/components/AiGeneratedLabel.tsx` | **新建**（91 行） | 显式标识组件，文案固定走 `common.aiGeneratedLabel`；颜色按选项 A 用 `color.text.secondary` |
 | `apps/mobile-app/shared/i18n/resources/zh-Hans/common.json` | 修改（+1 行） | 加 `aiGeneratedLabel` = 「本内容由 AI 生成，仅供参考」 |
 | `apps/mobile-app/shared/i18n/resources/.i18n-pending.json` | 修改（+3 行） | 由 `scripts/check-i18n.ps1` **自动生成**，非手改；三种目标语言各登记 1 条 |
 | `docs/acceptance/seg3/E1-label.md` | 新建 | 本文件 |
@@ -40,37 +44,37 @@ $ git status --porcelain apps/mobile-app/shared/components apps/mobile-app/share
 匹配命令与真实输出（`Select-String` 等价于按行 `grep`）：
 
 ```text
-$ Select-String -Path apps\mobile-app\shared\components\AiGeneratedLabel.tsx -Pattern 'testID="|nativeID="|accessibilityRole="|accessibilityLabel=\{label\}|const label = t\(|marginTop: spacing\.xs|\.\.\.typography\.micro|color: color\.text\.muted'
+$ Select-String -Path apps\mobile-app\shared\components\AiGeneratedLabel.tsx -Pattern 'testID="|nativeID="|accessibilityRole="|accessibilityLabel=\{label\}|const label = t\(|marginTop: spacing\.xs|\.\.\.typography\.micro|color: color\.text\.'
 
 LineNumber Line
 ---------- ----
-        62   const label = t('common.aiGeneratedLabel');
-        67         testID="ai-generated-label"
-        68         nativeID="ai-generated-label"
-        69         accessibilityRole="text"
-        70         accessibilityLabel={label}
-        82     marginTop: spacing.xs,
-        85     ...typography.micro,
-        86     color: color.text.muted,
+        65   const label = t('common.aiGeneratedLabel');
+        70         testID="ai-generated-label"
+        71         nativeID="ai-generated-label"
+        72         accessibilityRole="text"
+        73         accessibilityLabel={label}
+        85     marginTop: spacing.xs,
+        88     ...typography.micro,
+        89     color: color.text.secondary,
 ```
 
 | 钩子 / 要求 | 源码行号 | 值 | 给谁用 |
 |---|---|---|---|
-| `testID` | **L67** | `ai-generated-label` | E2E 按 testID 查元素（RN 里同时映射到 accessibility identifier） |
-| `nativeID` | **L68** | `ai-generated-label` | Android 原生 `resource-id`，E2E 第三套兜底 |
-| `accessibilityRole` | **L69** | `text` | 保证被无障碍树识别为可读文本 |
-| `accessibilityLabel` | **L70** | `{label}`（即 `t('common.aiGeneratedLabel')`，见 L62） | 无障碍朗读 + 只认该属性的部分 E2E 工具 |
-| 文案 key | **L62** | `'common.aiGeneratedLabel'`（字面量，静态可扫，未拼接） | 静态扫描「文案是否走 `t()`」 |
-| 字号 | L85 | `typography.micro`（其 `fontSize` = `fontSize.micro` = 11dp） | 见第七节第 2 条「令牌缺口」 |
-| 颜色 | L86 | `color.text.muted` | 见第七节第 2 条「令牌缺口」与第 3 条「对比度风险」 |
-| 上间距 | L82 | `marginTop: spacing.xs`（6dp） | 与气泡留出间距 |
+| `testID` | **L70** | `ai-generated-label` | E2E 按 testID 查元素（RN 里同时映射到 accessibility identifier） |
+| `nativeID` | **L71** | `ai-generated-label` | Android 原生 `resource-id`，E2E 第三套兜底 |
+| `accessibilityRole` | **L72** | `text` | 保证被无障碍树识别为可读文本 |
+| `accessibilityLabel` | **L73** | `{label}`（即 `t('common.aiGeneratedLabel')`，见 L65） | 无障碍朗读 + 只认该属性的部分 E2E 工具 |
+| 文案 key | **L65** | `'common.aiGeneratedLabel'`（字面量，静态可扫，未拼接） | 静态扫描「文案是否走 `t()`」 |
+| 字号 | L88 | `typography.micro`（其 `fontSize` = `fontSize.micro` = 11dp） | 见第七节第 2 条「令牌缺口」 |
+| 颜色 | L89 | `color.text.secondary`（`#666666`，白底对比度 **5.74:1**，WCAG AA 达标） | E1 选项 A（负责人 2026-11 拍板） |
+| 上间距 | L85 | `marginTop: spacing.xs`（6dp） | 与气泡留出间距 |
 
 其它约束（静态核对）：
 
 - **没有裸 `<Text>`**：组件内文本只经 `<LocalizedText>`（另有布局用 `<View>`），`check-raw-text` 全仓命中 0（见第五节）。
 - **没有颜色/字号字面量**：无 `#RRGGBB` / `rgba(`；无 `left` / `right`（ESLint 规则 + 第五节 `eslint` 退出码 0）。
-- **`numberOfLines={2}` 显式传**（L71）：i18n 规范 §7.1 要求阿拉伯系文本必须给出行数上限。
-- **`style` 类型是 `StyleProp<ViewStyle>`**（L49）：因此外层用 `<View>` 包裹承上间距，不把 `ViewStyle`
+- **`numberOfLines={2}` 显式传**（L74）：i18n 规范 §7.1 要求阿拉伯系文本必须给出行数上限。
+- **`style` 类型是 `StyleProp<ViewStyle>`**（L52）：因此外层用 `<View>` 包裹承上间距，不把 `ViewStyle`
   强塞给 `LocalizedText` 的 `TextStyle`。该类型不兼容已实测，`tsc` 报：
   `error TS2322: Type 'StyleProp<ViewStyle>' is not assignable to type 'StyleProp<TextStyle>' … ViewStyle.userSelect …`
 - **一条消息一个标识、只挂 assistant 气泡下方**：组件**不判断角色**（拿不到消息角色），
@@ -80,7 +84,7 @@ LineNumber Line
 ```text
 $ Select-String -Path (Get-ChildItem apps\mobile-app -Recurse -File -Include *.tsx,*.ts |
     Where-Object { $_.FullName -notmatch '\\node_modules\\' } | ForEach-Object FullName) -Pattern 'AiGeneratedLabel'
-（命中 7 行，全部在本组件文件自身：注释 L5/L11/L22、类型 L41/L42、函数 L60、t() 调用 L62；其它文件 0 处）
+（命中 7 行，全部在本组件文件自身：注释 L5/L11/L22、类型 L44/L45、函数 L63、t() 调用 L65；其它文件 0 处）
 ```
 
 ---
@@ -218,7 +222,7 @@ $ git diff -- apps/mobile-app/shared/i18n/resources/zh-Hans/common.json
 | 真机每条 AI 回答下方有合规标识 | **挂账** | 组件已就绪，但**全仓 0 调用**（第二节末）；挂载由 F 组在 AI 页面做，真机由 lead 在 I 组验 |
 | 切 `ug-Arab-CN` 后不以原始 key 显示 | **静态通过** | 第四节的登记 + `t()` 只见 zh 的降级链；真机切换同样**挂账** |
 | `grep … --include=*.tsx` 为 0 / 只在 json | **通过** | 第三节真实输出：tsx `exit=1`（0 命中），json 1 处 |
-| 组件有 `testID="ai-generated-label"` | **通过** | L67 |
+| 组件有 `testID="ai-generated-label"` | **通过** | L70 |
 | 用户消息下方**没有**这个标识 | **静态通过 + 挂账** | 组件不判断角色（注释 L15–16），且当前无任何调用；「不挂到用户消息下」的执行点在 F 组调用方，需 E2E/真机验 |
 
 ---
@@ -232,15 +236,16 @@ $ git diff -- apps/mobile-app/shared/i18n/resources/zh-Hans/common.json
    `E1` 的「每条 AI 回答下方都有标识」「用户消息下方没有」两条属于**运行时/UI 断言**，
    静态证据无法替代，按工作流 L951 的三套钩子（testID / accessibilityLabel / nativeID）交付抓手。
 2. **工作流写的令牌名在 `shared/theme/tokens.ts` 里不存在**：L925 要求 `tokens.fontSize.xs` +
-   `tokens.color.textMuted`，实际令牌是 `fontSize.micro`（11dp，最小字号）与 `color.text.muted`。
+   `tokens.color.textMuted`，实际令牌是 `fontSize.micro`（11dp，最小字号）与
+   `color.text.secondary` / `color.text.muted`（选项 A 之前用的是 `muted`）。
    `spacing.xs` 存在（6dp）。因 `shared/theme/**` 本段只读，我**没有改令牌**，用的是等价令牌
-   （`typography.micro` = `fontSize.micro`，颜色 `color.text.muted`）。**建议 lead 在段 3 收口回写工作流
-   L925 的令牌名**，否则下一位施工者会照文档找不到符号。
-3. **对比度风险（需拍板）**：`color.text.muted` = `#999999`，合规标识是小字号正文，实测对比度
-   `#999999` on `#FFFFFF` = **2.85:1**、on `#F7F8FA`（页面底色）= **2.68:1**，均低于 WCAG AA
-   普通文本 4.5:1；同层级可用 `color.text.secondary`（`#666666`，on `#FFFFFF` = **5.74:1**）。
-   E1 明写用 `textMuted`，本段**按工作流未改**；但这是**用户必须读到的合规标识**，建议段 8 前评估是否升到
-   `secondary`。这属于视觉/合规口径，需 lead 拍板，不是我可以自行替换的。
+   （`typography.micro` = `fontSize.micro`；颜色按选项 A 用 `color.text.secondary`）。
+   **建议 lead 在段 3 收口回写工作流 L925 的令牌名**，否则下一位施工者会照文档找不到符号。
+3. **对比度（已关闭，选项 A）**：`color.text.muted` = `#999999` 在白色气泡底上实测
+   **2.85:1**（on `#F7F8FA` 页面底色 **2.68:1**），低于 WCAG AA 普通文本 4.5:1。
+   **负责人 2026-11 已拍板选项 A**：合规标识改用 `color.text.secondary`（`#666666`，
+   on `#FFFFFF` = **5.74:1**）。组件 L89 已改，本文件第二节行号与颜色值同步更新；
+   该挂账项**关闭**，不需要段 8 再评估。
 4. **F 组挂载点**：AI 会话页需要 `<AiGeneratedLabel />` **每 assistant 气泡下方一个**，
    禁止挂到 `role='user'` 消息下、禁止一条消息重复挂；建议 E2E 用 `testID` 计数 = assistant 消息数。
 5. **文档基线**：新增 `docs/acceptance/seg3/E1-label.md` 后需按 `docs/BASELINE.md` §4 登记指纹、

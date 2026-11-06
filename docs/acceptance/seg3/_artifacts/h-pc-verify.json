@@ -1,0 +1,191 @@
+{
+  "at": "2026-11-06T17:34:17.321Z",
+  "mode": "real-api",
+  "viewport": "1440x900",
+  "sidebar": {
+    "contentOpen": {
+      "containerClient": 900,
+      "wrapClient": 850,
+      "wrapScroll": 850,
+      "viewHeight": 468,
+      "itemCount": 33,
+      "subMenuCount": 7
+    },
+    "withBizGroupOpen": {
+      "containerClient": 900,
+      "wrapClient": 850,
+      "wrapScroll": 864,
+      "viewHeight": 864,
+      "itemCount": 33,
+      "subMenuCount": 7
+    }
+  },
+  "failedRequests": [],
+  "consoleErrors": [],
+  "results": [
+    {
+      "name": "RuoYi 登录成功",
+      "ok": true,
+      "detail": "token 203 字符",
+      "info": true
+    },
+    {
+      "name": "动态路由与侧边栏已就绪",
+      "ok": true,
+      "detail": "",
+      "info": true
+    },
+    {
+      "name": "侧边栏出现一级目录「内容管理」",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "侧边栏出现一级目录「系统设置」",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "侧边栏高度（1440×900，内容管理展开）",
+      "ok": true,
+      "detail": "{\"containerClient\":900,\"wrapClient\":850,\"wrapScroll\":850,\"viewHeight\":468,\"itemCount\":33,\"subMenuCount\":7}",
+      "info": true
+    },
+    {
+      "name": "1440×900 展开内容管理后侧边栏无滚动条",
+      "ok": true,
+      "detail": "wrap client=850 scroll=850"
+    },
+    {
+      "name": "侧边栏高度（追加展开「法泽业务」12 项后）",
+      "ok": true,
+      "detail": "{\"containerClient\":900,\"wrapClient\":850,\"wrapScroll\":864,\"viewHeight\":864,\"itemCount\":33,\"subMenuCount\":7}",
+      "info": true
+    },
+    {
+      "name": "A-27 页面可打开",
+      "ok": true,
+      "detail": "法条库"
+    },
+    {
+      "name": "A-27 三处删除项不在页面",
+      "ok": true,
+      "detail": "已全部删除"
+    },
+    {
+      "name": "A-27 保留列与按钮齐全",
+      "ok": true,
+      "detail": "全部存在"
+    },
+    {
+      "name": "A-27 列表有真实数据（faze-api /admin/law-items）",
+      "ok": true,
+      "detail": "10 行"
+    },
+    {
+      "name": "A-27 表头 7 列完整可见（含 更新时间）",
+      "ok": true,
+      "detail": "法律名称 | 条号 | 生效版本 | 条文摘要 | AI 引用次数 | 更新时间 | 操作"
+    },
+    {
+      "name": "A-27 AI 引用次数列有数字（B4 口径）",
+      "ok": true,
+      "detail": "取值=[\"0\",\"0\",\"0\",\"0\",\"8\",\"0\",\"0\",\"0\",\"0\",\"0\"]；首行=中华人民共和国民法典 第 464 条 2021-01-01 施行 合同是民事主体之间设立、变更、终止民事法律关系的协议。婚姻、收养、监护等有关身份关系的协议，适用有关该身份关系的法律规定；没有规定的，可以根据其性质参照适用本编规定。 0 2"
+    },
+    {
+      "name": "A-27 查看弹窗拉到真实全文",
+      "ok": true,
+      "detail": "全文 83 字"
+    },
+    {
+      "name": "A-27 查看弹窗可关闭",
+      "ok": true,
+      "detail": "关闭方式=footer，残留可见弹窗=0"
+    },
+    {
+      "name": "A-27 修正弹窗预填真实全文",
+      "ok": true,
+      "detail": "预填 83 字"
+    },
+    {
+      "name": "A-27 修正弹窗可关闭",
+      "ok": true,
+      "detail": "关闭方式=footer，残留可见弹窗=0"
+    },
+    {
+      "name": "A-27 批量导入弹窗可打开",
+      "ok": true,
+      "detail": "批量导入法条\n重复的法条（lawCode + articleNo + effec"
+    },
+    {
+      "name": "A-27 导入弹窗含两种入参方式与上限说明",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "A-28 页面可打开",
+      "ok": true,
+      "detail": "AI 对话检索"
+    },
+    {
+      "name": "A-28 设计稿删除项不在页面",
+      "ok": true,
+      "detail": "已全部删除"
+    },
+    {
+      "name": "A-28 保留区块与查询项齐全",
+      "ok": true,
+      "detail": "全部存在"
+    },
+    {
+      "name": "A-28 详情区无任何编辑控件（只读）",
+      "ok": true,
+      "detail": "input/textarea 数量=0"
+    },
+    {
+      "name": "A-28 会话列表有真实数据（faze-api /admin/ai-conversations）",
+      "ok": true,
+      "detail": "10 条"
+    },
+    {
+      "name": "A-28 当前页是否出现「用户已删除」",
+      "ok": true,
+      "detail": "有（已标红）",
+      "info": true
+    },
+    {
+      "name": "A-28 有引用会话的 refs 快照渲染",
+      "ok": true,
+      "detail": "refs 块 1"
+    },
+    {
+      "name": "A-28 真实数据里「快照 vs 当前」提示条数",
+      "ok": true,
+      "detail": "0 条（法条未变更时为 0，属正常）",
+      "info": true
+    },
+    {
+      "name": "A-28 分栏几何（1440×900）",
+      "ok": true,
+      "detail": "{\"splitTop\":333,\"splitBottom\":840,\"innerHeight\":900,\"cardBottom\":840,\"cardHeight\":507,\"cardStyle\":{\"height\":\"507.203px\",\"flex\":\"0 1 auto\",\"minHeight\":\"0px\",\"overflow\":\"hidden\"},\"colStyle\":{\"height\":\"507.203px\",\"display\":\"flex\",\"alignItems\":\"normal\",\"colH\":507},\"bodyClient\":396,\"bodyScroll\":526,\"exportFootTop\":770,\"exportFootBottom\":839,\"exportVisible\":true,\"listFootVisible\":true,\"exportDisabled\":false}",
+      "info": true
+    },
+    {
+      "name": "A-28 分栏不超出视口且页脚常驻",
+      "ok": true,
+      "detail": "{\"splitTop\":333,\"splitBottom\":840,\"innerHeight\":900,\"cardBottom\":840,\"cardHeight\":507,\"cardStyle\":{\"height\":\"507.203px\",\"flex\":\"0 1 auto\",\"minHeight\":\"0px\",\"overflow\":\"hidden\"},\"colStyle\":{\"height\":\"507.203px\",\"display\":\"flex\",\"alignItems\":\"normal\",\"colH\":507},\"bodyClient\":396,\"bodyScroll\":526,\"exportFootTop\":770,\"exportFootBottom\":839,\"exportVisible\":true,\"listFootVisible\":true,\"exportDisabled\":false}"
+    },
+    {
+      "name": "页面发出的 /api 全部 2xx",
+      "ok": true,
+      "detail": "",
+      "info": true
+    },
+    {
+      "name": "浏览器 console 无报错",
+      "ok": true,
+      "detail": "",
+      "info": true
+    }
+  ]
+}

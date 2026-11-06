@@ -4,6 +4,72 @@
 
 ---
 
+## 2026-11-07 · 段 3 F~I 组施工（APP AI 页 / 历史页 / PC 两页 / 收口，基线 v1.50）
+
+> 负责人指令：「下一步你就一直做，从 F 一直走到 I 全部走完，中间有什么问题的话，留到把 I 做完再告诉我」。
+> 本轮做 **F（APP AI 页 5 任务）/ G（APP 对话历史页 2 任务）/ H（PC 后台两页 3 任务）/ I（收口 3 任务）** 共 13 个任务。
+> **段 3 至此全部施工完毕**（A~I 九组），未结项集中在「豆包 key 未提供」与「无真机」两件事上。
+
+### 1. 8 条锚点的结论（这是本段的验收本体）
+
+| 锚点 | 结论 | 关键证据 |
+|---|---|---|
+| `3-A1` 法条入库与导入通道 | **①②③ 通过、④ 挂账** | `law_item` 10 条与 `V300–V304` 逐条对应；导入 3 条 → `inserted:3`，重复 → `skipped:3`；**V304 新导入的 577/1062/1165/47 立刻能被检索命中**；④要真模型 |
+| `3-A2` 黄金问题集 | **未通过（key 缺失）** | 问题集 30 题 + 批处理脚本已交付，脚本**拒绝在 mock 下执行**（`exit 2`），实测生效 |
+| `3-A3` 编造拦截 | **未通过（key 缺失）** | mock 固定回答，无法触发「编造」场景；`OutputGuardTest` 11/11 通过（机制层证据） |
+| `3-A4` 注入拦截 | **通过** | 三句（含英文）全 `408005`；`ai_message` 原文完整（长度 + HEX 双证）；**拦截不扣配额**（used 14→14） |
+| `3-A5` 显式标识 | **通过** | 3 条 AI 回答各一个 `ai-generated-label`、3 条用户消息全无（交替 `T/F/T/F/T/F`）；tsx 里硬编码 0 处；对比度按负责人选项 A 从 2.85:1 提到 5.74:1 |
+| `3-A6` 后台可追溯 | **通过** | A-28 显示模型 `doubao-seed-1.6-32k`、内容编号、refs 冻结快照、「用户已删除」标签；原文区 **0 个输入框**、全页按钮只有「查询/重置/导出本条记录」 |
+| `3-A7` 开关降级 | **通过** | 关 `ai_enabled` → 「法条检索」+ 搜「借条」命中 679；日志 0 条上游请求；重开 → 恢复 AI 模式 |
+| `3-A8` 断线不重复计费 | **通过** | CDP 断网 4 秒后恢复：回答完整接上、气泡只有 1 user + 1 AI、`used` **16→17 只 +1**、该会话 1 条 assistant 且有 `content_id` |
+
+### 2. 代码
+
+- **移动端**：`app/(tabs)/` 五 tab 壳（home/profile **移动**进 tab、URL 不变）+ `app/ai-history.tsx`；`features/ai/`（`api/ai.ts` 351 行、`useAiStream` 407 行、`useAiQuota`、`useOnlineStatus`、`AiChatPage` 481 行、`AiLawSearchView` 220 行、`AiHistoryPage` 487 行）；`shared/components/`（`MessageBubble` / `LawRefCard` / `OfflineBar` / `TabIcons` / `AiIcons`）；`app/_layout.tsx` 补 `GestureHandlerRootView`。
+- **新依赖 3 个**：`react-native-svg 15.12.1`（tab 图标）、`react-native-gesture-handler ~2.28.0`（左滑）、`expo-clipboard ~8.0.8`（长按复制），已登记 `docs/architecture/依赖清单.md` §一之六 #21–23。
+- **服务端**：`modules/ai/admin/`（A-27 五接口 + A-28 三接口 + 两个 service + 8 个 BO/VO）、`PubSysConfigController`（F4 公开配置白名单）、`AiConversationService`（G1 列表 / G2 软删）；`GlobalExceptionHandler` 加两个 multipart 异常处理；`application.yml` 加 `spring.servlet.multipart` 5MB。
+- **PC 后台**：`src/views/biz/ai/{law-library,ai-retrieval}/`（676 + 904 + 457 行）、`src/api/biz/ai/*.js`；`database/seed/seg3_admin_menu.sql`（10 行菜单 + 10 行授权，**菜单已入库、刷新浏览器即生效**）。
+- **迁移新增 1 个**：`V304__import_law_items_batch2.sql`（民法典 577/1062/1165 + 劳动合同法 47；劳动合同法生效日 `2013-07-01` 是 2012 修正版，写错会插出两个版本行）。
+
+### 3. 验收时打真接口发现并修掉的 4 个后端缺陷（必须留档）
+
+| # | 缺陷 | 怎么发现的 | 修法 |
+|---|---|---|---|
+| 1 | `application/json` 的导入 body **没有 5MB 上限**（8.6MB 被接收并写库） | 验收方用 8.6MB JSON 打导入接口 | 控制器入口读 `Content-Length`，超限回 401001（含当前 MB 数），不进反序列化 |
+| 2 | multipart 超 5MB 报 `501001 服务器内部错误` | 同上，换 `-F file=@` | `GlobalExceptionHandler` 加 `MaxUploadSizeExceededException` + `MultipartException` 两条 → 401001 |
+| 3 | G1 排序依赖的 `ai_conversation.updated_at` **从不随消息刷新**（C 组遗留） | 验收方发现「刚发的会话排不到第一」 | `AiQuestionService` 落库 user 消息后补一次 UPDATE（覆盖每一轮） |
+| 4 | H2 时间参数按 **UTC** 解释，漏掉北京时间凌晨的会话 | 验收方用 `beginTime=2026-11-07` 查，发现当天凌晨的会话被漏 | 无偏移串按 `Asia/Shanghai` 解释、纯日期取当天边界 |
+
+另修 1 个前端问题：tab bar 标签被屏幕底边切掉（`tabBarStyle` 没设 `height`/`paddingBottom`，RN Web 上 safe-area=0）。
+
+### 4. 验收方式（本段的特殊性）
+
+本机**没有 adb 设备、没有模拟器**，「真机截图」做不了。改用：
+
+- **PC 侧**：真实 Chrome 156，1440×900，通过注入 `Admin-Token` cookie 免登录，打真实 faze-api；
+- **APP 侧**：`expo start --web`（RN Web，同一套 React 组件树与 expo-router）+ CDP 按 390×844 手机视口渲染，注入 `localStorage` 登录态；
+- **断网测试**：CDP 的 `Network.emulateNetworkConditions { offline: true }`（浏览器级真实断网，等价于飞行模式对前端 fetch 的效果）；
+- **新增验收工具**：`scripts/cdp-shot.mjs`（直连 CDP，不引 puppeteer/playwright；Node 24 自带全局 WebSocket）。
+
+> **这是替代验证，不是真机验证**：RN Web 与原生在 `I18nManager` 镜像、原生手势、`SecureStore`、`resource-id` 上有差异，相关项已在证据里逐条标注「真机待复测」。
+
+### 5. 未结项（如实）
+
+1. **`FAZE_ARK_API_KEY` 未提供**：`3-A2`（黄金 30 题）与 `3-A3`（编造拦截）**无法判定**，`3-A1④` 挂账。脚本与问题集已就绪，填 key 后跑 `scripts/golden-30.ps1` 即可。
+2. **`3-A5` 的 `nativeID`（Android `resource-id`）在 web 上验证不了**，需真机或 121 平台。
+3. **F5 两项未实测**：「停止生成」、「配额 0 禁用」；另**断网重连后页面配额显示滞后一格**（服务端扣对了，页面没刷新）——已记为待修。
+4. **A-28 的「200 条消息导出截断」缺真实数据**（开发库没有 200+ 条消息的会话）。
+5. **段 2 的 4 个 PC 菜单只手工插了开发库、未进仓库 seed**，换机器会没有菜单入口（既有债务）。
+6. **G1 的空态/错误态/上拉分页、G2 的取消/断网/删到空态/RTL** 共 8 项未实测（数据或环境造不出场景）。
+
+### 6. 文档
+
+- `docs/acceptance/seg3/` 新增 **35 份任务证据 + 8 份锚点证据 + 16 张截图**（39 份 md 齐）。
+- `法泽FAZE_第3段工作流_v1.0.md` §十一 **22 条 → 42 条**（补 F~I 组偏差）。
+- 基线 **v1.49 → v1.50**（资产数仍 45：本段无新规范文档）；`docs/README.md` 基线号同步。
+
+---
+
 ## 2026-11-07 · 段 3 A~E 组施工（AI 法律顾问：地基 / 检索 / 流式 / 防护 / 留存，基线 v1.49）
 
 > 负责人指令：「从 A 组、B 组一直做到 E 组结束，中间遇到必须我解答的问题留到 E 组做完之后再问」。
