@@ -166,6 +166,25 @@ docs/
 
 ---
 
+
+---
+
+## 段 2 验收证据索引（2026-11-06 收口）
+
+| 文件 | 内容 |
+|---|---|
+| [acceptance/seg2/G1-tables.md](acceptance/seg2/G1-tables.md) | G1 建表：12 张表与唯一键/索引 |
+| [acceptance/seg2/G2-order-pay.md](acceptance/seg2/G2-order-pay.md) | G2 下单与支付（含幂等、超时、支付密码错误） |
+| [acceptance/seg2/G3-lawyer.md](acceptance/seg2/G3-lawyer.md) | G3 律师侧与展示 |
+| [acceptance/seg2/G4-refund.md](acceptance/seg2/G4-refund.md) | G4 退款申请/审批/入账（含吞钱缺陷修复） |
+| [acceptance/seg2/G5-review.md](acceptance/seg2/G5-review.md) | G5 评价提交与评分即时回写 |
+| [acceptance/seg2/G6-im.md](acceptance/seg2/G6-im.md) | G6 IM 会话（WS / 已读撤回 / 重连 / 离线消息） |
+| [acceptance/seg2/G7-push.md](acceptance/seg2/G7-push.md) | G7 离线推送（G7.1 挂账、G7.2 完成、G7.3 逻辑完成） |
+| [acceptance/seg2/G8-content.md](acceptance/seg2/G8-content.md) | G8 文章四语言与消息中心空态 |
+| [acceptance/seg2/G9-admin.md](acceptance/seg2/G9-admin.md) | G9 PC 后台 4 页（订单列表/详情、文章列表/编辑） |
+
+锚点（二值判定见各文件首行）：`2-A1` 下单扣款 / `2-A2` 接单与会话（IM 45ms）/ `2-A3` 杀进程推送（**未通过，挂段 8**）/ `2-A4` 结束与评价 / `2-A5` 支付密码错误 / `2-A6` 退款闭环 / `2-A7` 首页真实数据 / `2-A8` 超时与幂等 / `2-A9` 断线重连（5 条实测）/ `2-A10` RTL 会话页（近似，真 RTL 挂段 8）。
+
 > **【文档基线 v1.0】** 本文件属于「法泽 FAZE 文档基线 v1.0」（2026-10-28 确立，此后一直有效）。
 > 落款写的是**首次纳入基线的版本**，不随内容变更升级（本文件 §1.1）；当前基线版本见 `docs/BASELINE.md` 头部。
 > **后续一切文档从这里开始。** 基线清单与文件指纹见 `docs/BASELINE.md`。
