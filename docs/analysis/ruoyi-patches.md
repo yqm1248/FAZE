@@ -43,3 +43,20 @@
 > 补充说明（2026-11-05）：
 > - 前端 `package.json` 曾被临时加入 `pnpm.onlyBuiltDependencies`（pnpm 11 已不读该字段，仅打警告），**已删除**；原文件备份在 `RuoYi-Vue3/package.json.bak-dsh`。当前 `package.json` 与原始内容的差异仅为 JSON 缩进格式（语义未变）。
 > - 本机的 Node.js 曾把 `INSTALLDIR` 装到 `E:\uniapp1\`（HBuilderX 目录），2026-11-05 已卸载并重装到标准位置 `C:\Program Files\nodejs`（v24.16.0 / npm 11.13.0）。此事属**本机环境修复**，不是 RuoYi 改动。
+
+---
+
+## 第 3 段（H3）框架层核对 · 2026-11-07
+
+**结论：0 条新 patch。**
+
+| 核对项 | 结果 |
+|---|---|
+| `git status --short -- pc/admin-web/src/{layout,components,router,store,utils,directive}` | **空**（本段没有改任何 RuoYi 框架文件） |
+| 页面落点 | `pc/admin-web/src/views/biz/ai/law-library/`、`pc/admin-web/src/views/biz/ai/ai-retrieval/`（AGENTS §3.3） |
+| 接口封装落点 | `pc/admin-web/src/api/biz/ai/law-library.js`、`ai-retrieval.js`，走 `src/api/biz/request.js` 业务实例（不是 `src/utils/request.js`） |
+| 菜单 | 数据库驱动：`database/seed/seg3_admin_menu.sql` 往 `faze_admin.sys_menu` / `sys_role_menu` 插 10 行，**不是源码补丁** |
+| 侧边栏高度 | 本段实测 1440×900 展开「内容管理」无滚动条（wrap 850/850）；展开既有「法泽业务」会出滚动条（864 > 850）。**没有为了消滚动条改 `src/assets/styles/sidebar.scss`**（框架样式）；该偏差属既有 IA 债务，记入 `docs/acceptance/seg3/H3-menu.md`，归段 8 收口 |
+| `vite.config.js` | 本段未改（历史改动见上面 #3/#5） |
+
+证据：`docs/acceptance/seg3/H3-menu.md`、`docs/acceptance/seg3/_artifacts/h-pc-verify.json`（真实接口模式 31/31 PASS，框架层 git status 为空）。
