@@ -99,6 +99,76 @@
 | 状态机 | 8 态 / 10 条状态对 / 64 组合穷举通过 |
 | 单号 | 100 并发无重复、跨天重置 |
 | 扣款 | 只走 `DeductService`，无第二套扣款 SQL |
-| 未完成 | 清库重放（1.5）、`PAID` 退款驳回缺一条边（二） |
+| 未完成 | ~~清库重放（1.5）~~ → **2026-11-07 已在临时库重放补齐，见 §六**；`PAID` 退款驳回缺一条边（二） |
 
 > 复跑命令：先在已加载 `.env` 的 shell 里跑（`FAZE_DB_URL` 等必需），再执行上面的 `mvn`。
+
+---
+
+## 六、出口条件 2 的补验：全链迁移在临时库重放（2026-11-07）
+
+### 6.1 为什么补
+
+《第 2 段工作流》§一.1 出口第 2 条要求「迁移脚本可重放」，§五 里记的「清库重放未做」是当时唯一的缺口（怕清掉段 1/2 的验收数据）。本次改为**建临时库重放、主库只读**，既补上验证又不洗数据。
+
+### 6.2 怎么做
+
+| 项 | 值 |
+|---|---|
+| 临时库 | `faze_replay_seg2`（`utf8mb4` / `utf8mb4_0900_ai_ci`，与 `database/00-create-database.sql` 一致） |
+| 执行方式 | `mysql` 客户端按 **Flyway 版本号数字序** 逐文件 `source`（不是文件名字符串序——否则会变成 V1,V10,V11,V12,V2...） |
+| 账号 | root（仅建/删临时库用；业务库本身仍是 `faze_app` 运行时 + `faze_migrate` 迁移两账号） |
+| 主库 | **只读**，仅用于对比；全程未写 |
+| 脚本 | 一次性脚本，跑完即删；命令见 §6.5 |
+
+### 6.3 结果（实测输出）
+
+```
+== 2. 重放 14 个迁移（版本数字序）==
+   V1    V1__baseline.sql                    OK  419 ms
+   V2    V2__init_law_items.sql              OK   68 ms
+   V3    V3__account_auth.sql                OK  242 ms
+   V4    V4__lawyer.sql                      OK  195 ms
+   V5    V5__wallet.sql                      OK  346 ms
+   V6    V6__ops_config.sql                  OK  155 ms
+   V7    V7__account_b_group.sql             OK  146 ms
+   V8    V8__cancel_phone_width.sql          OK   83 ms
+   V9    V9__realname_mask.sql               OK  129 ms
+   V10   V10__realname_cipher_width.sql      OK  170 ms
+   V11   V11__pay_password.sql               OK  135 ms
+   V12   V12__ops_config_value_text.sql      OK  176 ms
+   V200  V200__seg2_tables.sql               OK  671 ms
+   V201  V201__seg2_refund_flow_biz_id.sql   OK   60 ms
+
+== 3. 与主库对比 ==
+   临时库表数 = 26；主库表数（不含 flyway_schema_history）= 26
+   表清单一致 ✅
+   列数逐表一致（26 张表）✅
+   索引数逐表一致（26 张表）✅
+
+== 4. 关键抽样 ==
+   段 2 的 12 张表全部重放成功 ✅
+```
+
+结论：**全链 14 个迁移在空库上按序重放成功，产出的 26 张表在表清单、列数、索引数三个维度与主库逐表一致**，出口条件 2 的「可重放」已闭合。
+
+### 6.4 方法与局限（不隐瞒）
+
+1. 本次用 `mysql` 客户端逐文件执行，**Flyway 自身的 `flyway_schema_history` 没有在临时库生成**。也就是说本证据证明的是「SQL 链按版本序在空库可执行且结果与主库结构一致」；Flyway 的版本号解析/校验和/幂等记录由另两处证据覆盖：V200 首次应用日志（§2「执行方式」行）、`V201` 在真实库上的应用（G4 证据）。
+2. `V201__seg2_refund_flow_biz_id.sql` 是**数据修正**（把旧退款流水的 `biz_id` 从订单 id 改成退款单 id），在空库上 UPDATE 命中 0 行、无报错，这是预期行为，不是「没生效」。
+3. 临时库已 `DROP`，主库数据未受影响。
+
+### 6.5 复跑方式
+
+```powershell
+# 1) 建临时库 → 2) 按版本号数字序 source 14 个 SQL → 3) 与 faze 对比表/列/索引 → 4) DROP 临时库
+# 关键命令（没有现成脚本，属一次性验证）：
+$mysql = 'C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe'
+$env:MYSQL_PWD = '<root 口令，见 deploy\.env 的 FAZE_DB_ROOT_PASSWORD>'
+& $mysql -h 127.0.0.1 -P 3306 -u root --default-character-set=utf8mb4 -e "CREATE DATABASE faze_replay_seg2 DEFAULT CHARACTER SET utf8mb4 DEFAULT COLLATE utf8mb4_0900_ai_ci;"
+Get-ChildItem services\faze-api\src\main\resources\db\migration\*.sql |
+  Sort-Object { [int]($_.Name -replace '^V(\d+)__.*$','$1') } |
+  ForEach-Object { & $mysql -h 127.0.0.1 -P 3306 -u root --default-character-set=utf8mb4 faze_replay_seg2 -e "source $($_.FullName.Replace('\','/'))" }
+# 对比：information_schema.TABLES / COLUMNS / STATISTICS 三张视图，TABLE_SCHEMA 分别为 faze_replay_seg2 与 faze
+& $mysql -h 127.0.0.1 -P 3306 -u root -e "DROP DATABASE faze_replay_seg2;"
+```

@@ -4,6 +4,59 @@
 
 ---
 
+## 2026-11-06 · 段 2 出口补验与四项挂账补做
+
+> 负责人指令：补第 2 段收口时留下的可补挂账（共 4 项），补完汇报。本轮**未进入段 3**。
+
+### 1. 四项补做
+
+| # | 事项 | 结果 |
+|---|---|---|
+| 1 | `deploy/verify-all.ps1` 后端门禁 | 把 `.env` 注入进程环境（此前只读进局部变量给 preflight，`mvn -B verify` 起 Spring 上下文时缺 `FAZE_DB_URL` 直接报错）；同时改掉旧注释「无变量时整类跳过」——实际行为是**报错**，注释与行为不符。实测该步 `Tests run: 246, Failures: 0, Errors: 0` |
+| 2 | 管理端 Service 单测 | 新增 3 个测试类 **38 用例**：`AdminOrderServiceTest` 9（分页 total/金额分口径/脱敏/状态流水）、`AdminArticleServiceTest` 18（**四语言完成度聚合**、publish 校验与幂等、create/update 分支）、`AdminConversationServiceTest` 11（游标边界、`CONVERSATION_VIEW` + target_id 审计、附件签名） |
+| 3 | 出口条件 2「迁移可重放」 | 临时库 `faze_replay_seg2` 按版本号数字序重放全部 **14 个迁移**，产出的 **26 张表**与主库在表清单/列数/索引数三维度逐表一致；主库只读、临时库用完即删。证据：`docs/acceptance/seg2/G1-tables.md` §六 |
+| 4 | 聊天图片/文件消息客户端 | `ChatPage` 附件按钮 + 上传守卫 + pending 预览；新增 `AttachSheet` / `MessageImage` / `MessageFile` 三组件；四语言 `conversation.json` 各 **32 key 完全同构**；依赖清单登记 `expo-image-picker` / `expo-document-picker` |
+
+### 2. 顺带修掉的真实缺陷
+
+1. **`StorageKeyRules.KEY_PATTERN` 缺 `chat`**：`build()` 按 `ALLOWED_SCENES`（已加 chat）生成 `private/chat/...`，但 `isValid()` 用的正则没有 chat，`LocalFileStorage.presignUpload` 把自己刚生成的 key 判为非法 → 聊天附件 token 接口恒报 `401001`。补上后实测 `token 200 → PUT 204`。
+2. **消息气泡的 `<button>` 嵌套**：`MessageImage` / `MessageFile` 的 `accessibilityRole="button"` 嵌在「长按撤回」的气泡按钮里，Web 上触发 React hydration 错误（`<button> cannot be a descendant of <button>`）。改为 `image` / `link` 语义后复检干净。
+3. `.i18n-pending.json` 被 `check-i18n.ps1` 自动重写（conversation 命名空间补齐翻译后不再登记缺译）——属门禁正常行为，不是手改。
+
+### 3. 测试与门禁（本轮实测）
+
+- `mvn -B test`：**246 项全绿**（208 基线 + 38 新增，0 失败 / 0 错误 / 0 跳过）。
+- `deploy/verify-all.ps1`：preflight / 库名守卫 / 后端门禁全过；前端门禁仍 PENDING（段 0 遗留，按设计计失败）；另外两项**既有失败未修**：密钥粗筛（命中 `deploy/verify-*.js` 里的 `admin/admin123` 本地测试账号）、文档镜像（`docs` 与 `UI设计` 分支内容不一致）。
+- 前端 `npm run verify` 四项全过（`tsc` / `eslint` / `check-raw-text` 105 文件 0 命中 / `check-i18n` 三级检查）。
+- **浏览器端实测**（Chrome CDP + Expo Web 8090，按段 2 §零.5 的浏览器验收口径）：登录 → 进聊天页 → 附件面板 → 选图 → 上传 → 图片消息发出并在列表渲染；截图 `shots/app-03-chat.png`、`app-04-attach-sheet.png`、`app-05-image-sent.png`、`app-06-chat-after-reload.png`。
+
+### 4. 文档回写
+
+- 《第 2 段工作流》§十一 追加第 13 / 14 行（出口条件 2 闭合；`verify-all.ps1` 门禁修正）。
+- 《BASELINE》**v1.46 → v1.47**：`第2段工作流`（1125 行 / `afa25615c3abebc3`）与 `依赖清单`（106 行 / `03a1b98b5ec6964f`）指纹重算 + 新增 §7.51。
+- `docs/acceptance/seg2/G1-tables.md` 追加 §六（重放证据与局限）。
+- 《依赖清单》新增 §一之五（第 18 / 19 项）。
+
+### 5. 段 2 出口状态（本轮之后）
+
+| 出口条件 | 状态 |
+|---|---|
+| 1. `2-A1`~`2-A10` 十条全部二值通过 | ❌ 8 通过 / `2-A10` 近似 / `2-A3` 未通过 → 段 8 |
+| 2. 12 张表 Flyway、无手改库、迁移可重放 | ✅ **本轮闭合** |
+| 3. 接口清单一条不少 + App/PC 实测 | ✅ |
+| 4. 状态机可追溯 + 非法迁移抛异常 + 留痕 | ✅ |
+| 5. 余额恒等式差异 0 | ✅（本轮实跑 `deploy/verify-balance.ps1`：user 0 / lawyer 0 / exit 0） |
+| 6. 推送 2 个厂商 ROM + 杀进程收到 | ❌ 无凭据 → 段 8 |
+
+### 6. 仍未做（如实挂账）
+
+- **原生 Android 的附件上传未验**：`fetch(file://…).blob()` 在 web 实测通过（blob URL），原生侧 RN 对 `file://` 支持不稳，正解需引入 `expo-file-system` 并登记；属段 8 真机验收范围。
+- 服务端附件签名地址 **60 秒**有效期：长停留后打开历史文件/图片可能失败（已 toast `openFailed`），建议段 8 改为点击时重拉签名。
+- bo / ug / kk 译文由 AI 产出（非中文占位），上线前需母语者审校。
+- 附件发送失败（上传成功但 WS 断线）没有重发入口，与既有文本消息行为一致。
+
+---
+
 ## 2026-11-06 · 段 2 收口（G2~G9 完成 / 10 条锚点判定 / 文档基线与 §九回写）
 
 ### 1. 交付范围
