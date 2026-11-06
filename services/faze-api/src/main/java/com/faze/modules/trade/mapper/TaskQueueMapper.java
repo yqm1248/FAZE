@@ -27,11 +27,14 @@ public interface TaskQueueMapper extends BaseMapper<TaskQueue> {
     /**
      * 取一批待领取任务的 id（不锁行）。
      *
-     * @param now   当前时间（UTC）
-     * @param limit 最多取多少条
+     * @param now       当前时间（UTC）
+     * @param limit     最多取多少条
+     * @param taskTypes 只领这些类型；null 或空列表表示不筛（兼容旧调用方）
      * @return 候选任务 id 列表
      */
-    List<Long> selectCandidateIds(@Param("now") LocalDateTime now, @Param("limit") int limit);
+    List<Long> selectCandidateIds(@Param("now") LocalDateTime now,
+                                  @Param("limit") int limit,
+                                  @Param("taskTypes") List<String> taskTypes);
 
     /**
      * CAS 领取：只更新仍为 pending 的行。

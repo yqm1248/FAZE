@@ -68,7 +68,8 @@ public class OrderCloseTask {
         log.debug("扫描触发");
         List<TaskQueue> tasks;
         try {
-            tasks = taskQueueService.claimBatch(WORKER_NAME);
+            tasks = taskQueueService.claimBatch(WORKER_NAME,
+                    List.of(TaskQueueService.TYPE_ORDER_CLOSE, TaskQueueService.TYPE_ORDER_ACCEPT_TIMEOUT));
         } catch (RuntimeException e) {
             // 领取本身失败（库连不上等）：本轮放弃，下一轮再来。不吞异常日志。
             log.error("领取超时任务失败，本轮跳过", e);

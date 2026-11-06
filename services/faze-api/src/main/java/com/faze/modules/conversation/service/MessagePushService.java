@@ -20,6 +20,7 @@ import com.faze.modules.conversation.entity.ConversationMessage;
 import com.faze.modules.conversation.entity.MessageOffline;
 import com.faze.modules.conversation.vo.MessageVO;
 import com.faze.modules.conversation.ws.ChatSocketSender;
+import com.faze.modules.trade.service.TaskQueueService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -40,7 +41,13 @@ public class MessagePushService {
     private final ChatSocketSender sender;
 
     /**
-     * 把一条新消息推给对端（离线则入队）。
+     * task_queue 是**共享的异步任务基础设施**（trade 域的订单超时也在用），
+     * 所以 conversation 域直接依赖它是合理的；这里只做「入队」，不写任何订单逻辑。
+     */
+    private final TaskQueueService taskQueueService;
+
+    /**
+     * 把一条新消息推给对端（离线则入队 message_offline + 排一条系统推送任务）。
      *
      * @param member  发送者的成员关系（含对端推送目标）
      * @param message 消息出参
@@ -57,6 +64,28 @@ public class MessagePushService {
         }
         offlineMessageService.enqueue(peerUserId, message.getConversationId(), message.getId(),
                 message.getSeq());
+        enqueuePushTask(message);
+    }
+
+    /**
+     * 排一条离线推送任务（G7.2）。
+     *
+     * <p>为什么不在消息事务里直接调推送：远程调用不许挂在事务内（后端规范 §7.2）。
+     * 入队本身是本地 INSERT，与消息同事务可接受；真正的推送由 PushTask 在事务外消费。
+     * **同一消息只入队一次**（`hasActiveTask` 判重）：补推与重连会重复走到这里。</p>
+     *
+     * @param message 消息
+     */
+    private void enqueuePushTask(MessageVO message) {
+        if (message.getId() == null) {
+            return;
+        }
+        String bizNo = String.valueOf(message.getId());
+        if (taskQueueService.hasActiveTask(TaskQueueService.TYPE_PUSH, bizNo)) {
+            return;
+        }
+        taskQueueService.enqueue(TaskQueueService.TYPE_PUSH, bizNo,
+                java.time.LocalDateTime.now(java.time.ZoneOffset.UTC), null);
     }
 
     /**

@@ -127,6 +127,23 @@ public class ConversationService {
     }
 
     /**
+     * 查单个会话（G7.3：推送点击直达时需要「只知道 conversationId」就能打开会话）。
+     *
+     * @param userId         当前登录用户
+     * @param conversationId 会话主键
+     * @return 会话（按当前用户视角：C 端对端是律师、律师端对端是用户）
+     * @throws BusinessException 404001 / 404002
+     */
+    public ConversationVO detail(Long userId, Long conversationId) {
+        ConversationMember member = assertMember(conversationId, userId);
+        if (member.isLawyer()) {
+            AppUser user = accountMapper.selectById(member.getConversation().getUserId());
+            return toUserVO(member.getConversation(), user);
+        }
+        return toVO(member.getConversation(), SenderRole.USER, member.getLawyer());
+    }
+
+    /**
      * C 端会话列表（当前用户作为 user）。
      *
      * @param userId   当前登录用户

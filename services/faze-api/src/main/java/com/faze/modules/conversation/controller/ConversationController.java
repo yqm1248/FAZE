@@ -77,6 +77,19 @@ public class ConversationController {
     }
 
     /**
+     * 查单个会话（G7.3：推送点击直达时客户端只有 conversationId）。
+     *
+     * @param id        会话主键
+     * @param loginUser 当前认证主体
+     * @return 会话（按当前用户视角）
+     */
+    @GetMapping("/conversations/{id}")
+    public R<ConversationVO> detail(@PathVariable Long id,
+                                    @AuthenticationPrincipal LoginUser loginUser) {
+        return R.ok(conversationService.detail(requireLogin(loginUser).getUserId(), id));
+    }
+
+    /**
      * 历史消息（seq 游标，向更早翻）。
      *
      * @param id        会话主键

@@ -53,7 +53,7 @@ class TaskQueueServiceTest {
     @Test
     @DisplayName("没有候选任务：返回空列表，不做 CAS")
     void claimNoCandidate() {
-        when(taskQueueMapper.selectCandidateIds(any(), eq(20))).thenReturn(List.of());
+        when(taskQueueMapper.selectCandidateIds(any(), eq(20), any())).thenReturn(List.of());
 
         assertTrue(taskQueueService.claimBatch("w1").isEmpty());
         verify(taskQueueMapper, never()).claimByIds(anyList(), anyString(), any(), any());
@@ -62,7 +62,7 @@ class TaskQueueServiceTest {
     @Test
     @DisplayName("并发领取：CAS 影响行数为 0 时返回空列表，不回查任务")
     void claimCasMissByOtherConsumer() {
-        when(taskQueueMapper.selectCandidateIds(any(), eq(20))).thenReturn(List.of(1L, 2L));
+        when(taskQueueMapper.selectCandidateIds(any(), eq(20), any())).thenReturn(List.of(1L, 2L));
         when(taskQueueMapper.claimByIds(anyList(), anyString(), any(), any())).thenReturn(0);
 
         assertTrue(taskQueueService.claimBatch("w2").isEmpty());
@@ -74,7 +74,7 @@ class TaskQueueServiceTest {
     void claimSuccess() {
         TaskQueue task = new TaskQueue();
         task.setId(1L);
-        when(taskQueueMapper.selectCandidateIds(any(), eq(20))).thenReturn(List.of(1L));
+        when(taskQueueMapper.selectCandidateIds(any(), eq(20), any())).thenReturn(List.of(1L));
         when(taskQueueMapper.claimByIds(anyList(), anyString(), any(), any())).thenReturn(1);
         when(taskQueueMapper.selectList(any(Wrapper.class))).thenReturn(List.of(task));
 
@@ -87,7 +87,7 @@ class TaskQueueServiceTest {
     @Test
     @DisplayName("租约过期会先被回收（每次领取都调用一次）")
     void claimRecyclesExpired() {
-        when(taskQueueMapper.selectCandidateIds(any(), eq(20))).thenReturn(List.of());
+        when(taskQueueMapper.selectCandidateIds(any(), eq(20), any())).thenReturn(List.of());
         when(taskQueueMapper.releaseExpired(any())).thenReturn(2);
 
         taskQueueService.claimBatch("w4");

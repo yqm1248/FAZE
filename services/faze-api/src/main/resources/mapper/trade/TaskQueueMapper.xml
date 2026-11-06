@@ -18,6 +18,17 @@
         FROM task_queue
         WHERE status = 'pending'
           AND next_retry_at &lt;= #{now}
+        <!--
+          任务类型过滤（第 2 段 G7.2 新增）：段 2 有两个消费者（订单超时扫描 / 离线推送），
+          不筛类型会让任意一个消费者领走别人的任务并把它们标成失败。
+          taskTypes 为空/null 表示不筛（兼容段 2 之前的调用方）。
+        -->
+        <if test="taskTypes != null and taskTypes.size() > 0">
+          AND task_type IN
+          <foreach collection="taskTypes" item="taskType" open="(" separator="," close=")">
+              #{taskType}
+          </foreach>
+        </if>
         ORDER BY next_retry_at ASC, id ASC
         LIMIT #{limit}
     </select>

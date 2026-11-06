@@ -44,6 +44,9 @@ public class TaskQueueService {
     /** 订单接单超时任务（已支付 30 分钟无人接）。 */
     public static final String TYPE_ORDER_ACCEPT_TIMEOUT = "order_accept_timeout";
 
+    /** 任务类型：离线推送（G7.2，`biz_no` 存 conversation_message.id）。 */
+    public static final String TYPE_PUSH = "push";
+
     /** 任务状态：待领取。 */
     public static final String STATUS_PENDING = "pending";
 
@@ -102,14 +105,28 @@ public class TaskQueueService {
     }
 
     /**
-     * 领取一批到期任务。
+     * 领取一批到期任务（不筛类型）。
      *
-     * <p>副作用：先回收租约过期任务，再把候选任务置为 claimed。</p>
+     * <p>保留本重载是为了兼容段 2 之前的调用方与集成测试；**生产消费者应传类型**，
+     * 否则会领走别的消费者的任务（G7.2 起 task_queue 有两个消费者）。</p>
      *
      * @param workerName 工作线程标识（同一次扫描内的 owner 前缀）
      * @return 本次真正领到的任务；没有可领的返回空列表
      */
     public List<TaskQueue> claimBatch(String workerName) {
+        return claimBatch(workerName, List.of());
+    }
+
+    /**
+     * 领取一批指定类型的到期任务。
+     *
+     * <p>副作用：先回收租约过期任务，再把候选任务置为 claimed。</p>
+     *
+     * @param workerName 工作线程标识（同一次扫描内的 owner 前缀）
+     * @param taskTypes  只领这些类型；空列表表示不筛
+     * @return 本次真正领到的任务；没有可领的返回空列表
+     */
+    public List<TaskQueue> claimBatch(String workerName, List<String> taskTypes) {
         LocalDateTime now = utcNow();
         // 任务 1：回收租约过期任务（消费者崩溃后的兜底）
         int recycled = taskQueueMapper.releaseExpired(now);
@@ -117,7 +134,7 @@ public class TaskQueueService {
             log.warn("回收租约过期任务 {} 条", recycled);
         }
         // 任务 2：选候选 id
-        List<Long> ids = taskQueueMapper.selectCandidateIds(now, CLAIM_LIMIT);
+        List<Long> ids = taskQueueMapper.selectCandidateIds(now, CLAIM_LIMIT, taskTypes);
         if (ids.isEmpty()) {
             return List.of();
         }
@@ -134,6 +151,20 @@ public class TaskQueueService {
                 .eq(TaskQueue::getLockOwner, owner));
         log.info("领取任务 {} 条（候选 {} 条） owner={}", tasks.size(), ids.size(), owner);
         return tasks;
+    }
+
+    /**
+     * 判断某业务号是否已有**未完成**的同类任务（入队前判重，保证同一消息只推一次）。
+     *
+     * @param taskType 任务类型
+     * @param bizNo    业务号
+     * @return 存在 pending / claimed 的同类型任务返回 true
+     */
+    public boolean hasActiveTask(String taskType, String bizNo) {
+        return taskQueueMapper.selectCount(Wrappers.<TaskQueue>lambdaQuery()
+                .eq(TaskQueue::getTaskType, taskType)
+                .eq(TaskQueue::getBizNo, bizNo)
+                .in(TaskQueue::getStatus, STATUS_PENDING, STATUS_CLAIMED)) > 0;
     }
 
     /**
