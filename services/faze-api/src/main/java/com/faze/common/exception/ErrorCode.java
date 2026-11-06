@@ -78,8 +78,18 @@ public enum ErrorCode {
     // ── 交易与资金域 05 ──────────────────────────────────────────────────
     /** 余额不足。HTTP 200。 */
     TRADE_BALANCE_INSUFFICIENT(405001, 200, "error.trade.balance-insufficient", "账户余额不足"),
+    /** 订单不存在（含「不是你的订单」——归属条件进 SQL，查不到即不存在）。HTTP 200。 */
+    TRADE_ORDER_NOT_FOUND(405002, 200, "error.trade.order-not-found", "订单不存在"),
+    /** 订单状态非法，当前操作不允许（非法状态迁移统一走它，HTTP 200 + 5xxxx）。HTTP 200。 */
+    TRADE_ORDER_STATE_INVALID(405003, 200, "error.trade.order-state-invalid", "订单状态非法，当前操作不允许"),
+    /** 重复提交（幂等拦截：同一 Idempotency-Key / 重复支付）。HTTP 200。 */
+    TRADE_DUPLICATE_SUBMIT(405004, 200, "error.trade.duplicate-submit", "请勿重复提交"),
+    /** 退款金额超出可退上限。HTTP 200。 */
+    TRADE_REFUND_EXCEEDS(405005, 200, "error.trade.refund-exceeds", "退款金额超出可退上限"),
     /** 金额非法（负数、超限、非整数分）。HTTP 200。 */
     TRADE_AMOUNT_INVALID(405006, 200, "error.trade.amount-invalid", "金额非法"),
+    /** 非本人订单（越权）。HTTP **403**。 */
+    TRADE_NOT_ORDER_OWNER(405007, 403, "error.trade.not-order-owner", "非本人订单，无权访问"),
 
     // ── AI 域 08 ─────────────────────────────────────────────────────────
     /** 豆包服务不可用 / 5 秒内未出首字节。HTTP 200。 */
