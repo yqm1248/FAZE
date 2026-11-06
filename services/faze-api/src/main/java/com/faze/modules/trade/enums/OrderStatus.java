@@ -82,6 +82,20 @@ public enum OrderStatus {
     }
 
     /**
+     * 按持久化值反查枚举，值非法返回 null。
+     *
+     * <p>与 {@link #of(String)} 的分工：**读数据库里的状态必须用 of()**（读回非法值是数据事故，
+     * 要立刻暴露）；**解析客户端筛选参数用 ofOrNull()**（旧版客户端可能带废弃 code，
+     * 让整个列表 500 比忽略一个筛选值糟糕得多）。</p>
+     *
+     * @param code 待解析值
+     * @return 对应枚举；未知值返回 null
+     */
+    public static OrderStatus ofOrNull(String code) {
+        return code == null ? null : BY_CODE.get(code);
+    }
+
+    /**
      * 是否为终态（终态不允许任何迁移）。
      *
      * <p>注意 {@code REFUND_REJECTED} 不是终态：它还要回退到退款前的状态。</p>

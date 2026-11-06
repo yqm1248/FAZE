@@ -1,0 +1,89 @@
+/*
+ * 职责：LawyerQueryService 的实现（律师只读查询）。
+ * 调用方：Spring 依赖注入（modules/trade 下单与订单展示）。
+ * 数据来源：faze.lawyer（单表，无联查）。
+ * 注意：
+ *   1. 两个查询都必须带 `deleted_at IS NULL`：段 1/2 没有 MP 逻辑删除拦截器，
+ *      漏掉会把已清退律师查出来当正常律师接单。
+ *   2. 查不到返回 `Optional.empty()`，不抛异常——「这个用户不是律师」是正常分支
+ *      （普通用户下单调律师列表时也会走到）。
+ *   3. 不做任何写操作，也不缓存：律师改价/审核状态变化要立刻生效（下单取价必须用最新值）。
+ */
+package com.faze.modules.account.service.impl;
+
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.faze.modules.account.entity.Lawyer;
+import com.faze.modules.account.mapper.LawyerMapper;
+import com.faze.modules.account.service.LawyerQueryService;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Map;
+import java.util.Optional;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+
+/**
+ * 律师只读查询实现。
+ */
+@Service
+@RequiredArgsConstructor
+public class LawyerQueryServiceImpl implements LawyerQueryService {
+
+    private final LawyerMapper lawyerMapper;
+
+    /**
+     * 按律师主键查。
+     *
+     * @param lawyerId lawyer.id，可为空
+     * @return 律师行；为空或已软删时返回空
+     */
+    @Override
+    public Optional<Lawyer> findById(Long lawyerId) {
+        if (lawyerId == null) {
+            return Optional.empty();
+        }
+        return Optional.ofNullable(lawyerMapper.selectOne(Wrappers.<Lawyer>lambdaQuery()
+                .eq(Lawyer::getId, lawyerId)
+                .isNull(Lawyer::getDeletedAt)));
+    }
+
+    /**
+     * 按关联用户主键查。
+     *
+     * @param userId app_user.id，可为空
+     * @return 律师行；该用户不是律师时返回空
+     */
+    @Override
+    public Optional<Lawyer> findByUserId(Long userId) {
+        if (userId == null) {
+            return Optional.empty();
+        }
+        return Optional.ofNullable(lawyerMapper.selectOne(Wrappers.<Lawyer>lambdaQuery()
+                .eq(Lawyer::getUserId, userId)
+                .isNull(Lawyer::getDeletedAt)));
+    }
+
+    /**
+     * 按主键批量查。
+     *
+     * <p>一次 `IN` 查询，避免列表页按行查律师（N+1）。返回的 Map 只含查到的行，
+     * 调用方要按「可能没有律师」处理缺行。</p>
+     *
+     * @param lawyerIds 律师主键集合，可为空
+     * @return 主键 → 律师行
+     */
+    @Override
+    public Map<Long, Lawyer> mapByIds(Collection<Long> lawyerIds) {
+        if (lawyerIds == null || lawyerIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        return lawyerMapper.selectList(Wrappers.<Lawyer>lambdaQuery()
+                        .in(Lawyer::getId, lawyerIds)
+                        .isNull(Lawyer::getDeletedAt))
+                .stream()
+                .filter(lawyer -> lawyer.getId() != null)
+                .collect(Collectors.toMap(Lawyer::getId, Function.identity(), (left, right) -> left));
+    }
+}

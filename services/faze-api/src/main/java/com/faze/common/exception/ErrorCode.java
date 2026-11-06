@@ -90,6 +90,12 @@ public enum ErrorCode {
     TRADE_AMOUNT_INVALID(405006, 200, "error.trade.amount-invalid", "金额非法"),
     /** 非本人订单（越权）。HTTP **403**。 */
     TRADE_NOT_ORDER_OWNER(405007, 403, "error.trade.not-order-owner", "非本人订单，无权访问"),
+    /** 律师不可接单（不存在 / 未通过审核 / 已清退）。HTTP 200。 */
+    TRADE_LAWYER_UNAVAILABLE(405008, 200, "error.trade.lawyer-unavailable", "该律师当前不可接单"),
+    /** 该服务未上架或未定价（价格为空的律师不许下单成 0 元单）。HTTP 200。 */
+    TRADE_SERVICE_UNAVAILABLE(405009, 200, "error.trade.service-unavailable", "该律师未开通此服务"),
+    /** 律师不在线且平台要求在线才可下单（开关 `order_require_lawyer_online`）。HTTP 200。 */
+    TRADE_LAWYER_OFFLINE(405010, 200, "error.trade.lawyer-offline", "该律师当前不在线"),
 
     // ── AI 域 08 ─────────────────────────────────────────────────────────
     /** 豆包服务不可用 / 5 秒内未出首字节。HTTP 200。 */
