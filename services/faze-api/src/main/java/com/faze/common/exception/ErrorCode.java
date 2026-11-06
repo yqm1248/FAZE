@@ -109,6 +109,12 @@ public enum ErrorCode {
     /** 该订单已评价过（一单一次，uk_review_order）。HTTP 200。 */
     TRADE_REVIEW_DUPLICATE(405022, 200, "error.trade.review-duplicate", "该订单已评价，不能重复评价"),
 
+    // ── IM 会话域 04 ──────────────────────────────────────────────────────
+    /** 会话不存在。HTTP 200。 */
+    CONVERSATION_NOT_FOUND(404001, 200, "error.conversation.not-found", "会话不存在"),
+    /** 无权访问该会话（不是会话成员）。HTTP **403**。 */
+    CONVERSATION_FORBIDDEN(404002, 403, "error.conversation.forbidden", "无权访问该会话"),
+
     // ── AI 域 08 ─────────────────────────────────────────────────────────
     /** 豆包服务不可用 / 5 秒内未出首字节。HTTP 200。 */
     AI_SERVICE_DOWN(508001, 200, "error.ai.service-down", "AI 服务暂不可用");

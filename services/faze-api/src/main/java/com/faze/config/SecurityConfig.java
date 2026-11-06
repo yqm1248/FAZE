@@ -80,6 +80,10 @@ public class SecurityConfig {
                         // 只放行 GET 的浏览路径；同前缀下的律师侧写接口（工作台等）仍走下面的 authenticated。
                         .requestMatchers(HttpMethod.GET, "/api/v1/app/lawyers", "/api/v1/app/lawyers/*",
                                 "/api/v1/app/lawyers/*/reviews").permitAll()
+                        // WebSocket 握手（G6.2）：握手请求没有 Authorization 头（token 在 query），
+                        // 放到过滤器链里必然 401。真正的鉴权在 ChatHandshakeInterceptor：
+                        // 校验失败直接拒绝握手（403），不存在「连上但未认证」的连接。
+                        .requestMatchers("/ws/**").permitAll()
                         // app：需 access token，是 0-A2 验 401 的唯一载体
                         .requestMatchers("/api/v1/app/**").authenticated()
                         // admin：管理端写接口（第 1 段 D4 起）。用 hasRole 而不是 authenticated，

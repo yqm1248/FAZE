@@ -1,0 +1,107 @@
+/*
+ * 职责：消息推送的统一出口——在线直推、离线入队、连接建立时补推（G6.2/G6.6）。
+ * 调用方：modules/conversation/ws/handler/ChatSendHandler（推对端）、
+ *        modules/conversation/ws/ChatWebSocketHandler（连接建立时补推）。
+ * 数据来源：OnlineRegistry（在线判断）、OfflineMessageService（队列）、MessageService（消息内容）。
+ * 注意：
+ *   1. **先入库再推送**（工作流 G6.5 第 3 条）：调用本类时消息已经在库里，
+ *      推送失败的最坏结果只是「对端晚点从历史里拉到」，不会丢消息。
+ *   2. **在线直推失败要回落到离线队列**：`sessionOf` 返回非空但 `send` 返回 false 时
+ *      （对方刚好在这一瞬间断开），必须入队，否则这条消息对端永远收不到
+ *      （下次重连只补 message_offline，不会重扫全部历史）。
+ *   3. 补推时**推一条删一条**：中途断开时已推的不会重复，未推的留在队列里下次继续。
+ *   4. 补推是分页循环（每批 50），一次全量会拖慢重连。
+ *   5. 对端 `peerUserId` 为 null（律师被清退、查不到账号）时**不入队**：队列里存着也永远推不出去，
+ *      只会占空间；消息仍在 conversation_message 里，进会话能拉到。
+ */
+package com.faze.modules.conversation.service;
+
+import com.faze.modules.conversation.entity.ConversationMessage;
+import com.faze.modules.conversation.entity.MessageOffline;
+import com.faze.modules.conversation.vo.MessageVO;
+import com.faze.modules.conversation.ws.ChatSocketSender;
+import java.util.List;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.web.socket.WebSocketSession;
+
+/**
+ * 消息推送服务。
+ */
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class MessagePushService {
+
+    private final OnlineRegistry onlineRegistry;
+    private final OfflineMessageService offlineMessageService;
+    private final MessageService messageService;
+    private final ChatSocketSender sender;
+
+    /**
+     * 把一条新消息推给对端（离线则入队）。
+     *
+     * @param member  发送者的成员关系（含对端推送目标）
+     * @param message 消息出参
+     */
+    public void pushToPeer(ConversationMember member, MessageVO message) {
+        Long peerUserId = member.getPeerUserId();
+        if (peerUserId == null) {
+            log.warn("对端账号不可用，消息只落库不推送 conversationId={} messageId={}",
+                    message.getConversationId(), message.getId());
+            return;
+        }
+        if (pushNow(peerUserId, message)) {
+            return;
+        }
+        offlineMessageService.enqueue(peerUserId, message.getConversationId(), message.getId(),
+                message.getSeq());
+    }
+
+    /**
+     * 连接建立时补推离线消息（推一条删一条，分页循环）。
+     *
+     * @param session 刚建立的连接
+     * @param userId  接收方用户
+     * @return 补推条数
+     */
+    public int drainOffline(WebSocketSession session, Long userId) {
+        int total = 0;
+        while (true) {
+            List<MessageOffline> batch = offlineMessageService.drainBatch(userId);
+            if (batch.isEmpty()) {
+                return total;
+            }
+            for (MessageOffline row : batch) {
+                ConversationMessage message = messageService.findById(row.getMessageId());
+                if (message == null) {
+                    // 消息已被物理删除（段 2 不会发生，防御历史脏数据）：清掉队列行
+                    offlineMessageService.remove(userId, row.getMessageId());
+                    continue;
+                }
+                MessageVO vo = messageService.toReceiverVO(message);
+                if (sender.send(session, "chat.message", vo)) {
+                    offlineMessageService.remove(userId, row.getMessageId());
+                    total++;
+                } else {
+                    // 连接又断了：本批剩余留着下次补，直接退出
+                    return total;
+                }
+            }
+        }
+    }
+
+    /**
+     * 尝试立即推给某个在线用户。
+     *
+     * @param userId  接收方用户
+     * @param message 消息（发送者视角的 VO：接收端只按 senderRole/senderId 判方向，
+     *                「对端已读」字段对它无意义）
+     * @return 推送成功返回 true；离线或发送失败返回 false（调用方回落离线队列）
+     */
+    private boolean pushNow(Long userId, MessageVO message) {
+        WebSocketSession session = onlineRegistry.sessionOf(userId);
+        return session != null && sender.send(session, "chat.message", message);
+    }
+}
