@@ -134,7 +134,24 @@ public enum ErrorCode {
     /** 豆包服务不可用 / 5 秒内未出首字节。HTTP 200。 */
     AI_SERVICE_DOWN(508001, 200, "error.ai.service-down", "AI 服务暂不可用"),
     /** AI 输出校验失败（回答里所有条文号都不存在且无法降级）。HTTP 200。 */
-    AI_OUTPUT_INVALID(508002, 200, "error.ai.output-invalid", "AI 输出校验失败，请重试");
+    AI_OUTPUT_INVALID(508002, 200, "error.ai.output-invalid", "AI 输出校验失败，请重试"),
+
+    // ── 文书域 06（段 4，《错误码规范》§3.6） ──────────────────────────────
+
+    /** 模板不存在或已停用。HTTP 200。 */
+    DOCUMENT_TEMPLATE_NOT_FOUND(406001, 200, "error.document.template-not-found", "模板不存在或已停用"),
+    /** 表单校验失败（必填缺失、类型不符、array 超限、占位符残留）。HTTP 200。 */
+    DOCUMENT_FORM_INVALID(406002, 200, "error.document.form-invalid", "表单校验失败"),
+    /** 文书不存在（或不属于当前用户——**不区分**，防枚举）。HTTP 200。 */
+    DOCUMENT_NOT_FOUND(406003, 200, "error.document.not-found", "文书不存在"),
+    /** 无权访问该文书（归属校验失败）。HTTP 403。 */
+    DOCUMENT_FORBIDDEN(406004, 403, "error.document.forbidden", "无权访问该文书"),
+    /** 文书生成失败（占位符不匹配 / 非法 XHTML / 存储不可用等）。HTTP 200。 */
+    DOCUMENT_GENERATE_FAILED(506001, 200, "error.document.generate-failed", "文书生成失败"),
+    /** PDF 转换失败（渲染异常）。HTTP 200。 */
+    DOCUMENT_PDF_FAILED(506002, 200, "error.document.pdf-failed", "PDF 转换失败"),
+    /** 渲染所需字体缺失（中文场景指仿宋 `simfang.ttf` 不存在或路径配错）。HTTP 200。 */
+    DOCUMENT_FONT_MISSING(506003, 200, "error.document.font-missing", "渲染所需字体缺失");
 
     /** 6 位业务码（前 3 位是 HTTP 语义家族，第 4~5 位是业务域）。 */
     private final int code;

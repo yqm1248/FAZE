@@ -115,6 +115,18 @@ faze:
     upload-ttl-seconds: 300
     # 单文件上限 10MB，与 C1 风险项「签名里限 content-length-range」对应
     max-upload-bytes: 10485760
+  doc:
+    # ── 文书渲染（段 4 A2）──
+    # 中文正文字体：仿宋（Windows 自带 simfang.ttf）。
+    # **不用「仿宋_GB2312」**——系统不自带，配错的表现是 PDF 里全是方块且不报错。
+    # 生产由 FAZE_FONT_PATH 注入；为空时 PdfRenderer 构造期直接拒绝启动（默认拒绝，不给"看起来能跑"的默认值）
+    font-path: ${FAZE_FONT_PATH:}
+    # 粗体：仿宋只有 Regular，用黑体承担 700 字重；未配置时标题不加粗（渲染照常，不阻断生成）
+    bold-font-path: ${FAZE_BOLD_FONT_PATH:}
+    # 单次渲染上限：畸形 HTML（超深嵌套）会把渲染线程卡死，必须有上限
+    render-timeout-seconds: 10
+    # 页数上限兜底（超时中断不一定生效，用页数再兜一层）
+    max-pages: 200
 
 logging:
   level:

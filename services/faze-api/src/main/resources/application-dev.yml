@@ -31,6 +31,12 @@ faze:
     # 管理端鉴权桥：dev 用 RuoYi 发行版出厂默认 secret（abcdefghijklmnopqrstuvwxyz）。
     # 这里给默认值只为了本机能直接跑；生产不提供默认值，必须走 FAZE_ADMIN_TOKEN_SECRET。
     token-secret: ${FAZE_ADMIN_TOKEN_SECRET:abcdefghijklmnopqrstuvwxyz}
+  doc:
+    # 第 4 段 A2：本机 Windows 自带字体。生产由 FAZE_FONT_PATH 注入（无默认值，未设置即启动失败）；
+    # dev 给默认值只为了本机能直接跑起来。
+    font-path: ${FAZE_FONT_PATH:C:/Windows/Fonts/simfang.ttf}
+    # 仿宋只有 Regular，粗体用黑体承担 700 字重（否则 CSS 的 bold 静默不加粗）
+    bold-font-path: ${FAZE_BOLD_FONT_PATH:C:/Windows/Fonts/simhei.ttf}
   probe:
     ai:
       mock: true

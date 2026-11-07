@@ -117,6 +117,17 @@
       <artifactId>flyway-mysql</artifactId>
     </dependency>
 
+    <!-- HTML → PDF：段 4 文书渲染。
+         它是 2023 年归档项目（最后版 1.0.10），不再有安全更新——锁死版本、不放宽，
+         风险与退路（flying-saucer）见《第 4 段工作流》§六 R1。
+         它内部传递 pdfbox 2.0.30，**不要另外声明 pdfbox 版本**，否则两条版本线打架
+         （签名叠图、PDF 转 PNG、元数据读写都用这个传递进来的 2.0.x）。 -->
+    <dependency>
+      <groupId>com.openhtmltopdf</groupId>
+      <artifactId>openhtmltopdf-pdfbox</artifactId>
+      <version>1.0.10</version>
+    </dependency>
+
     <!-- JWT：三件套都要 -->
     <dependency>
       <groupId>io.jsonwebtoken</groupId>
