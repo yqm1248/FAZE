@@ -7,20 +7,19 @@ body { font-family: 'FangSong'; font-size: 16pt; line-height: 28pt; margin: 0; c
 h1 { font-size: 22pt; text-align: center; font-weight: bold; margin: 0 0 24pt 0; line-height: 32pt; }
 p { margin: 0 0 6pt 0; text-align: justify; }
 div.section { margin-top: 12pt; margin-bottom: 6pt; font-weight: bold; }
-ol { margin: 0 0 6pt 0; padding-left: 24pt; }
-li { margin-bottom: 4pt; text-align: justify; }
+p.claim { margin: 0 0 4pt 0; padding-left: 12pt; text-align: justify; }
 div.signature { margin-top: 36pt; text-align: right; line-height: 28pt; }
 </style>
 </head>
 <body>
 <h1>民事起诉状</h1>
 
-<p>原告：{{#plaintiffs}}{{item.name}}，{{item.gender}}，{{item.birth}}出生，{{item.ethnicity}}族，住{{item.address}}，联系电话 {{item.phone}}。{{/plaintiffs}}</p>
+<p>原告：{{#plaintiffs}}{{item.name}}，{{item.gender}}，{{item.birth}}出生，{{item.ethnicity}}，住{{item.address}}，联系电话 {{item.phone}}。{{/plaintiffs}}</p>
 
 <p>被告：{{#defendants}}{{item.name}}，住所地{{item.address}}，联系电话 {{item.phone}}。{{/defendants}}</p>
 
 <div class="section">诉讼请求</div>
-<ol>{{#claims}}<li>{{item.text}}</li>{{/claims}}</ol>
+{{#claims}}<p class="claim">{{item.index}}、{{item.text}}</p>{{/claims}}
 
 <div class="section">事实与理由</div>
 <p>{{facts}}</p>
