@@ -105,6 +105,8 @@ export type ServiceSettingsPayload = {
   servicePhoneOn?: boolean;
   /** 文书代写是否上架。 */
   serviceDocOn?: boolean;
+  /** 自动接单（段 5 D4 补；不传表示不改）。 */
+  autoAccept?: boolean;
 };
 
 /**

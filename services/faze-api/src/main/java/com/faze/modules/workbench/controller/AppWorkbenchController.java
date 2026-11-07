@@ -148,6 +148,18 @@ public class AppWorkbenchController {
     }
 
     /**
+     * 查询律师资料（D5 页面回显，含只读的姓名与执业证号）。
+     *
+     * @param loginUser 当前登录用户
+     * @return 资料
+     */
+    @GetMapping("/profile")
+    public R<com.faze.modules.workbench.vo.WorkbenchProfileVO> profile(
+            @AuthenticationPrincipal LoginUser loginUser) {
+        return R.ok(workbenchService.getProfile(requireLogin(loginUser).getUserId()));
+    }
+
+    /**
      * 编辑律师资料（partial update）。
      *
      * @param loginUser 当前登录用户

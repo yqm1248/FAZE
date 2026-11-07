@@ -132,6 +132,20 @@ export const PAGE_ROUTES = {
   caseProgress: '/case-progress' as Href,
   /** 文书送达页（`/case-delivery?caseId=`，段 5 C2/C3/C4）。 */
   caseDelivery: '/case-delivery' as Href,
+
+  // ── 段 5 D 组：律师工作台五页 ───────────────────────────────────────
+  /** 客户咨询列表（`/workbench-consultations`，段 5 D1）。 */
+  workbenchConsultations: '/workbench-consultations' as Href,
+  /** 律师文书管理（`/workbench-docs`，段 5 D2）。 */
+  workbenchDocs: '/workbench-docs' as Href,
+  /** 律师收入与提现（`/workbench-income`，段 5 D3）。 */
+  workbenchIncome: '/workbench-income' as Href,
+  /** 服务设置（`/workbench-settings`，段 5 D4）。 */
+  workbenchSettings: '/workbench-settings' as Href,
+  /** 律师资料编辑（`/workbench-profile`，段 5 D5）。 */
+  workbenchProfile: '/workbench-profile' as Href,
+  /** 文书模板列表（段 4 E1 的页面，D2 的「新建文书」入口跳这里）。 */
+  docTemplates: '/doc/templates' as Href,
 } as const;
 
 /** 路由常量表的值类型（用于接收「任一页面路径」的参数）。 */

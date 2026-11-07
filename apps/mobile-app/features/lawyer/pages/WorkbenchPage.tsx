@@ -34,6 +34,7 @@ import { AppCard } from '@/shared/components/AppCard';
 import { AppHeader } from '@/shared/components/AppHeader';
 import { useToast } from '@/shared/components/AppToast';
 import { AsyncBoundary } from '@/shared/components/AsyncBoundary';
+import { DirectionalIcon } from '@/shared/components/DirectionalIcon';
 import { FormField } from '@/shared/components/FormField';
 import { LocalizedText } from '@/shared/components/LocalizedText';
 import { MoneyText } from '@/shared/components/MoneyText';
@@ -47,11 +48,25 @@ import { PAGE_ROUTES } from '@/shared/navigation/routes';
 import { color, radius, size, spacing, typography } from '@/shared/theme';
 import { centsFromServer } from '@/shared/utils/money';
 
-/** 在线状态三档。 */
-const ONLINE_OPTIONS: ReadonlyArray<{ value: string; labelKey: MessageKey }> = [
+/** 在线状态三档。 */const ONLINE_OPTIONS: ReadonlyArray<{ value: string; labelKey: MessageKey }> = [
   { value: 'online', labelKey: 'lawyer.workbench.online' },
   { value: 'busy', labelKey: 'lawyer.workbench.busy' },
   { value: 'offline', labelKey: 'lawyer.workbench.offline' },
+];
+
+/**
+ * 工作台宫格 6 项（段 5 D6）。
+ *
+ * 段 2 只有「我的订单」一个按钮入口；本段补 5 个目标页。
+ * 顺序按使用频率：客户与文书是日常，收入/设置/资料是低频维护。
+ */
+const GRID_ENTRIES: ReadonlyArray<{ key: string; labelKey: MessageKey; route: typeof PAGE_ROUTES.home }> = [
+  { key: 'consultations', labelKey: 'workbench.grid.consultations', route: PAGE_ROUTES.workbenchConsultations },
+  { key: 'orders', labelKey: 'workbench.grid.orders', route: PAGE_ROUTES.lawyerOrders },
+  { key: 'docs', labelKey: 'workbench.grid.docs', route: PAGE_ROUTES.workbenchDocs },
+  { key: 'income', labelKey: 'workbench.grid.income', route: PAGE_ROUTES.workbenchIncome },
+  { key: 'settings', labelKey: 'workbench.grid.settings', route: PAGE_ROUTES.workbenchSettings },
+  { key: 'profile', labelKey: 'workbench.grid.profile', route: PAGE_ROUTES.workbenchProfile },
 ];
 
 /** 服务设置的一行定义。 */
@@ -296,6 +311,30 @@ function WorkbenchBody({
         onPress={() => router.push(PAGE_ROUTES.lawyerOrders)}
       />
 
+      {/*
+        段 5 D6：工作台宫格 6 项。
+        段 2 只有「我的订单」一个入口（上面的 outline 按钮），本段补齐另外 5 个目标页：
+        我的客户(63) / 代写文书(65) / 收入提现(66) / 服务设置(67) / 律师资料(68)。
+        宫格放在设置卡之前：设置是「日常维护」，宫格才是高频入口。
+      */}
+      <View style={styles.entryGrid} testID="workbench-grid">
+        {GRID_ENTRIES.map((entry) => (
+          <Pressable
+            key={entry.key}
+            testID={`workbench-grid-${entry.key}`}
+            accessibilityRole="button"
+            accessibilityLabel={t(entry.labelKey)}
+            onPress={() => router.push(entry.route)}
+            style={({ pressed }) => [styles.entryCell, pressed ? styles.entryPressed : null]}
+          >
+            <LocalizedText numberOfLines={1} style={styles.entryText}>
+              {t(entry.labelKey)}
+            </LocalizedText>
+            <DirectionalIcon name="chevron-forward" size={14} color={color.text.muted} />
+          </Pressable>
+        ))}
+      </View>
+
       <AppCard style={styles.settingsCard}>
         <LocalizedText numberOfLines={1} style={styles.cardTitle}>
           {t('lawyer.workbench.serviceSettings')}
@@ -450,5 +489,29 @@ const styles = StyleSheet.create({
   settingsHint: {
     ...typography.micro,
     color: color.text.muted,
+  },
+  entryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  entryCell: {
+    width: '48%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    borderRadius: radius.md,
+    backgroundColor: color.background.surface,
+  },
+  entryPressed: {
+    opacity: 0.85,
+  },
+  entryText: {
+    ...typography.bodySmall,
+    color: color.text.primary,
+    flexShrink: 1,
   },
 });

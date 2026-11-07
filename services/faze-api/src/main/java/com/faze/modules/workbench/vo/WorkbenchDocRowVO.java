@@ -39,4 +39,11 @@ public class WorkbenchDocRowVO {
 
     /** 最后更新时间（UTC）。 */
     private LocalDateTime updatedAt;
+
+    /**
+     * 首次发送给委托人的时间（UTC，段 5 D2）；null 表示**待发送**。
+     *
+     * <p>「待发送 / 已发送」由这一列判定，不塞进 `status`（status 是文书生成生命周期）。</p>
+     */
+    private LocalDateTime sentAt;
 }

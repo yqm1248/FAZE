@@ -96,6 +96,14 @@ public interface WorkbenchService {
     void updateProfile(Long userId, WorkbenchProfileBO bo);
 
     /**
+     * 查询律师资料（D5 页面回显，含只读的姓名与执业证号）。
+     *
+     * @param userId 当前登录用户 app_user.id
+     * @return 资料
+     */
+    com.faze.modules.workbench.vo.WorkbenchProfileVO getProfile(Long userId);
+
+    /**
      * 查询收款账户（脱敏，只露后 4 位）。
      *
      * @param userId 当前登录用户 app_user.id

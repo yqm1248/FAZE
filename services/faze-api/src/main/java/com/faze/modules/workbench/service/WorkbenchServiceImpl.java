@@ -93,6 +93,8 @@ public class WorkbenchServiceImpl implements WorkbenchService {
     private final MessageService messageService;
     private final LawyerIncomeQueryService lawyerIncomeQueryService;
     private final SysConfigQueryService sysConfigQueryService;
+    /** 解析 lawyer.specialties 的 JSON 数组字符串（回显用）。 */
+    private final tools.jackson.databind.json.JsonMapper jsonMapper;
 
     // ── D2：律师文书 ────────────────────────────────────────────────────────
 
@@ -129,6 +131,7 @@ public class WorkbenchServiceImpl implements WorkbenchService {
             vo.setPdfAvailable(pdfKeyOf(doc) != null);
             vo.setCreatedAt(doc.getCreatedAt());
             vo.setUpdatedAt(doc.getUpdatedAt());
+            vo.setSentAt(doc.getSentAt());
             rows.add(vo);
         }
         return PageResult.of(rows, filtered.size(), page, size);
@@ -325,6 +328,40 @@ public class WorkbenchServiceImpl implements WorkbenchService {
         // 姓名 / 执业证号 / 地区 / 审核状态不在入参里，根本没有被改的可能（LawyerProfileServiceImpl 的白名单）
         lawyerProfileService.updateProfile(lawyer.getId(), bo.getBio(), bo.getSpecialties(),
                 bo.getLawFirm());
+    }
+
+    @Override
+    public com.faze.modules.workbench.vo.WorkbenchProfileVO getProfile(Long userId) {
+        Lawyer lawyer = requireLawyer(userId);
+        com.faze.modules.workbench.vo.WorkbenchProfileVO vo =
+                new com.faze.modules.workbench.vo.WorkbenchProfileVO();
+        vo.setRealName(lawyer.getRealName());
+        vo.setLicenseNumber(lawyer.getLicenseNumber());
+        vo.setAvatarUrl(lawyer.getAvatarUrl());
+        vo.setBio(lawyer.getBio());
+        vo.setSpecialties(parseSpecialties(lawyer.getSpecialties()));
+        vo.setLawFirm(lawyer.getLawFirm());
+        vo.setRegion(lawyer.getRegion());
+        vo.setAuditStatus(lawyer.getAuditStatus());
+        return vo;
+    }
+
+    /**
+     * 解析库里的专长 JSON 数组字符串。
+     *
+     * @param raw JSON 数组字符串（可能为 null / 空 / 脏数据）
+     * @return 标签列表；解析失败返回空列表（脏数据不该把整页打成 500）
+     */
+    private List<String> parseSpecialties(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return List.of();
+        }
+        try {
+            return jsonMapper.readValue(raw, new tools.jackson.core.type.TypeReference<List<String>>() { });
+        } catch (RuntimeException ex) {
+            log.warn("专长 JSON 解析失败，返回空列表");
+            return List.of();
+        }
     }
 
     // ── 收款账户（F 组提现前置）─────────────────────────────────────────────
