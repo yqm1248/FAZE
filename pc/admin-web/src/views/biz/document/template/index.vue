@@ -91,14 +91,14 @@
       <el-table v-loading="loading" :data="rows" empty-text="暂无模板，点「新建模板」开始配置">
         <el-table-column prop="code" label="编码" min-width="160" show-overflow-tooltip />
         <el-table-column prop="name" label="名称" min-width="170" show-overflow-tooltip />
-        <el-table-column prop="category" label="分类" width="110">
+        <el-table-column prop="category" label="分类" width="95">
           <template #default="{ row }">{{ row.category || '—' }}</template>
         </el-table-column>
-        <el-table-column prop="version" label="版本" width="70" align="center">
+        <el-table-column prop="version" label="版本" width="60" align="center">
           <template #default="{ row }">v{{ row.version }}</template>
         </el-table-column>
-        <el-table-column prop="fieldCount" label="字段数" width="80" align="center" />
-        <el-table-column prop="status" label="状态" width="95" align="center">
+        <el-table-column prop="fieldCount" label="字段数" width="70" align="center" />
+        <el-table-column prop="status" label="状态" width="85" align="center">
           <template #default="{ row }">
             <el-tag :type="statusTagType(row.status)" size="small">{{ statusLabel(row.status) }}</el-tag>
           </template>
