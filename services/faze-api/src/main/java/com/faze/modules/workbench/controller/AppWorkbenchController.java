@@ -75,12 +75,17 @@ public class AppWorkbenchController {
     /**
      * 客户咨询列表（D1：未读优先，其余按最近消息倒序）。
      *
+     * <p><b>为什么不是 `/workbench/conversations`</b>：那个路径段 2 已被
+     * `conversation.controller.ConversationController#listForLawyer` 占用，返回 `ConversationVO`
+     * 且只按最近消息排序、不含订单标签。段 5 D1 需要「未读优先 + 订单已付款标签」的形状，
+     * 换个路径比改段 2 的既有契约安全（同路径重复映射会让 Spring 启动失败）。已登记偏差。</p>
+     *
      * @param loginUser 当前登录用户（由 Security 注入）
      * @param pageNum   页码，默认 1
      * @param pageSize  每页条数，默认 20
      * @return 分页会话列表
      */
-    @GetMapping("/conversations")
+    @GetMapping("/consultations")
     public R<PageResult<ConsultantRowVO>> conversations(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestParam(defaultValue = "1") int pageNum,

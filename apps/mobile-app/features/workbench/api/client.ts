@@ -122,7 +122,7 @@ export function fetchConsultations(
   pageSize = 20,
 ): Promise<ApiResult<WorkbenchPage<ConsultantRow>>> {
   return get<WorkbenchPage<ConsultantRow>>(
-    `/api/v1/app/workbench/conversations?pageNum=${pageNum}&pageSize=${pageSize}`,
+    `/api/v1/app/workbench/consultations?pageNum=${pageNum}&pageSize=${pageSize}`,
   );
 }
 
