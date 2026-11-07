@@ -21,6 +21,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
+import type { Href } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
@@ -48,6 +49,16 @@ import { centsFromServer } from '@/shared/utils/money';
 
 /** 余额取不到时的占位（不显示 0，避免给出假金额）。 */
 const UNKNOWN_BALANCE = '--';
+
+/**
+ * 文书中心入口路由。
+ *
+ * `shared/navigation/routes.ts` 尚未登记段 4 的路由（该文件不在本任务允许修改的范围），
+ * 因此先在这里本地声明；待 routes.ts 统一登记后替换成 `PAGE_ROUTES.*`。
+ */
+const DOC_TEMPLATES_ROUTE = '/doc/templates' as Href;
+/** 电子签章页路由（由 fe-doc-b 建 `app/doc/seals.tsx`；这里先接入，不影响编译）。 */
+const DOC_SEALS_ROUTE = '/doc/seals' as Href;
 
 /** 「我的」页需要的聚合数据。 */
 type MyData = {
@@ -325,6 +336,14 @@ export function MyPage() {
                     <SettingRow
                       label={t('profile.my.menuOrders')}
                       onPress={() => router.push(PAGE_ROUTES.orders)}
+                    />
+                    <SettingRow
+                      label={t('document.mine.menuMine')}
+                      onPress={() => router.push(DOC_TEMPLATES_ROUTE)}
+                    />
+                    <SettingRow
+                      label={t('document.mine.menuSeal')}
+                      onPress={() => router.push(DOC_SEALS_ROUTE)}
                     />
                   </View>
                 </View>

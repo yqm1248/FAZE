@@ -171,6 +171,50 @@ export async function putBinary(
 }
 
 /**
+ * 下载一个**已签名**的文件地址到本机（Web 走 blob + `<a download>`）。
+ *
+ * 职责：段 4 F1 的「导出 PDF」——把服务端现签的 60 秒地址变成一次真正的浏览器下载。
+ * 为什么必须放在本文件：全仓只有本文件允许出现 `fetch`（AGENTS §4.7 的收口点），
+ * 业务代码里再开一个 fetch 就是绕过统一出口。
+ * 注意：
+ *   1. **不带 8 个业务请求头**：预签名地址的鉴权靠 URL 里的 `sig`/`exp`，
+ *      带 `Authorization` 反而可能被存储端拒绝（它只校验签名）。
+ *   2. 为什么不用 `<a href download>` 直链：跨域时浏览器**忽略 `download` 属性**，
+ *      会变成"新标签页打开 PDF"，就没法保证"存进下载目录"。先 fetch 成 blob 再下载，
+ *      下载行为与同源一致。
+ *   3. 非 Web 平台返回 false（原生端留段 8：`expo-file-system` + `expo-sharing`）。
+ *
+ * @param url      服务端现签的下载地址
+ * @param fileName 建议文件名（含扩展名）
+ * @returns 是否已触发下载
+ */
+export async function downloadFromUrl(url: string, fileName: string): Promise<boolean> {
+  if (typeof document === 'undefined') {
+    return false;
+  }
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      return false;
+    }
+    const blob = await response.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = objectUrl;
+    anchor.download = fileName;
+    anchor.rel = 'noopener';
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+    // 立即 revoke 会让部分浏览器来不及取数据，给 1 秒缓冲
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * 实际发送一次（含 401 重放）。
  *
  * @param path        接口路径

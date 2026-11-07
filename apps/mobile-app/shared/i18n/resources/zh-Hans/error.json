@@ -28,5 +28,15 @@
   "error.conversation.not-found": "会话不存在",
   "error.conversation.forbidden": "无权访问该会话",
   "error.trade.review-not-found": "评价不存在",
-  "error.trade.review-duplicate": "该订单已评价，不能重复评价"
+  "error.trade.review-duplicate": "该订单已评价，不能重复评价",
+  "error.document.template-not-found": "模板不存在或已停用",
+  "error.document.form-invalid": "填写的内容有误，请检查后重试",
+  "error.document.not-found": "文书不存在",
+  "error.document.forbidden": "无权访问该文书",
+  "error.document.generate-failed": "文书生成失败，请修改后重试",
+  "error.document.pdf-failed": "PDF 转换失败，请稍后重试",
+  "error.document.font-missing": "服务端缺少渲染字体，请联系管理员",
+  "error.document.signature-limit": "签名数量已达上限（最多 5 个）",
+  "error.document.signature-in-use": "该签名已用于文书，不能删除",
+  "error.document.signature-not-found": "签名不存在"
 }
