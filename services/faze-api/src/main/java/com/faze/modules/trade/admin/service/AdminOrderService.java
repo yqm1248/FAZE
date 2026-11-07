@@ -125,6 +125,9 @@ public class AdminOrderService {
         vo.setStatus(order.getStatus());
         vo.setServiceType(order.getServiceType());
         vo.setAmountCents(order.getAmountCents());
+        // 段 5 B5：订单详情补服务费金额（只读展示；**不写 payment_record**，那张表永远只有支付/退款两行）
+        vo.setPlatformFeeCents(order.getPlatformFeeCents());
+        vo.setLawyerIncomeCents(order.getLawyerIncomeCents());
         vo.setRemark(order.getRemark());
         vo.setCreatedAt(order.getCreatedAt());
         vo.setPaidAt(order.getPaidAt());

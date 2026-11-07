@@ -16,14 +16,19 @@ import com.faze.common.pojo.PageResult;
 import com.faze.modules.workbench.bo.WithdrawAccountBO;
 import com.faze.modules.workbench.bo.WorkbenchProfileBO;
 import com.faze.modules.workbench.service.WorkbenchService;
+import com.faze.modules.workbench.vo.ConsultantRowVO;
 import com.faze.modules.workbench.vo.IncomeFlowPageVO;
 import com.faze.modules.workbench.vo.IncomeOverviewVO;
+import com.faze.modules.workbench.vo.ServiceSettingsVO;
 import com.faze.modules.workbench.vo.WithdrawAccountVO;
 import com.faze.modules.workbench.vo.WorkbenchDocRowVO;
 import com.faze.security.LoginUser;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Positive;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -65,6 +70,49 @@ public class AppWorkbenchController {
             @RequestParam(defaultValue = "20") int pageSize) {
         return R.ok(workbenchService.listDocuments(requireLogin(loginUser).getUserId(),
                 status, pageNum, pageSize));
+    }
+
+    /**
+     * 客户咨询列表（D1：未读优先，其余按最近消息倒序）。
+     *
+     * @param loginUser 当前登录用户（由 Security 注入）
+     * @param pageNum   页码，默认 1
+     * @param pageSize  每页条数，默认 20
+     * @return 分页会话列表
+     */
+    @GetMapping("/conversations")
+    public R<PageResult<ConsultantRowVO>> conversations(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @RequestParam(defaultValue = "1") int pageNum,
+            @RequestParam(defaultValue = "20") int pageSize) {
+        return R.ok(workbenchService.listConsultations(requireLogin(loginUser).getUserId(),
+                pageNum, pageSize));
+    }
+
+    /**
+     * 把文书发送给委托人（D2）。
+     *
+     * @param loginUser  当前登录用户
+     * @param documentId 文书 id
+     * @return 空响应
+     */
+    @PostMapping("/documents/{documentId}/send")
+    public R<Void> sendDocument(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @PathVariable @Positive Long documentId) {
+        workbenchService.sendDocumentToClient(requireLogin(loginUser).getUserId(), documentId);
+        return R.ok();
+    }
+
+    /**
+     * 查询服务设置（D4）。
+     *
+     * @param loginUser 当前登录用户
+     * @return 服务设置
+     */
+    @GetMapping("/service-settings")
+    public R<ServiceSettingsVO> serviceSettings(@AuthenticationPrincipal LoginUser loginUser) {
+        return R.ok(workbenchService.getServiceSettings(requireLogin(loginUser).getUserId()));
     }
 
     /**

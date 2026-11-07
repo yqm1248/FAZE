@@ -56,6 +56,14 @@ public class Document {
     /** draft / generated / signed / failed。 */
     private String status;
 
+    /**
+     * 首次发送给委托人的时间（UTC，段 5 D2）；NULL 表示待发送。
+     *
+     * <p>不并进 `status`：status 描述文书的**生成**生命周期，发送是另一条独立的业务事实，
+     * 混进去会把生成状态机搞乱（V509 的列注释里写了同样的理由）。</p>
+     */
+    private LocalDateTime sentAt;
+
     /** 生成的 PDF 对象键。 */
     private String pdfOssKey;
 

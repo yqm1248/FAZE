@@ -24,6 +24,14 @@ public enum MsgType {
     /** 文件。 */
     FILE("file"),
 
+    /**
+     * 文书消息（段 5 D2）。
+     *
+     * <p>由服务端内部产生（律师在预览页点「发送给客户」），客户端**不许直接发这个类型**——
+     * 否则任何人都能伪造一条带任意 fileUrl 的「文书」消息。见 `MessageService.sendDocument`。</p>
+     */
+    DOC("doc"),
+
     /** 系统提示。 */
     SYSTEM("system");
 

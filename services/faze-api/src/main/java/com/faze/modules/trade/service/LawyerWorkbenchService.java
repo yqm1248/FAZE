@@ -51,6 +51,8 @@ public class LawyerWorkbenchService {
     private final LawyerOrderService lawyerOrderService;
     private final LawyerMapper lawyerMapper;
     private final OrdersMapper ordersMapper;
+    /** 段 5 D4：价格上下限与冻结天数读配置，不写死。 */
+    private final com.faze.modules.ops.service.SysConfigQueryService sysConfigQueryService;
 
     /**
      * 工作台看板。
@@ -147,6 +149,8 @@ public class LawyerWorkbenchService {
                         resolveSwitch(request.getServicePhoneOn(), lawyer.getServicePhoneOn(), effectivePhone))
                 .set(Lawyer::getServiceDocOn,
                         resolveSwitch(request.getServiceDocOn(), lawyer.getServiceDocOn(), effectiveDocument))
+                // 段 5 D4：自动接单开关（null 表示本次不改）
+                .set(request.getAutoAccept() != null, Lawyer::getAutoAccept, request.getAutoAccept())
                 .set(Lawyer::getUpdatedAt, LocalDateTime.now(ZoneOffset.UTC))
                 .eq(Lawyer::getId, lawyer.getId()));
         log.info("律师改服务设置 lawyerId={} consult={} phone={} doc={}",
@@ -167,14 +171,24 @@ public class LawyerWorkbenchService {
     }
 
     /**
-     * 价格合法性：null 或 >= 0 都允许（0 表示未定价，会被强制下架），负数拒绝。
+     * 价格合法性（段 5 D4 收紧）：必须落在 `sys_config` 的上下限之间。
      *
-     * @param price 价格（分）
-     * @throws BusinessException 405006 负数
+     * <p>段 2 只拒绝了负数；段 5 D4 要求「价格 19 元被拒、2001 元被拒、20 元和 2000 元通过」，
+     * 所以这里改成读配置区间（`lawyer.price.min_cents` / `lawyer.price.max_cents`）。
+     * 上下限不写死：运营调价后接口校验跟着变，不用改代码。</p>
+     *
+     * @param price 价格（分）；null 表示本次不改，直接通过
+     * @throws BusinessException 405006 越界
      */
     private void assertPrice(Long price) {
-        if (price != null && price < 0) {
-            throw new BusinessException(ErrorCode.TRADE_AMOUNT_INVALID);
+        if (price == null) {
+            return;
+        }
+        long min = sysConfigQueryService.getInt("lawyer.price.min_cents", 2000);
+        long max = sysConfigQueryService.getInt("lawyer.price.max_cents", 200000);
+        if (price < min || price > max) {
+            throw new BusinessException(ErrorCode.TRADE_AMOUNT_INVALID,
+                    "价格必须在 " + (min / 100) + " ~ " + (max / 100) + " 元之间");
         }
     }
 

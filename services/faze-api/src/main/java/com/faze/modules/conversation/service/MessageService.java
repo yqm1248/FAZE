@@ -71,6 +71,9 @@ public class MessageService {
     /** 文件消息的摘要占位。 */
     public static final String SUMMARY_FILE = "[file]";
 
+    /** 文书消息的摘要占位（段 5 D2；客户端渲染成「[文书] 标题」）。 */
+    public static final String SUMMARY_DOC = "[doc]";
+
     /** 历史/增量单次最多条数。 */
     private static final int MAX_PAGE_SIZE = 50;
 
@@ -507,6 +510,59 @@ public class MessageService {
             throw new BusinessException(ErrorCode.COMMON_PARAM_INVALID, "fileUrl 最长 500 字符");
         }
         return null;
+    }
+
+    /**
+     * 发送一条**文书消息**（段 5 D2：律师把代写好的文书发给委托人）。
+     *
+     * <p>为什么不复用 `send()`：`send()` 的 `msgType` 来自客户端，如果把 `doc` 放进允许集合，
+     * 任何用户都能伪造一条「文书」消息（带任意 fileUrl）。这里由服务端内部调用、
+     * 只允许**本会话的承办律师**发，且 `msgType` 是硬编码的 `doc`。</p>
+     *
+     * @param userId         调用者（必须是该会话的律师）
+     * @param conversationId 会话 id
+     * @param title          文书标题（存 `content`，供列表摘要与气泡标题）
+     * @param fileKey        文书 PDF 的对象键（存 `fileUrl`，出参时现签）
+     * @param fileName       下载用文件名
+     * @param fileSize       文件大小（可空）
+     * @return 发送结果
+     * @throws BusinessException 404002 非会话成员 / 404003 非律师
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public SendOutcome sendDocument(Long userId, Long conversationId, String title,
+                                    String fileKey, String fileName, Long fileSize) {
+        ConversationMember member = conversationService.assertMember(conversationId, userId);
+        if (!member.isLawyer()) {
+            throw new BusinessException(ErrorCode.CONVERSATION_FORBIDDEN, "只有律师可以发送文书消息");
+        }
+        String safeTitle = StringUtils.hasText(title) ? truncate(title.trim(), SUMMARY_LENGTH) : "文书";
+        String safeKey = fileKey == null ? "" : fileKey.trim();
+        if (safeKey.isEmpty()) {
+            throw new BusinessException(ErrorCode.COMMON_PARAM_MISSING, "文书还没有 PDF，无法发送");
+        }
+
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+        ConversationMessage message = new ConversationMessage();
+        message.setConversationId(conversationId);
+        message.setSeq(nextSeq(conversationId));
+        // 文书消息由服务端发起，clientMsgId 用「doc-文书id-时间」保证唯一且可追溯
+        message.setClientMsgId(truncate(
+                "doc-" + safeKey.hashCode() + "-" + now.toEpochSecond(java.time.ZoneOffset.UTC), 64));
+        message.setSenderRole(member.getRole().getCode());
+        message.setSenderId(member.getSelfId());
+        message.setMsgType(MsgType.DOC.getCode());
+        message.setContent(safeTitle);
+        message.setFileUrl(safeKey);
+        message.setFileName(StringUtils.hasText(fileName) ? truncate(fileName.trim(), 200) : null);
+        message.setFileSize(fileSize);
+        message.setCreatedAt(now);
+        messageMapper.insert(message);
+
+        conversationService.touchLastMessage(member.getConversation(), SUMMARY_DOC, now,
+                member.getRole());
+        log.info("文书消息已发送 conversationId={} messageId={} seq={}",
+                conversationId, message.getId(), message.getSeq());
+        return new SendOutcome(toVO(message, member.getRole()), member, false);
     }
 
     /**

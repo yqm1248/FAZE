@@ -220,6 +220,26 @@ public class DocDeliveryService {
     // ── 内部 ────────────────────────────────────────────────────────────────
 
     /**
+     * 标记文书已发送给委托人（段 5 D2）。
+     *
+     * <p>只回填 `sent_at`，**不动 `status`**：发送是独立于生成生命周期的另一条业务事实。
+     * 首次发送时间由调用方保证「已有值就不再写」，这里不做判重（写入方拿到的文档刚查过）。</p>
+     *
+     * @param documentId 文书主键
+     * @param sentAt     首次发送时间（UTC）
+     */
+    public void markSent(Long documentId, LocalDateTime sentAt) {
+        if (documentId == null || sentAt == null) {
+            return;
+        }
+        Document patch = new Document();
+        patch.setId(documentId);
+        patch.setSentAt(sentAt);
+        documentMapper.updateById(patch);
+        log.info("文书已标记发送 documentId={}", documentId);
+    }
+
+    /**
      * 取当前用户自己的、未删除的文书。
      *
      * @param id     文书主键

@@ -39,6 +39,17 @@ public class AdminOrderDetailVO {
     /** 订单金额（分）。 */
     private Long amountCents;
 
+    /**
+     * 平台服务费（分，段 5 B5 补）。
+     *
+     * <p>下单时按 `platform_fee_rate` 快照写入 `orders.platform_fee_cents`，之后改费率不影响历史单。
+     * **只读展示**：服务费不进 `payment_record`（那张表永远只有支付 / 退款两行，§零之二 第 8 项）。</p>
+     */
+    private Long platformFeeCents;
+
+    /** 律师收入（分，= 订单金额 - 平台服务费）；详情页金额说明里给出三者关系用。 */
+    private Long lawyerIncomeCents;
+
     /** 用户备注。 */
     private String remark;
 

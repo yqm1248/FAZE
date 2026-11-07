@@ -38,4 +38,15 @@ public interface AccountQueryService {
      * @return 设备列表，按最后活跃时间倒序
      */
     List<DeviceVO> listDevices(Long userId, String currentDeviceId);
+
+    /**
+     * 批量取用户的公开信息快照（段 5 D1：工作台客户咨询列表要显示客户昵称与头像）。
+     *
+     * <p>只返回昵称 / 头像 / 脱敏手机号，**不含完整手机号与身份证**（L4 字段不进这个出口）。</p>
+     *
+     * @param userIds 用户主键集合（空集合返回空 Map）
+     * @return userId → 快照；查不到的用户不出现在结果里
+     */
+    java.util.Map<Long, com.faze.modules.account.vo.UserBriefVO> mapBriefs(
+            java.util.Collection<Long> userIds);
 }

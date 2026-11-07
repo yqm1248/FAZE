@@ -37,4 +37,12 @@ public class ServiceSettingsBO {
 
     /** 文书代写是否上架。 */
     private Boolean serviceDocOn;
+
+    /**
+     * 自动接单开关（段 5 D4 补）。
+     *
+     * <p>段 2 的入参没有这一项，而 67-service-settings 页的「接单设置」必须能改它。
+     * null 表示本次不改（与三个价格同一套 partial update 语义）。</p>
+     */
+    private Boolean autoAccept;
 }

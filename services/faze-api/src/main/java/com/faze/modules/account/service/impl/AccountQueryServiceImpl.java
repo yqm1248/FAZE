@@ -96,4 +96,48 @@ public class AccountQueryServiceImpl implements AccountQueryService {
         vo.setCurrent(currentDeviceId != null && Objects.equals(currentDeviceId, row.getDeviceId()));
         return vo;
     }
+
+    /**
+     * 批量取用户公开信息快照（段 5 D1）。
+     *
+     * <p>一次 `selectBatchIds` 取完，避免工作台列表逐条查库（N+1）。
+     * 已软删的用户直接跳过，不返回半条数据。</p>
+     *
+     * @param userIds 用户主键集合
+     * @return userId → 快照
+     */
+    @Override
+    public java.util.Map<Long, com.faze.modules.account.vo.UserBriefVO> mapBriefs(
+            java.util.Collection<Long> userIds) {
+        if (userIds == null || userIds.isEmpty()) {
+            return java.util.Map.of();
+        }
+        java.util.Set<Long> ids = userIds.stream().filter(java.util.Objects::nonNull)
+                .collect(java.util.stream.Collectors.toSet());
+        if (ids.isEmpty()) {
+            return java.util.Map.of();
+        }
+        java.util.Map<Long, com.faze.modules.account.vo.UserBriefVO> result = new java.util.HashMap<>();
+        for (AppUser user : accountMapper.selectBatchIds(ids)) {
+            if (user.getDeletedAt() != null) {
+                continue;
+            }
+            result.put(user.getId(), new com.faze.modules.account.vo.UserBriefVO(
+                    user.getId(), user.getNickname(), user.getAvatarUrl(), maskPhone(user.getPhone())));
+        }
+        return result;
+    }
+
+    /**
+     * 手机号脱敏（留前 3 后 4）。
+     *
+     * @param phone 手机号明文
+     * @return 脱敏结果；空值返回 null
+     */
+    private String maskPhone(String phone) {
+        if (phone == null || phone.length() < 7) {
+            return null;
+        }
+        return phone.substring(0, 3) + "****" + phone.substring(phone.length() - 4);
+    }
 }
