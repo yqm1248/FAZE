@@ -38,7 +38,7 @@ import com.faze.modules.trade.service.OrderStateService;
 import com.faze.modules.trade.service.BalanceQueryService;
 import com.faze.modules.trade.service.OrderPayExecutor;
 import com.faze.modules.trade.service.ReviewService;
-import com.faze.modules.trade.service.TaskQueueService;
+import com.faze.infra.mq.TaskQueueService;
 import com.faze.modules.trade.vo.OrderDetailVO;
 import com.faze.modules.trade.vo.OrderVO;
 import com.faze.modules.trade.vo.PayResultVO;

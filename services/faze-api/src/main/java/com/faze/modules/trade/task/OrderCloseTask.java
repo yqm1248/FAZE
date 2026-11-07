@@ -16,9 +16,9 @@
  */
 package com.faze.modules.trade.task;
 
-import com.faze.modules.trade.entity.TaskQueue;
+import com.faze.infra.mq.TaskQueue;
 import com.faze.modules.trade.service.OrderTimeoutService;
-import com.faze.modules.trade.service.TaskQueueService;
+import com.faze.infra.mq.TaskQueueService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

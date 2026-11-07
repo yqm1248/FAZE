@@ -17,13 +17,14 @@ package com.faze.modules.trade.service;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.faze.modules.trade.entity.Orders;
-import com.faze.modules.trade.entity.TaskQueue;
+import com.faze.infra.mq.TaskQueue;
 import com.faze.modules.trade.enums.OperatorRole;
 import com.faze.modules.trade.enums.OrderStatus;
 import com.faze.modules.trade.mapper.OrdersMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import com.faze.infra.mq.TaskQueueService;
 
 /**
  * 订单超时处理。

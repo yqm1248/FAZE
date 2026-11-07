@@ -1,6 +1,7 @@
 /*
  * 职责：异步任务的入队、CAS 领取、完成/失败/死信、按业务号取消（《后端代码规范》§9.2 的唯一实现点）。
- * 调用方：modules/trade 的订单服务（下单入队、取消出队）、task/OrderCloseTask（扫描执行）。
+ * 调用方：各业务域的入队方（trade 下单/退款、conversation 离线推送、document 文书生成）
+ *         与各任务的扫描器（OrderCloseTask / PushTask / DocGenerateTask）。
  * 数据来源：faze.task_queue。
  * 注意：
  *   1. **领取 = 先回收租约 → 选候选 → CAS 更新 → 按 owner 回查**。四步缺一不可：
@@ -15,11 +16,11 @@
  *      领取/完成各自独立，由调用方（定时任务）决定边界。
  *   5. 时间一律用 `utcNow()` 生成并显式传参，SQL 里没有 NOW()。
  */
-package com.faze.modules.trade.service;
+package com.faze.infra.mq;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
-import com.faze.modules.trade.entity.TaskQueue;
-import com.faze.modules.trade.mapper.TaskQueueMapper;
+import com.faze.infra.mq.TaskQueue;
+import com.faze.infra.mq.mapper.TaskQueueMapper;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;

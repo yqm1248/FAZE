@@ -40,6 +40,7 @@ import org.slf4j.MDC;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.faze.infra.mq.TaskQueueService;
 
 /**
  * 订单创建事务执行器。

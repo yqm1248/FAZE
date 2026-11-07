@@ -20,7 +20,7 @@ import com.faze.modules.conversation.entity.ConversationMessage;
 import com.faze.modules.conversation.entity.MessageOffline;
 import com.faze.modules.conversation.vo.MessageVO;
 import com.faze.modules.conversation.ws.ChatSocketSender;
-import com.faze.modules.trade.service.TaskQueueService;
+import com.faze.infra.mq.TaskQueueService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

@@ -1,6 +1,6 @@
 /*
  * 职责：task_queue 的数据访问——CAS 领取、租约回收、完成/失败/死信、按业务号取消。
- * 调用方：modules/trade/service/TaskQueueService。
+ * 调用方：infra/mq/TaskQueueService。
  * 数据来源：faze.task_queue。
  * 注意：
  *   1. **领取是两步**（`selectCandidateIds` → `claimByIds`），但并发安全由第二步的
@@ -11,10 +11,10 @@
  *      用数据库时钟还是应用时钟必须只有一处决定，否则多实例时钟漂移会让租约判断不一致。
  *   3. 禁止 `${}`（规范 §7.3）：本文件没有动态列名，全部用 `#{}`。
  */
-package com.faze.modules.trade.mapper;
+package com.faze.infra.mq.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.faze.modules.trade.entity.TaskQueue;
+import com.faze.infra.mq.TaskQueue;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.apache.ibatis.annotations.Param;

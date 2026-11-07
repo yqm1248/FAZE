@@ -1,6 +1,7 @@
 /*
  * 职责：task_queue 表的实体映射（异步任务表，替代 MQ）。
- * 调用方：modules/trade/mapper/TaskQueueMapper、TaskQueueService、OrderCloseTask。
+ * 调用方：infra/mq/mapper/TaskQueueMapper、infra/mq/TaskQueueService，以及各域的任务消费者
+ *         （trade/OrderCloseTask、conversation/PushTask、document/DocGenerateTask）。
  * 数据来源：V200__seg2_tables.sql 建的 task_queue（12 字段）。
  * 注意：
  *   1. **「已投递」是状态不是删除**（规范 §9.2 规则 1）：执行完把 status 改成 `done`，
@@ -11,7 +12,7 @@
  *   4. `retryCount >= 5` 进死信（`status='dead'`），PC A-26 可见，必须能被人工处理。
  *   5. `nextRetryAt` 是「下次可执行时间」，指数退避 = now + 2^retryCount 分钟。
  */
-package com.faze.modules.trade.entity;
+package com.faze.infra.mq;
 
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
