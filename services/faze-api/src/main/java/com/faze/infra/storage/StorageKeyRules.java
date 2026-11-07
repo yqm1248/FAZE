@@ -23,15 +23,33 @@ import java.util.regex.Pattern;
  */
 public final class StorageKeyRules {
 
-    /** 允许的场景白名单。 */
-    public static final Set<String> ALLOWED_SCENES = Set.of("realname", "identity", "license", "avatar", "chat");
+    /**
+     * 允许的场景白名单。
+     *
+     * <p>段 1 的 5 个场景 + 段 4 新增 3 个：`signature`（手写签名 PNG，客户端直传）、
+     * `document`（文书 PDF 与预览图，服务端生成后落盘）、`doc_template`（模板预览图，服务端生成）。</p>
+     *
+     * <p>**必须与 {@link #KEY_PATTERN} 同步**：只改这里不改正则，`build()` 能生成但 `isValid()` 会拒，
+     * 表现为「上传凭证签发成功、PUT 时 403」——排查时很容易误判成签名算错。</p>
+     */
+    public static final Set<String> ALLOWED_SCENES = Set.of(
+            "realname", "identity", "license", "avatar", "chat",
+            "signature", "document", "doc_template");
 
     /** 允许的扩展名白名单。 */
     private static final Set<String> ALLOWED_EXT = Set.of("jpg", "jpeg", "png", "webp", "pdf");
 
-    /** 完整 key 正则：与生成规则严格一致。 */
+    /**
+     * 完整 key 正则：与生成规则严格一致。
+     *
+     * <p>场景列表必须与 {@link #ALLOWED_SCENES} 逐项相同（含顺序无关的集合语义）。
+     * `doc_template` 虽含下划线，正则里按字面量写，不要写成 `\w+`——那会把任意场景放进来，
+     * 白名单就退化成黑名单了。</p>
+     */
     private static final Pattern KEY_PATTERN = Pattern.compile(
-            "^private/(realname|identity|license|avatar|chat)/\\d{6}/\\d+/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.(jpg|jpeg|png|webp|pdf)$");
+            "^private/(realname|identity|license|avatar|chat|signature|document|doc_template)"
+                    + "/\\d{6}/\\d+/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+                    + "\\.(jpg|jpeg|png|webp|pdf)$");
 
     private StorageKeyRules() {
     }
