@@ -1,0 +1,48 @@
+{
+  "docId": "31",
+  "startedAt": "2026-11-07T18:37:40.969Z",
+  "shots": [
+    "a7-browser-mine.png",
+    "a7-browser-download.png",
+    "a7-browser-export-panel.png"
+  ],
+  "errors": [],
+  "login": {
+    "url": "http://localhost:8090/home",
+    "body": "法泽\n普惠法律服务，就在身边\n\n\n搜律师、查法条、找文书\n\n找律师\n\n我的订单\n\n消息中心\n\nAI 咨询\n\nAI 法律助手\n描述你的情况，AI 先帮你理清思路，再决定要不要找律师。\n立即体验\n每日学法\n查看更多\n借款纠纷\n未约定借款期限和借款利息，可以主张逾期利息吗？\n借条上既没写还款"
+  },
+  "mine": {
+    "count": 20,
+    "firstText": "验收探针文书（4-A4）⁦2026-11-08 02:33⁩已完成",
+    "hasLoadMore": true,
+    "body": "\n我的文书\n\n\n全部\n草稿\n已完成\n失败\n全部类型\n诉讼文书\n劳动文书\n跨境电商\n合同文书\n验收探针文书（4-A4）\n⁦2026-11-08 02:33⁩\n已完成\n验收探针文书（位置量测）\n⁦2026-11-08 02:33⁩\n已盖章\n验收探针文书\n⁦2026-11-08 02:33⁩\n已盖章\n验收探针文书（位置量测）\n⁦2026-11-08 02:31⁩\n已盖章\n验收探针文书\n⁦2026-"
+  },
+  "mineListVisible": true,
+  "download": {
+    "clicked": true,
+    "toast": " | 文书预览 | 验收探针文书 | 已盖章 | 第 1 页 | 第 2 页 | 预览是生成结果的图片，只读。需要改内容请返回表单页修改后重新生成。 | 导出 PDF | 盖章 | 返回表单修改"
+  },
+  "downloadedFiles": [
+    {
+      "name": "验收探针文书-20261107.pdf",
+      "bytes": 32430,
+      "head": "%PDF-"
+    }
+  ],
+  "downloadSavedPdf": true,
+  "panel": {
+    "before": {
+      "share": "分享当前浏览器不支持系统分享",
+      "print": "打印由浏览器打印当前页面",
+      "gallery": "存到相册本版本暂不支持存到相册，后续版本开放"
+    },
+    "shareDisabled": true,
+    "galleryDisabled": true,
+    "printCalled": 1,
+    "sheetText": ""
+  },
+  "shareDegraded": true,
+  "printTriggered": true,
+  "mediaLibraryDeferred": true,
+  "finishedAt": "2026-11-07T18:38:31.749Z"
+}
