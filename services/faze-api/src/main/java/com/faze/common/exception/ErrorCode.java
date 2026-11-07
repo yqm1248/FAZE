@@ -157,7 +157,59 @@ public enum ErrorCode {
     /** PDF 转换失败（渲染异常）。HTTP 200。 */
     DOCUMENT_PDF_FAILED(506002, 200, "error.document.pdf-failed", "PDF 转换失败"),
     /** 渲染所需字体缺失（中文场景指仿宋 `simfang.ttf` 不存在或路径配错）。HTTP 200。 */
-    DOCUMENT_FONT_MISSING(506003, 200, "error.document.font-missing", "渲染所需字体缺失");
+    DOCUMENT_FONT_MISSING(506003, 200, "error.document.font-missing", "渲染所需字体缺失"),
+
+    // ── 案件域 07（段 5，《错误码规范》§3.7） ──────────────────────────────
+    /*
+     * 段 5 施工登记（2026-11-08）：按《错误码规范》§3.7 补齐 407001~407008。
+     * 编号与 msgKey 逐字照 §3.7 的表，**不许改含义**。
+     * 407003 是 403（越权），其余 200——只有「无权访问」破例走 HTTP 状态码（§2.2）。
+     */
+    /** 案件不存在（含「不是你的案件」——归属条件进 SQL，查不到即不存在）。HTTP 200。 */
+    CASE_NOT_FOUND(407001, 200, "error.case.not-found", "案件不存在"),
+    /** 案件状态非法，当前操作不允许（非法状态迁移统一走它）。HTTP 200。 */
+    CASE_STATE_INVALID(407002, 200, "error.case.state-invalid", "案件状态非法，当前操作不允许"),
+    /** 无权访问该案件（越权）。HTTP **403**。 */
+    CASE_FORBIDDEN(407003, 403, "error.case.forbidden", "无权访问该案件"),
+    /** 已立案，不能重复提交（同案重复立案）。HTTP 200。 */
+    CASE_ALREADY_FILED(407004, 200, "error.case.already-filed", "该案件已立案，不能重复提交"),
+    /** 本案没有可送达的文书（或该文书未生成 PDF）。HTTP 200。 */
+    CASE_NO_DOCUMENT(407005, 200, "error.case.no-document", "本案没有可送达的文书"),
+    /** 送达记录不存在。HTTP 200。 */
+    CASE_DELIVERY_NOT_FOUND(407006, 200, "error.case.delivery-not-found", "送达记录不存在"),
+    /** 该文书已签收，不可重复签收（首次结果不变，不覆盖签收时间）。HTTP 200。 */
+    CASE_DELIVERY_ALREADY_SIGNED(407007, 200, "error.case.delivery-already-signed", "该文书已签收，不能重复签收"),
+    /** 送达方式非法（只允许 platform / sms_pickup / mail）。HTTP 200。 */
+    CASE_DELIVERY_METHOD_INVALID(407008, 200, "error.case.delivery-method-invalid", "送达方式非法"),
+
+    // ── 交易域 05 段 5 补登（提现 / 结算，《错误码规范》§3.5） ────────────────
+    /*
+     * 段 5 施工登记（2026-11-08）：405023~405027。
+     * **原定 405008~405012 已被段 2 占用**（见本文件段 2 的注释与《错误码规范》§3.5 的顺延说明），
+     * 故按规范顺延后的号落地，不回头改段 2 的码。
+     */
+    /** 提现金额低于最低限额。HTTP 200。 */
+    TRADE_WITHDRAW_BELOW_MIN(405023, 200, "error.trade.withdraw-below-min", "提现金额低于最低限额"),
+    /** 可提现余额不足。HTTP 200。 */
+    TRADE_WITHDRAW_INSUFFICIENT(405024, 200, "error.trade.withdraw-insufficient", "可提现余额不足"),
+    /** 提现单状态非法，当前操作不允许（非法迁移一律 200 + 本码）。HTTP 200。 */
+    TRADE_WITHDRAW_STATE_INVALID(405025, 200, "error.trade.withdraw-state-invalid", "提现单状态非法，当前操作不允许"),
+    /** 结算数据不一致（流水净额 ≠ 订单收入 − 服务费，**发现即停**，不许写结算单）。HTTP 200。 */
+    TRADE_SETTLEMENT_MISMATCH(405026, 200, "error.trade.settlement-mismatch", "结算数据不一致，已停止生成"),
+    /** 提现过于频繁（单日笔数超限）。HTTP 200。 */
+    TRADE_WITHDRAW_TOO_FREQUENT(405027, 200, "error.trade.withdraw-too-frequent", "提现过于频繁"),
+
+    // ── 内容域 09 段 5 补登（案例库，《错误码规范》§3.9） ────────────────────
+    /*
+     * 段 5 施工登记（2026-11-08）：409001~409004 已被段 6/段 4 占用，
+     * 按《第 5 段工作流》§九 的说明取 409005~409007。
+     */
+    /** 案例未填法条引用（上线前必填；条号须经 ArticleNoValidator 校验）。HTTP 200。 */
+    CONTENT_CASE_NO_LAW_REF(409005, 200, "error.content.case-no-law-ref", "案例未填写法条引用，不能上线"),
+    /** 案例语言版本不齐（门禁口径见《第 5 段工作流》§三 G4）。HTTP 200。 */
+    CONTENT_CASE_LANG_INCOMPLETE(409006, 200, "error.content.case-lang-incomplete", "案例语言版本不齐"),
+    /** 案例已上线，不能直接删除（须先下架）。HTTP 200。 */
+    CONTENT_CASE_PUBLISHED(409007, 200, "error.content.case-published", "案例已上线，须先下架再删除");
 
     /** 6 位业务码（前 3 位是 HTTP 语义家族，第 4~5 位是业务域）。 */
     private final int code;
