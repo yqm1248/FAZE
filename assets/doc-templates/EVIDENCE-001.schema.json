@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "fields": [
+    { "key": "case_cause", "label": "案由", "type": "text", "required": true, "maxLength": 100 },
+    { "key": "submitter", "label": "提交人", "type": "text", "required": true, "maxLength": 50 },
+    {
+      "key": "evidence_items",
+      "label": "证据条目",
+      "type": "array",
+      "required": true,
+      "minItems": 1,
+      "maxItems": 30,
+      "itemSchema": {
+        "fields": [
+          { "key": "name", "label": "证据名称", "type": "text", "required": true, "maxLength": 100 },
+          { "key": "source", "label": "证据来源", "type": "text", "required": true, "maxLength": 100 },
+          { "key": "purpose", "label": "证明目的", "type": "textarea", "required": true, "maxLength": 300 }
+        ]
+      }
+    },
+    { "key": "submit_date", "label": "提交日期", "type": "date", "required": true }
+  ]
+}

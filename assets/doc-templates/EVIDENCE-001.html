@@ -1,0 +1,37 @@
+<html>
+<head>
+<meta charset="utf-8" />
+<style>
+@page { size: A4; margin: 72pt 72pt 72pt 90pt; }
+body { font-family: 'FangSong'; font-size: 16pt; line-height: 28pt; margin: 0; color: #000000; }
+h1 { font-size: 22pt; text-align: center; font-weight: bold; margin: 0 0 24pt 0; line-height: 32pt; }
+p { margin: 0 0 6pt 0; text-align: justify; }
+table { width: 100%; border-collapse: collapse; margin-top: 8pt; }
+th, td { border: 1pt solid #000000; padding: 4pt 6pt; font-size: 14pt; line-height: 22pt; text-align: left; vertical-align: top; }
+th { font-weight: bold; text-align: center; }
+div.signature { margin-top: 36pt; text-align: right; line-height: 28pt; }
+</style>
+</head>
+<body>
+<h1>证据清单</h1>
+
+<p>案由：{{case_cause}}</p>
+<p>提交人：{{submitter}}</p>
+
+<table>
+<thead>
+<tr><th>证据名称</th><th>证据来源</th><th>证明目的</th></tr>
+</thead>
+<tbody>
+{{#evidence_items}}<tr><td>{{item.name}}</td><td>{{item.source}}</td><td>{{item.purpose}}</td></tr>{{/evidence_items}}
+</tbody>
+</table>
+
+<p>以上证据均为原件或与原件核对无异的复印件，随本清单一并提交。</p>
+
+<div class="signature">
+<p>提交人：{{submitter}}</p>
+<p>{{submit_date}}</p>
+</div>
+</body>
+</html>
