@@ -20,10 +20,13 @@ import com.faze.modules.account.service.LawyerQueryService;
 import com.faze.modules.caseflow.bo.CaseCreateBO;
 import com.faze.modules.caseflow.bo.CaseProgressBO;
 import com.faze.modules.caseflow.bo.CaseQueryBO;
+import com.faze.modules.caseflow.entity.CaseDelivery;
 import com.faze.modules.caseflow.entity.CaseProgress;
 import com.faze.modules.caseflow.entity.LegalCase;
 import com.faze.modules.caseflow.enums.CaseStatus;
 import com.faze.modules.caseflow.enums.CaseType;
+import com.faze.modules.caseflow.enums.DeliveryStatus;
+import com.faze.modules.caseflow.mapper.CaseDeliveryMapper;
 import com.faze.modules.caseflow.mapper.CaseProgressMapper;
 import com.faze.modules.caseflow.mapper.LegalCaseMapper;
 import com.faze.modules.caseflow.rule.CaseStateMachine;
@@ -67,6 +70,7 @@ public class CaseServiceImpl implements CaseService {
 
     private final LegalCaseMapper legalCaseMapper;
     private final CaseProgressMapper caseProgressMapper;
+    private final CaseDeliveryMapper caseDeliveryMapper;
     private final LawyerQueryService lawyerQueryService;
     private final BizNoGenerator bizNoGenerator;
     private final StringRedisTemplate redis;
@@ -77,6 +81,7 @@ public class CaseServiceImpl implements CaseService {
      *
      * @param legalCaseMapper    案件 Mapper
      * @param caseProgressMapper 进度 Mapper
+     * @param caseDeliveryMapper 送达 Mapper（只用于算未签收红点）
      * @param lawyerQueryService account 域只读律师查询
      * @param bizNoGenerator     单号生成器
      * @param redis              Redis（幂等）
@@ -84,12 +89,14 @@ public class CaseServiceImpl implements CaseService {
      */
     public CaseServiceImpl(LegalCaseMapper legalCaseMapper,
                            CaseProgressMapper caseProgressMapper,
+                           CaseDeliveryMapper caseDeliveryMapper,
                            LawyerQueryService lawyerQueryService,
                            BizNoGenerator bizNoGenerator,
                            StringRedisTemplate redis,
                            JsonMapper jsonMapper) {
         this.legalCaseMapper = legalCaseMapper;
         this.caseProgressMapper = caseProgressMapper;
+        this.caseDeliveryMapper = caseDeliveryMapper;
         this.lawyerQueryService = lawyerQueryService;
         this.bizNoGenerator = bizNoGenerator;
         this.redis = redis;
@@ -310,6 +317,11 @@ public class CaseServiceImpl implements CaseService {
                 .eq(CaseProgress::getCaseId, e.getId())
                 .orderByDesc(CaseProgress::getStep));
         vo.setLatestEventAt(latest.isEmpty() ? e.getCreatedAt() : latest.get(0).getCreatedAt());
+        // 未签收送达份数：C4 的红点依据（签收后自然归零，不需要额外状态字段）
+        vo.setUnreadDeliveryCount(Math.toIntExact(caseDeliveryMapper.selectCount(
+                Wrappers.<CaseDelivery>lambdaQuery()
+                        .eq(CaseDelivery::getCaseId, e.getId())
+                        .eq(CaseDelivery::getStatus, DeliveryStatus.PENDING.getCode()))));
         return vo;
     }
 

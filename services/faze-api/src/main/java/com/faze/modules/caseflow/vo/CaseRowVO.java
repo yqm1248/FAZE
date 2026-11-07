@@ -39,4 +39,12 @@ public class CaseRowVO {
 
     /** 最近事件时间（UTC）。 */
     private LocalDateTime latestEventAt;
+
+    /**
+     * 未签收的送达份数（段 5 C4 的红点依据）。
+     *
+     * <p>`> 0` 时案件卡右上角显示红点；签收后归零。**不新增 legal_case 字段**，
+     * 每次列表按 `case_delivery` 聚合出来（C4「未读标记」）。</p>
+     */
+    private Integer unreadDeliveryCount;
 }

@@ -12,14 +12,20 @@ package com.faze.modules.caseflow.admin.controller;
 import com.faze.common.R;
 import com.faze.common.pojo.TableDataInfo;
 import com.faze.modules.caseflow.admin.service.AdminCaseService;
+import com.faze.modules.caseflow.admin.service.AdminDeliveryService;
 import com.faze.modules.caseflow.bo.AdminCaseQueryBO;
 import com.faze.modules.caseflow.bo.AdminProgressBO;
 import com.faze.modules.caseflow.bo.CaseAuditBO;
+import com.faze.modules.caseflow.bo.DeliveryCreateBO;
+import com.faze.modules.caseflow.service.DeliveryService;
 import com.faze.modules.caseflow.vo.AdminCaseDetailVO;
+import com.faze.modules.caseflow.vo.AdminCaseDocVO;
 import com.faze.modules.caseflow.vo.AdminCaseRowVO;
 import com.faze.modules.caseflow.vo.CaseProgressVO;
+import com.faze.modules.caseflow.vo.DeliveryRowVO;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Positive;
+import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -35,14 +41,22 @@ import org.springframework.web.bind.annotation.RestController;
 public class AdminCaseController {
 
     private final AdminCaseService adminCaseService;
+    private final AdminDeliveryService adminDeliveryService;
+    private final DeliveryService deliveryService;
 
     /**
      * 构造控制器。
      *
-     * @param adminCaseService PC 案件业务
+     * @param adminCaseService    PC 案件业务
+     * @param adminDeliveryService PC 送达写操作（带审计）
+     * @param deliveryService     送达只读列表（不审计）
      */
-    public AdminCaseController(AdminCaseService adminCaseService) {
+    public AdminCaseController(AdminCaseService adminCaseService,
+                               AdminDeliveryService adminDeliveryService,
+                               DeliveryService deliveryService) {
         this.adminCaseService = adminCaseService;
+        this.adminDeliveryService = adminDeliveryService;
+        this.deliveryService = deliveryService;
     }
 
     /**
@@ -91,5 +105,53 @@ public class AdminCaseController {
     public R<CaseProgressVO> correctProgress(@PathVariable @Positive Long id,
                                              @Valid @RequestBody AdminProgressBO bo) {
         return R.ok(adminCaseService.correctProgress(id, bo));
+    }
+
+    /**
+     * 本案用户的可送达文书（A-19 抽屉「送达」Tab 的选文书弹窗，段 5 C1）。
+     *
+     * @param id 案件 id
+     * @return 文书摘要列表
+     */
+    @GetMapping("/{id}/documents")
+    public R<List<AdminCaseDocVO>> listDocuments(@PathVariable @Positive Long id) {
+        return R.ok(adminCaseService.documents(id));
+    }
+
+    /**
+     * 本案进度时间轴（A-19 抽屉「进度」Tab，段 5 B2）。
+     *
+     * @param id 案件 id
+     * @return 节点列表（按 step 升序）
+     */
+    @GetMapping("/{id}/progress")
+    public R<List<CaseProgressVO>> listProgress(@PathVariable @Positive Long id) {
+        return R.ok(adminCaseService.progress(id));
+    }
+
+    /**
+     * 本案送达记录列表（A-19 抽屉「送达」Tab，段 5 C1）。
+     *
+     * @param id 案件 id
+     * @return 送达记录列表（按发起时间倒序）
+     */
+    @GetMapping("/{id}/deliveries")
+    public R<List<DeliveryRowVO>> listDeliveries(@PathVariable @Positive Long id) {
+        return R.ok(deliveryService.listByCase(id));
+    }
+
+    /**
+     * 发起送达（A-19 抽屉「送达」Tab 的「发起送达」，段 5 C1）。
+     *
+     * <p>审计动作码 `DELIVERY_SEND` 标在 `AdminDeliveryService.send` 上，Controller 不写审计。</p>
+     *
+     * @param id 案件 id
+     * @param bo 文书 id + 送达方式
+     * @return 新建的送达记录
+     */
+    @PostMapping("/{id}/deliveries")
+    public R<DeliveryRowVO> sendDelivery(@PathVariable @Positive Long id,
+                                         @Valid @RequestBody DeliveryCreateBO bo) {
+        return R.ok(adminDeliveryService.send(id, bo));
     }
 }

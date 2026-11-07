@@ -120,6 +120,18 @@ export const PAGE_ROUTES = {
   lawyerTab: '/lawyer' as Href,
   /** 对话历史页（段 3 G1；二级页，入口在 AI 对话页顶栏）。 */
   aiHistory: '/ai-history' as Href,
+
+  // ── 段 5 B 组：案件中心四条路由 ─────────────────────────────────────
+  /** 在线立案四步表单（`/case-filing`，段 5 B1）。 */
+  caseFiling: '/case-filing' as Href,
+  /** 材料已提交页（`/case-filing-done?caseNo=`，段 5 B2）。 */
+  caseFilingDone: '/case-filing-done' as Href,
+  /** 我的案件列表（`/case-my`，段 5 B3）。 */
+  caseMy: '/case-my' as Href,
+  /** 案件进度页（`/case-progress?caseId=`，段 5 B3/B4）。 */
+  caseProgress: '/case-progress' as Href,
+  /** 文书送达页（`/case-delivery?caseId=`，段 5 C2/C3/C4）。 */
+  caseDelivery: '/case-delivery' as Href,
 } as const;
 
 /** 路由常量表的值类型（用于接收「任一页面路径」的参数）。 */

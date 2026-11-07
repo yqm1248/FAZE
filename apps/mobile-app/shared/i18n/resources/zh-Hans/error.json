@@ -38,5 +38,20 @@
   "error.document.font-missing": "服务端缺少渲染字体，请联系管理员",
   "error.document.signature-limit": "签名数量已达上限（最多 5 个）",
   "error.document.signature-in-use": "该签名已用于文书，不能删除",
-  "error.document.signature-not-found": "签名不存在"
+  "error.document.signature-not-found": "签名不存在",
+  "error.case.not-found": "案件不存在",
+  "error.case.state-invalid": "案件状态非法，当前操作不允许",
+  "error.case.forbidden": "无权访问该案件",
+  "error.case.already-filed": "该案件已立案，不能重复提交",
+  "error.case.no-document": "本案没有可送达的文书",
+  "error.case.delivery-not-found": "送达记录不存在",
+  "error.case.delivery-already-signed": "该文书已签收，不能重复签收",
+  "error.case.delivery-method-invalid": "送达方式非法",
+  "error.trade.withdraw-below-min": "提现金额低于最低限额",
+  "error.trade.withdraw-insufficient": "可提现余额不足",
+  "error.trade.withdraw-state-invalid": "提现单状态非法，当前操作不允许",
+  "error.trade.withdraw-too-frequent": "提现过于频繁，请稍后再试",
+  "error.content.case-no-law-ref": "案例未填写法条引用，不能上线",
+  "error.content.case-lang-incomplete": "案例语言版本不齐",
+  "error.content.case-published": "案例已上线，须先下架再删除"
 }

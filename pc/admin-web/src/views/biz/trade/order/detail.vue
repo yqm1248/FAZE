@@ -112,7 +112,7 @@
           <template #header>
             <div class="card-head">
               <span class="card-title">支付记录</span>
-              <span class="muted">段 2 只有余额渠道；退款行为负数。服务费结算见段 5。</span>
+              <span class="muted">段 2 只有余额渠道；退款行为负数。服务费不走进支付流水，见表格下方说明。</span>
             </div>
           </template>
           <el-table :data="detail.payments" row-key="id" stripe style="width: 100%">
@@ -137,6 +137,25 @@
               <template #default="{ row }"><span class="mono muted">{{ formatDateTime(row.paidAt) }}</span></template>
             </el-table-column>
           </el-table>
+
+          <!--
+            段 5 B5：服务费说明（**一行说明，不是表格行**）。
+            金额读 orders.platform_fee_cents（下单时按 platform_fee_rate 快照），
+            百分比从金额算，不写死 15%——改 sys_config 费率后历史单仍显示按当时费率的结果。
+            payment_record 永远只有支付 / 退款两条，这里刻意不新增写表。
+          -->
+          <div class="fee-note">
+            <div class="fee-line">
+              <span class="fee-label">平台服务费</span>
+              <span class="mono fee-value">¥ {{ formatCents(detail.platformFeeCents) }}</span>
+            </div>
+            <p class="muted fee-desc">
+              订单金额 ¥ {{ formatCents(detail.amountCents) }} 的 {{ feePercentText() }}，
+              其中 ¥ {{ formatCents(detail.lawyerIncomeCents) }} 计入承办律师收入（结算见律师结算）。
+              服务费不产生支付流水，故上方支付记录固定为
+              {{ detail.payments ? detail.payments.length : 0 }} 条。
+            </p>
+          </div>
         </el-card>
 
         <el-card shadow="never">
@@ -310,6 +329,23 @@ function statusText(status) {
 /** 状态标签颜色。 */
 function statusTagType(status) {
   return STATUS_TAG[status] || 'info'
+}
+
+/**
+ * 平台服务费占订单金额的百分比文案（段 5 B5）。
+ *
+ * 从金额算而不是写死 15%：费率来自 `sys_config.platform_fee_rate`，下单时快照进
+ * `orders.platform_fee_cents`，后台如果调整费率，历史订单仍应按当时的比例显示。
+ *
+ * @returns {string} 形如 `15%`；金额缺失或为 0 时返回 `—`
+ */
+function feePercentText() {
+  const order = detail.value
+  if (!order || !order.amountCents || !order.platformFeeCents) {
+    return '—'
+  }
+  const percent = (toNumber(order.platformFeeCents) * 100) / toNumber(order.amountCents)
+  return `${Math.round(percent * 10) / 10}%`
 }
 
 /** 服务类型文案。 */
@@ -561,5 +597,29 @@ onMounted(loadAll)
 .muted {
   color: #6b7280;
   font-size: 12px;
+}
+.fee-note {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: #f7f8fa;
+  border: 1px solid #eef0f3;
+}
+.fee-line {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.fee-label {
+  font-size: 13px;
+  color: #1a1a1a;
+}
+.fee-value {
+  font-size: 13px;
+  color: #1a1a1a;
+}
+.fee-desc {
+  margin: 6px 0 0;
+  line-height: 1.6;
 }
 </style>

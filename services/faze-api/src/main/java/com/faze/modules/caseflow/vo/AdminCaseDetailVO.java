@@ -39,6 +39,14 @@ public class AdminCaseDetailVO {
     /** 证据 file_record key 数组（JSON 字符串原样）。 */
     private String evidenceUrls;
 
+    /**
+     * 证据图片的**短时签名地址**（段 5 B2：PC 抽屉「立案材料」Tab 直接可渲染）。
+     *
+     * <p>由服务端把 `evidence_urls` 里的对象键现签得到——既避免把 OSS key 暴露给前端，
+     * 也避免前端拿 key 拼不出可访问地址。没有证据时为空数组。</p>
+     */
+    private java.util.List<String> evidenceImageUrls;
+
     /** 管辖法院。 */
     private String courtName;
 
