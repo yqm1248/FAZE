@@ -90,6 +90,12 @@ public class DocTemplateAdminService {
             String kw = query.getKw().trim();
             wrapper.and(w -> w.like(DocTemplate::getName, kw).or().like(DocTemplate::getCode, kw));
         }
+        // 只列每个 (code, lang) 的最新版本。
+        // 旧版本行按 4-A4 必须永久保留，但那是给历史文书重渲染用的；放进管理列表会让运营
+        // 误点旧版本去编辑，保存后基于旧 HTML 生成 v3 → 内容回退。列表语义是「模板清单」，
+        // 不是「版本审计」，历史版本不在此页展开。
+        wrapper.notExists("SELECT 1 FROM doc_template t2 WHERE t2.code = doc_template.code"
+                + " AND t2.lang = doc_template.lang AND t2.version > doc_template.version");
         wrapper.orderByDesc(DocTemplate::getUpdatedAt).orderByDesc(DocTemplate::getId);
         IPage<DocTemplate> page = docTemplateMapper.selectPage(new Page<>(pageNum, pageSize), wrapper);
         List<DocTemplateRowVO> rows = page.getRecords().stream().map(this::toRow).toList();
@@ -190,13 +196,22 @@ public class DocTemplateAdminService {
     }
 
     /**
-     * 渲染预览图（真 PDF 转 PNG）。
+     * 渲染预览图（真 PDF 转 PNG）。**已渲染过的版本行直接复用，不重算。**
+     *
+     * <p>可以安全复用的原因：模板改版是「插新版本行」，所以**同一行的 template_html 永不改变**
+     * ——这一行的预览图一旦生成就永远对应该行的内容。新行 preview_oss_key 为空，首次预览才渲染。</p>
      *
      * @param id 模板主键
      * @return 预览图短时地址
      */
     public DocTemplatePreviewVO preview(Long id) {
         DocTemplate t = requireTemplate(id);
+        if (t.getPreviewOssKey() != null && !t.getPreviewOssKey().isBlank()) {
+            DocTemplatePreviewVO cached = new DocTemplatePreviewVO();
+            cached.setUrl(fileRecordService.presignDownload(t.getPreviewOssKey()));
+            cached.setExpiresIn(PREVIEW_TTL_SECONDS);
+            return cached;
+        }
         FieldSchema schema = FieldSchema.parse(readSchemaNode(t.getFieldSchema()));
         String xhtml = templateRenderer.render(t.getTemplateHtml(), schema, sampleData(schema));
         templateHtmlValidator.assertWellFormed(xhtml);
