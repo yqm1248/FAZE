@@ -4,6 +4,59 @@
 
 ---
 
+## 2026-11-08 · 第 5 段 C 组（送达）与 D 组（律师工作台）施工
+
+> 把第 5 段从「A/B 组已完成」推进到 **C 组与 D 组代码全部落地**：送达闭环（发起 → 待签收 → 签收 → 回执）、
+> 律师工作台 5 页 + 宫格 6 入口、收入与设置的真实数据。
+> ⚠️ **本轮只完成到「代码 + 编译 + 迁移 + 401 校验」，功能验收（`5-A3`/`5-A4`/`5-A6`）尚未跑通**，
+> 原因与缺口逐条写在 `docs/acceptance/seg5/PROGRESS-C-D.md` §二/§三 的「未验证」小节。
+
+### 1. 后端（faze-api）
+
+| 内容 | 要点 |
+|---|---|
+| 送达实体与写路径 | 新增 `CaseDelivery` / `CaseDeliveryMapper` / `DeliveryStatus`；`DeliveryServiceImpl` 从「显式拒绝」骨架换成完整实现：发起（`SD` 回执号即时生成）、改造方式（未签收才许改）、签收（CAS，第二次返 407007 且不覆盖首次时间） |
+| 送达读路径 | `GET /admin/cases/{id}/deliveries`、`GET /admin/cases/{id}/documents`（可送达文书，带 `hasPdf`）、`GET /app/case-deliveries`（按 `user_id` 归属 + 状态筛选）、`GET /app/case-deliveries/{id}`（回执） |
+| 送达审计 | 发起送达标 `@OperationLog(action = "DELIVERY_SEND")`，标在 `AdminDeliveryService.send` 上 |
+| 案件抽屉补两块 | `GET /admin/cases/{id}/progress`（进度 Tab）、`AdminCaseDetailVO.evidenceImageUrls`（证据对象键现签成短时地址） |
+| 案件卡红点 | `CaseRowVO.unreadDeliveryCount`（按 `case_delivery` 聚合 PENDING），不新增列 |
+| 跨域只读口 | 新增 `DocumentQueryService`、`ConversationQueryService`、`LawyerIncomeQueryService`；账号侧补 `AccountQueryService.mapBriefs`（昵称/头像/脱敏手机号）与 `LawyerProfileService`（白名单写） |
+| 工作台真实数据 | `WorkbenchServiceImpl` 从全空骨架换成真实实现：D1 未读优先排序 + 已付款标签、D2 按 `lawyer_id` 归属 + 发送文书、D3 三档收入 + 明细带订单号、D4 读设置（含 `sys_config` 上下限）、D5 资料读写 |
+| 发送文书 | `POST /app/workbench/documents/{id}/send`：经 `MessageService.sendDocument`（服务端内部通道，客户端不能伪造 `doc` 类型）写一条 `msg_type=doc` 消息 + 回填 `sent_at` |
+| 迁移 | `V509__alter_document_sent_at.sql`：`document` 加 `sent_at`（幂等：查 `information_schema` 后动态执行）。已实测 `flyway_schema_history 509 = success` |
+| 段 2 收紧 | `PUT /app/workbench/service-settings` 的价格校验从「非负」改为读 `sys_config` 区间（19 元 / 2001 元被拒），并补 `autoAccept` |
+
+### 2. APP（mobile-app）
+
+| 内容 | 要点 |
+|---|---|
+| 案件中心四页（B 组前端收尾） | 在线立案四步、材料已提交、我的案件、案件进度（含律师推进节点弹层）；案件 tab 由占位页换成真实列表，`CasePlaceholderPage` 下线 |
+| 文书送达页 | 待签收 / 已签收两组、每份文书各自选方式（偏差）、签收确认框（标题随文书名）、结构化回执；全页无法院侧表述 |
+| 工作台 5 页 | 63 客户咨询 / 65 代写文书 / 66 收入与提现 / 67 服务设置 / 68 律师资料 |
+| 工作台宫格 | `WorkbenchPage` 补 6 项宫格（我的客户 / 我的订单 / 代写文书 / 收入提现 / 服务设置 / 律师资料） |
+| 文案 | `zh-Hans/case.json` 与 `workbench.json` 从空对象补全；缺译按登记式进 `.i18n-pending.json`；`check-i18n` 三项全绿 |
+
+### 3. PC 后台（admin-web）
+
+| 内容 | 要点 |
+|---|---|
+| A-19 案件列表 | `views/biz/caseflow/case/index.vue`：5 个状态 chips（含「已驳回」）、8 列表格（当事人称谓按类型变）、分页 |
+| A-19 详情抽屉 | `detail-drawer.vue`：立案材料（快照四组只读 + 证据图 + 审核）/ 进度（时间轴 + 纠错）/ 送达（列表 + 发起送达）三个 Tab |
+| B5 服务费 | `trade/order/detail.vue` 删掉「服务费结算见段 5」，改为按 `platform_fee_cents` 计算的说明行；`AdminOrderDetailVO` 补两个金额字段；**不写 `payment_record`** |
+| 菜单种子 | `database/seed/seg5_admin_menu.sql`（menu_id 2220「案件管理」） |
+
+### 4. 已知缺口（不掩盖）
+
+1. **功能验收未跑通**：登录接口参数口径未摸清（`/pub/auth/login/password` 返 `401001`），导致 C/D 组接口没有用真实数据打过一次。
+2. `5-A3`（送达全链）、`5-A4`（收入逐笔对账）、`5-A6`（改价即生效）**不可验**。
+3. `5-A4` 还依赖 E 组的收入入账，本轮未开始 E 组。
+
+### 5. 偏差（新增 8 条，详见 `PROGRESS-C-D.md` §四）
+
+其中两条会影响验收口径：D1 接口路径改用 `/workbench/consultations`（原路径段 2 已占用，重复映射会让 Spring 启动失败）；D2 的「发送」放在列表而非预览页。
+
+---
+
 ## 2026-11-08 · 第 4 段（文书中心）施工与收口（基线 v1.53）
 
 > 一天内把第 4 段从「B1/C4 已验」推进到**8 条锚点全通过**：补齐 D 组（签名笔迹）、E 组（APP 六页）、F 组（后处理）、G 组（验收脚本 + 证据）。
