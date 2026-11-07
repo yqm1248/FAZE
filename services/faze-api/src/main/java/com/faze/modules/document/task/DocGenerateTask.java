@@ -1,0 +1,85 @@
+/*
+ * 职责：文书生成任务扫描器（段 4 A4）——每 5 秒领一批 `doc_generate` 任务并交给 handler。
+ * 调用方：Spring 的 `@Scheduled`（调度线程池由 config/ThreadPoolConfig 提供）。
+ * 数据来源：task_queue（领取/标记）、DocGenerateHandler（业务执行）。
+ * 注意：
+ *   1. 与 OrderCloseTask / PushTask 同一套模式：**扫描器只管领、标记、失败退避**，
+ *      不写业务。业务全在 handler 里。
+ *   2. **必须按 task_type 过滤领取**：`claimBatch(worker, types)` 的第二个参数不能省。
+ *      省了会领走别的消费者的任务（task_queue 现在有 3 个消费者）。
+ *   3. `@Scheduled` 没生效时**没有任何报错**，所以 `logRegistered()` 那行日志是唯一可观测点。
+ *   4. 领取本身失败（库连不上）本轮放弃、不吞异常日志；单条执行失败走 `markFailed`
+ *      的指数退避，`retry_count >= 5` 进死信（PC A-26 可见）。
+ */
+package com.faze.modules.document.task;
+
+import com.faze.infra.mq.TaskQueue;
+import com.faze.infra.mq.TaskQueueService;
+import java.util.List;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Component;
+
+/**
+ * 文书生成任务扫描器。
+ */
+@Component
+@RequiredArgsConstructor
+@Slf4j
+public class DocGenerateTask {
+
+    /** 扫描间隔：生成是用户主动触发的低频任务，5 秒足够。 */
+    private static final long SCAN_INTERVAL_MS = 5_000L;
+
+    /** 首次延迟：避开启动期（Flyway + 连接池初始化）。 */
+    private static final long INITIAL_DELAY_MS = 15_000L;
+
+    /** 本扫描器的工作线程标识。 */
+    private static final String WORKER_NAME = "doc-generate";
+
+    private final TaskQueueService taskQueueService;
+    private final DocGenerateHandler docGenerateHandler;
+
+    /**
+     * 启动时登记一行日志（`@Scheduled` 未生效时没有其它痕迹）。
+     */
+    @jakarta.annotation.PostConstruct
+    void logRegistered() {
+        log.info("文书生成扫描器已注册：fixedDelay={}ms initialDelay={}ms worker={}",
+                SCAN_INTERVAL_MS, INITIAL_DELAY_MS, WORKER_NAME);
+    }
+
+    /**
+     * 扫描并执行到期的文书生成任务。
+     *
+     * <p>副作用：领取任务、生成 PDF、更新 document 状态、更新任务状态。</p>
+     */
+    @Scheduled(fixedDelay = SCAN_INTERVAL_MS, initialDelay = INITIAL_DELAY_MS)
+    public void scan() {
+        log.debug("文书生成扫描触发");
+        List<TaskQueue> tasks;
+        try {
+            tasks = taskQueueService.claimBatch(WORKER_NAME,
+                    List.of(TaskQueueService.TYPE_DOC_GENERATE));
+        } catch (RuntimeException e) {
+            log.error("领取文书生成任务失败，本轮跳过", e);
+            return;
+        }
+        if (tasks.isEmpty()) {
+            return;
+        }
+        String owner = taskQueueService.ownerOf(WORKER_NAME);
+        for (TaskQueue task : tasks) {
+            try {
+                docGenerateHandler.handle(task);
+                taskQueueService.markDone(task, owner);
+            } catch (RuntimeException e) {
+                log.error("执行文书生成任务失败 taskId={} bizNo={}",
+                        task.getId(), task.getBizNo(), e);
+                taskQueueService.markFailed(task, owner,
+                        e.getClass().getSimpleName() + ": " + e.getMessage());
+            }
+        }
+    }
+}

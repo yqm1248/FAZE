@@ -48,6 +48,16 @@ public class TaskQueueService {
     /** 任务类型：离线推送（G7.2，`biz_no` 存 conversation_message.id）。 */
     public static final String TYPE_PUSH = "push";
 
+    /**
+     * 任务类型：文书生成（段 4 A4，`biz_no` 存 `document.id`）。
+     *
+     * <p>工作流 §三 A4 原文写的是 `DOC_GENERATE`（大写）。这里用**小写 `doc_generate`**：
+     * 库里已有的两个类型都是小写（`order_close` / `push`），大小写混用会让
+     * 「按类型筛任务」的 SQL 和监控面板各写一套。**类型值本身不是契约**，
+     * 是内部枚举，统一小写即可。</p>
+     */
+    public static final String TYPE_DOC_GENERATE = "doc_generate";
+
     /** 任务状态：待领取。 */
     public static final String STATUS_PENDING = "pending";
 
