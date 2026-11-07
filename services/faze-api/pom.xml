@@ -31,6 +31,16 @@
 
   <properties>
     <java.version>17</java.version>
+    <!--
+      源码编码必须显式声明为 UTF-8：
+      本机 JDK 17 的 file.encoding 是 GBK（Windows 中文环境），spring-boot-starter-parent
+      不设 project.build.sourceEncoding 时 javac 会按平台默认编码读源文件，
+      含「→」「§」等字符的中文注释会被判成「非法字符」而编译失败
+      （2026-11-07 实测：`mvn compile` 报 ErrorCode.java 非法字符）。
+      ruoyi-admin 的 pom 早就有这一行（第 17 行），这里补齐，两边口径一致。
+    -->
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <mybatis-plus.version>3.5.18.1</mybatis-plus.version>
     <jjwt.version>0.12.3</jjwt.version>
     <lombok.version>1.18.38</lombok.version>

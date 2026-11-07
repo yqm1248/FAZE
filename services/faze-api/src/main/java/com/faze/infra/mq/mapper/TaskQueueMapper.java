@@ -112,4 +112,20 @@ public interface TaskQueueMapper extends BaseMapper<TaskQueue> {
     int cancelByBizNo(@Param("taskType") String taskType,
                       @Param("bizNo") String bizNo,
                       @Param("now") LocalDateTime now);
+
+    /**
+     * 把仍在等待重试的任务提前到「现在」再跑（用户修好问题后主动点「重试/重新生成」）。
+     *
+     * <p>为什么需要它：生成失败后任务会按指数退避留在 `pending`（几分钟到几十分钟），
+     * 而用户点「重新生成」时 `hasActiveTask` 会认为「已有任务在跑」直接跳过——
+     * 表现就是「点了没反应」。这里只改 `next_retry_at`，不新建任务、不改变重试计数语义。</p>
+     *
+     * @param taskType 任务类型
+     * @param bizNo    业务单号
+     * @param now      当前时间（UTC）
+     * @return 影响行数（0 表示没有等待中的任务）
+     */
+    int expeditePending(@Param("taskType") String taskType,
+                        @Param("bizNo") String bizNo,
+                        @Param("now") LocalDateTime now);
 }

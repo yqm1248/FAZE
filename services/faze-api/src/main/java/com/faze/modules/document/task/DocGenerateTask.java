@@ -87,16 +87,30 @@ public class DocGenerateTask {
      * 把执行异常转成死信里能读懂的失败原因。
      *
      * <p>C4 要求按错误码归因（506003 字体缺失 / 506002 渲染失败 / 406002 表单非法 …），
-     * 只写异常类名 + 消息会让死信看不出是哪一类失败，所以业务异常一律带码。
-     * 非业务异常（NPE 等真故障）才退回「类名: 消息」。</p>
+     * 只写异常类名 + 消息会让死信看不出是哪一类失败，所以业务异常一律带码。</p>
+     *
+     * <p>2026-11-07 补：**码后面还要带具体原因**。`406002` 的通用文案是「表单校验失败」，
+     * 但占位符不匹配与非法 XHTML 都是 406002——不把 `BusinessException` 的具体消息带上，
+     * `4-A8` 的「last_error 有可读原因」就没法区分两个场景，排障时只能去翻堆栈。
+     * 业务异常的具体消息是**我们自己写的中文判据**（不含 `e.getMessage()` 透传用户数据），
+     * 长度截断到 120 字，不会把整段模板写进死信。</p>
      *
      * @param e 执行期抛出的运行时异常
-     * @return 形如 `506003: 渲染所需字体缺失` 的短句（不含堆栈）
+     * @return 形如 `406002: 表单校验失败 —— 模板引用了未定义的字段：not_in_schema` 的短句（不含堆栈）
      */
     private String describeFailure(RuntimeException e) {
         if (e instanceof BusinessException be && be.getErrorCode() != null) {
-            return be.getErrorCode().getCode() + ": " + be.getErrorCode().getMsg();
+            String code = be.getErrorCode().getCode() + ": " + be.getErrorCode().getMsg();
+            // BusinessException#getMessage() 返回的是**通用文案**（errorCode.getMsg()），
+            // 具体判据在 getDetail() 里（后端规范：detail 只进日志、不进响应体，这里正是写日志的地方）
+            String detail = be.getDetail();
+            if (detail == null || detail.isBlank() || detail.equals(be.getErrorCode().getMsg())) {
+                return code;
+            }
+            String clipped = detail.length() > 120 ? detail.substring(0, 120) + "…" : detail;
+            return code + " —— " + clipped;
         }
-        return e.getClass().getSimpleName() + ": " + e.getMessage();
+        String raw = e.getClass().getSimpleName() + ": " + e.getMessage();
+        return raw.length() > 160 ? raw.substring(0, 160) + "…" : raw;
     }
 }

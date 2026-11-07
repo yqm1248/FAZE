@@ -146,6 +146,12 @@ public enum ErrorCode {
     DOCUMENT_NOT_FOUND(406003, 200, "error.document.not-found", "文书不存在"),
     /** 无权访问该文书（归属校验失败）。HTTP 403。 */
     DOCUMENT_FORBIDDEN(406004, 403, "error.document.forbidden", "无权访问该文书"),
+    /** 签名库已满（每个用户最多 5 个签名图，防图床）。HTTP 200。 */
+    SIGNATURE_LIMIT_EXCEEDED(406005, 200, "error.document.signature-limit", "签名数量已达上限（最多 5 个）"),
+    /** 签名已被文书引用，不允许删除。HTTP 200。 */
+    SIGNATURE_IN_USE(406006, 200, "error.document.signature-in-use", "该签名已用于文书，不能删除"),
+    /** 签名不存在（或不属于当前用户——**不区分**，防枚举）。HTTP 200。 */
+    SIGNATURE_NOT_FOUND(406007, 200, "error.document.signature-not-found", "签名不存在"),
     /** 文书生成失败（占位符不匹配 / 非法 XHTML / 存储不可用等）。HTTP 200。 */
     DOCUMENT_GENERATE_FAILED(506001, 200, "error.document.generate-failed", "文书生成失败"),
     /** PDF 转换失败（渲染异常）。HTTP 200。 */

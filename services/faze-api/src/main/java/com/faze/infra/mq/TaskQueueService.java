@@ -232,6 +232,28 @@ public class TaskQueueService {
     }
 
     /**
+     * 把某业务号下**等待重试**的任务提前到「现在」执行。
+     *
+     * <p>使用场景：文书生成失败后落在指数退避里（第一次 1 分钟、第二次 2 分钟…），
+     * 用户改完东西点「重新生成」时 `hasActiveTask` 会认为「已有任务在跑」直接跳过，
+     * 表现是「点了没反应」。这里把已排定的那次提前，**不新增任务、不重置重试计数**。</p>
+     *
+     * @param taskType 任务类型
+     * @param bizNo    业务单号
+     * @return 是否真的有一条等待中的任务被提前
+     */
+    public boolean expeditePending(String taskType, String bizNo) {
+        if (!StringUtils.hasText(bizNo)) {
+            return false;
+        }
+        int rows = taskQueueMapper.expeditePending(taskType, bizNo, utcNow());
+        if (rows > 0) {
+            log.info("提前重试待执行任务 type={} bizNo={} rows={}", taskType, bizNo, rows);
+        }
+        return rows > 0;
+    }
+
+    /**
      * 生成工作线程的 owner（定时任务里按任务 id 区分，避免同批任务互相覆盖标注）。
      *
      * @param suffix 线程内唯一后缀

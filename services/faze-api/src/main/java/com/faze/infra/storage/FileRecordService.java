@@ -20,6 +20,8 @@ import com.faze.common.exception.ErrorCode;
 import com.faze.infra.storage.entity.FileRecord;
 import com.faze.infra.storage.mapper.FileRecordMapper;
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
@@ -27,6 +29,7 @@ import java.time.ZoneOffset;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.util.HexFormat;
+import java.util.List;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -76,6 +79,27 @@ public class FileRecordService {
      */
     public String storeGenerated(String bizType, Long bizId, Long ownerUser, String ext,
                                  byte[] content, String mimeType) {
+        return storeGenerated(bizType, bizId, ownerUser, ext, content, mimeType, "generated." + ext);
+    }
+
+    /**
+     * 服务端生成一份文件，并指定登记的「原始文件名」。
+     *
+     * <p>原始文件名在本段当**产物种类的区分键**用：列表缩略图固定 `generated.png`，
+     * 预览图缓存用 `pv{短哈希}:{页号}.png`（短哈希来自 PDF 对象键，换 PDF 就换前缀，
+     * 旧缓存自然失效）。这是不给 `file_record` 加字段的前提下最省的做法。</p>
+     *
+     * @param bizType      业务类型（三选一）
+     * @param bizId        业务主键
+     * @param ownerUser    归属用户
+     * @param ext          扩展名（不含点）
+     * @param content      文件字节
+     * @param mimeType     MIME 类型
+     * @param originalName 登记的原始文件名
+     * @return 生成的 oss_key
+     */
+    public String storeGenerated(String bizType, Long bizId, Long ownerUser, String ext,
+                                 byte[] content, String mimeType, String originalName) {
         assertBizType(bizType);
         if (content == null || content.length == 0) {
             throw new BusinessException(ErrorCode.DOCUMENT_GENERATE_FAILED);
@@ -88,10 +112,75 @@ public class FileRecordService {
             log.error("文件落盘失败 bizType={} bizId={}", bizType, bizId, e);
             throw new BusinessException(ErrorCode.DOCUMENT_GENERATE_FAILED);
         }
-        insert(bizType, bizId, ownerUser, key, "generated." + ext, mimeType,
+        insert(bizType, bizId, ownerUser, key, originalName, mimeType,
                 (long) content.length, md5Hex(content));
         log.info("服务端文件已登记 bizType={} bizId={} size={}", bizType, bizId, content.length);
         return key;
+    }
+
+    /**
+     * 取某业务对象最新一条登记的 key（列表缩略图用）。
+     *
+     * @param bizType      业务类型
+     * @param bizId        业务主键
+     * @param originalName 原始文件名（固定名，如 `generated.png`）
+     * @return 对象键；没有时 null
+     */
+    public String latestKey(String bizType, Long bizId, String originalName) {
+        return fileRecordMapper.selectLatestKey(bizType, bizId, originalName);
+    }
+
+    /**
+     * 按原始文件名前缀取登记行（预览图缓存用）。
+     *
+     * @param bizType 业务类型
+     * @param bizId   业务主键
+     * @param prefix  裸前缀（`%` 由 Mapper 的 CONCAT 补）
+     * @return 登记行列表
+     */
+    public List<FileRecord> recordsByPrefix(String bizType, Long bizId, String prefix) {
+        return fileRecordMapper.selectByOriginalNamePrefix(bizType, bizId, prefix);
+    }
+
+    /**
+     * 把文件标成孤儿（用户删掉签名后调用），文件本身不删。
+     *
+     * @param ossKey 对象键
+     */
+    public void markOrphan(String ossKey) {
+        if (ossKey == null || ossKey.isBlank()) {
+            return;
+        }
+        fileRecordMapper.markOrphan(ossKey);
+    }
+
+    /**
+     * 读取对象内容（叠章要拿原 PDF 与签名 PNG 的字节）。
+     *
+     * @param ossKey 对象键
+     * @return 文件字节
+     * @throws BusinessException 501001 / 506001（对象不存在或读取失败）
+     */
+    public byte[] readBytes(String ossKey) {
+        if (ossKey == null || ossKey.isBlank()) {
+            throw new BusinessException(ErrorCode.DOCUMENT_GENERATE_FAILED, "对象键为空");
+        }
+        try (InputStream in = fileStorage.get(ossKey)) {
+            return in.readAllBytes();
+        } catch (IOException | RuntimeException e) {
+            log.error("读取对象失败", e);
+            throw new BusinessException(ErrorCode.DOCUMENT_GENERATE_FAILED);
+        }
+    }
+
+    /**
+     * 重新签发下载地址（60 秒）。
+     *
+     * @param ossKey 对象键
+     * @return 可 GET 的短时地址
+     */
+    public String presignDownload(String ossKey) {
+        return fileStorage.presignDownload(ossKey).url();
     }
 
     /**
@@ -109,16 +198,6 @@ public class FileRecordService {
     public Long recordSignatureImage(Long userId, String ossKey, Long sizeBytes, String md5) {
         return insert(BIZ_SIGNATURE, null, userId, ossKey, "signature.png", "image/png",
                 sizeBytes, md5);
-    }
-
-    /**
-     * 重新签发下载地址（60 秒）。
-     *
-     * @param ossKey 对象键
-     * @return 可 GET 的短时地址
-     */
-    public String presignDownload(String ossKey) {
-        return fileStorage.presignDownload(ossKey).url();
     }
 
     // ── 内部 ────────────────────────────────────────────────────────────────

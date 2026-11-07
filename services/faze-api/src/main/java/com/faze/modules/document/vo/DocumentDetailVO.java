@@ -44,6 +44,15 @@ public class DocumentDetailVO {
     /** 失败原因（仅 status=failed 时有值）。 */
     private String errorMsg;
 
+    /**
+     * 是否有一个生成任务正在跑。
+     *
+     * <p>为什么需要它：`generate` 会把状态重置成 `draft` 再投递任务，所以「从没生成过的草稿」
+     * 和「正在生成的草稿」在 `status` 上完全一样，客户端无法区分（E4 的「生成中」态就画不出来）。
+     * 这里直接按任务队列的活跃任务判断，客户端不用再猜。</p>
+     */
+    private Boolean generating;
+
     /** 创建时间。 */
     private LocalDateTime createdAt;
 

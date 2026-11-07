@@ -27,6 +27,8 @@ import com.faze.common.exception.ErrorCode;
 import com.faze.common.pojo.PageResult;
 import com.faze.infra.mq.TaskQueueService;
 import com.faze.infra.storage.FileRecordService;
+import com.faze.infra.storage.entity.FileRecord;
+import com.faze.infra.storage.mapper.FileRecordMapper;
 import com.faze.modules.document.bo.DocumentSaveBO;
 import com.faze.modules.document.entity.Document;
 import com.faze.modules.document.entity.DocTemplate;
@@ -37,7 +39,10 @@ import com.faze.modules.document.vo.DocumentDetailVO;
 import com.faze.modules.document.vo.DocumentRowVO;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -61,8 +66,10 @@ public class AppDocumentService {
 
     private final DocumentMapper documentMapper;
     private final DocTemplateMapper docTemplateMapper;
+    private final DocTemplateResolver docTemplateResolver;
     private final TaskQueueService taskQueueService;
     private final FileRecordService fileRecordService;
+    private final FileRecordMapper fileRecordMapper;
 
     /**
      * App 端可用的模板列表（只返回 active）。
@@ -96,10 +103,8 @@ public class AppDocumentService {
      */
     @Transactional(rollbackFor = Exception.class)
     public Long save(DocumentSaveBO bo, Long userId) {
-        DocTemplate template = docTemplateMapper.selectById(bo.getTemplateId());
-        if (template == null || !"active".equals(template.getStatus())) {
-            throw new BusinessException(ErrorCode.DOCUMENT_TEMPLATE_NOT_FOUND);
-        }
+        // 用解析器：模板升版后旧行会变 inactive，直接按 id 取会误判成「模板已停用」
+        DocTemplate template = docTemplateResolver.activeOrDefault(bo.getTemplateId());
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
         if (bo.getId() == null) {
             Document doc = new Document();
@@ -135,8 +140,12 @@ public class AppDocumentService {
     /**
      * 我的文书列表（C 端 list 分页）。
      *
+     * <p>`status` 支持**逗号分隔的多值**（如 `generated,signed`）：App「我的文书」的
+     * 「已完成」筛选要同时覆盖「已生成」和「已盖章」，而 `signed` 是独立状态
+     * （盖过章的文书如果被 eq 单值筛到，在「已完成」里就会消失）。</p>
+     *
      * @param userId   当前用户
-     * @param status   状态筛选（可空）
+     * @param status   状态筛选（可空；支持逗号分隔多值）
      * @param docType  类型筛选（可空）
      * @param pageNum  页码
      * @param pageSize 每页条数
@@ -149,16 +158,67 @@ public class AppDocumentService {
         LambdaQueryWrapper<Document> wrapper = Wrappers.lambdaQuery();
         wrapper.eq(Document::getUserId, userId);
         wrapper.isNull(Document::getDeletedAt);
-        if (status != null && !status.isBlank()) {
-            wrapper.eq(Document::getStatus, status);
+        List<String> statuses = parseStatuses(status);
+        if (!statuses.isEmpty()) {
+            wrapper.in(Document::getStatus, statuses);
         }
         if (docType != null && !docType.isBlank()) {
             wrapper.eq(Document::getDocType, docType);
         }
         wrapper.orderByDesc(Document::getCreatedAt).orderByDesc(Document::getId);
         IPage<Document> page = documentMapper.selectPage(new Page<>(pageNo, size), wrapper);
-        List<DocumentRowVO> rows = page.getRecords().stream().map(this::toRow).toList();
+        List<Long> ids = page.getRecords().stream().map(Document::getId).toList();
+        Map<Long, String> thumbs = thumbUrls(ids);
+        List<DocumentRowVO> rows = page.getRecords().stream()
+                .map(doc -> toRow(doc, thumbs.get(doc.getId())))
+                .toList();
         return PageResult.of(rows, page.getTotal(), pageNo, size);
+    }
+
+    /**
+     * 解析状态筛选（逗号分隔、去空、去重、只接受四个合法状态）。
+     *
+     * @param status 原始查询参数
+     * @return 合法状态列表（非法值忽略，避免 SQL 里出现脏条件）
+     */
+    private List<String> parseStatuses(String status) {
+        if (status == null || status.isBlank()) {
+            return List.of();
+        }
+        Set<String> allowed = Set.of(STATUS_DRAFT, STATUS_GENERATED, STATUS_SIGNED, STATUS_FAILED);
+        return java.util.Arrays.stream(status.split(","))
+                .map(String::trim)
+                .filter(allowed::contains)
+                .distinct()
+                .toList();
+    }
+
+    /**
+     * 批量取列表缩略图地址（生成时登记的第一页 PNG，见 DocGenerateHandler）。
+     *
+     * <p>E5 的「我的文书」列表要显示缩略图（这条在 A-18 验收时被定为「留到 E 组」）：
+     * 缩略图是 `biz_type=document` 且 `original_name=generated.png` 的最新一条，
+     * 一次查询批量取，避免 N+1。</p>
+     *
+     * @param ids 文书主键列表
+     * @return documentId → 60 秒现签地址
+     */
+    private Map<Long, String> thumbUrls(List<Long> ids) {
+        if (ids.isEmpty()) {
+            return Map.of();
+        }
+        List<FileRecord> records = fileRecordMapper.selectList(Wrappers.<FileRecord>lambdaQuery()
+                .eq(FileRecord::getBizType, FileRecordService.BIZ_DOCUMENT)
+                .in(FileRecord::getBizId, ids)
+                .eq(FileRecord::getOriginalName, "generated.png")
+                .eq(FileRecord::getStatus, "active")
+                .orderByAsc(FileRecord::getId));
+        Map<Long, String> urls = new HashMap<>(ids.size());
+        for (FileRecord record : records) {
+            // 同一份文书可能重新生成过多次，取最新一条（id 升序遍历，后写覆盖前写）
+            urls.put(record.getBizId(), fileRecordService.presignDownload(record.getOssKey()));
+        }
+        return urls;
     }
 
     /**
@@ -185,6 +245,10 @@ public class AppDocumentService {
         if (STATUS_FAILED.equals(doc.getStatus())) {
             vo.setErrorMsg("上次生成失败，请修改后重新生成");
         }
+        // 「正在生成」必须由服务端说：generate 把状态重置成 draft，光看 status 分不出
+        // 「从没生成过」和「任务在跑」（E4 的生成中态靠这个字段）
+        vo.setGenerating(taskQueueService.hasActiveTask(
+                TaskQueueService.TYPE_DOC_GENERATE, String.valueOf(doc.getId())));
         return vo;
     }
 
@@ -214,6 +278,13 @@ public class AppDocumentService {
         Document doc = requireOwned(id, userId);
         String bizNo = String.valueOf(doc.getId());
         if (taskQueueService.hasActiveTask(TaskQueueService.TYPE_DOC_GENERATE, bizNo)) {
+            // 失败态下再点「重新生成」：把排定的重试提前，而不是静默返回。
+            // 否则用户在指数退避窗口内点几次都没反应（第一次失败要等 1 分钟、第二次 2 分钟…）。
+            if (STATUS_FAILED.equals(doc.getStatus())
+                    && taskQueueService.expeditePending(TaskQueueService.TYPE_DOC_GENERATE, bizNo)) {
+                log.info("失败后手动重试：已把等待中的任务提前 documentId={}", doc.getId());
+                return;
+            }
             log.debug("已有生成任务在跑，跳过重复投递 documentId={}", doc.getId());
             return;
         }
@@ -249,17 +320,19 @@ public class AppDocumentService {
     }
 
     /**
-     * 实体 → 列表行（缩略图用预览图对象键——段 4 的预览图按文书 id 登记）。
+     * 实体 → 列表行。
      *
-     * @param doc 文书
+     * @param doc      文书
+     * @param thumbUrl 缩略图 60 秒现签地址（没有生成过时 null）
      * @return 行 VO
      */
-    private DocumentRowVO toRow(Document doc) {
+    private DocumentRowVO toRow(Document doc, String thumbUrl) {
         DocumentRowVO vo = new DocumentRowVO();
         vo.setId(doc.getId());
         vo.setTitle(doc.getTitle());
         vo.setDocType(doc.getDocType());
         vo.setStatus(doc.getStatus());
+        vo.setThumbUrl(thumbUrl);
         vo.setCreatedAt(doc.getCreatedAt());
         vo.setUpdatedAt(doc.getUpdatedAt());
         return vo;

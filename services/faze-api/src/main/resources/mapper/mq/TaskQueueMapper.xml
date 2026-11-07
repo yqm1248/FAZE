@@ -108,4 +108,17 @@
           AND status = 'pending'
     </update>
 
+    <!--
+        把等待重试的任务提前到「现在」（用户修好问题后主动点重新生成）。
+        只动 next_retry_at，不动 retry_count：这不是「多给一次机会」，只是把已排定的那次提前。
+    -->
+    <update id="expeditePending">
+        UPDATE task_queue
+        SET next_retry_at = #{now},
+            updated_at = #{now}
+        WHERE task_type = #{taskType}
+          AND biz_no = #{bizNo}
+          AND status = 'pending'
+    </update>
+
 </mapper>

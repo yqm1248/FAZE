@@ -21,6 +21,7 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.faze.common.exception.BusinessException;
 import com.faze.common.exception.ErrorCode;
 import com.faze.infra.mq.TaskQueue;
+import com.faze.infra.pdf.PdfMetadataWriter;
 import com.faze.infra.pdf.PdfPageRenderer;
 import com.faze.infra.pdf.PdfRenderer;
 import com.faze.infra.storage.FileRecordService;
@@ -29,6 +30,7 @@ import com.faze.modules.document.entity.DocTemplate;
 import com.faze.modules.document.entity.Document;
 import com.faze.modules.document.mapper.DocTemplateMapper;
 import com.faze.modules.document.mapper.DocumentMapper;
+import com.faze.modules.document.service.DocTemplateResolver;
 import com.faze.modules.document.service.TemplateRenderer;
 import com.faze.modules.document.validator.TemplateHtmlValidator;
 import java.time.LocalDateTime;
@@ -52,11 +54,12 @@ public class DocGenerateHandler {
     private static final String STATUS_FAILED = "failed";
 
     private final DocumentMapper documentMapper;
-    private final DocTemplateMapper docTemplateMapper;
+    private final DocTemplateResolver docTemplateResolver;
     private final TemplateRenderer templateRenderer;
     private final TemplateHtmlValidator templateHtmlValidator;
     private final PdfRenderer pdfRenderer;
     private final PdfPageRenderer pdfPageRenderer;
+    private final PdfMetadataWriter pdfMetadataWriter;
     private final FileRecordService fileRecordService;
     private final JsonMapper jsonMapper;
 
@@ -103,7 +106,9 @@ public class DocGenerateHandler {
      * @param doc 文书
      */
     private void doGenerate(Document doc) {
-        DocTemplate template = docTemplateMapper.selectById(doc.getTemplateId());
+        // 用解析器而不是 selectById：模板升版后旧行会变 inactive，
+        // 直接 selectById + 判 active 会让「重新生成」永远 406001（4-A4 实测踩到）。
+        DocTemplate template = docTemplateResolver.activeOrDefault(doc.getTemplateId());
         if (template == null || !STATUS_ACTIVE.equals(template.getStatus())) {
             throw new BusinessException(ErrorCode.DOCUMENT_TEMPLATE_NOT_FOUND);
         }
@@ -114,10 +119,14 @@ public class DocGenerateHandler {
         templateHtmlValidator.assertWellFormed(xhtml);
 
         byte[] pdf = pdfRenderer.render(xhtml);
+        // D3：先写溯源元数据再落盘——落盘后的字节才是最终产物（哈希/MD5 以最终字节为准）。
+        // 只写 Faze-* 溯源字段，绝不写 Faze-Content-Type: AIGenerated（4-A6 反向断言）。
+        byte[] finalPdf = pdfMetadataWriter.write(pdf, doc.getId(), template.getCode(),
+                template.getVersion(), doc.getTitle());
         String pdfKey = fileRecordService.storeGenerated(FileRecordService.BIZ_DOCUMENT,
-                doc.getId(), doc.getUserId(), "pdf", pdf, "application/pdf");
+                doc.getId(), doc.getUserId(), "pdf", finalPdf, "application/pdf");
 
-        byte[] previewPng = pdfPageRenderer.renderFirstPagePng(pdf);
+        byte[] previewPng = pdfPageRenderer.renderFirstPagePng(finalPdf);
         fileRecordService.storeGenerated(FileRecordService.BIZ_DOCUMENT,
                 doc.getId(), doc.getUserId(), "png", previewPng, "image/png");
 
@@ -127,6 +136,9 @@ public class DocGenerateHandler {
         update.setId(doc.getId());
         update.setStatus(STATUS_GENERATED);
         update.setPdfOssKey(pdfKey);
+        // template_id 也指向「本次实际用的那一行」：模板升版后重新生成，文书就该挂到新行上，
+        // 否则下次复现时又会沿着旧行去解析（4-A4 第 5 步的 template_version 靠这个对齐）
+        update.setTemplateId(template.getId());
         update.setTemplateVersion(template.getVersion());
         update.setFormSnapshot(doc.getFormData());
         update.setUpdatedAt(now);
