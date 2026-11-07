@@ -3217,6 +3217,13 @@ public String validateOutput(String answer) {
 
 ### 12.3.2 隐式标识字段
 
+> **适用范围（2026-11-07 补，基线 v1.52）**：本节 5 个字段**只适用于 AI 生成内容**——即段 3 里由豆包模型产出的回答及其导出物。
+> **文书中心（段 4）生成的 PDF 不是 AIGC**：它是「用户填表 + 运营配 HTML 模板 + 占位符文本替换」，
+> 没有任何一步由模型生成。给它写 `Faze-Content-Type: AIGenerated` 属于**虚假标识**，
+> 与漏打标识一样是问题。段 4 的 PDF 只写溯源元数据（`Faze-Document-Id` / `Faze-Template-Code` /
+> `Faze-Template-Version` / `Faze-Generated-At` / `Faze-Generator`），见《第 4 段工作流》§三 D3 与锚点 `4-A6`。
+> `4-A6` 的反向断言是「全文件搜 `AIGenerated` 必须 0 处」——**照本节原文字面抄进文书 PDF 会直接判不通过**。
+
 PDF 元数据（`/Producer` 与自定义 XMP 字段）：
 
 ```text

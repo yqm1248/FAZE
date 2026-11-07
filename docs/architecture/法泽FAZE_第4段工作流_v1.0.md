@@ -127,6 +127,36 @@
 
 ---
 
+### 零.5 2026-11-07 开工前复核（19 项前置逐条实测，v1.52 新增）
+
+> 本文档写于 2026-11-01，当时 §零.1 记录的现状是「段 0~3 一次都没跑」。**段 3 收口后（2026-11-07）重新逐条实测**，
+> 结论如下。**这一节是施工的权威起点**，与 §二 的预测性要求冲突时以本节为准。
+
+**通过的 11 项**：`services/faze-api` 可启动（`ping` 200）；`task_queue` 表 12 字段齐全且两个消费者在跑（`OrderCloseTask`/`PushTask` 每 10 秒真扫，日志有 `releaseExpired`/`selectCandidateIds`）；上传通道 `POST /app/upload/token` + `GET /app/upload/url` 实测通（300s / 60s）；**openhtmltopdf 中文渲染实测通过**（A4 595.275×841.875pt、`AVCEOC+FangSong` `embedded=true`、`PDFTextStripper` 抽取中文无乱码、长段落正确折行）；`simfang.ttf`/`simhei.ttf` 都在；JWT 登录实测 200；14 个 i18n namespace 四语言齐（**含 `document.json`**）；四态组件、分页 `list`、`@OperationLog` AOP 都在；MySQL `faze_app` 可连；「不出 Word」已定。
+
+**与文档不一致、已按实际改口径的 4 项**：
+
+| # | 文档原写 | 实际 | 本版处理 |
+|---|---|---|---|
+| 1 | 云 OSS 私有桶 | `LocalFileStorage`（本地磁盘 + HMAC 自签 URL） | §二 第 6 项改本地语义。实测：无签名 → 200 + `{code:401002}`（**取不到文件内容**）、伪造签名 → 403、正确签名 → 200 + 文件 |
+| 2 | `/app/upload/token` 的 scene 白名单 5 个 | 段 4 需要的 `signature`/`document`/`doc_template` 三个场景**实测全部 401001 被拒** | **已扩白名单**（`StorageKeyRules` 两处 + `UploadBO`），提交 `b3794b5` |
+| 3 | `task_queue` 封装在 `modules/trade/` | 段 4 要从 document 域投递，等于第三次跨域注入 | **已上移到 `infra/mq`**（`TaskQueue` / `mapper/TaskQueueMapper` / `TaskQueueService` + XML namespace），提交 `ab7bf3c`，纯包移动 |
+| 4 | PC 前端路径 `pc/ruoyi-ui/` | 实际是 `pc/admin-web/`（RuoYi-Vue3 3.9.2 / Vue 3.5.26 / Vite 端口 80 / `/biz-api` → 8081） | §三 B1 路径已改 |
+
+**按负责人裁决变更的 3 项**：
+
+| # | 变更 | 影响 |
+|---|---|---|
+| 1 | **段 3 带缺口开工**：`3-A1④` 挂账、`3-A2`/`3-A3` 未通过（豆包 key 缺失） | §二 第 1 项已改；段 4 收口时与段 3 缺口一并挂账 |
+| 2 | **真机接入全部改浏览器验收**（`npx expo start --web` + Chrome 全屏截图） | §二 第 10/11 项、§三 E6、F1、§四 `4-A7` 全部改口径 |
+| 3 | **手写签名板偏离工作流**：Web 用 `react-native-svg`，不用 skia | §三 E6 已改；skia 方案留段 8 |
+
+**仍缺、但不阻塞的 1 项**：`apps/mobile-app` 缺 `expo-file-system`/`expo-sharing`/`expo-print` 三个包（§二 第 10 项第 ① 类），E/F 组开工前装。
+
+**三个要新建的产出物**（当前都不存在）：`docs/acceptance/seg4/`（证据目录）、`assets/doc-templates/`（5 份模板源文件）、`deploy/verify-seg4.ps1`（验收脚本）。
+
+---
+
 ## 零之二、2026-11-01 负责人拍板的 12 项（逐项落到哪一节）
 
 | # | 决定 | 落到哪 |
@@ -183,17 +213,17 @@
 
 | # | 检查项 | 怎么确认 | 不通过怎么办 |
 |---|---|---|---|
-| 1 | 段 3 已出口（`3-A1`~`3-A8` 全过） | 读 `docs/acceptance/seg3/` 下 8 条证据 | 回段 3 补。**不许跳过** |
+| 1 | 段 3 已出口（`3-A1`~`3-A8` 全过） | 读 `docs/acceptance/seg3/` 下 8 条证据 | **2026-11-07 负责人裁决：带缺口开工。** 段 3 的 `3-A1④` 挂账、`3-A2`/`3-A3` 未通过（豆包 key 缺失），段 4 收口时与段 3 缺口一并挂账。其余 6 条若不过仍需"回段 3 补" |
 | 2 | `services/faze-api` 可启动 | `curl /api/v1/pub/ping` 返回 `{appName,version,...}` | 回段 1 |
 | 3 | 段 2 的 `task_queue` 表已建，消费端在跑 | `SELECT * FROM task_queue LIMIT 1`；段 2 定时任务日志有「领取成功」 | 回段 2。**本段文书生成全靠它** |
 | 4 | `POST /app/upload/token` + `GET /app/upload/url` 可用 | 上传一张 PNG，拿 key，用签名 URL 取回 | 回段 1 C1 |
 | 5 | **`openhtmltopdf` 在本机渲染中文 PDF 实测通过**（**本段第一件要做的事，不是等出来再验**） | 写个 10 行的 `main`，把含中文的 HTML 渲染成 PDF，打开能看到字、能选中 | 见下方「第 5 项怎么做」 |
-| 6 | OSS 私有桶可用：能上传、能生成 60 秒签名 URL、**公开访问返回 403** | 浏览器直接开 OSS 原 URL，必须 403 | 向负责人要凭据配置 |
+| 6 | **文件存储可用**（2026-11-07 起：**本地磁盘方案，不接云 OSS**，负责人裁决） | `FileStorage` 的实现是 `LocalFileStorage`：能签发上传凭证、能生成 **60 秒**下载 URL、**无签名取不到文件内容**。实测：无签名 → HTTP 200 + `{code:401002,"exp: 不能为空"}`（不是文件内容）、伪造签名 → 403、正确签名 → 200 + 文件 | 只有改接云 OSS 时才需要凭据；本段不需要 |
 | 7 | RuoYi 后端可启动（8080）、PC 前端可运行 | 段 0 的 `0-A6` 证据 | 回段 0 |
 | 8 | **5 类模板的内容有下落**（谁写、什么时候交） | 见 §十 第 2 项。**这一项有前提问题，必须先解决** | 不许「先做机制，内容以后再说」收工 |
 | 9 | 中文正文字体确认：`C:\Windows\Fonts\simfang.ttf` 存在 | `Test-Path C:\Windows\Fonts\simfang.ttf` → True | 没有则装仿宋；**不许用「仿宋_GB2312」**（系统不自带） |
-| 10 | 移动端依赖齐备（见下方第 10 项） | `npx expo install` 能装上，`tsc --noEmit` 通过 | 缺哪个补哪个 |
-| 11 | `apps/mobile-app` 能打 dev-client 包 | 段 0 的 `0-A1` 证据 | 回段 0。**本段要 skia，Expo Go 跑不了** |
+| 10 | 移动端依赖齐备（**2026-11-07 起按浏览器验收精简，见下方第 10 项**） | `npx expo install` 能装上，`tsc --noEmit` 通过 | 缺哪个补哪个 |
+| 11 | ~~`apps/mobile-app` 能打 dev-client 包~~ → **改由浏览器验收取代** | 改为 `npx expo start --web` 能跑起来（8090）且 `tsc --noEmit` 通过 | 段 0 的 dev-client 包**没打**；负责人 2026-11-07 裁决「真机接入全部改为浏览器验收」，本项不再阻塞 |
 | 12 | 段 1 的 JWT 与 `currentUser` 上下文可用 | 带 token 请求 `/api/v1/app/xxx` 返回 200 | 回段 1 |
 | 13 | 分页三场景的实现可用（C 端 `list`） | 段 2 的列表接口是同一套 | 回段 2 |
 | 14 | `operation_log` 的 AOP 可用（管理端写接口自动审计） | 段 1 验收证据 | 回段 1 |
@@ -252,22 +282,36 @@ try (OutputStream os = new FileOutputStream("out.pdf")) {
 - 退路一：改用 **flying-saucer-pdf-openpdf**（`org.xhtmlrenderer:flying-saucer-pdf-openpdf`，LGPL）
 - 退路二：回到 **`.docx` + LibreOffice**（即变更一的状态），但需要负责人重新确认「不要 Word」这个决定可以推翻
 
-### 第 10 项：移动端必须装齐的依赖
+### 第 10 项：移动端依赖（2026-11-07 按浏览器验收改口径）
 
-| 包 | 用途 | 装法 |
+**总口径**：真机接入全部改为浏览器验收（`npx expo start --web` + Chrome 全屏截图）。所以依赖分三类，
+**不要按原清单一次装齐**——装了就得上，上了就得出验收结论，而 Web 上有些能力根本验不了。
+
+**① 本段必须装（Web 上真的能用）**：
+
+| 包 | 用途 | 状态 |
 |---|---|---|
-| `expo-print` | 打印（`4-A7`） | `npx expo install expo-print` |
-| `expo-sharing` | 系统分享面板（`4-A7`） | `npx expo install expo-sharing` |
-| `expo-file-system` | 下载 PDF 到本地（`4-A7`） | `npx expo install expo-file-system` |
-| `expo-media-library` | 存相册（仅图片；PDF 走分享面板） | `npx expo install expo-media-library` |
-| `@shopify/react-native-skia` | 手写签名板（`4-A5`） | `npx expo install @shopify/react-native-skia` |
-| `react-native-gesture-handler` | 拖拽定位签名（`4-A5`） | `npx expo install react-native-gesture-handler` |
-| `react-native-reanimated` | 同上（手势动画） | `npx expo install react-native-reanimated` |
-| `react-native-view-shot` | 把手写板导出 PNG | `npx expo install react-native-view-shot` |
+| `react-native-gesture-handler` | 手写签名板手势（`4-A5`） | ✅ 已在（~2.28.0） |
+| `expo-image-picker` | 相册选签名图（`4-A5`） | ✅ 已在（~17.0.11） |
+| `react-native-svg` | **Web 手写签名板**（替代 skia，`4-A5`/E6） | ✅ 已在（段 3 引入 15.12.1） |
+| `expo-file-system` | 下载 PDF（`4-A7`，浏览器降级形态） | `npx expo install expo-file-system` |
+| `expo-sharing` | 分享（`4-A7`，Web 走 `navigator.share`，不支持就记限制） | `npx expo install expo-sharing` |
+| `expo-print` | 打印（`4-A7`，Web 走 `window.print()`） | `npx expo install expo-print` |
+
+**② 留段 8（本段不装、不验收）**：
+
+| 包 | 为什么推迟 |
+|---|---|
+| `@shopify/react-native-skia` | 原生模块 + CanvasKit wasm，Expo Go 跑不了；Web 手写板改用 `react-native-svg` |
+| `expo-media-library` | 浏览器没有"相册"概念，无处验 |
+| `react-native-reanimated` | 只在 skia 方案的手势动画下需要 |
+| `react-native-view-shot` | 只在 skia 方案下导出 PNG；svg 方案直接用 `toDataURL` |
+
+**为什么这么切（这是本段最容易装错的一处）**：`expo-sharing` 在 Web 没有系统分享面板、`expo-media-library` 无相册、
+`expo-print` 只能 `window.print()` 当前页（打不了指定的本地 PDF）、`expo-file-system` 在 Web 上大半 API 不可用。
+把它们列进"必须装"会让 `4-A7` 变成「装了、但验不了」，比不装更糟——**验收证据会是假的**。
 
 **版本对齐**：全部用 `npx expo install`（按 SDK 54 兼容矩阵选版本），**不要用 `npm install` 手写版本号**。
-
-**skia 需要 dev-client**：原生模块，Expo Go 跑不了。段 0 的 `0-A1` 已经要打 dev-client 包，不是本段新增成本，但**必须确认段 0 真的打了**（第 11 项）。
 
 ---
 
@@ -549,7 +593,7 @@ try (OutputStream os = new FileOutputStream("out.pdf")) {
 
 **怎么做**：
 
-1. **页面位置**（`AGENTS.md` §3.3）：`pc/ruoyi-ui/src/views/biz/document/template/index.vue` + `edit.vue`，API 在 `src/api/biz/document/template.js`。
+1. **页面位置**（`AGENTS.md` §3.3，**2026-11-07 修正路径**：PC 前端实际目录是 `pc/admin-web`，不是 `pc/ruoyi-ui`）：`pc/admin-web/src/views/biz/document/template/index.vue` + `edit.vue`，API 在 `pc/admin-web/src/api/biz/document/template.js`。
 
 2. **5 个接口**：
 
@@ -1025,8 +1069,8 @@ try (OutputStream os = new FileOutputStream("out.pdf")) {
 
 **做什么**：签名库列表、手写新签名、上传签名图片、删除。
 **怎么做**：
-1. **手写板**：`@shopify/react-native-skia` 画路径 + `react-native-gesture-handler` 收手势；清空、撤销、确认。
-2. **导出 PNG**：`react-native-view-shot` 截手写区域 → **透明底** PNG → 走 `POST /app/upload/token` 直传 → `POST /app/signatures` 回填 `image_oss_key`。
+1. **手写板**（**2026-11-07 改：Web 验收下用 `react-native-svg`，不用 skia**）：`<Svg>` + `<Path>` 画路径、`react-native-gesture-handler` 收手势；清空、撤销、确认。skia 方案留段 8（原生模块 + CanvasKit wasm，Expo Web 跑不动）。
+2. **导出 PNG**：`Svg.toDataURL()` 出**透明底** PNG → 走 `POST /app/upload/token`（`scene=signature`）直传 → `POST /app/signatures` 回填 `image_oss_key`。**不用 `react-native-view-shot`**（Web 不可靠，svg 自带导出）。
 3. **上传图片**：`expo-image-picker` 选相册图 → 同上流程。**白底图叠到 PDF 上会是一个白块**，页面要提示用透明底。
 4. **列表**：`GET /app/signatures`，缩略图 + 创建时间 + 删除。
 5. **上限提示**：到 5 个时「新增」置灰并说明。
@@ -1043,20 +1087,20 @@ try (OutputStream os = new FileOutputStream("out.pdf")) {
 
 **做什么**：四种出口都要能用，且都基于**真实文件**。
 
-| 功能 | 实现 | 注意 |
+| 功能 | 浏览器验收下的实现 | 注意 |
 |---|---|---|
-| 下载 PDF | `GET /app/documents/{id}/export?format=pdf` → 60 秒签名 URL → `expo-file-system` 下载 | 下载完给「已保存到」提示 |
-| 分享 | `expo-sharing` 调系统面板，传**本地文件 URI** | 分享给律师走 IM 是段 5，本段只做系统分享 |
-| 存相册 | **仅图片格式**；PDF 走分享面板 | 技术路线 §10.5：PDF 不存相册 |
-| 打印 | `expo-print` 调系统打印面板，传**本地 PDF** | 边距已在生成时处理好，不在客户端再算 |
+| 下载 PDF | `GET /app/documents/{id}/export?format=pdf` → 60 秒签名 URL → 浏览器 `<a download>` / blob 下载 | 下载完给「已保存到下载目录」提示 |
+| 分享 | `navigator.share`（`expo-sharing` 的 Web 实现）；`isAvailableAsync()` 为 false 时按钮置灰 + 说明 | 系统分享面板本身留段 8；分享给律师走 IM 是段 5 |
+| 存相册 | **本段不做**（`expo-media-library` 无 Web 实现） | 留段 8 |
+| 打印 | `expo-print` 在 Web 上触发 `window.print()`；**不验「打印指定本地 PDF」**（浏览器不允许） | 边距已在生成时处理好，不在客户端再算 |
 
 1. **导出接口**：`GET /app/documents/{id}/export?format=pdf`，返回 `{url, fileName, expiresIn: 60}`。
 2. **`format` 只支持 `pdf`**（不出 Word，§零.3 第 12 项）。传别的值 → `400`。
 3. **下载留痕**：签名图下载写 `operation_log`；**文书下载不审计**（本段裁决，理由：文书是用户自己的非敏感他人数据；若负责人要求，见 §十 第 3 项）。
 
 **产出物**：`features/document/api/export.ts`、预览页导出面板
-**自查**：四项都能用（真机实测，每项截图）；下载的 PDF 能打开且内容与预览一致；打印面板边距正确；Android 必验
-**常见失败**：分享的是 URL 不是本地文件（接收方打不开）；打印传了 URL。
+**自查**：下载能拿到真 PDF 且能打开（浏览器实测）；不支持 `navigator.share` 时降级提示正确；打印能触发 `window.print()`；`export?format=docx` 返回 400。**存相册与"打印指定 PDF"留段 8，不判通过。**
+**常见失败**：分享/下载给的是预览 PNG 不是 PDF；`format` 没做白名单直接 500；把「装了 expo-sharing」当成「分享可用」。
 
 ---
 
@@ -1072,7 +1116,7 @@ try (OutputStream os = new FileOutputStream("out.pdf")) {
 
 **前置**：C3、B1。
 **产出物**：C1 的 `generate` 补全、`docs/acceptance/seg4/F2-regen.md`
-**自查**：改表单 → 重新生成 → 预览更新且旧 PDF 仍在 OSS；运营改模板（v1→v2）→ 历史文书重下载仍是旧内容；历史文书重新生成 → `template_version=2`；连生成 3 次 → `file_record` 有 3 组产物
+**自查**：改表单 → 重新生成 → 预览更新且旧 PDF 仍在存储里；运营改模板（v1→v2）→ 历史文书重下载仍是旧内容；历史文书重新生成 → `template_version=2`；连生成 3 次 → `file_record` 有 3 组产物
 **常见失败**：重新生成覆盖同一个 `oss_key`（`4-A4` 失败）；`template_version` 不更新。
 
 ---
@@ -1082,7 +1126,7 @@ try (OutputStream os = new FileOutputStream("out.pdf")) {
 #### G1 · 验收脚本 `deploy/verify-seg4.ps1`
 
 **做什么**：把 8 条锚点能自动验的部分脚本化，不能自动的留人工判定入口。
-**怎么做**：先建骨架跑出「8 条全部未通过」，再逐条接实现。可自动验：`4-A1`（生成后搜 `{{`）、`4-A3`（PDF 抽文字比对）、`4-A4`（改模板后重下 hash 不变）、`4-A6`（读元数据）、`4-A8`（失败后查库与临时目录）。必须人工：`4-A2`（版式目视，可脚本化「字体是否嵌入」）、`4-A5`（量位置偏差）、`4-A7`（真机操作）。
+**怎么做**：先建骨架跑出「8 条全部未通过」，再逐条接实现。可自动验：`4-A1`（生成后搜 `{{`）、`4-A3`（PDF 抽文字比对）、`4-A4`（改模板后重下 hash 不变）、`4-A6`（读元数据）、`4-A8`（失败后查库与临时目录）。必须人工：`4-A2`（版式目视，可脚本化「字体是否嵌入」）、`4-A5`（量位置偏差）、`4-A7`（**浏览器操作 + 降级判定**，2026-11-07 起不是真机操作）。
 **产出物**：`deploy/verify-seg4.ps1`
 **自查**：空跑时 8 条全报「未通过」；每条输出具体判据
 
@@ -1210,22 +1254,29 @@ try (OutputStream os = new FileOutputStream("out.pdf")) {
 - **依赖任务**：D3。
 - **最容易糊弄的地方**：**照旧文档抄回 `AIGenerated`**（技术路线 §12.3.2 还那么写着）；`Faze-Template-Version` 硬编码 `1`；时间没标时区。
 
-### `4-A7` 后处理链
+### `4-A7` 后处理链（**2026-11-07 口径变更：浏览器验收，原生能力留段 8**）
 
 - **原文**：「我的文书列表 → 重新下载 / 分享 / 存相册 / 打印」→「四项都可用；列表能翻页、能按类型筛选」。
-- **本段口径**：「重新下载」只指 PDF（不出 Word）。
-- **怎么验**（真机，逐项截图）：
-  1. 进「我的文书」→ 能看到刚生成的文书。
-  2. **重新下载**：点下载 → 文件保存到本地 → 打开正常。
-  3. **分享**：点分享 → 系统面板出现 → 选一个 App → 文件能传出。
-  4. **存相册**：对**图片格式**操作；PDF 应走分享面板（验「PDF 时该按钮不出现或提示走分享」）。
-  5. **打印**：点打印 → 系统打印面板 → 预览边距正确。
-  6. **翻页**：文书 > 10 份时翻到第 2 页，数据不重复不丢。
-  7. **按类型筛选**：选「诉讼文书」→ 只剩起诉状与证据清单。
-- **通过标准（二值）**：1–7 全为真 → 通过。
-- **证据文件**：`docs/acceptance/seg4/4-A7.md`（7 步截图 + 第 2 页数据与第 1 页无交集的证明）。
+- **本段口径**：
+  1. 「重新下载」只指 PDF（不出 Word）。
+  2. **真机接入全部改为浏览器验收**（负责人 2026-11-07 裁决）。浏览器能验的必须验；验不了的（系统分享面板、存相册、指定 PDF 打印）**留段 8**，本段只验「接口层 + 浏览器降级形态」。
+- **怎么验**（浏览器，逐项截图）：
+
+  | # | 项 | 浏览器下的验收方式 | 判定 |
+  |---|---|---|---|
+  | 1 | 列表能看到刚生成的文书 | 进「我的文书」→ 首条是刚生成的 | 必须过 |
+  | 2 | 重新下载 | 点下载 → 浏览器把 PDF 存到本地 → 打开正常、内容与预览一致 | 必须过 |
+  | 3 | 导出接口 | `GET /app/documents/{id}/export?format=pdf` 返回 `{url,fileName,expiresIn:60}`；`url` 直接打开能下到文件；**61 秒后同一 url → 403** | 必须过 |
+  | 4 | 分享 | Web 走 `navigator.share`；`isAvailableAsync()` 为 false 时按钮置灰 + 提示「当前浏览器不支持系统分享」 | 降级通过（记录浏览器限制） |
+  | 5 | 存相册 | **不做**——`expo-media-library` 无 Web 实现 | 留段 8 挂账 |
+  | 6 | 打印 | 只验 `expo-print` 在 Web 能弹 `window.print()` 且预览含当前页；**不验「打印指定的本地 PDF」**（浏览器不允许） | 降级通过（记录限制） |
+  | 7 | 翻页 | 文书 > 10 份时翻到第 2 页，两页 id 无交集 | 必须过 |
+  | 8 | 按类型筛选 | 选「诉讼文书」→ 只剩起诉状与证据清单 | 必须过 |
+
+- **通过标准（二值）**：①必须过的 5 项（1/2/3/7/8）全为真；②降级项（4/6）在证据里写清「浏览器限制 + 实际行为」；③留段 8 项（5）登记为挂账。**三项都满足才算通过**。
+- **证据文件**：`docs/acceptance/seg4/4-A7.md`（下载下来的 PDF 本体 + 打开截图 + export 的 60s/61s 两次响应 + 翻页 id 比对 + 筛选截图 + 降级/挂账说明）。
 - **依赖任务**：E5、F1。
-- **最容易糊弄的地方**：「分享」分享的是 URL 不是文件；「打印」只弹面板没验边距；翻页只验「有第 2 页」没验不重复。
+- **最容易糊弄的地方**：把「装了 `expo-sharing` 就算分享可用」当通过（Web 上根本没面板）；下载点的是预览图 PNG 而不是 PDF；翻页只验「有第 2 页」没验两页无交集。
 
 ### `4-A8` 失败不留半成品
 
@@ -1320,14 +1371,15 @@ try (OutputStream os = new FileOutputStream("out.pdf")) {
 | `com.openhtmltopdf:openhtmltopdf-pdfbox` | 1.0.10 | HTML/CSS → PDF，中文渲染 | 唯一成熟的「HTML→PDF」LGPL 方案；**内部就是 PDFBox**；见下方风险 |
 | `org.apache.pdfbox:pdfbox` | 2.0.30（**由上一行间接引入，不单独声明**） | 签名叠图、PDF 转 PNG、元数据读写、字体嵌入检查 | 技术路线 §2.3 定 2.0.x |
 | `monaco-editor`（PC 前端） | 最新 | A-18 的 HTML 模板编辑器 | 富文本编辑器会生成脏 HTML，openhtmltopdf 必炸；代码编辑器可控 |
-| `expo-print` | SDK 54 对齐 | 打印 | `AGENTS.md` §4 第 12 条要求登记 |
-| `expo-sharing` | 同上 | 分享 | 同上 |
-| `expo-file-system` | 同上 | 下载 | 同上 |
-| `expo-media-library` | 同上 | 存相册 | 同上 |
-| `@shopify/react-native-skia` | 同上 | 手写签名板 | 技术路线 §2.3 已定 |
-| `react-native-gesture-handler` | 同上 | 手势 | Expo 标准 |
-| `react-native-reanimated` | 同上 | 手势动画 | gesture-handler 配套 |
-| `react-native-view-shot` | 同上 | 手写板导出 PNG | 比 skia 自带导出更稳 |
+| `expo-print` | SDK 54 对齐 | 打印 | 同上；**Web 验收只验触发 `window.print()`** |
+| `expo-sharing` | 同上 | 分享 | 同上；**Web 走 `navigator.share`，无系统面板留段 8** |
+| `expo-file-system` | 同上 | 下载 | 同上；Web 上大半 API 不可用，下载改浏览器原生方式 |
+| ~~`expo-media-library`~~ | — | ~~存相册~~ | **不装**：无 Web 实现，留段 8 |
+| ~~`@shopify/react-native-skia`~~ | — | ~~手写签名板~~ | **不装**：原生模块 + CanvasKit wasm，Expo Web 跑不动；Web 手写板用 `react-native-svg` |
+| `react-native-gesture-handler` | 同上 | 手势 | Expo 标准（已在 ~2.28.0） |
+| `react-native-svg` | 15.12.1（已在） | **Web 手写签名板** | 段 3 已引入，本段复用它画路径 + `toDataURL()` 导出 |
+| ~~`react-native-reanimated`~~ | — | ~~手势动画~~ | **不装**：只在 skia 方案需要 |
+| ~~`react-native-view-shot`~~ | — | ~~手写板导出 PNG~~ | **不装**：svg 方案直接 `toDataURL()` |
 
 **已从依赖清单移除的**：`com.deepoove:poi-tl`（不出 Word，不再需要）、LibreOffice（不装）、`lombok` 无关项不动。
 
@@ -1437,7 +1489,7 @@ try (OutputStream os = new FileOutputStream("out.pdf")) {
 | 7 | ⏳ 未做 | `doc_template` 偏离 `is_enabled` 的登记，属「收口时」 |
 | 9 | ⏳ 未做 | PC 设计说明的 A-18 不实现记录，属「收口时」 |
 | 10 | ⏳ 未做 | 本次（v1.29）只做本文档的登记，属「收口时」 |
-| 11 | ⏳ **未做（本次新发现）** | 技术路线 §12.3.2 仍写着 `Faze-Content-Type: AIGenerated`，是**开工前**必须清掉的硬矛盾 |
+| 11 | ✅ **已完成（2026-11-07，基线 v1.52）** | 《技术路线》§12.3.2 已加「适用范围」限定：那 5 个隐式标识字段只适用于 AI 生成内容，**文书 PDF 不得打 `Faze-Content-Type: AIGenerated`**（属虚假标识），只写溯源元数据 |
 
 ---
 

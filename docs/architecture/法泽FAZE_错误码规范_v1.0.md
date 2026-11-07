@@ -192,7 +192,7 @@ NNN = 3 位：域内序号，从 001 起
 | `406004` | **403** | `error.document.forbidden` | 无权访问该文书 |
 | `506001` | 200 | `error.document.generate-failed` | 文书生成失败 |
 | `506002` | 200 | `error.document.pdf-failed` | PDF 转换失败 |
-| `506003` | 200 | `error.document.font-missing` | 所需字体缺失（少数民族文字） |
+| `506003` | 200 | `error.document.font-missing` | 渲染所需字体缺失（**中文场景指仿宋 `simfang.ttf` 不存在或 `doc.font.path` 配错**）。2026-11-07 改：段 4 起文书只做中文，本码不再表示「少数民族文字缺失」 |
 
 ## 3.7 案件域 `07`
 

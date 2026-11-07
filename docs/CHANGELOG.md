@@ -4,6 +4,47 @@
 
 ---
 
+## 2026-11-07 · 第 4 段开工前置（前提复核 + 文档回写 + 2 个代码前置，基线 v1.52）
+
+> 第 4 段（文书中心）开工前审查：19 项前置逐条实测。结论是 **14 项通过、3 项未通过（段 3 带缺口开工）、2 项口径要改**。
+> 负责人当天裁决：①段 3 缺口与段 4 一起挂账；②文件存储继续走本地实现、不接云 OSS；③真机接入全部改浏览器验收，`4-A7` 只验接口层 + 浏览器能做的部分，原生能力（分享面板/存相册/打指定 PDF）留段 8；④手写签名板可以偏离工作流（Web 用 `react-native-svg` 替 skia）；⑤存储白名单按建议扩、`task_queue` 按建议上移、技术路线 §12.3.2 可以改。
+
+### 1. 代码前置（2 个提交）
+
+| 提交 | 改了什么 |
+|---|---|
+| `b3794b5` | 存储场景白名单新增 `signature` / `document` / `doc_template`。改前实测三个场景调 `/app/upload/token` **全返回 401001**；`ALLOWED_SCENES` 与 `KEY_PATTERN` 必须同步扩（只改一处会 build 成功但 PUT 403）。`document`/`doc_template` 不进 `UploadBO`，避免客户端自传公文 |
+| `ab7bf3c` | `task_queue` 三件套从 `modules/trade/` 上移到 `infra/mq/`（含 XML namespace）。段 4 要从 document 域投递 `DOC_GENERATE`，继续挂在 trade 下就是第三个域跨域注入。纯包移动，`mvn compile` 通过 |
+
+### 2. 关键实测（openhtmltopdf 开工前置，§二 第 5 项）
+
+用独立临时工程 `E:\dshcode\faze-probe-pdf` 跑通中文 PDF：
+
+```text
+pages=1  pageSize=595.275 x 841.875   （A4 ✅）
+font=AVCEOC+FangSong  embedded=true   （子集嵌入 ✅）
+textLength=169  hasTitle=true hasParty=true hasAmount=true
+```
+
+`PDFTextStripper` 抽出的中文无乱码、长段落正确折行、字体已嵌入。**这条技术风险排除**，A2 可以按 openhtmltopdf 1.0.10 实现。
+
+### 3. 文档（基线 v1.51 → v1.52，内容变更 4 份）
+
+| 文件 | 改了什么 |
+|---|---|
+| `法泽FAZE_技术路线_v2.3.md` | §12.3.2 加适用范围：5 个隐式标识字段只适用于 AI 生成内容；**文书 PDF 不是 AIGC，不得打 `Faze-Content-Type: AIGenerated`**（虚假标识），只写溯源元数据 |
+| `法泽FAZE_第4段工作流_v1.0.md` | 新增 §零.5 复核节；§二 第 1/6/10/11 项改口径（段 3 挂账、本地存储、浏览器验收）；§三 B1 路径 `pc/ruoyi-ui`→`pc/admin-web`；E6 手写板改 `react-native-svg`；F1 改浏览器降级；§四 `4-A7` 重写为「5 必须 + 2 降级 + 1 挂账」；§五.6 划掉 4 个不装的包；§九 第 11 项标完成 |
+| `法泽FAZE_错误码规范_v1.0.md` | `506003` 从「少数民族文字字体缺失」改为「中文场景指仿宋缺失 / 路径配错」 |
+| `docs/README.md` | 基线号 v1.51 → v1.52 |
+
+### 4. 本轮仍缺（不阻塞 A/B/C 组）
+
+- `apps/mobile-app` 缺 `expo-file-system` / `expo-sharing` / `expo-print` 三个包（E/F 组开工前装）。
+- 段 3 的 `3-A1④` 挂账、`3-A2`/`3-A3` 未通过（豆包 key），按裁决与段 4 一起挂账。
+- `5 份模板的法律文本准确性`仍待人工核对（本机 `web_fetch` 对外网全拦，拿不到官方原文）。
+
+---
+
 ## 2026-11-07 · 段 3 收口后补两项（法条库扩到 34 条 / 段 2 菜单补 seed，基线 v1.51）
 
 > 负责人对 F~I 收口上报的 7 个问题的裁决：「豆包后面还是给」「法条库可以扩到 30 题」「换机器没有菜单入库的话现在补上」「安卓真机不急」「不用构造真实数据」。
