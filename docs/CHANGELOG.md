@@ -45,13 +45,27 @@
 | B5 服务费 | `trade/order/detail.vue` 删掉「服务费结算见段 5」，改为按 `platform_fee_cents` 计算的说明行；`AdminOrderDetailVO` 补两个金额字段；**不写 `payment_record`** |
 | 菜单种子 | `database/seed/seg5_admin_menu.sql`（menu_id 2220「案件管理」） |
 
-### 4. 已知缺口（不掩盖）
+### 4. 实测结果（摸清登录口径后完成）
 
-1. **功能验收未跑通**：登录接口参数口径未摸清（`/pub/auth/login/password` 返 `401001`），导致 C/D 组接口没有用真实数据打过一次。
-2. `5-A3`（送达全链）、`5-A4`（收入逐笔对账）、`5-A6`（改价即生效）**不可验**。
-3. `5-A4` 还依赖 E 组的收入入账，本轮未开始 E 组。
+- **`5-A3` 送达全链通过**：PC 发起 → `SD20261108000001` pending → APP 待签收 → 签收 `code=200` →
+  再签 `code=407007`（首次时间不被覆盖）→ 回执含 `signedAt` / `signDevice=web seg5-ddevice` / `ip=127.0.0.1`。
+- **`5-A6` 改价即生效通过**：改价 7000 → `GET /app/lawyers/2` 立即返回 7000（无缓存）。
+- **D4 区间校验通过**：1900 → `405006`；2000 → `200`；200100 → `405006`；`autoAccept` 写入并回读为 true。
+- **D5 读写通过**：`GET/PUT /app/workbench/profile` 往返一致。
+- **B2 审核通过**：approve → `accepted`，状态筛选命中，进度时间轴新增 `accepted` 节点。
+- **实测中新发现并修掉 3 个缺陷**：
+  1. 审计 `detail` 全为 NULL（`CASE_AUDIT`/`DELIVERY_SEND` 只有动作码，没有 before/after）→ 补 `AuditContext.mark`；
+  2. `GET /app/workbench/conversations` 与段 2 映射冲突，API 启动 `Ambiguous mapping` 失败 → D1 改路径；
+  3. 工作台首页没有设计稿要求的宫格 → 补 6 项。
 
-### 5. 偏差（新增 8 条，详见 `PROGRESS-C-D.md` §四）
+### 5. 仍未验证（不掩盖）
+
+1. **D2 发送文书**：库里 36 份文书全是用户委托（`lawyer_id` 为空），没有「律师代写」的文书，
+   所以 `POST /workbench/documents/{id}/send` 与「客户侧收到文书消息」**未实测** → `5-A2` 最后一段仍缺。
+2. **`5-A4` 收入逐笔对账**：依赖 E 组（律师收入入账），当前 `balance_flow` 没有律师 income 流水。
+3. `correctProgress` 的审计 detail 尚未补（只补了审核与送达两处）。
+
+### 6. 偏差（新增 8 条，详见 `PROGRESS-C-D.md` §四）
 
 其中两条会影响验收口径：D1 接口路径改用 `/workbench/consultations`（原路径段 2 已占用，重复映射会让 Spring 启动失败）；D2 的「发送」放在列表而非预览页。
 

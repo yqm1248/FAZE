@@ -45,10 +45,23 @@
 - 未登录访问 `GET /api/v1/app/case-deliveries` 返回 **HTTP 401**（实测）。
 - 送达页源文件全文不含「人民法院」「报送」「确认书」三个词（构造上就不可能：这三样都删了）。
 
-**未验证（缺口，必须在收口前补）**
+**补充实测（2026-11-08 04:20，摸清登录口径后跑通）**
 
-- **签收全流程未跑通**：需要真机/浏览器登录用户账号，本轮因登录接口参数口径未摸清而放弃（`/pub/auth/login/password` 返回 `401001`）。
-- 因此「PC 发起送达 → APP 待签收 → 签收 → `case_delivery.signed_at` 有值」这条 `5-A3` 验收链**尚未实测**。
+登录口径：`POST /api/v1/pub/auth/login/password`，body 必须含 `deviceId`（缺了返 `401001`）。
+用 `13800000001 / 123456`（`app_user.id=1`、`lawyer.id=2`）拿到律师 token；
+管理员用 RuoYi `POST http://127.0.0.1:8080/login`（`admin/admin123`）拿 token，两端共享 Redis 可直打 `/admin/**`。
+
+| 验收链 | 实测 | 结果 |
+|---|---|---|
+| C1 发起送达 | `POST /admin/cases/1/deliveries {documentId:38, method:platform}` | ✅ `code=200`，生成 `SD20261108000001`，`status=pending` |
+| C1 送达列表 | `GET /admin/cases/1/deliveries` | ✅ 1 条，回执号与文书 id 正确 |
+| C2 待签收 | `GET /app/case-deliveries?status=pending` | ✅ total=1 |
+| C2 签收 | `POST /app/case-deliveries/1/confirm` | ✅ `code=200` |
+| C2 幂等 | 再签一次 | ✅ `code=407007`，首次签收时间未被覆盖 |
+| C3 回执 | `GET /app/case-deliveries/1` | ✅ `receiptNo=SD20261108000001`、`status=signed`、`signedAt` 有值、`signDevice=web seg5-ddevice`、文书名正确 |
+| C1 库内证据 | `SELECT receipt_no,status,signed_at,sign_device,ip FROM case_delivery WHERE id=1` | ✅ `signed / 1 / web seg5-ddevice / 127.0.0.1` |
+
+`5-A3`（送达全链）**已通过**。
 
 ---
 
@@ -71,11 +84,30 @@
 - `scripts/check-i18n.ps1` 全绿：四目录同构 / 缺译已登记 / 占位符一致（实测）。
 - 测试律师账号存在：`app_user.id=1`（`13800000001`）、`lawyer.id=2`、`实名=验收律师甲`。
 
-**未验证（缺口，必须在收口前补）**
+**补充实测（2026-11-08 04:20）**
 
-- **登录拿 token 失败**，导致 D1~D5 的接口**没有跑过一次真实数据**：返回体形状、金额口径、
-  未读优先排序、发送文书后 `sent_at` 是否回填、改价后律师详情页是否立刻变价，**全部未实测**。
-- `5-A4`（收入逐笔对账）与 `5-A6`（改价即生效）因此**尚不可验**。
+| 验收链 | 实测 | 结果 |
+|---|---|---|
+| D1 客户咨询 | `GET /app/workbench/consultations` | ✅ 真实数据：1 条会话，`unreadCount=2`、`orderPaid=true`、`peerPhoneMasked=139****0009` |
+| D2 文书列表 | `GET /app/workbench/documents` | ⚠️ 200 但 total=0：库里 36 份文书全是**用户委托**（`lawyer_id` 为空），没有一份是「律师代写」；**发送动作因此未实测** |
+| D3 收入概览 | `GET /app/workbench/income?range=month` | ✅ 200，字段形状正确（全 0，因为 E 组收入入账未做） |
+| D3 明细 | `GET /app/workbench/income/flows?range=month` | ✅ 200，`list` 空、`nextCursor=null`、`hasMore=false` |
+| D4 读设置 | `GET /app/workbench/service-settings` | ✅ 真实价格 6000/8000/20000，上下限 2000/200000 |
+| D4 价格 19 元 | `PUT {consultPriceCents:1900}` | ✅ `code=405006` |
+| D4 价格 20 元 | `PUT {consultPriceCents:2000}` | ✅ `code=200` |
+| D4 价格 2001 元 | `PUT {consultPriceCents:200100}` | ✅ `code=405006` |
+| D4 自动接单 | `PUT {consultPriceCents:6000, autoAccept:true}` → 回读 | ✅ 回读 `autoAccept=true` |
+| **5-A6 改价即生效** | 改成 7000 → `GET /app/lawyers/2` | ✅ 立即返回 `consultPriceCents=7000`（无缓存，符合「不缓存律师价格」） |
+| D5 读资料 | `GET /app/workbench/profile` | ✅ 真实姓名 / 执业证号 / 8 项字段齐全，`specialties` JSON 数组解析正确 |
+| D5 写资料 | `PUT {bio:"...seg5-d-smoke"}` → 回读 | ✅ 写成功且回读包含标记 |
+
+`5-A6` **已通过**。
+
+**仍未验证**
+
+- **D2 发送文书**：需要一份 `lawyer_id` 非空的文书（段 4 从未产生过这种数据）——要么先做一次「律师代写」的完整流程，要么造一条测试数据。**`5-A2` 的「客户侧收到文书消息」因此未验。**
+- **`5-A4` 收入逐笔对账**：依赖 E 组（律师收入入账）先落地，当前 `balance_flow` 没有律师 `income` 流水。
+- **`workbench/documents/{id}/send` 的 403/406 分支**：没有可用的 `lawyer_id` 文书，非本人文书的拒绝分支未跑。
 
 ---
 
@@ -94,10 +126,24 @@
 
 ---
 
-## 五、下一轮必须做的（按优先级）
+## 五、本轮实测中新发现并修掉的缺陷
 
-1. **摸清登录口径**，用 `13800000001 / 123456` 拿到 token，把 D1~D4 的 6 个接口各打一次，记录真实返回。
-2. 打通 `5-A3` 送达链：PC 发起 → APP 待签收 → 签收 → 查库 `signed_at/receipt_no/sign_device` 非空。
-3. 打通 `5-A4`：`balance_flow` 汇总与页面金额逐笔对账（需要先跑 E 组的收入入账）。
-4. 打通 `5-A6`：改价后 `GET /app/lawyers/{id}` 立刻返回新价；关掉图文后下单被拒。
-5. 上述任一条跑不通，先修接口再做 E~H 组。
+| # | 缺陷 | 怎么发现的 | 修法 |
+|---|---|---|---|
+| 1 | **审计 `detail` 全是 NULL**：`CASE_AUDIT` / `DELIVERY_SEND` 两条日志只有动作码，没有 before/after | 跑完审核与送达后查 `operation_log` 发现 detail 为空 | 在 `AdminCaseService.audit` 与 `AdminDeliveryService.send` 里显式调 `AuditContext.mark(...)` 写入变更明细；复测两条 detail 分别为 `{"before":{"status":"filed"},"after":{"status":"accepted"},"reason":null}` 与 `{"caseId":2,"documentId":38,"method":"platform","receiptNo":"SD20261108000002"}` |
+| 2 | **`GET /app/workbench/conversations` 与段 2 冲突**，API 启动直接 `Ambiguous mapping` 失败 | 重启 API 时启动失败 | D1 改走 `/app/workbench/consultations`，段 2 旧契约不动 |
+| 3 | **律师工作台首页没有宫格**（段 2 只做了一个按钮） | 对照设计稿 D6 | `WorkbenchPage` 补 6 项宫格 |
+
+**教训**：前两条都属于「编译通过 ≠ 能跑」。`mvn compile` 不会发现映射冲突（那是 Spring 启动期），
+也不会有任何静态检查告诉你「审计 detail 没写」。这两件事只有真的启动一次、真的打一次接口才能发现。
+
+---
+
+## 六、下一轮必须做的（按优先级）
+
+1. **造一份 `lawyer_id` 非空的文书**（或跑通「律师代写」流程），验证 `POST /workbench/documents/{id}/send`
+   真的写出一条 `msg_type=doc` 消息且 `document.sent_at` 被回填 —— 这是 `5-A2` 的最后一段。
+2. 做 E 组（律师收入入账），让 `balance_flow` 有 `owner_type=lawyer, biz_type=income` 的流水，
+   再回来验 `5-A4`（页面金额与流水逐笔对账）。
+3. 补 `correctProgress` 的审计 detail（本轮只补了审核与送达两处）。
+4. 上述任一条跑不通，先修接口再做 F~H 组。

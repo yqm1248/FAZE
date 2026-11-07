@@ -48,6 +48,13 @@ public class AdminDeliveryService {
     @OperationLog(module = "caseflow", action = "DELIVERY_SEND", targetType = "CASE_DELIVERY")
     public DeliveryRowVO send(Long caseId, DeliveryCreateBO bo) {
         DeliveryRowVO vo = deliveryService.send(caseId, bo);
+        // 审计 detail 记「文书 id + 方式 + 回执号」（工作流 C1 第 5 条）。
+        // 不写 OSS key、不写用户身份信息（《审计与日志规范》§4.3 禁 L4/L5）。
+        com.faze.common.audit.AuditContext.mark("caseflow", "DELIVERY_SEND", "CASE_DELIVERY",
+                String.valueOf(vo.getId()),
+                "{\"caseId\":" + caseId + ",\"documentId\":" + bo.getDocumentId()
+                        + ",\"method\":\"" + vo.getMethod() + "\",\"receiptNo\":\""
+                        + vo.getReceiptNo() + "\"}");
         log.info("PC 发起送达 caseId={} deliveryId={} receiptNo={}",
                 caseId, vo.getId(), vo.getReceiptNo());
         return vo;

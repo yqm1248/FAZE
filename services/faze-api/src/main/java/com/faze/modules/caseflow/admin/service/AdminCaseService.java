@@ -251,6 +251,13 @@ public class AdminCaseService {
         if (rows == 0) {
             throw new BusinessException(ErrorCode.CASE_STATE_INVALID, "案件状态已被其他人修改");
         }
+        // 审计 detail 必须存 before / after（工作流 B2 第 4 条 +《审计与日志规范》§3.3）。
+        // @OperationLog 注解只声明「哪些动作要审计」，具体变更明细要在这里显式 mark。
+        com.faze.common.audit.AuditContext.mark("caseflow", "CASE_AUDIT", "LEGAL_CASE",
+                String.valueOf(caseId),
+                "{\"before\":{\"status\":\"" + from.getCode() + "\"},\"after\":{\"status\":\""
+                        + to.getCode() + "\"},\"reason\":" + (reason == null ? "null" : "\"" + reason + "\"")
+                        + "}");
         int step = maxStep(caseId) + 1;
         insertProgress(caseId, step, to == CaseStatus.ACCEPTED ? "accepted" : "review",
                 to == CaseStatus.ACCEPTED ? "立案审核通过" : "立案审核驳回",
