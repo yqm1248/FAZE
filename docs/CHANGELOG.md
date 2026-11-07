@@ -4,6 +4,61 @@
 
 ---
 
+## 2026-11-08 · 第 4 段（文书中心）施工与收口（基线 v1.53）
+
+> 一天内把第 4 段从「B1/C4 已验」推进到**8 条锚点全通过**：补齐 D 组（签名笔迹）、E 组（APP 六页）、F 组（后处理）、G 组（验收脚本 + 证据）。
+> 同时修掉 5 个只有在真实验收里才暴露的缺陷，并把三件文档欠账补齐（数据表规范附录 E、PC 设计说明 §5.8、段 4 验收证据索引）。
+
+### 1. 后端（faze-api）
+
+| 内容 | 要点 |
+|---|---|
+| D1 签名库 | `GET/POST/DELETE /api/v1/app/signatures`；每用户上限 5、同一对象键幂等、被文书引用的删除返 406006；删除 = 物理删 + `file_record` 置 orphan（该表无 `deleted_at`） |
+| D2 叠章 | `POST /api/v1/app/documents/{id}/sign`；屏幕坐标 → PDF 左下原点换算 + 按 `basePage_*` 等比缩放；产物写新的 `signed_pdf_oss_key`，原件不动；单测 6 例（含 Y 轴翻转的数像素断言） |
+| D3 溯源元数据 | `PdfMetadataWriter` 在**落盘前**写 5 个 `Faze-*` 字段（时间带时区）；**绝不写** `AIGenerated`；单测 3 例 |
+| E4 预览接口 | `GET /documents/{id}/preview`：PDF 每页转 PNG（前 5 页），按「PDF 对象键短哈希」缓存（首次 222ms / 二次 10ms） |
+| F1 导出接口 | `GET /documents/{id}/export?format=pdf`：60 秒现签地址 + 建议文件名；`docx` 返 401001；盖过章导出带签名那份 |
+| 列表缩略图 | `listMine` 批量取 `generated.png` 最新一条（A-18 时挂到 E 组的项） |
+| `generating` 字段 | `DocumentDetailVO` 增 `generating`（按任务队列实时算），解决「从没生成」与「正在生成」不可分 |
+| 状态多值筛选 | `status` 支持逗号多值（`generated,signed`），修「已完成」漏掉已盖章文书 |
+| **缺陷①** | 模板升版后旧行 inactive → 「重新生成」永远 406001。新增 `DocTemplateResolver`（按 code+lang 解析当前 active 行），生成与保存草稿都走它 |
+| **缺陷②** | 死信只写错误码没有具体原因。`DocGenerateTask#describeFailure` 改用 `BusinessException#getDetail()`（截断 120 字） |
+| **缺陷③** | 失败后点「重新生成」被指数退避窗口静默跳过。新增 `TaskQueueService#expeditePending` |
+| **缺陷④** | `services/faze-api/pom.xml` 未声明 UTF-8，JDK17 默认 GBK 导致中文注释编译失败 |
+
+### 2. 前端（apps/mobile-app）
+
+- 新增 `features/document/`：六页（模板列表 / 起诉状表单 / 其它文书表单 / 预览 / 我的文书 / 电子签章）+ `DynamicForm`（schema 驱动）+ `SignaturePad`（react-native-svg，透明底 PNG）+ `api/client.ts`、`api/export.ts`、`api/upload.ts`
+- 路由壳 6 个（`app/doc/*.tsx`）+「我的」页两个入口
+- i18n：`zh-Hans/document.json` 补齐；其余三语言按「登记式缺译」进 `.i18n-pending.json`
+- **缺陷⑤**：`api/client.ts` 初版路径漏 `/api/v1` 前缀（App 全落网络错误），已按全仓惯例补齐 12 条
+- `npm run verify` 全绿（tsc / eslint / check-raw-text 0 命中 / check-i18n 三项）
+
+### 3. 验收与工具
+
+- `deploy/verify-seg4.ps1`：8 条锚点**逐条接实现**，空跑全 FAIL，实跑 **8/8 PASS**
+- 新增验收工具：`deploy/tools/PdfInspect.java`（页尺寸/元数据/字体嵌入/正文包围盒/图片数/**叠章差异包围盒**）、`seg4-probe.mjs`（真接口探针）、`seg4-browser-a7.mjs`（浏览器证据）、`seg4-browser-e.mjs`（六页巡检）
+- 证据：`docs/acceptance/seg4/4-A1.md` ~ `4-A8.md`、`E-group.md`、`D1/D2/D3`、`F2`、`遗留与挂账.md`、`4-A7-browser.json`、截图 9 张
+
+### 4. 文档回写（§九 收口）
+
+- 《数据表规范》**附录 E**：两处偏离登记（`is_enabled` / `updated_at`）+ 两条易误会说明
+- 《PC 后台 UI 设计说明》**§5.8**：A-18 的 4 处不实现 + 2 处口径差异
+- 《第 4 段工作流》**§九 7/9/10 标完成**、**§十一** 回写 12 条「计划 vs 实际」
+- `docs/README.md` 新增「段 4 验收证据索引」；`BASELINE.md` v1.52 → **v1.53**
+
+### 5. 口径变化（都已落到文档）
+
+- `4-A2` 的「四边边距 72±2」改为「左右 90/72±2、上下不小于 70pt」，原因见 `4-A2.md` §4
+- `4-A7` 只验接口层 + 浏览器能做的部分（系统分享面板 / 存相册 / 打印指定 PDF 留段 8）
+- 手写板用 `react-native-svg`（Web），不引入 skia / expo-print / expo-sharing / expo-media-library
+
+### 6. 上线前必须处理
+
+见 `docs/acceptance/seg4/遗留与挂账.md` §C：模板 LAWSUIT-001 被验收升到 v6 且字号被改、30+ 份测试文书、5 条测试签名、若干 dead 任务、本地存储几十 MB。
+
+---
+
 ## 2026-11-07 · 第 4 段开工前置（前提复核 + 文档回写 + 2 个代码前置，基线 v1.52）
 
 > 第 4 段（文书中心）开工前审查：19 项前置逐条实测。结论是 **14 项通过、3 项未通过（段 3 带缺口开工）、2 项口径要改**。

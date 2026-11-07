@@ -643,5 +643,22 @@ COMMENT='订单主表；状态枚举：created/paid/accepted/completed/cancelled
 
 ---
 
+# 附录 E：第 4 段（文书中心）登记的两处偏离（2026-11-08 新增）
+
+段 4 的四张表按《第 4 段工作流》§三 A1 的字段清单逐字落地（`V400__create_document_tables.sql`），
+其中两处与本文档的通用条款不一致，**是负责人/工作流明确裁决过的偏离，不是漏做**：
+
+| # | 表 | 偏离本文档哪一条 | 为什么这么定 | 后果 / 何时回补 |
+|---|---|---|---|---|
+| 1 | `doc_template` | §4.1 要求 D 类基础数据表必须有 `is_enabled` | 本表用 `status` 三态（`draft` / `active` / `inactive`）表达启停；两个字段并存会出现「`status='active'` 但 `is_enabled=0`」的矛盾状态，而模板的启停必须与「是否出现在 App 列表」严格一致 | 无回补计划。查询启停一律用 `status` |
+| 2 | `file_record` | §4.1 要求 D/A 类表要有 `updated_at` | 本表是**不可变行**：`oss_key` / `bucket` / `size_bytes` / `md5` / `created_at` 一旦写入不会再变，`status` 的「孤儿」标记只是一次性状态翻转，没有「更新时间」语义；加字段要新开迁移（V400 已定稿），收益不成比例 | 若段 7 的清理任务需要「orphan 时间」，再评估加 `orphaned_at`（那是新语义，不是 `updated_at`） |
+
+> 另外两条段 4 的「不是偏离但容易误会」的说明：
+> ①`signature` 没有 `deleted_at`（15 字段是技术路线 §5.6 原文照抄），所以签名库的删除是**物理删 + `file_record` 置 `orphan`**；
+> ②`doc_template` 存的是 HTML 全文（`MEDIUMTEXT`），没有 `template_url` / `oss_key`——模板不是文件、是库里的文本（§3.10 的 OSS 字段规则不适用）。
+
+
+---
+
 > **【文档基线 v1.13】** 本文件属于「法泽 FAZE 文档基线 v1.13」（2026-10-30 纳入）。
 > **后续一切文档从这里开始。** 基线清单与文件指纹见 `docs/BASELINE.md`。

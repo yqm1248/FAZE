@@ -187,6 +187,31 @@ docs/
 
 锚点（二值判定见各文件首行）：`2-A1` 下单扣款 / `2-A2` 接单与会话（IM 45ms）/ `2-A3` 杀进程推送（**未通过，挂段 8**）/ `2-A4` 结束与评价 / `2-A5` 支付密码错误 / `2-A6` 退款闭环 / `2-A7` 首页真实数据 / `2-A8` 超时与幂等 / `2-A9` 断线重连（5 条实测）/ `2-A10` RTL 会话页（近似，真 RTL 挂段 8）。
 
+## 段 4 验收证据索引（2026-11-08 收口）
+
+> 一键复跑：`deploy/verify-seg4.ps1`（8 条锚点自动判定，需 `faze-api:8081` + MySQL + RuoYi:8080 + 本机 `simfang.ttf`）。
+> 浏览器项另跑 `node deploy/tools/seg4-browser-a7.mjs`（4-A7）与 `node deploy/tools/seg4-browser-e.mjs`（E 组六页）。
+
+| 文件 | 内容 |
+|---|---|
+| [acceptance/seg4/4-A1.md](acceptance/seg4/4-A1.md) | PDF 生成：3 原告/2 被告/2 诉求全在、`{{` 残留 0 处 |
+| [acceptance/seg4/4-A2.md](acceptance/seg4/4-A2.md) | A4 版式 + 字体全嵌入；**上下边距判据口径调整的原因** |
+| [acceptance/seg4/4-A3.md](acceptance/seg4/4-A3.md) | 文本层可选中可搜索（正文非贴图） |
+| [acceptance/seg4/4-A4.md](acceptance/seg4/4-A4.md) | 模板热更新不改历史文书（H1==H2、H3!=H1），含「升版后重新生成 406001」缺陷修复 |
+| [acceptance/seg4/4-A5.md](acceptance/seg4/4-A5.md) | 签名落点偏差 2.00pt ≤ 4mm，且不遮挡正文 |
+| [acceptance/seg4/4-A6.md](acceptance/seg4/4-A6.md) | 5 个溯源元数据字段 + `AIGenerated` 0 处 |
+| [acceptance/seg4/4-A7.md](acceptance/seg4/4-A7.md) | 后处理链（浏览器口径）：下载落盘真 PDF、分享降级、打印触发、存相册挂账 |
+| [acceptance/seg4/4-A8.md](acceptance/seg4/4-A8.md) | 失败不留半成品：4 场景 × 5 件事（含死信可读性与可重试修复） |
+| [acceptance/seg4/4-A7-browser.json](acceptance/seg4/4-A7-browser.json) | 真 Chrome 产出的 4-A7 浏览器证据 |
+| [acceptance/seg4/E-group.md](acceptance/seg4/E-group.md) | E1~E6 六页 + F1 前端出口验收（含 `E-group-browser.json`） |
+| [acceptance/seg4/B1-a18.md](acceptance/seg4/B1-a18.md) | B1 A-18 页面（含 3 个缺陷修复） |
+| [acceptance/seg4/C4-failure.md](acceptance/seg4/C4-failure.md) | C4 失败路径（字体缺失 / 存储不可用） |
+| [acceptance/seg4/D1-signature.md](acceptance/seg4/D1-signature.md) · [D2-stamp.md](acceptance/seg4/D2-stamp.md) · [D3-meta.md](acceptance/seg4/D3-meta.md) | 签名库规则 / 叠图坐标 / 溯源元数据 |
+| [acceptance/seg4/F2-regen.md](acceptance/seg4/F2-regen.md) | 重新生成与旧产物保留（3 次生成 3 组产物） |
+| [acceptance/seg4/遗留与挂账.md](acceptance/seg4/遗留与挂账.md) | 偏离登记、未验项、**上线前必须清理的测试数据** |
+
+锚点结论：`4-A1`~`4-A8` **8/8 自动判定通过**（`deploy/verify-seg4.ps1`），其中 `4-A2` 的上下边距判据口径调整已单独说明；`4-A7` 的降级项与段 8 挂账见该文件 §5。
+
 > **【文档基线 v1.0】** 本文件属于「法泽 FAZE 文档基线 v1.0」（2026-10-28 确立，此后一直有效）。
 > 落款写的是**首次纳入基线的版本**，不随内容变更升级（本文件 §1.1）；当前基线版本见 `docs/BASELINE.md` 头部。
 > **后续一切文档从这里开始。** 基线清单与文件指纹见 `docs/BASELINE.md`。

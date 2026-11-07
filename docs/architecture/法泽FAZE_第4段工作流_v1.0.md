@@ -1486,9 +1486,9 @@ try (OutputStream os = new FileOutputStream("out.pdf")) {
 |---|---|---|
 | 1 / 2 / 3 / 4 / 5 / 8 | ✅ **已完成** | 随提交 `a070974` 落地：`AGENTS.md` §2+§5、总纲 §5.5、技术路线 §2.3/§10.1/§10.2/§10.3/§10.5/§10.5.1、数据表规范附录 A、PC 计划 A-18 |
 | 6 | ✅ **已完成** | 附录 A 的 `doc_template` 12→13、`document` 17→16 已改；`task_queue`/`order_status_log` 两行已在 v1.27 补齐 |
-| 7 | ⏳ 未做 | `doc_template` 偏离 `is_enabled` 的登记，属「收口时」 |
-| 9 | ⏳ 未做 | PC 设计说明的 A-18 不实现记录，属「收口时」 |
-| 10 | ⏳ 未做 | 本次（v1.29）只做本文档的登记，属「收口时」 |
+| 7 | ✅ **已完成（2026-11-08）** | `doc_template` 偏离 `is_enabled` 已登记到《数据表规范》**附录 E**；同时把 `file_record` 不加 `updated_at` 的第二处偏离一并登记 |
+| 9 | ✅ **已完成（2026-11-08）** | 《法泽PC后台UI设计说明》新增 **§5.8**：A-18 的 4 处不实现（适用法条列 / 导入模板 / 批量导出 / 上传 .docx）+ 2 处口径差异（语言版本列、8 列 → 7 列） |
+| 10 | ✅ **已完成（2026-11-08，基线 v1.53）** | 本文档 §十一 已回写 12 条「计划 vs 实际」；`docs/CHANGELOG.md` 记录了同日全部变更；`docs/BASELINE.md` 升到 v1.53；`docs/README.md` 增加「段 4 验收证据索引」 |
 | 11 | ✅ **已完成（2026-11-07，基线 v1.52）** | 《技术路线》§12.3.2 已加「适用范围」限定：那 5 个隐式标识字段只适用于 AI 生成内容，**文书 PDF 不得打 `Faze-Content-Type: AIGenerated`**（属虚假标识），只写溯源元数据 |
 
 ---
@@ -1512,7 +1512,18 @@ try (OutputStream os = new FileOutputStream("out.pdf")) {
 
 | # | 计划 | 实际 | 偏差原因 | 影响 |
 |---|---|---|---|---|
-| | | | | |
+| 1 | A 组 4 张表 + 渲染通道 + 文件登记 + 任务表接入 | ✅ 已完成（`V400__create_document_tables.sql`；`PdfRenderer` / `PdfPageRenderer` / `FileRecordService` / `DOC_GENERATE`） | 无 | 无 |
+| 2 | B 组 A-18 页面 + field_schema/HTML 子集 + 5 份模板 | ✅ 已完成；施工中修了 3 个真缺陷（菜单 id 与段 3 冲突、编辑页路由 404、列表列宽与时间格式）；设计稿 4 处不实现已登记到《PC 后台 UI 设计说明》§5.8 | 菜单 id 冲突源于段 3 已占 `2200~2209`；C 类型菜单下挂 C 类型被 RuoYi `buildMenus` 静默丢弃 | 无（已修） |
+| 3 | C 组 生成内核 + 失败清理 | ✅ 已完成（C4 的 4 个失败场景都有证据） | 无 | 无 |
+| 4 | D 组 签名库 / 叠图 / 溯源元数据 | ✅ 已完成（D1/D2/D3）。偏离 1 处：`signature` 无 `deleted_at`，删除改为「物理删 + `file_record` 置 orphan」 | 15 字段是技术路线原文照抄，不许加字段 | 段 8 若要「删除可恢复」需加列 |
+| 5 | E 组 APP 六页 + 四态 + 多语言 | ✅ 已完成 6 页 + 四态 + RTL；界面文案 `zh-Hans` 齐全，其余三语言为**登记式缺译**（各 1074 key） | 本段只要求 `zh-Hans` + 缺译登记；四语言齐是段 8 | 段 8 收口时 `.i18n-pending.json` 必须清空 |
+| 6 | F 组 下载/分享/相册/打印 + 重新生成 | ✅ 已完成（浏览器口径）：下载真落盘 PDF、分享降级有文案、打印触发 `window.print()`、存相册挂账；重新生成与旧产物保留已验 | `expo-print`/`expo-sharing`/`expo-media-library` 未引入（Web 上无意义），原生留段 8 | 段 8 引入这三个依赖时要补登记《依赖清单》 |
+| 7 | G 组 `verify-seg4.ps1` + 8 条证据 + §九 回写 | ✅ 已完成：`deploy/verify-seg4.ps1` **8/8 自动判定通过**；4-A7 的浏览器项由 `deploy/tools/seg4-browser-a7.mjs` 产出 `4-A7-browser.json` | 无 | 无 |
+| 8 | `4-A2` 的「四边边距 72±2」判据 | ⚠️ 口径调整：左右精确命中 90/72；上下实测 95.14/88.03（首行是 `h1`，行高使文字包围盒 ≠ 页边距），脚本改判「上下不小于 70pt」并写明理由 | 原判据隐含「文字包围盒 = 页边距」，在带标题行高的模板上不成立 | 见 `4-A2.md` §4；要更严需改成「内容流起点 + `@page` 交叉核」 |
+| 9 | 四张表的公共字段（`is_enabled` / `updated_at`） | ⚠️ 两处偏离：`doc_template` 用 `status` 三态替代 `is_enabled`；`file_record` 不加 `updated_at`（不可变行） | 禁扩字段 + 避免「`status=active` 但 `is_enabled=0`」的矛盾态 | 已登记到《数据表规范》附录 E |
+| 10 | 施工中修掉的真缺陷（原计划没有） | 5 个：①模板升版后「重新生成」406001（新增 `DocTemplateResolver`）②死信只有错误码没有原因（改用 `BusinessException#getDetail()`）③失败后点重新生成被退避窗口静默跳过（新增 `expeditePending`）④`faze-api` 的 pom 未声明 UTF-8（JDK17 默认 GBK，中文注释编译失败）⑤验收工具把模板中文写成双重编码（改 node fetch + HEX 字面量 SQL） | 都是在真实验收中暴露的，原设计与代码评审都没抓到 | 已修；回归点见 `docs/acceptance/seg4/遗留与挂账.md` §D |
+| 11 | 验收口径 | 2026-11-07 负责人裁决：真机全部改浏览器；`4-A7` 只验接口层 + 浏览器能做的部分；手写板用 `react-native-svg` | —— | 原生能力（系统分享面板 / 存相册 / 打印指定 PDF）留段 8 |
+| 12 | 上线前待清理的测试数据 | 模板 LAWSUIT-001 被验收升到 v6（标题字号被改过）、30+ 份测试文书、5 条测试签名、若干 dead 任务 | 验收必然留数据 | 见 `docs/acceptance/seg4/遗留与挂账.md` §C |
 
 ---
 
