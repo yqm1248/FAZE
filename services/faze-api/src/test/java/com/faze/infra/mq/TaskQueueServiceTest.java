@@ -9,11 +9,11 @@
  *   3. retryCount 达到 5 时必须走 markDead（死信），不是继续退避——
  *      无限重试会让一条坏任务永久占住队列。
  */
-package com.faze.modules.trade.service;
+package com.faze.infra.mq;
 
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
-import com.faze.modules.trade.entity.TaskQueue;
-import com.faze.modules.trade.mapper.TaskQueueMapper;
+import com.faze.infra.mq.TaskQueue;
+import com.faze.infra.mq.mapper.TaskQueueMapper;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;

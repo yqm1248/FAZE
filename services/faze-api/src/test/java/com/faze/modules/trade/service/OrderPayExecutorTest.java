@@ -42,6 +42,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import com.faze.infra.mq.TaskQueueService;
 
 /**
  * 余额支付执行器测试。

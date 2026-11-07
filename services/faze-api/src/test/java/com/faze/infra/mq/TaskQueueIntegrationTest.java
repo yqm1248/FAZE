@@ -9,11 +9,11 @@
  *   2. 测试数据自己造自己清（`finally` 里按 biz_no 删），不依赖种子数据。
  *   3. 领取会改任务状态，所以断言只针对「候选 → 领取 → 回查」这条链，不做全局断言。
  */
-package com.faze.modules.trade.service;
+package com.faze.infra.mq;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
-import com.faze.modules.trade.entity.TaskQueue;
-import com.faze.modules.trade.mapper.TaskQueueMapper;
+import com.faze.infra.mq.TaskQueue;
+import com.faze.infra.mq.mapper.TaskQueueMapper;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;

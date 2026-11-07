@@ -13,7 +13,7 @@ package com.faze.modules.trade.service;
 
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.faze.modules.trade.entity.Orders;
-import com.faze.modules.trade.entity.TaskQueue;
+import com.faze.infra.mq.TaskQueue;
 import com.faze.modules.trade.enums.OperatorRole;
 import com.faze.modules.trade.enums.OrderStatus;
 import com.faze.modules.trade.mapper.OrdersMapper;
@@ -35,6 +35,7 @@ import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import com.faze.infra.mq.TaskQueueService;
 
 /**
  * 订单超时处理测试。
