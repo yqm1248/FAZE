@@ -140,6 +140,10 @@ public class TemplateHtmlValidator {
                 }
             } else if (name.startsWith("item.")) {
                 String itemKey = name.substring("item.".length());
+                // `item.index` 是渲染器内置序号，不是 schema 字段，不参与一一对应校验
+                if ("index".equals(itemKey)) {
+                    continue;
+                }
                 if (blockStack.isEmpty()) {
                     throw new BusinessException(ErrorCode.DOCUMENT_FORM_INVALID,
                             "占位符 {{" + name + "}} 出现在循环块之外");
