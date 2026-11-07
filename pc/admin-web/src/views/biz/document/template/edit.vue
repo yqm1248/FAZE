@@ -228,11 +228,11 @@ async function handleSave() {
     if (isNew.value) {
       const res = await createDocTemplate(payload)
       ElMessage.success('已创建')
-      router.replace(`/biz/document/template/edit/${res.data}`)
+      router.replace(`/content/template/edit/${res.data}`)
     } else {
       const res = await updateDocTemplate(templateId.value, payload)
       ElMessage.success('已保存为新版本')
-      router.replace(`/biz/document/template/edit/${res.data}`)
+      router.replace(`/content/template/edit/${res.data}`)
       await loadDetail()
     }
   } catch (e) {
@@ -261,7 +261,7 @@ async function handlePreview() {
 
 /** 返回列表。 */
 function goBack() {
-  router.push('/biz/document/template/index')
+  router.push('/content/template')
 }
 
 onMounted(loadDetail)

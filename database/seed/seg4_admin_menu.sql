@@ -16,8 +16,11 @@
 --    没执行时父目录不存在，这两个菜单挂不上去（RuoYi 的 getRouters 会直接忽略孤儿节点，
 --    表现是「左侧菜单没有文书模板」，且没有任何报错）。
 --
--- 菜单 id 段：本段占用 **2201~2202**（段 3 占 2200~2209 中的 2200/2206/2207~2209，
---   2201~2205 是它留的空号，本段取 2201~2202，不撞已有 id）。
+-- 菜单 id 段：本段占用 **2210~2211**。
+--   ⚠️ 2026-11-07 实测纠正：段 3 实际用满 2200~2209（2200 内容管理 / 2201 法条库 /
+--   2202~2205 法条按钮 / 2206 系统设置 / 2207 AI 对话检索 / 2208~2209 按钮），
+--   原稿误以为 2201~2205 是空号，**直接执行会覆盖段 3 的法条库菜单**。
+--   现取 2210~2211（已查 sys_menu 最大 id = 2209，2210+ 全空）。
 --
 -- 执行方式：
 --   mysql --host=127.0.0.1 --port=3306 --user=root --password=*** --database=faze_admin \
@@ -34,11 +37,11 @@ INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component,
                       route_name, is_frame, is_cache, menu_type, visible, status, perms, icon,
                       create_by, create_time, remark)
 VALUES
-  (2201, '文书模板', 2200, 4, 'template', 'biz/document/template/index', NULL,
-   '', 1, 0, 'C', '0', '0', 'document:template:list', 'form',
+  (2210, '文书模板', 2200, 4, 'template', 'biz/document/template/index', NULL,
+   'DocTemplate', 1, 0, 'C', '0', '0', 'document:template:list', 'form',
    'admin', NOW(), '第 4 段 B1：A-18 文书模板管理'),
-  (2202, '模板编辑', 2201, 1, 'edit/:id', 'biz/document/template/edit', NULL,
-   '', 1, 0, 'C', '1', '0', 'document:template:edit', '#',
+  (2211, '模板编辑', 2200, 5, 'template/edit/:id', 'biz/document/template/edit', NULL,
+   'DocTemplateEdit', 1, 0, 'C', '1', '0', 'document:template:edit', '#',
    'admin', NOW(), '第 4 段 B1：A-18 隐藏编辑页（visible=1 表示不在菜单里显示，但路由必须注册）')
 ON DUPLICATE KEY UPDATE menu_name = VALUES(menu_name), parent_id = VALUES(parent_id),
                         order_num = VALUES(order_num), path = VALUES(path),
@@ -53,5 +56,5 @@ ON DUPLICATE KEY UPDATE menu_name = VALUES(menu_name), parent_id = VALUES(parent
 --    「菜单权限」树正确勾选；段 3 的 H3 踩过「没有授权行 → 非超管看不到」的坑。
 -- ---------------------------------------------------------------------------
 INSERT INTO sys_role_menu (role_id, menu_id)
-VALUES (1, 2201), (1, 2202)
+VALUES (1, 2210), (1, 2211)
 ON DUPLICATE KEY UPDATE role_id = VALUES(role_id);

@@ -89,22 +89,24 @@
       </div>
 
       <el-table v-loading="loading" :data="rows" empty-text="暂无模板，点「新建模板」开始配置">
-        <el-table-column prop="code" label="编码" min-width="140" show-overflow-tooltip />
-        <el-table-column prop="name" label="名称" min-width="180" show-overflow-tooltip />
-        <el-table-column prop="category" label="分类" width="120">
+        <el-table-column prop="code" label="编码" min-width="160" show-overflow-tooltip />
+        <el-table-column prop="name" label="名称" min-width="170" show-overflow-tooltip />
+        <el-table-column prop="category" label="分类" width="110">
           <template #default="{ row }">{{ row.category || '—' }}</template>
         </el-table-column>
-        <el-table-column prop="version" label="版本" width="80" align="center">
+        <el-table-column prop="version" label="版本" width="70" align="center">
           <template #default="{ row }">v{{ row.version }}</template>
         </el-table-column>
-        <el-table-column prop="fieldCount" label="字段数" width="90" align="center" />
-        <el-table-column prop="status" label="状态" width="100" align="center">
+        <el-table-column prop="fieldCount" label="字段数" width="80" align="center" />
+        <el-table-column prop="status" label="状态" width="95" align="center">
           <template #default="{ row }">
             <el-tag :type="statusTagType(row.status)" size="small">{{ statusLabel(row.status) }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="updatedAt" label="更新时间" width="170" />
-        <el-table-column label="操作" width="160" fixed="right">
+        <el-table-column prop="updatedAt" label="更新时间" width="160">
+          <template #default="{ row }">{{ formatTime(row.updatedAt) }}</template>
+        </el-table-column>
+        <el-table-column label="操作" width="140" fixed="right">
           <template #default="{ row }">
             <el-button type="primary" link @click="goEdit(row)">编辑</el-button>
             <el-button type="primary" link :loading="previewingId === row.id" @click="handlePreview(row)">
@@ -144,6 +146,7 @@
 import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { listDocTemplates, previewDocTemplate } from '@/api/biz/document/template'
+import { parseTime } from '@/utils/ruoyi'
 
 /** 分类建议值（与导航树 L303 一致）；后端不强制。 */
 const CATEGORY_OPTIONS = ['诉讼文书', '合同文书', '劳动文书', '跨境电商']
@@ -168,6 +171,16 @@ function statusLabel(status) {
 /** 状态标签配色。 */
 function statusTagType(status) {
   return { draft: 'info', active: 'success', inactive: 'warning' }[status] || 'info'
+}
+
+/**
+ * 更新时间展示。
+ *
+ * 后端返回 LocalDateTime，Jackson 序列化成 ISO 的 `2026-11-07T11:54:16`（带 T），
+ * 直接展示对运营不友好且 170px 也会被固定列压掉右半，这里统一成 `YYYY-MM-DD HH:mm:ss`。
+ */
+function formatTime(t) {
+  return t ? parseTime(t) : '—'
 }
 
 /**
@@ -208,12 +221,12 @@ function handleReset() {
 
 /** 新建：用固定字符串 `new` 表示新建态，避免用 0 与真实 id 混淆。 */
 function goCreate() {
-  router.push('/biz/document/template/edit/new')
+  router.push('/content/template/edit/new')
 }
 
 /** 编辑：带 id 进入编辑页。 */
 function goEdit(row) {
-  router.push(`/biz/document/template/edit/${row.id}`)
+  router.push(`/content/template/edit/${row.id}`)
 }
 
 /**
