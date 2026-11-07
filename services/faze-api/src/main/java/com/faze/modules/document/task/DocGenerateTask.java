@@ -13,6 +13,7 @@
  */
 package com.faze.modules.document.task;
 
+import com.faze.common.exception.BusinessException;
 import com.faze.infra.mq.TaskQueue;
 import com.faze.infra.mq.TaskQueueService;
 import java.util.List;
@@ -77,9 +78,25 @@ public class DocGenerateTask {
             } catch (RuntimeException e) {
                 log.error("执行文书生成任务失败 taskId={} bizNo={}",
                         task.getId(), task.getBizNo(), e);
-                taskQueueService.markFailed(task, owner,
-                        e.getClass().getSimpleName() + ": " + e.getMessage());
+                taskQueueService.markFailed(task, owner, describeFailure(e));
             }
         }
+    }
+
+    /**
+     * 把执行异常转成死信里能读懂的失败原因。
+     *
+     * <p>C4 要求按错误码归因（506003 字体缺失 / 506002 渲染失败 / 406002 表单非法 …），
+     * 只写异常类名 + 消息会让死信看不出是哪一类失败，所以业务异常一律带码。
+     * 非业务异常（NPE 等真故障）才退回「类名: 消息」。</p>
+     *
+     * @param e 执行期抛出的运行时异常
+     * @return 形如 `506003: 渲染所需字体缺失` 的短句（不含堆栈）
+     */
+    private String describeFailure(RuntimeException e) {
+        if (e instanceof BusinessException be && be.getErrorCode() != null) {
+            return be.getErrorCode().getCode() + ": " + be.getErrorCode().getMsg();
+        }
+        return e.getClass().getSimpleName() + ": " + e.getMessage();
     }
 }
