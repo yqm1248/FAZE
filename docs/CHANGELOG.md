@@ -4,6 +4,44 @@
 
 ---
 
+## 2026-11-08 · 第 6 段施工（部分完成）：A/B/C 三组 + D1/D2 + E1 验收
+
+> **本段未收口**：19 个任务完成 13 个，D3/D4 与 E2/E3 的剩余部分未做。
+> 7 条锚点：3 条通过（6-A2 / 6-A5 / 6-A7 的 Mock 部分）、3 条挂账（6-A1 / 6-A4 / 6-A6）、
+> 1 条部分通过（6-A3 自动补单已验）。详见 `docs/acceptance/seg6/挂账.md`。
+
+### 提交（6 个）
+
+| 提交 | 范围 | 内容 |
+|---|---|---|
+| `9ca233f` | A 组 | `recharge_record` 表（V600）+ 24 个 `sys_config` 键（V601）+ 3 个枚举 + 状态机 + 支付网关抽象（Mock/微信/支付宝骨架 + 工厂）+ `ConfigCipher` + `ProdMockPayGuard` |
+| `85db25b` | B1 | 充值下单 / 单笔 / 游标列表 3 个接口 + 幂等键 + prepay 参数缓存 + 限额策略 |
+| `69a863e` | B2+B3 | 充值页（36-recharge 实现 + 4 态 + 金额四类校验 + 未实名拦截 + Mock 模拟支付）+ 余额响应加 `recharge` 子对象 + 17 个限额单测 |
+| `31386a6` | B4 | PC A-09 外层包 el-tabs（Tab1 原样）+ Tab2 渠道对账（差异列表 / 处置 / 审计） |
+| `ffd90e3` | C 组 | 三个回调入口 + 统一处理链 + 入账链路（CAS + 流水 + 余额同事务）+ 晚到回调补偿单 + 6 个入账单测 |
+| `ed865d9` | D1/D2 | `recharge_pending_query`（掉单补单）+ `recharge_close`（超时关单，关单前先查渠道）+ 扫描器 |
+
+### 几个值得记住的坑
+
+1. **Form 报文读不到原文**：`@RequestBody String` 与 `getInputStream()` 对
+   `application/x-www-form-urlencoded` 都拿不到原文（Tomcat 先解析成参数、流被读空）。
+   **真实支付宝回调就是表单**，必须走 `getParameterMap()` 重建。
+2. **Mock 回调也是表单编码**（不是 JSON），按 JSON 发会验签失败。
+3. **`callback_lost` 模式下 Mock 的渠道状态必须是 SUCCESS**，否则 `query()` 永远返回 pending，
+   D1 的掉单场景无法复现。
+4. **`i18nKey` 不能拼**：`trade.recharge.status.pending` 是四段点号，违反规范的三段式 camelCase，
+   已改成 `trade.recharge.statusPending`（枚举 switch 写字面量）。
+5. **`GET /app/wallet/balance` 的金额是字符串**（包装类 Long → String），而充值面板里的金额是数字
+   （原生 long）——前端要经 `centsFromServer()` 归一，否则 `MoneyText` 拿 NaN。
+
+### 未完成（不是挂账，是没做完）
+
+D3 渠道账单下载与解析器、D4 逐笔比对落库、E2 连贯 E2E 走查、E3 的 §九 10 行回写 + 基线升级、
+B3 用户维度限流、B4 权限点、D1 管理端人工补单接口、C4 JVM 内 2 线程用例。
+全部列在 `docs/acceptance/seg6/挂账.md` 第二节。
+
+---
+
 ## 2026-11-08 · 第 5 段收口补做（二）：提现状态机单测 + 2 个证据文件 + 工作流 §十一 回写 + 基线 v1.55
 
 > 负责人问「第五段做完了吗」，逐条核对《第 5 段工作流》§一.1 的 7 条出口条件，发现 5 项不满足。

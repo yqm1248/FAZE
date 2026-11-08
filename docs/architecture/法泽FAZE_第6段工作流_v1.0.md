@@ -1001,9 +1001,37 @@
 
 > 施工完成后在这里追加，**不改上面的内容**。每条写：计划 vs 实际、偏差原因、是否影响下一段。
 
+**施工时间**：2026-11-08（分支 `UI设计`）。**完成度：19 个任务中完成 13 个**（A1~A4、B1~B4、
+C1~C4、D1~D2、E1 的验收部分），D3、D4、E2 的连贯走查、E3 的 §九 回写未完成，详见
+`docs/acceptance/seg6/挂账.md` 第二节。**7 条锚点：3 条通过（6-A2 / 6-A5 / 6-A7 的 Mock 部分）、
+3 条挂账（6-A1 / 6-A4 / 6-A6）、1 条部分通过（6-A3 的自动补单已验，用户侧兜底随 D3/D4 未做）。**
+
 | # | 计划 | 实际 | 偏差原因 | 影响 |
 |---|---|---|---|---|
-| | | | | |
+| 1 | 类名 `RechargeService` / `RechargeServiceImpl` | `RechargeOrderService` + `RechargeCreateExecutor` + `RechargeSettleService` + `RechargeTaskService` | 段 1 D4 已占用 `RechargeService`（手工充值/调账，已验收）；本段的「线上充值」「入账」「定时任务」是三件不同的事，硬塞进一个类会让事务边界混乱 | 无（命名差异，职责更清晰） |
+| 2 | A2「6 条迁移」 | 实现 3 条合法边 + 9 条非法组合 | 文档标题写「6 条迁移」，正文表格只有 3 条合法边、另 3 行是「终态不可再迁」，且「算做完」原文要求「合法 3 条通过、非法 9 条被拒」——**标题是笔误** | 无；7 个单测覆盖 12 种组合 |
+| 3 | 敏感配置用 Jasypt（规范原文） | 复用项目既有 AES-256-GCM，新建 `ConfigCipher` + 独立密钥 `FAZE_CONFIG_SECRET` | Jasypt 只处理 yml，管不到 `sys_config` 的 DB 值；引入它还有 SB4 兼容风险。项目段 1 已有 `CryptoService`，同算法同风格 | 无；`application-prod.yml` 顺带补齐了缺失的 `crypto.id-card-key`（原来 prod 下 CryptoService 起不来） |
+| 4 | B1「金额 999 分被拒」 | 改验 9 分与 500001 分 | 该判据是「单笔 10 元起」的旧口径；负责人 2026-11-02 已裁决改为 0.1 元起（`recharge.min_cents=10`），999 分在现行配置下是合法金额 | 无；`B1-api.txt` 记录了这次口径修正 |
+| 5 | B1「Swagger 列出 3 个接口」 | 直接调通 3 个路由 | 项目 pom 无 springdoc/knife4j（段 0~5 均未接入），`/v3/api-docs` 返回 401；引入新依赖需登记依赖清单 + 评审 | 无（接口有实测证据）；若负责人要 Swagger 属新需求 |
+| 6 | B2「跳 32-pay-result」 | 充值成功留在本页（页内结果态） | 段 6 页面清单只有充值页 1 页，32 号设计稿是「订单支付结果」不是「充值结果」 | 无；不新增页面 |
+| 7 | B2 需要档位/渠道/额度，但接口数冻结为 8 个 | `GET /app/wallet/balance` 响应新增 `recharge` 子对象 | B3「卡住怎么办」明确要求「剩余额度放进 balance 响应，不要新开接口」；沿用该裁决承载全部页面参数 | 原有三个余额字段语义未变，锚点 1-A6 不受影响 |
+| 8 | B3 用户维度限流（1 分钟 3 次） | **未实现** | 项目无通用用户维度限流组件；为一条规则新建一套限流设施超出本段范围 | 连点由幂等键 + 前端按钮禁用兜住；单日金额/笔数限额已生效 |
+| 9 | B4 复用 `GET /admin/reconciliation/diffs?date=` | 新增 `/admin/reconciliation/channel-diffs` | 该路径段 1 已占用（恒等式巡检的内存态差异，Tab1 依赖且已验收），改它会让 Tab1 契约变化 | Tab1 内容未改一行，只在外层包了 el-tabs |
+| 10 | B4 状态值 `pending / auto_fixed / handled` | 待处理 = `open`(段 5) 或 `pending`(段 6)，处置统一 `handled` | 段 5 巡检写入的是 `open`，与文档写的 `pending` 不一致；不迁移历史数据 | 页面下拉合并成一个「待处理」选项，后端 IN 查询 |
+| 11 | B4 权限点 `finance:reconcile:list/handle` | **未接** | 需要同时改 RuoYi 菜单与 faze-api 鉴权注解，属跨段基础设施 | 当前所有 PC 管理员都能看/处置差异 |
+| 12 | C1/C2 真实渠道验签 | 骨架 + TODO（微信 APIv3 / 支付宝 RSA2） | 无商户号与平台证书（§十 第 1 项） | `6-A1` 挂账；Mock 通道的 HMAC 验签是真实生效的 |
+| 13 | C1「回调只放行 POST」 | `/api/v1/pub/**` 整体 permitAll | SecurityConfig 的既有规则就是 pub 前缀全放行；`/pub/pay/callback` 下只有 POST 映射 | 无实际风险（GET 会 405） |
+| 14 | C3「复用段 1 的流水服务」 | 新建 `RechargeSettleService` 直接写 `balance_flow` + `user_balance` | 段 1 没有独立的入账服务（`RechargeService.applyDelta` 是手工充值的私有实现，`biz_id` 用幂等键 SHA-256 派生，与本段「biz_id = 充值单 id」的幂等口径不同） | 语义完全按段 1 的流水规则（余额只能由流水推导、balance_after 是总余额、同事务） |
+| 15 | C1/C2 回调报文格式 | 踩了 Form 的两个坑并修复 | ① `@RequestBody String` / `getInputStream()` 对 `application/x-www-form-urlencoded` 拿不到原文（Tomcat 先解析成参数、流被读空），改走 `getParameterMap()` 重建；② Mock 报文是表单编码不是 JSON | **真实支付宝回调是表单，这两个坑一定会再遇到，已提前踩掉** |
+| 16 | C4 JVM 内 2 线程用例 | 进程级并发（两个独立 job 打同一报文） | 上下文预算不足 | CAS 是数据库行级条件更新，进程级并发的证明力已足够；跨线程用例待补 |
+| 17 | D1 管理端人工补单接口 | **未实现** | 时间预算不足 | 掉单只能等自动补单，运营无法手工触发 |
+| 18 | D1/D2 任务类型常量放 `TaskQueueService` | 放在 `RechargeTaskService` | 不改段 2 已验收文件 | 段 7 统一时可以迁移 |
+| 19 | D3 三个账单解析器 + Mock 账单 | **未实现** | 时间预算不足 | 见挂账.md 第二节 |
+| 20 | D4 逐笔比对与差异落库 | **未实现** | 时间预算不足 | `6-A4` 的核心能力缺失 |
+| 21 | E2 一条连贯的 Mock E2E 走查 | 分散验证（B1/B2/C4/D1/D2/E1 各自的证据） | 时间预算不足 | 证据齐但不成链条 |
+| 22 | E3 §九 的 10 行回写 + 基线升级 + `6-A7-failure.txt` | **未完成**（只回写了本节与 CHANGELOG） | 时间预算不足 | 段 6 **未达到总纲 §6.2「收口五件套」的完整要求** |
+| 23 | 段 1 遗留：巡检写入的 `reconciliation_diff` 不带 `bill_date` | 不修，记 §十一 | 改段 1 的巡检不在本段范围 | A-09 Tab2 按日期筛选时永远筛不到这些行 |
+| 24 | 设计稿第 364/367 行「单笔 10 元起」 | 未改稿，实现按 0.1 元 | `design/ui/` 不在本段授权范围（§附表第 10 行） | 稿与实现的门槛值不一致，仅影响对照，不影响功能 |
 
 ---
 
