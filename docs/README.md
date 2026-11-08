@@ -235,6 +235,29 @@ docs/
 | [acceptance/seg5/A1-schema.txt](acceptance/seg5/A1-schema.txt) | 段 5 建表与补字段的物证：9 张表 `SHOW CREATE TABLE` 原样输出（22 KB，flyway=`510`） |
 | [acceptance/seg5/H2-rtl.md](acceptance/seg5/H2-rtl.md) | 四语言与 RTL：静态核验**通过**（0 处 `left/right`、`letterSpacing` 全 0、无手动反转），但 **RTL 运行时未验**（缺译文，推段 8） |
 
+## 段 6 验收证据（真实充值渠道 + 掉单补单 + 渠道对账）
+
+> 环境：`faze-api` 8081（dev）+ MySQL `faze` + RuoYi 8080 + Redis；Mock 通道（`pay.mock.enabled=true`）。
+> **段 6 尚未收口**：19 个任务完成 17 个；锚点 **4 通过 / 2 挂账（`6-A1`/`6-A6`）/ 1 部分挂账（`6-A4` 的真实账单部分）**。未完成项见 `挂账.md`。
+
+| 文件 | 内容 |
+|---|---|
+| [acceptance/seg6/A1-schema.txt](acceptance/seg6/A1-schema.txt) | A 组：`recharge_record` 建表 13 字段 4 索引（`SHOW CREATE TABLE`） |
+| [acceptance/seg6/A3-config.md](acceptance/seg6/A3-config.md) | A 组：24 个 `sys_config` 键 + `ConfigCipher` 加密流程（不引入 Jasypt 的理由） |
+| [acceptance/seg6/A4-enums.md](acceptance/seg6/A4-enums.md) | A 组：3 个枚举 + 状态机 3 条合法边 + 3 条禁令 |
+| [acceptance/seg6/B1-api.txt](acceptance/seg6/B1-api.txt) | B1：下单/单笔/列表 3 接口；幂等 4 次 1 单、9 分被拒、未实名 405020、跨用户 403 |
+| [acceptance/seg6/B2-page.md](acceptance/seg6/B2-page.md) | B2：充值页四态 + 四类金额校验 + 未实名拦截 + Mock 模拟支付（4 张截图） |
+| [acceptance/seg6/B3-limit.txt](acceptance/seg6/B3-limit.txt) | B3：限额策略 17 个单测 + 金额/笔数/未实名三类拦截 |
+| [acceptance/seg6/B4-reconcile-tab.md](acceptance/seg6/B4-reconcile-tab.md) | B4：A-09 包 el-tabs + 渠道对账 Tab；**数据由 D3/D4 任务真实产出**（3 张截图） |
+| [acceptance/seg6/C4-idempotent.txt](acceptance/seg6/C4-idempotent.txt) | C4：同一回调串行 3 次 + 并发 2 次，只入账 1 次（余额/流水/单三方一致） |
+| [acceptance/seg6/D1-D2-tasks.txt](acceptance/seg6/D1-D2-tasks.txt) | D1 掉单补单 + D2 超时关单（关单前先查渠道） |
+| [acceptance/seg6/6-A4-reconcile.txt](acceptance/seg6/6-A4-reconcile.txt) | **D3/D4**：账单留档 + 三类差异落库 + `channel_only` 自动补单 + 幂等重跑 + 6-A4 五项证据逐条对照 |
+| [acceptance/seg6/6-A4-diffs-export.csv](acceptance/seg6/6-A4-diffs-export.csv) | D4：差异报表 CSV 导出的真实内容 |
+| [acceptance/seg6/6-A7-failure.txt](acceptance/seg6/6-A7-failure.txt) | 6-A7：支付失败 → 单 `failed`、0 流水、额度释放（不占配额） |
+| [acceptance/seg6/E1-identity.txt](acceptance/seg6/E1-identity.txt) | E1：恒等式巡检 0 条 → 造 1 分差异 → 检出 1 条 → 恢复 0 条 |
+| [acceptance/seg6/E2-e2e.txt](acceptance/seg6/E2-e2e.txt) | **E2**：下单 → 模拟支付 → 入账 → 查余额 → 对账 一条连贯 8 步走查 |
+| [acceptance/seg6/挂账.md](acceptance/seg6/挂账.md) | 三张挂账锚点 + 未完成任务 + 负责人三项裁决 + **本次暴露的 4 个真 bug** |
+
 锚点结论：`5-A1`~`5-A8` **8/8 通过**。三条与计划口径不同的地方必须一起看：
 ① 解冻流水 `biz_type` 是 `income_unfreeze`（不是 `unfreeze`）、`balance_flow.biz_type` 共 **5 值**；
 ② `case_library` 实为 **24 字段**（补争议焦点 / 原告 / 被告）；
