@@ -371,6 +371,25 @@ export function MyPage() {
                   </View>
                 </View>
 
+                {/* 我的与服务（段 7 C5）：客服中心 / 投诉 / 意见反馈 */}
+                <View style={styles.group}>
+                  <SectionTitle text={t('profile.my.groupService')} style={styles.groupTitle} />
+                  <View style={styles.groupList}>
+                    <SettingRow
+                      label={t('profile.my.menuSupport')}
+                      onPress={() => router.push(PAGE_ROUTES.support)}
+                    />
+                    <SettingRow
+                      label={t('profile.my.menuComplaint')}
+                      onPress={() => router.push(PAGE_ROUTES.complaint)}
+                    />
+                    <SettingRow
+                      label={t('profile.my.menuFeedback')}
+                      onPress={() => router.push(PAGE_ROUTES.feedback)}
+                    />
+                  </View>
+                </View>
+
                 <Pressable
                   onPress={() => setLogoutVisible(true)}
                   accessibilityRole="button"

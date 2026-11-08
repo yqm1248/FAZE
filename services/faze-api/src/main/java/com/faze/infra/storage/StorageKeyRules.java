@@ -35,12 +35,18 @@ public final class StorageKeyRules {
      * <p>段 6 新增 1 个：`reconcile_bill`（渠道对账单，服务端生成或从渠道下载后落盘，
      * 按《技术路线》§9.5 留存 3 年，**只增不覆盖**）。</p>
      *
+     * <p>段 7 C5 新增 2 个：`complaint` / `feedback`（APP 57 投诉与 58 反馈的截图凭证，
+     * 用户直传、≤3 张、只在本人投诉/反馈详情里可见）。这两个场景走的是
+     * `UploadService` 的用户直传白名单，因此扩展名仍受下面 {@link #ALLOWED_EXT} 的
+     * 图片/PDF 限制，**不接受 `csv` / `zip`**。</p>
+     *
      * <p>**必须与 {@link #KEY_PATTERN} 同步**：只改这里不改正则，`build()` 能生成但 `isValid()` 会拒，
      * 表现为「上传凭证签发成功、PUT 时 403」——排查时很容易误判成签名算错。</p>
      */
     public static final Set<String> ALLOWED_SCENES = Set.of(
             "realname", "identity", "license", "avatar", "chat",
-            "signature", "document", "doc_template", "withdraw", "reconcile_bill");
+            "signature", "document", "doc_template", "withdraw", "reconcile_bill",
+            "complaint", "feedback");
 
     /**
      * 允许的扩展名白名单。
@@ -61,7 +67,7 @@ public final class StorageKeyRules {
      */
     private static final Pattern KEY_PATTERN = Pattern.compile(
             "^private/(realname|identity|license|avatar|chat|signature|document|doc_template|withdraw"
-                    + "|reconcile_bill)"
+                    + "|reconcile_bill|complaint|feedback)"
                     + "/\\d{6}/\\d+/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
                     + "\\.(jpg|jpeg|png|webp|pdf|csv|zip)$");
 

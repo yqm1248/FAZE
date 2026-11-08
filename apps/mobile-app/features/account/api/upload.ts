@@ -17,8 +17,21 @@
 import { get, post, putBinary } from '@/shared/api/client';
 import type { ApiResult } from '@/shared/api/types';
 
-/** 上传场景（后端白名单）。`chat` 是段 2 G6 补的聊天附件场景（图片 / PDF）。 */
-export type UploadScene = 'realname' | 'identity' | 'license' | 'avatar' | 'chat';
+/**
+ * 上传场景（后端白名单）。
+ *
+ * `chat` 是段 2 G6 补的聊天附件场景（图片 / PDF）；
+ * `complaint` / `feedback` 是段 7 C5 补的投诉与反馈截图场景。
+ * **两边必须逐项一致**（后端 `StorageKeyRules.ALLOWED_SCENES`），少一个就会 400。
+ */
+export type UploadScene =
+  | 'realname'
+  | 'identity'
+  | 'license'
+  | 'avatar'
+  | 'chat'
+  | 'complaint'
+  | 'feedback';
 
 /** 上传凭证出参（`UploadTokenVO`）。 */
 export type UploadTokenData = {

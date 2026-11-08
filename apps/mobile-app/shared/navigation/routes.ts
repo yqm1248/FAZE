@@ -148,6 +148,16 @@ export const PAGE_ROUTES = {
   workbenchProfile: '/workbench-profile' as Href,
   /** 文书模板列表（段 4 E1 的页面，D2 的「新建文书」入口跳这里）。 */
   docTemplates: '/doc/templates' as Href,
+
+  // ── 段 7 C5：客服 / FAQ / 投诉 / 反馈（4 页）────────────────────────
+  /** 客服中心（`/support`，APP 55）。 */
+  support: '/support' as Href,
+  /** 常见问题（`/faq`，APP 56）。 */
+  faq: '/faq' as Href,
+  /** 投诉（`/complaint`，APP 57）。 */
+  complaint: '/complaint' as Href,
+  /** 意见反馈（`/feedback`，APP 58）。 */
+  feedback: '/feedback' as Href,
 } as const;
 
 /** 路由常量表的值类型（用于接收「任一页面路径」的参数）。 */
@@ -286,4 +296,22 @@ export function articlesHref(category?: string): Href {
  */
 export function articleHref(articleId: string): Href {
   return `${String(PAGE_ROUTES.article)}?id=${encodeURIComponent(articleId)}` as Href;
+}
+
+/**
+ * 拼意见反馈路由（段 7 C5）。
+ *
+ * 为什么要带 `from`：从 55 客服中心「留言」进来时，反馈页要把预选类型改成「其他」
+ * 并换一段引导文案（工作流 §零之二 第 7 条「非时段切留言形态」）。
+ * 用查询参数而不是新建一条 `/support-message` 路由，是因为页面本身完全一样，
+ * 只是初始值与文案不同——多一条路由会让「反馈」在两处维护。
+ *
+ * @param from 来源标记；`support` 表示从客服中心来
+ * @returns 可传给 `router.push` 的 Href
+ */
+export function feedbackHref(from?: 'support'): Href {
+  if (from === undefined) {
+    return PAGE_ROUTES.feedback;
+  }
+  return `${String(PAGE_ROUTES.feedback)}?from=${encodeURIComponent(from)}` as Href;
 }
