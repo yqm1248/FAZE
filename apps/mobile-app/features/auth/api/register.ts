@@ -36,6 +36,13 @@ export type RegisterInput = {
   guardianPhone: string | null;
   /** 是否已勾选协议（必须 true）。 */
   agreementAccepted: boolean;
+  /**
+   * 所在地区（中文专有名词，**原样提交不翻译**）。
+   *
+   * 2026-11-09 负责人拍板：注册时必选（方案 A）。后端写入 `app_user.region`，
+   * A-02 看板地区分布与按地区发公告都依赖它。
+   */
+  region: string;
 };
 
 /**
@@ -70,6 +77,8 @@ export async function register(input: RegisterInput): Promise<ApiResult<LoginDat
       // 非未成年人传 null：后端只在 isMinor=true 时读取该字段。
       guardianPhone: input.isMinor ? input.guardianPhone : null,
       agreementAccepted: input.agreementAccepted,
+      // 所在地区：后端 RegisterBO 新增字段（2026-11-09），中文专有名词原样提交。
+      region: input.region,
     },
     { auth: false },
   );
