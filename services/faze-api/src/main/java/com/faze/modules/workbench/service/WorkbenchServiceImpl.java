@@ -383,6 +383,10 @@ public class WorkbenchServiceImpl implements WorkbenchService {
     @Override
     public void updateWithdrawAccount(Long userId, WithdrawAccountBO bo) {
         Lawyer lawyer = requireLawyer(userId);
+        // 服务端必须重做一遍格式校验（前端校验只是体验）：长度 16~19 + Luhn（F4 第 3 条）
+        if (!com.faze.common.util.BankCardValidator.isValid(bo.getBankAccount())) {
+            throw new BusinessException(ErrorCode.COMMON_PARAM_INVALID, "银行卡号格式不正确");
+        }
         // 实名一致：收款人姓名必须与律师实名完全一致（D4 规则第 4 条「本人实名一致的银行卡」）
         if (!bo.getAccountName().trim().equals(lawyer.getRealName())) {
             throw new BusinessException(ErrorCode.COMMON_PARAM_INVALID, "收款人姓名必须与实名一致");

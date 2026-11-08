@@ -27,4 +27,79 @@
           AND deleted_at IS NULL
     </select>
 
+    <!--
+      段 5 E2 回补扫描：已完成但没有 income 流水的订单。
+      NOT EXISTS 是幂等的来源——回补跑第二遍时这里一条都查不出来，
+      不需要额外的「已回补」标记（也不许给 balance_flow 加标记，见 E3 注释）。
+      COALESCE(lawyer_income_cents,0) > 0 把 R2 说的「历史 0 值订单」挡在外面：
+      这类单跳过并单独列出交负责人，绝不用现在的费率重算。
+    -->
+    <select id="selectCompletedWithoutIncome" resultType="com.faze.modules.trade.entity.Orders">
+        SELECT o.*
+        FROM orders o
+        WHERE o.status = 'completed'
+          AND o.deleted_at IS NULL
+          AND o.lawyer_id IS NOT NULL
+          AND COALESCE(o.lawyer_income_cents, 0) &gt; 0
+          AND NOT EXISTS (
+              SELECT 1
+              FROM balance_flow f
+              WHERE f.owner_type = 'lawyer'
+                AND f.biz_type = 'income'
+                AND f.biz_id = o.id
+          )
+        ORDER BY o.id
+        LIMIT #{limit}
+    </select>
+
+    <!-- 回补只读核对：待补订单数与净收入合计（E2 的「前后差额 == 待补合计」用它对） -->
+    <select id="countCompletedWithoutIncome"
+            resultType="com.faze.modules.trade.mapper.SettlementAgg">
+        SELECT COUNT(*)                                            AS order_count,
+               COALESCE(SUM(o.amount_cents), 0)                    AS income_cents,
+               COALESCE(SUM(o.platform_fee_cents), 0)              AS fee_cents
+        FROM orders o
+        WHERE o.status = 'completed'
+          AND o.deleted_at IS NULL
+          AND o.lawyer_id IS NOT NULL
+          AND COALESCE(o.lawyer_income_cents, 0) &gt; 0
+          AND NOT EXISTS (
+              SELECT 1
+              FROM balance_flow f
+              WHERE f.owner_type = 'lawyer'
+                AND f.biz_type = 'income'
+                AND f.biz_id = o.id
+          )
+    </select>
+
+    <!--
+      段 5 E4：按律师 × 账期聚合已完成订单（订单侧的三列：订单数 / 订单收入 / 服务费）。
+      归期用 finished_at（完成才计入收入），区间是调用方换算好的 UTC 半开区间。
+      应结金额不在这里算——它来自 balance_flow 的 income 净额，两者必须交叉校验。
+    -->
+    <select id="selectSettlementAgg"
+            resultType="com.faze.modules.trade.mapper.SettlementAgg">
+        SELECT COUNT(*)                               AS order_count,
+               COALESCE(SUM(amount_cents), 0)         AS income_cents,
+               COALESCE(SUM(platform_fee_cents), 0)   AS fee_cents
+        FROM orders
+        WHERE lawyer_id = #{lawyerId}
+          AND status = 'completed'
+          AND deleted_at IS NULL
+          AND finished_at &gt;= #{beginUtc}
+          AND finished_at &lt; #{endUtc}
+    </select>
+
+    <!-- 段 5 E4：该账期有完成订单的律师集合（批量生成时的候选集） -->
+    <select id="selectSettlementLawyerIds" resultType="java.lang.Long">
+        SELECT DISTINCT lawyer_id
+        FROM orders
+        WHERE status = 'completed'
+          AND deleted_at IS NULL
+          AND lawyer_id IS NOT NULL
+          AND finished_at &gt;= #{beginUtc}
+          AND finished_at &lt; #{endUtc}
+        ORDER BY lawyer_id
+    </select>
+
 </mapper>

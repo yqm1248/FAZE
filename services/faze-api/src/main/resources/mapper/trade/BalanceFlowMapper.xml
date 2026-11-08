@@ -55,4 +55,61 @@
         FROM balance_flow
         GROUP BY owner_type, owner_id
     </select>
+
+    <!--
+      段 5 E4：某律师在 [beginAt, endAt) 内的 income 流水净额。
+      区间由 Service 按东八区账期换算成 UTC 后传入——SQL 里做时区换算会废掉
+      idx_flow_owner_time 的可用性，且 MySQL 的 CONVERT_TZ 依赖时区表是否装载。
+      结算页的「应结金额」口径就是这条 SQL，不是 orders 重算（5-A4 的三列对照里它是 SQL 列）。
+    -->
+    <select id="sumIncomeByOwnerAndRange" resultType="java.lang.Long">
+        SELECT COALESCE(SUM(delta_cents), 0)
+        FROM balance_flow
+        WHERE owner_type = 'lawyer'
+          AND owner_id = #{ownerId}
+          AND biz_type = 'income'
+          AND created_at &gt;= #{beginAt}
+          AND created_at &lt; #{endAt}
+    </select>
+
+    <!--
+      段 5 E3：到期可解冻的 income 流水。
+      NOT EXISTS 判断是否已有对应的解冻流水（biz_id 指向 income.id），
+      这是「不给只追加表加标记列」的唯一正确做法（见 Mapper 方法注释）。
+
+      ⚠️ 解冻流水的 biz_type 是 `income_unfreeze`，**不是** `unfreeze`：
+      提现驳回回滚也用 `unfreeze`（biz_id=withdraw_record.id，5-A5 要求），
+      两个 biz_id 分属 income 与 withdraw_record 两张表的自增 id，**必然重叠**
+      （都从 1 开始），同 (owner_type, owner_id, biz_type, biz_id) 会撞 uk_flow_biz，
+      导致「提现驳回成功但某笔收入永远解冻不了」。这是计划文档 E0 的缺口，
+      段 5 施工裁决：按业务来源拆成两个 biz_type，语义也更清楚。
+
+      uk_flow_biz(owner_type, owner_id, 'income_unfreeze', income.id) 是并发下的最后一道兜底。
+    -->
+    <select id="selectDueUnfreezeIncomes" resultType="com.faze.modules.trade.entity.BalanceFlow">
+        SELECT f.id,
+               f.owner_type,
+               f.owner_id,
+               f.biz_type,
+               f.biz_id,
+               f.delta_cents,
+               f.balance_after,
+               f.frozen_until,
+               f.remark,
+               f.created_at
+        FROM balance_flow f
+        WHERE f.owner_type = 'lawyer'
+          AND f.biz_type = 'income'
+          AND f.frozen_until IS NOT NULL
+          AND f.frozen_until &lt;= #{now}
+          AND NOT EXISTS (
+              SELECT 1
+              FROM balance_flow u
+              WHERE u.owner_type = 'lawyer'
+                AND u.biz_type = 'income_unfreeze'
+                AND u.biz_id = f.id
+          )
+        ORDER BY f.id
+        LIMIT #{limit}
+    </select>
 </mapper>

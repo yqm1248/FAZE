@@ -65,4 +65,33 @@ public interface BalanceFlowMapper extends BaseMapper<BalanceFlow> {
      * @return 每个归属方一行；无流水返回空列表
      */
     List<OwnerFlowSum> selectOwnerSums();
+
+    /**
+     * 汇总某律师在给定时间区间内的 `income` 流水净额（段 5 E4 结算批次用）。
+     *
+     * <p>区间是**半开区间** `[beginAt, endAt)`，入参由调用方按东八区账期换算成 UTC，
+     * 本 SQL 不做时区换算（SQL 里换时区会隐式丢索引）。</p>
+     *
+     * @param ownerId lawyer.id
+     * @param beginAt 区间起（含，UTC）
+     * @param endAt   区间止（不含，UTC）
+     * @return 净额（分）；无流水时为 0
+     */
+    Long sumIncomeByOwnerAndRange(@Param("ownerId") Long ownerId,
+                                  @Param("beginAt") LocalDateTime beginAt,
+                                  @Param("endAt") LocalDateTime endAt);
+
+    /**
+     * 扫出「已过冻结期且还没解冻过」的 income 流水（段 5 E3 解冻任务）。
+     *
+     * <p>为什么用 `NOT EXISTS` 而不是给 balance_flow 加「已解冻」标记列：
+     * 本表是只追加的证据链，加标记列就意味着要 UPDATE 历史流水（规范禁止）。
+     * 用 `biz_id` 关联判断是唯一不破坏「只追加」原则的做法。</p>
+     *
+     * @param now   当前时间（UTC）
+     * @param limit 单批上限（防一次扫爆内存）
+     * @return 待解冻的 income 流水；没有则空列表
+     */
+    List<BalanceFlow> selectDueUnfreezeIncomes(@Param("now") LocalDateTime now,
+                                               @Param("limit") int limit);
 }

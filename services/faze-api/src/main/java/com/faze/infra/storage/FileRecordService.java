@@ -53,12 +53,16 @@ public class FileRecordService {
     /** 业务类型：签名 PNG。 */
     public static final String BIZ_SIGNATURE = "signature";
 
+    /** 业务类型：提现出款凭证（段 5 F2，管理员在 PC 上传）。 */
+    public static final String BIZ_WITHDRAW = "withdraw";
+
     /** 本地实现的桶名；接云 OSS 后换成真实 bucket。 */
     private static final String BUCKET = "local";
     private static final String STATUS_ACTIVE = "active";
     private static final int PRIVATE_YES = 1;
     private static final DateTimeFormatter MONTH = DateTimeFormatter.ofPattern("yyyyMM");
-    private static final Set<String> ALLOWED_BIZ = Set.of(BIZ_DOC_TEMPLATE, BIZ_DOCUMENT, BIZ_SIGNATURE);
+    private static final Set<String> ALLOWED_BIZ = Set.of(
+            BIZ_DOC_TEMPLATE, BIZ_DOCUMENT, BIZ_SIGNATURE, BIZ_WITHDRAW);
 
     private final FileRecordMapper fileRecordMapper;
     private final FileStorage fileStorage;
@@ -198,6 +202,45 @@ public class FileRecordService {
     public Long recordSignatureImage(Long userId, String ossKey, Long sizeBytes, String md5) {
         return insert(BIZ_SIGNATURE, null, userId, ossKey, "signature.png", "image/png",
                 sizeBytes, md5);
+    }
+
+    /**
+     * 按主键取登记行（段 5 F2 校验出款凭证是否真实存在）。
+     *
+     * @param fileId file_record.id
+     * @return 登记行；不存在时为空
+     */
+    public java.util.Optional<FileRecord> findById(Long fileId) {
+        if (fileId == null) {
+            return java.util.Optional.empty();
+        }
+        return java.util.Optional.ofNullable(fileRecordMapper.selectById(fileId));
+    }
+
+    /**
+     * 登记一份提现出款凭证（段 5 F2）。
+     *
+     * <p><b>与工作流原话的偏差</b>：工作流写的是「走 `POST /app/upload/token` 直传 OSS」，
+     * 但那是 C 端用户身份的上传入口，管理员 token 走不通，且 PC 没有直传链路。
+     * 本段改为**管理员把文件交给服务端、服务端落盘后登记**（凭证是财务偶尔上传的小文件，
+     * 走服务端落盘更简单；直传能力留给段 6 的渠道对账一起做）。已记入段 5 偏差清单。</p>
+     *
+     * @param withdrawId  提现单主键（写进 `biz_id`，便于反查）
+     * @param fileName    原始文件名（取扩展名用）
+     * @param contentType MIME 类型
+     * @param content     文件字节
+     * @return 新建的 `file_record.id`（写回 `withdraw_record.voucher_file_id`）
+     * @throws BusinessException 506002 内容为空 / 落盘失败 / 扩展名不支持
+     */
+    public Long storeWithdrawVoucher(Long withdrawId, String fileName, String contentType, byte[] content) {
+        String ext = StorageKeyRules.extensionOf(fileName);
+        if (ext.isEmpty()) {
+            throw new BusinessException(ErrorCode.DOCUMENT_GENERATE_FAILED, "凭证文件类型不支持");
+        }
+        storeGenerated(BIZ_WITHDRAW, withdrawId, withdrawId, ext, content,
+                contentType == null || contentType.isBlank() ? "application/octet-stream" : contentType,
+                fileName == null || fileName.isBlank() ? "voucher." + ext : fileName);
+        return fileRecordMapper.selectLatestId(BIZ_WITHDRAW, withdrawId);
     }
 
     // ── 内部 ────────────────────────────────────────────────────────────────

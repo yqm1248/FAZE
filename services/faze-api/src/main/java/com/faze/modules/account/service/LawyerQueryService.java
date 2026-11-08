@@ -14,6 +14,7 @@ package com.faze.modules.account.service;
 
 import com.faze.modules.account.entity.Lawyer;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -49,4 +50,27 @@ public interface LawyerQueryService {
      * @return 主键 → 律师行（已排除软删）
      */
     Map<Long, Lawyer> mapByIds(Collection<Long> lawyerIds);
+
+    /**
+     * 按姓名或律所模糊匹配律师主键（PC 结算 / 提现列表的「律师」查询栏用）。
+     *
+     * <p>只返回主键：调用方要做的是 `IN` 过滤，拿到整行没用且会浪费带宽。
+     * 关键词为空时返回空列表——**空列表意味着「没有匹配」而不是「全部」**，
+     * 调用方要自己判空并跳过这个条件（写成 `IN ()` 会查出 0 行，语义就反了）。</p>
+     *
+     * @param keyword 姓名 / 律所关键词
+     * @return 匹配的律师主键；无匹配或关键词为空时返回空列表
+     */
+    List<Long> searchIdsByKeyword(String keyword);
+
+    /**
+     * 按手机号模糊匹配律师主键（PC 提现列表的「律师手机号」查询栏用）。
+     *
+     * <p>手机号在 `app_user` 表、律师在 `lawyer` 表，本方法负责两跳（先按号找用户、再找律师），
+     * 不把联表 SQL 泄漏给调用方。</p>
+     *
+     * @param keyword 手机号片段
+     * @return 匹配的律师主键；关键词为空或无匹配时返回空列表
+     */
+    List<Long> searchIdsByPhone(String keyword);
 }

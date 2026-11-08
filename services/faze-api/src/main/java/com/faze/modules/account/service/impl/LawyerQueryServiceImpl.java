@@ -12,11 +12,14 @@
 package com.faze.modules.account.service.impl;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.faze.modules.account.entity.AppUser;
 import com.faze.modules.account.entity.Lawyer;
+import com.faze.modules.account.mapper.AccountMapper;
 import com.faze.modules.account.mapper.LawyerMapper;
 import com.faze.modules.account.service.LawyerQueryService;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
@@ -32,6 +35,7 @@ import org.springframework.stereotype.Service;
 public class LawyerQueryServiceImpl implements LawyerQueryService {
 
     private final LawyerMapper lawyerMapper;
+    private final AccountMapper accountMapper;
 
     /**
      * 按律师主键查。
@@ -85,5 +89,67 @@ public class LawyerQueryServiceImpl implements LawyerQueryService {
                 .stream()
                 .filter(lawyer -> lawyer.getId() != null)
                 .collect(Collectors.toMap(Lawyer::getId, Function.identity(), (left, right) -> left));
+    }
+
+    /**
+     * 按姓名或律所模糊匹配律师主键。
+     *
+     * <p>两条 `LIKE` 用 OR 组合：姓名命中或律所命中都算，
+     * 与 PC 用户习惯一致（财务记得住律所名但不一定记得律师全名）。</p>
+     *
+     * @param keyword 关键词
+     * @return 律师主键列表；关键词为空或无匹配时为空列表
+     */
+    @Override
+    public List<Long> searchIdsByKeyword(String keyword) {
+        if (keyword == null || keyword.isBlank()) {
+            return List.of();
+        }
+        String kw = keyword.trim();
+        return lawyerMapper.selectList(Wrappers.<Lawyer>lambdaQuery()
+                        .select(Lawyer::getId)
+                        .and(wrapper -> wrapper.like(Lawyer::getRealName, kw)
+                                .or()
+                                .like(Lawyer::getLawFirm, kw)
+                                .or()
+                                .like(Lawyer::getLicenseNumber, kw))
+                        .isNull(Lawyer::getDeletedAt))
+                .stream()
+                .map(Lawyer::getId)
+                .filter(java.util.Objects::nonNull)
+                .toList();
+    }
+
+    /**
+     * 按手机号模糊匹配律师主键（两跳：手机号在 app_user、律师在 lawyer）。
+     *
+     * @param keyword 手机号片段
+     * @return 律师主键列表；关键词为空或无匹配时为空列表
+     */
+    @Override
+    public List<Long> searchIdsByPhone(String keyword) {
+        if (keyword == null || keyword.isBlank()) {
+            return List.of();
+        }
+        String kw = keyword.trim();
+        List<Long> userIds = accountMapper.selectList(Wrappers.<AppUser>lambdaQuery()
+                        .select(AppUser::getId)
+                        .like(AppUser::getPhone, kw)
+                        .isNull(AppUser::getDeletedAt))
+                .stream()
+                .map(AppUser::getId)
+                .filter(java.util.Objects::nonNull)
+                .toList();
+        if (userIds.isEmpty()) {
+            return List.of();
+        }
+        return lawyerMapper.selectList(Wrappers.<Lawyer>lambdaQuery()
+                        .select(Lawyer::getId)
+                        .in(Lawyer::getUserId, userIds)
+                        .isNull(Lawyer::getDeletedAt))
+                .stream()
+                .map(Lawyer::getId)
+                .filter(java.util.Objects::nonNull)
+                .toList();
     }
 }

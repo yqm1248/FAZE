@@ -35,4 +35,50 @@ public interface OrdersMapper extends BaseMapper<Orders> {
      */
     WorkbenchSummaryVO selectWorkbenchStats(@Param("lawyerId") Long lawyerId,
                                             @Param("beginUtc") LocalDateTime beginUtc);
+
+    /**
+     * 扫出「已完成但还没有 income 流水」的订单（段 5 E2 回补）。
+     *
+     * <p>扫描条件是 `status='completed'` + `NOT EXISTS(income 流水)`，
+     * 幂等由这个条件本身保证：跑第二遍时结果集为空。</p>
+     *
+     * @param limit 单批上限
+     * @return 待回补订单（按 id 升序）
+     */
+    java.util.List<Orders> selectCompletedWithoutIncome(@Param("limit") int limit);
+
+    /**
+     * 统计「已完成但还没有 income 流水」的订单数与金额合计（只读核对 SQL 的服务端版）。
+     *
+     * @return 待补订单数与净收入合计（无待补时字段为 0）
+     */
+    SettlementAgg countCompletedWithoutIncome();
+
+    /**
+     * 按「律师 × 账期」聚合已完成订单（段 5 E4 结算批次）。
+     *
+     * <p>账期是东八区自然月，调用方把 `[beginUtc, endUtc)` 换算好再传；
+     * 归期依据是 `finished_at`（完成才产生收入），不是 `created_at`。</p>
+     *
+     * @param lawyerId 律师主键
+     * @param beginUtc 账期起（含，UTC）
+     * @param endUtc   账期止（不含，UTC）
+     * @return 聚合结果；无订单时各字段为 0
+     */
+    SettlementAgg selectSettlementAgg(@Param("lawyerId") Long lawyerId,
+                                      @Param("beginUtc") LocalDateTime beginUtc,
+                                      @Param("endUtc") LocalDateTime endUtc);
+
+    /**
+     * 列出该账期内有完成订单的律师 id（段 5 E4「生成该账期全部律师」用）。
+     *
+     * <p>只返回「有完成订单」的律师，0 元单不会进候选集——这是 E4 第 7 条
+     * 「不生成 0 元单」的第一道过滤。</p>
+     *
+     * @param beginUtc 账期起（含，UTC）
+     * @param endUtc   账期止（不含，UTC）
+     * @return 律师 id 升序列表；无数据返回空列表
+     */
+    java.util.List<Long> selectSettlementLawyerIds(@Param("beginUtc") LocalDateTime beginUtc,
+                                                   @Param("endUtc") LocalDateTime endUtc);
 }

@@ -61,6 +61,20 @@ public interface FileRecordMapper extends BaseMapper<FileRecord> {
                                                @Param("prefix") String prefix);
 
     /**
+     * 取某业务对象最新一条登记的主键（段 5 F2 上传出款凭证后回写 `voucher_file_id` 用）。
+     *
+     * <p>为什么按「业务对象」而不是按「原始文件名」：凭证每次上传的文件名都不同
+     * （财务随手命名的截图），只能按 `biz_type + biz_id` 取最新一条。</p>
+     *
+     * @param bizType 业务类型
+     * @param bizId   业务主键
+     * @return 登记行主键；没有时返回 null
+     */
+    @Select("SELECT id FROM file_record WHERE biz_type = #{bizType} AND biz_id = #{bizId}"
+            + " AND status = 'active' ORDER BY id DESC LIMIT 1")
+    Long selectLatestId(@Param("bizType") String bizType, @Param("bizId") Long bizId);
+
+    /**
      * 把文件标成孤儿（`status='orphan'`），供段 7 的清理任务回收。
      *
      * @param ossKey 对象键

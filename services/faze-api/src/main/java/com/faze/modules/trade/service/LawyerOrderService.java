@@ -65,6 +65,7 @@ public class LawyerOrderService {
     private final OrderStateService orderStateService;
     private final OrderRefundService orderRefundService;
     private final AccountMapper accountMapper;
+    private final SettlementService settlementService;
 
     /**
      * 分页查询当前律师的订单。
@@ -143,7 +144,13 @@ public class LawyerOrderService {
     }
 
     /**
-     * 结束服务：IN_SERVICE → COMPLETED。
+     * 结束服务：IN_SERVICE → COMPLETED，并在**同一事务**里把律师收入入账（段 5 E1）。
+     *
+     * <p>为什么必须同一事务：工作流 E1 第 5 条要求「不允许订单完成了但没入账」。
+     * 分开两个事务会出现「状态已 COMPLETED、钱没进待结算」的中间态，靠回补脚本兜是下策。</p>
+     *
+     * <p>入账金额只读 `orders.lawyer_income_cents`（段 2 按当次费率算好的快照），
+     * 本方法不重算——费率改过后重算会与订单上的数不一致。</p>
      *
      * @param userId  当前登录用户
      * @param orderId 订单主键
@@ -158,7 +165,13 @@ public class LawyerOrderService {
         if (!ok) {
             throw new BusinessException(ErrorCode.TRADE_ORDER_STATE_INVALID);
         }
-        log.info("律师结束服务 lawyerId={} orderId={}", lawyer.getId(), orderId);
+        // 段 5 E1：状态迁移会写 finished_at，所以要重新读一次订单（旧对象里 finished_at 还是 null）。
+        // frozen_until = finished_at + settlement.freeze_days，用刚写入的完成时间算。
+        Orders finished = ordersMapper.selectById(orderId);
+        if (finished != null) {
+            settlementService.creditIncome(finished);
+        }
+        log.info("律师结束服务并已入待结算 lawyerId={} orderId={}", lawyer.getId(), orderId);
     }
 
     /**

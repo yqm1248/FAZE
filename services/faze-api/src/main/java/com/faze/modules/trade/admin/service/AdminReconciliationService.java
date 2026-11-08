@@ -16,13 +16,16 @@ package com.faze.modules.trade.admin.service;
 
 import com.faze.common.audit.AuditContext;
 import com.faze.common.audit.OperationLog;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.faze.modules.trade.admin.vo.ReconciliationDiffVO;
 import com.faze.modules.trade.admin.vo.ReconciliationSummaryVO;
 import com.faze.modules.trade.entity.LawyerBalance;
+import com.faze.modules.trade.entity.ReconciliationDiff;
 import com.faze.modules.trade.entity.UserBalance;
 import com.faze.modules.trade.mapper.BalanceFlowMapper;
 import com.faze.modules.trade.mapper.LawyerBalanceMapper;
 import com.faze.modules.trade.mapper.OwnerFlowSum;
+import com.faze.modules.trade.mapper.ReconciliationDiffMapper;
 import com.faze.modules.trade.mapper.UserBalanceMapper;
 import com.faze.modules.trade.service.BalanceService;
 import java.time.LocalDateTime;
@@ -48,9 +51,19 @@ public class AdminReconciliationService {
     private static final String MODULE = "trade";
     private static final String ACTION = "RECONCILE_RUN";
 
+    /** 差异类型：账务恒等式不一致（段 5 H1 写入，段 6 的渠道差异用别的值）。 */
+    private static final String DIFF_IDENTITY = "identity_mismatch";
+
+    /** 巡检类型：缓存 vs 流水汇总。 */
+    private static final String CHECK_IDENTITY = "identity_balance";
+
+    /** 差异状态：待处理（V1 只写这一个值）。 */
+    private static final String STATUS_OPEN = "open";
+
     private final BalanceFlowMapper balanceFlowMapper;
     private final UserBalanceMapper userBalanceMapper;
     private final LawyerBalanceMapper lawyerBalanceMapper;
+    private final ReconciliationDiffMapper reconciliationDiffMapper;
     private final JsonMapper jsonMapper;
 
     /**
@@ -82,15 +95,66 @@ public class AdminReconciliationService {
     @OperationLog(module = MODULE, action = ACTION)
     public ReconciliationSummaryVO run() {
         Result result = compute();
+        // 段 5 H1：把差异落表（只写不处置）。先查后插，避免同一条差异每次巡检都堆一行。
+        int written = persistDiffs(result.diffs());
         Map<String, Object> detail = new LinkedHashMap<>();
         detail.put("checkedOwners", result.summary().getCheckedOwners());
         detail.put("balancedOwners", result.summary().getBalancedOwners());
         detail.put("diffOwners", result.summary().getDiffOwners());
         detail.put("totalCheckedCents", result.summary().getTotalCheckedCents());
+        detail.put("diffsWritten", written);
         AuditContext.mark(MODULE, ACTION, null, null, jsonMapper.writeValueAsString(detail));
-        log.info("对账完成 checkedOwners={} diffOwners={}",
-                result.summary().getCheckedOwners(), result.summary().getDiffOwners());
+        log.info("对账完成 checkedOwners={} diffOwners={} diffsWritten={}",
+                result.summary().getCheckedOwners(), result.summary().getDiffOwners(), written);
         return result.summary();
+    }
+
+    /**
+     * 把本次巡检发现的差异写进 `reconciliation_diff`（段 5 H1）。
+     *
+     * <p><b>只记录不处置</b>：不写 `handlerId` / `handledAt`，`status` 保持 `open`，
+     * 也没有任何改状态的业务入口（H1 第 4 条）。差异的处置留给段 7 的治理工单。</p>
+     *
+     * <p>去重：同一主体同一天已有一条 `open` 的恒等式差异就跳过，否则每次跑巡检都会
+     * 追加一行重复记录。<b>不改 A-09 页面</b>：页面仍读现算结果，本表只供排查留档。</p>
+     *
+     * @param diffs 本次差异行
+     * @return 实际写入的行数
+     */
+    private int persistDiffs(List<ReconciliationDiffVO> diffs) {
+        if (diffs.isEmpty()) {
+            return 0;
+        }
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+        int written = 0;
+        for (ReconciliationDiffVO vo : diffs) {
+            Long existing = reconciliationDiffMapper.selectCount(
+                    Wrappers.<ReconciliationDiff>lambdaQuery()
+                            .eq(ReconciliationDiff::getCheckType, CHECK_IDENTITY)
+                            .eq(ReconciliationDiff::getBizType, vo.getOwnerType())
+                            .eq(ReconciliationDiff::getBizId, vo.getOwnerId())
+                            .eq(ReconciliationDiff::getStatus, STATUS_OPEN)
+                            .ge(ReconciliationDiff::getFoundAt, now.toLocalDate().atStartOfDay()));
+            if (existing != null && existing > 0) {
+                continue;
+            }
+            ReconciliationDiff row = new ReconciliationDiff();
+            row.setDiffType(DIFF_IDENTITY);
+            row.setCheckType(CHECK_IDENTITY);
+            row.setBizType(vo.getOwnerType());
+            row.setBizId(vo.getOwnerId());
+            row.setExpectedCents(vo.getFlowCents());
+            row.setActualCents(vo.getCacheCents());
+            row.setDiffCents(vo.getDiffCents());
+            row.setAmountCents(vo.getDiffCents());
+            row.setFoundAt(now);
+            row.setStatus(STATUS_OPEN);
+            row.setCreatedAt(now);
+            row.setUpdatedAt(now);
+            reconciliationDiffMapper.insert(row);
+            written++;
+        }
+        return written;
     }
 
     // ── 内部 ───────────────────────────────────────────────────────────────
