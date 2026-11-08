@@ -96,6 +96,9 @@ public final class SysConfigKeys {
     /** 未实名用户单日额度（分）。**0 = 完全不可充值**（拦截不是限额）。 */
     public static final String RECHARGE_UNVERIFIED_DAILY_CENTS = "recharge.unverified_daily_cents";
 
+    /** 充值下单的用户维度频次限流：每分钟最多 N 次（B3 第 3 条，默认 3）。 */
+    public static final String RECHARGE_RATE_LIMIT_PER_MIN = "recharge.rate_limit_per_min";
+
     // ── Mock 通道测试开关（只在 pay.mock.enabled=true 时生效，生产不许出现） ──
 
     /** 回调延迟毫秒（模拟真实到账时间，验 6-A2 的重放窗口）。 */

@@ -76,6 +76,10 @@ class RechargeOrderServiceTest {
     @Mock
     private RechargeIdempotencyGuard rechargeIdempotencyGuard;
 
+    /** B3 用户维度限流：mock 掉后默认放行（`check` 是 void，Mockito 默认 no-op）。 */
+    @Mock
+    private RechargeRateLimitGuard rechargeRateLimitGuard;
+
     @Mock
     private RechargePrepayStore rechargePrepayStore;
 

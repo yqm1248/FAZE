@@ -7,6 +7,8 @@
  *   1. **校验顺序按工作流 B1 第 1 条固定**：登录态 → 金额 → 渠道 → 幂等 → 实名 → 单日限额 →
  *      单号/落单 → prepay → 回写。顺序不能换：先做幂等再去查限额，能省掉重复提交时的两次全表汇总；
  *      而实名必须在限额之前——未实名用户的额度是 0，先查限额会对每个未实名请求都白跑一遍 SUM。
+ *      **B3 第 3 条的用户维度频次限流插在「金额」之后、「渠道」之前**：非法金额直接拒、不占
+ *      限流额度；合法请求才计数，且计数是 Redis 操作，比后面任何一次 DB 查询都便宜。
  *   2. **本类不带 @Transactional**：事务边界在 RechargeCreateExecutor（落单/回写/置失败各自一个短事务），
  *      prepay() 是远程调用，必须留在事务之外（《后端代码规范》§7.3）。
  *   3. **失败时释放幂等占位、成功时绑定**：只有「单没建成」才释放；单已落库（哪怕随后 prepay 失败
@@ -73,6 +75,8 @@ public class RechargeOrderService {
 
     private final RechargeIdempotencyGuard rechargeIdempotencyGuard;
 
+    private final RechargeRateLimitGuard rechargeRateLimitGuard;
+
     private final RechargePrepayStore rechargePrepayStore;
 
     private final PaymentGatewayFactory paymentGatewayFactory;
@@ -92,8 +96,8 @@ public class RechargeOrderService {
      * @param request        下单请求（金额 + 渠道）
      * @param idempotencyKey `Idempotency-Key` 头，可为空
      * @return 单号 + 金额 + 拉起渠道的参数 + 截止时间
-     * @throws BusinessException 405014 金额非法 / 405013 渠道未启用 / 405020 未实名 /
-     *                           405016 超出单日限额 / 405019 渠道下单失败
+     * @throws BusinessException 405014 金额非法 / 401007 触发用户维度限流 / 405013 渠道未启用 /
+     *                           405020 未实名 / 405016 超出单日限额 / 405019 渠道下单失败
      */
     public RechargeCreateVO create(Long userId, RechargeCreateBO request, String idempotencyKey) {
         if (userId == null) {
@@ -102,6 +106,8 @@ public class RechargeOrderService {
         // ① 金额区间（0 元单、负数、超出单笔上限都在这里拦掉）
         long amountCents = request.getAmountCents() == null ? 0L : request.getAmountCents();
         rechargeQuotaPolicy.ensureAmountAllowed(amountCents);
+        // ①-b 用户维度频次限流（B3 第 3 条）：同一用户每分钟第 4 次抛 401007
+        rechargeRateLimitGuard.check(userId);
         // ② 渠道：未启用抛 405013，不回退到其他渠道
         PayChannel channel = PayChannel.of(request.getChannel());
         PaymentGateway gateway = paymentGatewayFactory.get(channel);
