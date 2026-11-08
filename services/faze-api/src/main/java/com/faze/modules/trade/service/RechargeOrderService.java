@@ -77,6 +77,8 @@ public class RechargeOrderService {
 
     private final PaymentGatewayFactory paymentGatewayFactory;
 
+    private final RechargeSettleService rechargeSettleService;
+
     private final BalanceService balanceService;
 
     /**
@@ -274,7 +276,12 @@ public class RechargeOrderService {
             PayChannel channel = PayChannel.of(record.getChannel());
             QueryResult result = paymentGatewayFactory.get(channel).query(record.getOrderNo());
             if (result.isExists() && result.getStatus() == RechargeStatus.SUCCESS) {
-                log.warn("渠道已收款但本地仍 pending，等待补单/回调 orderNo={}", record.getOrderNo());
+                // 渠道确认已收款而本地仍 pending → 回调丢了，走同一入账链路（幂等，重复查也不会加两次）
+                RechargeSettleService.Outcome outcome = rechargeSettleService.settleByCallback(
+                        record.getOrderNo(), result.getChannelTxnId(),
+                        record.getAmountCents() == null ? 0L : record.getAmountCents(),
+                        result.getPaidAt(), null);
+                log.warn("主动查渠道确认已收款并补入账 orderNo={} outcome={}", record.getOrderNo(), outcome);
             }
         } catch (RuntimeException e) {
             // 查单失败不影响本次查询返回：用户轮询时会再查一次

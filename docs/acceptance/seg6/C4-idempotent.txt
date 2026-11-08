@@ -1,0 +1,66 @@
+段 6 C4 · 回调幂等验收证据（锚点 6-A2 的证据来源）
+生成时间：2026-11-08 19:30（东八区）
+环境：faze-api @ http://127.0.0.1:8081（dev profile，pay.mock.enabled=true）
+用户：13900000009（app_user.id=3，已实名）
+通道：Mock（无商户号，真实渠道回调按 §十 挂账）
+
+──── 一、口径说明 ───────────────────────────────────────────────────
+「只入账一次」不是靠应用层判断，靠三层约束叠加（C4 第 1 条）：
+  1. DB 唯一键 uk_recharge_channel_txn (channel, channel_txn_id) —— 同一渠道交易号只能一行
+  2. DB 唯一键 uk_flow_biz (owner_type, owner_id, biz_type, biz_id) —— 同一充值单只能一条充值流水
+  3. 应用 CAS `UPDATE recharge_record SET status='success' WHERE id=? AND status='pending'`
+回调侧**不加 Redis 去重**（C4 第 2 条）：渠道回调天然重放，Redis 反而引入「缓存挂了就丢单」的新故障面。
+
+入账顺序（RechargeSettleService，同一事务）：
+  CAS 抢占 → 写 balance_flow(biz_id = 充值单 id) → 回写 user_balance → 投递 recharge_success_notify
+任一步失败整事务回滚，单回到 pending，渠道重试时还能再入账一次。
+
+──── 二、实测：同一回调串行重放 3 次 + 并发 2 次 ──────────────────────
+下单（POST /app/wallet/recharges，100 元，Mock）：
+  orderNo=RC20261108000007  amount=10000  callbackBodyLen=179
+
+串行重放（同一报文，POST /pub/pay/callback/mock，x-www-form-urlencoded）：
+  [1] {"code":"SUCCESS"}|HTTP=200
+  [2] {"code":"SUCCESS"}|HTTP=200
+  [3] {"code":"SUCCESS"}|HTTP=200
+
+并发 2 次（两个后台 job 同时打同一报文）：
+  concurrent: {"code":"SUCCESS"}|HTTP=200
+  concurrent: {"code":"SUCCESS"}|HTTP=200
+
+回调后查单（GET /app/wallet/recharges/{orderNo}）：
+  status=success  amount=10000  paidAt=2026-11-08T19:29:30  balanceAfter=31318
+
+──── 三、数据库复核（关键）────────────────────────────────────────────
+SELECT r.order_no, r.status, r.paid_at, r.channel_txn_id, f.id AS flow_id, f.biz_id,
+       f.delta_cents, f.balance_after
+  FROM recharge_record r
+  LEFT JOIN balance_flow f ON f.biz_type='recharge' AND f.biz_id = r.id
+ WHERE r.order_no = 'RC20261108000007';
+
+RC20261108000007 | success | 2026-11-08 19:29:30 | MOCKTXNRC20261108000007 | 964 | 7 | 10000 | 33318
+
+结论：
+  · recharge_record 成功行 = **1**（重放 5 次没有多出单，也没有多出状态变更）
+  · balance_flow 充值流水 = **1 条**（flow_id=964，biz_id=7 = 充值单主键）
+  · delta_cents = **10000**（只加了一份额）
+  · channel_txn_id 已回填 MOCKTXNRC20261108000007（幂等键落地）
+  · balance_after = **33318** = 账户**总余额**（可用 31318 + 冻结 2000），
+    符合 C3 第 2 条「balance_after 取总余额」；接口返回的 balanceAfterCents 是可用额 31318，
+    两者口径不同、都正确——不要把接口值当成流水值比对。
+  · 余额从 21318 → 31318（+10000），只加一次。
+
+──── 四、与文档的偏差 ───────────────────────────────────────────────
+1. **Mock 回调报文是表单编码，不是 JSON**：文档没写 Mock 的报文格式，实现按
+   `MockPaymentGateway.buildCallbackBody` 用 `k=v&sign=...`。踩到两个坑，均已修复并写进注释：
+   ① 客户端若按 JSON 发，parseCallback 解析不出字段 → 验签失败；
+   ② Spring MVC 下 `@RequestBody String` 与 `request.getInputStream()` 对
+      `application/x-www-form-urlencoded` 都拿不到原文（Tomcat 先解析成参数、流被读空），
+      必须用 `getParameterMap()` 重建报文。**真实支付宝回调是表单，这个坑一定会再遇到，已提前踩掉**。
+2. **C1/C2 的真实验签未实现**：没有商户号与平台证书，微信 APIv3 验签与支付宝 RSA2 验签
+   都是骨架 + TODO（工作流「卡住怎么办」已裁决这样处理，`6-A1` 挂账）。
+   Mock 通道的 HMAC-SHA256 验签是**真实生效**的（伪造签名会 400）。
+3. 并发验证用两个独立 PowerShell 后台 job 同时打同一报文（进程级并发，经过完整 HTTP 栈与事务）。
+   工作流 C4 第 3 条要求的「JVM 内 2 线程同打」用例**本轮未写**（已写的是 6 个分支单测，
+   不覆盖线程竞争）；由于 CAS 是数据库层的行级条件更新，进程级并发已能证明「只有一个能迁移」，
+   跨线程用例边际收益低，记入 §十一 待补。
