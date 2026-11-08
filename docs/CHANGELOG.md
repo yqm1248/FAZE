@@ -4,6 +4,77 @@
 
 ---
 
+## 2026-11-08 · 第 5 段收口补做（二）：提现状态机单测 + 2 个证据文件 + 工作流 §十一 回写 + 基线 v1.55
+
+> 负责人问「第五段做完了吗」，逐条核对《第 5 段工作流》§一.1 的 7 条出口条件，发现 5 项不满足。
+> 本版补齐其中 4 项，剩下 1 项（四语言 + RTL 运行时）已裁决推段 8。
+
+### 1. 补提现状态机与提现申请单测（出口第 2 条）
+
+出口第 2 条要求「案件状态机、提现状态机**全部**合法/非法迁移有单测覆盖」。案件状态机段 5 已有
+（`CaseStateMachineTest`：6 合法 / 14 非法）；**提现状态机此前只有一个 `WithdrawStatus` 枚举 + `isTerminal()`，
+迁移全靠 `casTransit` 的 SQL CAS 兜底，既无独立类也无一条单测**。
+
+- 新增 `modules/trade/rule/WithdrawStateMachine`：4 态 / **3 条合法边**，`canTransit` / `check`（非法抛 `405025`）/ `isTerminal`。
+- `WithdrawService` 的 `approve` / `reject` / `markPaid` 在 `requireRecord` 之后**先判状态再判参数**，
+  避免「单据已是终态却先提示去补一个补了也没用的凭证」。
+- 新增单测 14 个：`WithdrawStateMachineTest` 6 个（12 组合 3 合法 / 9 非法、终态无出边、同态非法、
+  null 拒绝、`check` 错误码、合法边清单）+ `WithdrawServiceTest` 8 个（4 条校验 + 100 元与 10 分手续费 + 幂等命中 + 非律师）。
+
+**顺带查出一处文档数字矛盾**：工作流 F3 原文写「状态机单测（5 条合法 + 4 条非法）」，但 4 态两两组合只有
+12 种、合法边只有 3 条，`5+4=9` 凑不出任何自洽划分。按实际状态数实现，并登记到工作流 §十一（R-4）。
+
+### 2. 修 4 个单测 NPE（段 5 D 组自己打挂的回归）
+
+`mvn test` 从来不是绿的：`e816dc3` 给 `LawyerWorkbenchService` 加了 `SysConfigQueryService` 依赖
+（价格区间改读 `sys_config`），**漏改 `LawyerWorkbenchServiceTest`** → 4 个用例 NPE。
+`PROGRESS-C-D.md` 当时只记了 `tsc` / `eslint` 通过，没人跑后端全量。
+
+- 补 `@Mock SysConfigQueryService` + `@BeforeEach` 固定区间 20~2000 元。
+- 另发现旧用例 `zeroPriceForcesSwitchOff` 与 D4 冲突：它断言段 2 语义「0 价强制下架」，
+  但 D4 规定「20~2000 元、越界 `405006`」，**0 元在 `assertPrice` 就被拒，那条断言永远不可能成立**。
+  改为期望 `405006`，并新增 `zeroStoredPriceForcesSwitchOff` 覆盖「库内现价 0 时即使请求上架也强制下架」这条存活路径。
+
+### 3. 补 2 个缺失的证据文件（工作流 §5.5 要求）
+
+§5.5 列的证据文件里，`A1-schema.txt` 与 `H2-rtl.md` **从未产出**（`E2-backfill.txt` / `E5-no-money-moved.txt`
+早已在偏差 10 声明合并进 `PROGRESS-E-H.md`）。
+
+- `docs/acceptance/seg5/A1-schema.txt`：9 张表（`legal_case` / `case_progress` / `case_delivery` / `case_library` /
+  `case_library_translation` / `withdraw_record` / `lawyer_income_settlement` / `reconciliation_diff` / `lawyer`）
+  的 `SHOW CREATE TABLE` 原样输出，22 KB，flyway 最新 success 记录 `510`。
+- `docs/acceptance/seg5/H2-rtl.md`：静态核验 4 项全过（写死 `left/right` **0 处**、`letterSpacing` **全为 0**、
+  `I18nManager` 19 处无一处手动反转、`start/end` 39 处），但**明确写「RTL 运行时未验」**——
+  三语言各缺 1462 个 key，强制 RTL 后文字仍是中文，这种截图证明不了长词换行与 BiDi 数字，属「弱证据冒充强证据」，
+  所以不做。段 8 收口时必须补真实维吾尔文截图。
+
+### 4. 工作流 §十一 回写（「缺一条不算收口」）
+
+`docs/architecture/法泽FAZE_第5段工作流_v1.0.md` §十一 此前**是一张空表**（原文 1277 行处的
+`| | | | | |` 占位）。本次追加：
+
+- **32 条偏差清单**（编号 `A-1`~`A-6` / `CD-1`~`CD-8` / `EH-1`~`EH-12` / `R-1`~`R-7`），逐条写计划 vs 实际、原因、影响；
+- **出口 7 条逐条结论**：5 条满足、1 条部分满足（第 6 条：mvn 绿但 PC 无 lint、ArchUnit 全仓不存在）、
+  1 条不满足（第 5 条四语言 + RTL，已裁决推段 8）；
+- **6 项遗留挂账**交段 6 / 段 8。
+
+### 5. `docs/README.md` 段 5 索引加 2 行
+
+`A1-schema.txt`、`H2-rtl.md` 补进「段 5 验收证据索引」，并注明 H2 那份是「静态通过、运行时未验」。
+
+### 6. `docs/BASELINE.md` v1.54 → **v1.55**
+
+- 内容变更 **2 份**：第 5 段工作流（§十一 回写）、`docs/README.md`（索引 +2 行）；
+- 重算指纹：第 5 段工作流 `1337 行 / 136816 字节 / fd3d2cfab07cce0f`（原 `1277 / 125257 / 281f55b167210457`，+60 行 §十一 回写）；
+  `docs/README.md` `246 行 / 30767 字节 / ffa15f87125ab708`（原 `245 / 30369 / 0ab3d7652ecae0bf`，+2 行索引）；
+- 新增 §7.58；资产数仍 **45**（`docs/acceptance/**` 不进基线资产）。
+
+**后端门禁**：注入 `deploy/.env` 的 `FAZE_*` 后 `mvn -B -o test` → **382 tests / 0 failures / 0 errors / 0 skipped，BUILD SUCCESS**
+（较上一版 368 增加 14 个新用例）。**注意**：不注入环境变量直接跑会有 5 个 `@SpringBootTest` 报
+`Could not resolve placeholder 'FAZE_DB_URL'`——那是环境缺失，不是代码回归（`deploy/verify-all.ps1` 已修过同一问题）。
+
+---
+
 ## 2026-11-08 · 第 5 段收口补做：8 个锚点证据文件 + README 索引 + 基线 v1.54
 
 > 负责人要求把上一条里「没做完的」三件一起补掉：① 8 个独立锚点证据文件 ② `docs/README.md` 索引 ③ `BASELINE.md` 升版。

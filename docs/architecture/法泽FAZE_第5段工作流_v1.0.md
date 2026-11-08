@@ -1247,10 +1247,70 @@ A-10 提现审核（F2）、A-13 律师结算（E5）、A-16 案例库（G1）�
 ## 十一、实际完成与偏差（施工后回写，不删原文）
 
 > 施工完成后在这里追加，**不改上面的内容**。每条写：计划 vs 实际、偏差原因、是否影响下一段。
+>
+> **回写时间**：2026-11-08 18:00（Asia/Shanghai），分支 `UI设计`，HEAD `b77759f`。
+> **收口判定**：**7 条出口条件中 5 条满足、1 条部分满足、1 条不满足**（逐条见 §11.2）。
+> **不满足的那条（四语言 + RTL 运行时）已由负责人 2026-11-08 裁决推段 8**，
+> 证据见《技术路线》§二十六 第 1 项与 `docs/acceptance/seg5/H2-rtl.md`。
+
+### 11.1 偏差清单（32 条，编号规则：A = A 组；CD = C/D 组；EH = E~H 组；R = 收口轮新发现）
 
 | # | 计划 | 实际 | 偏差原因 | 影响 |
 |---|---|---|---|---|
-| | | | | |
+| A-1 | A1 给 `lawyer` 补 6 个字段 | V4 迁移已建，**未重复 ALTER** | 工作流写 A1「补字段」时点已过时 | 无 |
+| A-2 | `sys_config` 新增 `platform.fee_rate` | 沿用既有键 `platform_fee_rate` | 负责人 2026-11-08 确认不新增同义键 | 无（页面按既有键读） |
+| A-3 | A2「合法 5 条 / 非法 15 条」 | **6 条合法边 / 14 条非法** | 同一节表格列了 6 条合法边（含 `accepted→closed`），正文数字与表格不一致 | 按表格实现；工作流正文数字待下一版修正 |
+| A-4 | A5「Swagger 可打开」 | 项目**无 springdoc**，改验「8 接口无 token 全 401」 | 本段不新增依赖（§5.5 末行） | 契约可见性靠文档，不靠 Swagger |
+| A-5 | `BizNoGenerator` 放 `common/util/` | 落 `infra/seq/` | `common/util` 只放纯函数，带 Redis 的类不能放 | 无 |
+| A-6 | A3 降级单号「毫秒 6 位 + 随机 2 位」 | 实际 **4 + 2 = 6 位** | 原文 8 位会把单号撑过 16 位上限 | 无 |
+| CD-1 | D1 路径 `/workbench/conversations` | `/workbench/consultations` | 后者被段 2 的 `ConversationController#listForLawyer` 占用，重复映射使 Spring **启动失败**（实测 Ambiguous mapping） | 两套契约并存：段 2 不动，段 5 走新路径 |
+| CD-2 | D2「发送给客户」在文书**预览页** | 放在**文书列表**行上 | 段 4 预览页 460+ 行，改动面大且会碰已验收的导出/盖章链路 | 若验收坚持预览页，需单开一次改动 |
+| CD-3 | D4 服务设置是新写接口 | **改的是段 2 的实现**（同路径不能注册两个映射） | 该路径段 2 已占用 | 已在段 2 方法上补区间校验与 `autoAccept` |
+| CD-4 | C2 送达方式「全局三选一」 | **每份待签收文书各自选** | 接口按记录改方式；一份文书一种方式更贴近真实送达 | 已登记 |
+| CD-5 | C2「逾期」需落库判断 | 只做前端「已过 N 天」提示 | 工作流 C2「卡住怎么办」明确不新增库字段 | 符合规定 |
+| CD-6 | 聚合查询写 XML | `QueryWrapper.select(...)` + `selectObjs` | 为不扩散改动面；字段名写死、无拼接用户输入（不违反 XML 禁 `${}` 的实质） | 段 6 若改 XML 需同步改 4 个方法 |
+| CD-7 | D3 规则卡显示费率与冻结天数 | 只写规则句式 | 费率/天数分别读 `platform_fee_rate` / `settlement.freeze_days`，页面写死会与配置漂移 | 已登记 |
+| CD-8 | 段 2 工作台首页有宫格 | 段 2 **只有一个「我的订单」按钮**，本段补 6 项宫格 | 段 2 未按设计稿实现 | 已补 |
+| EH-1 | E0 规定解冻流水 `biz_type='unfreeze'`，E3 与 F3 共用 | E3 用 **`income_unfreeze`**，F3 驳回仍用 `unfreeze` | **计划缺陷**：两者 `biz_id` 分别指向 `balance_flow.id` 与 `withdraw_record.id`，两张自增表必然重叠 → 同 `(owner_type, owner_id, biz_type, biz_id)` 撞 `uk_flow_biz`，后果是「提现驳回成功但某笔收入永远解冻不了」 | 段 6/7 统计「所有解冻」需并查两个值；`balance_flow.biz_type` 现为 **5 值** |
+| EH-2 | `case_library` 21 字段 | **24 字段**（+`dispute_focus` +`plaintiff_name` +`defendant_name`） | 技术路线 DDL 缺「争议焦点」与当事人，而 G1 第 6 条、5-A7、A-16 列表都要用 | 《数据表规范》附录 A 需在 H3 回写（21 → 24） |
+| EH-3 | `reconciliation_diff` 按技术路线建（`bill_date`/`channel` NOT NULL） | 加 **7 个恒等式字段**（`check_type`/`biz_type`/`biz_id`/`expected_cents`/`actual_cents`/`diff_cents`/`found_at`）+ 放宽两列为 NULL | H1 要求恒等式差异也写这张表，但没有任何「账单日期/渠道」可填 | 段 6 渠道对账仍可用（两列有值时走原语义） |
+| EH-4 | F2 凭证「走 `POST /app/upload/token` 直传」 | 改为**管理员把 base64 交给服务端**，服务端落盘 + 登记 `file_record(biz_type='withdraw')` | 上传凭证接口是 C 端用户身份入口，管理员 token 走不通，PC 也没有直传链路 | 新增接口 `POST /admin/withdrawals/{id}/voucher`（清单外补充） |
+| EH-5 | 接口清单 PC 18 个 | **24 个**（+A-13 summary、+A-16 publish/offline/批量下架、+凭证预览、+提现已出款、+回补只读核对） | 清单漏了「统计卡 / 上线下架 / 凭证预览 / 已出款 / 核对」这些页面必需动作 | 段 6 接口统计按实际数 |
+| EH-6 | 接口清单 App 23 个 | **26 个**（+`GET /app/withdrawals/config`、+收藏两个、+`GET /app/case-library/{id}`） | 提现面板要显示手续费率（不能写死）；G2 要求收藏可用 | 同上 |
+| EH-7 | G1 的 4 个接口 | **7 个**（+publish/offline/批量下架） | 列表要「上线/下架」操作、G1 第 9 条要批量下架 | 无 |
+| EH-8 | H2 要求五 namespace 补 `zh-Hans` + `ug-Arab-CN` | **只补 `zh-Hans`**；`bo`/`ug`/`kk` 各缺 **1462 key**（登记式缺译） | 无翻译人员；机翻 1462 条会污染资源且与段 8 全量翻译重复；段 4 收口时是同一口径（当时缺 1074 key） | **已裁决**：段 8 统一翻译，收口时 `.i18n-pending.json` 必须为空 |
+| EH-9 | 设计稿 A-16 列表「标题 + 当事人」 | 表里原来没有当事人列 → 补 `plaintiff_name` / `defendant_name` | DDL 与页面需求不一致 | 同 EH-2 |
+| EH-10 | 证据文件 `E2-backfill.txt` / `E5-no-money-moved.txt` | 内容直接写进 `PROGRESS-E-H.md` §2.1 / §2.4 | 内容重复，维护两处容易漂 | 无（H3 允许合并证据文件） |
+| EH-11 | `uploadVoucher` 只允许 `approved`/`paid` 补传 | 允许 **`applying` 预上传**，仅拒 `rejected` | **实测缺陷**：F2 主路径是「通过时上传凭证」，只允许通过后补传 → 第一次通过就没有 `voucherFileId` 可传，**405025 把主路径堵死**（2026-11-08 16:57 实测踩到） | 无（修复后审批流程可走通） |
+| EH-12 | F1 四条校验各自独立报错 | **先校验单日笔数**：额度已满时申请大额先报 `405027` 而不是 `405024` | 校验顺序（最低额 → 绑卡 → 单日笔数 → 锁余额后查余额）里，余额检查要等锁行，只能排最后 | 页面按返回码展示；**不改顺序**（先锁行再报余额不足会白占一次行锁） |
+| R-1 | A2 的 `accepted → in_progress` 由 `POST /app/cases/{id}/progress` 落地 | **原实现只写 `court_case_no`、不迁状态**——案件停在 `accepted` | 状态机表里有这条边，但 `CaseServiceImpl#addProgress` 漏了 `assertCanTransit` + `casUpdateStatus` | **已修**（2026-11-08，重测 `status=in_progress`）；见 `5-A2.md` |
+| R-2 | 段 2 的 `LawyerWorkbenchServiceTest` 应保持全绿 | **4 个用例 NPE**：`SysConfigQueryService` 为 null | `e816dc3` 给 `LawyerWorkbenchService` 加了价格区间依赖（读 `sys_config`），**漏改本测试**；`mvn test` 从 367 项里红 4 项 | **已修**（补 `@Mock` + stub 区间）；`mvn test` 368/368 |
+| R-3 | 段 2 语义「0 价强制下架」 | 与 D4「价格 20~2000 元、越界 `405006`」冲突：0 元在 `assertPrice` 就被拒 | 两段口径不同：段 2 用 0 价表「下架」，段 5 改由**开关**控制上下架 | **已对齐 D4**：0 价用例改为期望 `405006`；另加「库内现价 0 时即使请求上架也强制下架」覆盖 `resolveSwitch` 的存活路径 |
+| R-4 | F3「状态机单测（5 条合法 + 4 条非法）」 | 抽 `WithdrawStateMachine`（4 态 / 3 条合法边）+ 单测 **6 用例**：12 组合（3 合法 / 9 非法）、终态无出边、同态非法、null 拒绝、`check` 抛 405025、合法边清单 | **工作流数字不自洽**：4 态两两组合只有 12 种，`5+4=9` 凑不出任何自洽划分；实际合法边只有 3 条 | 按实际状态数实现；本文档 §三 F3 的数字待下一版修正 |
+| R-5 | §5.5 证据文件 `A1-schema.txt` / `H2-rtl.md` | 原**完全不存在** | 施工时漏产出，收口复核发现 | **已补**：`A1-schema.txt`（9 张表 `SHOW CREATE TABLE` 原样输出、22 KB、flyway=510）、`H2-rtl.md`（静态核验通过 + **如实标注运行时未验**） |
+| R-6 | 出口第 6 条「`npm run lint` 全绿」 | PC 的 `package.json` **只有 `dev` / `build:prod` / `build:stage` / `preview`**，没有 `lint` 脚本 | PC 前端从未配 lint（不是本段新欠） | 未修；段 6 需决定是否补 ESLint 到 PC |
+| R-7 | 出口第 6 条「ArchUnit 断言通过」 | **全仓 0 处 ArchUnit**（`pom.xml` 无该依赖） | 《后端代码规范》§十四 的承接手段矩阵一直未落地，`CHANGELOG.md:1058` 早有记录，属**段 0 CI 欠账** | 未修；建议把出口第 6 条的 ArchUnit 部分改口径为「段 0 CI 未落地，段 5 不承担」，而不是假称满足 |
+
+### 11.2 出口条件逐条结论
+
+| # | 出口条件（§一.1） | 结论 | 依据 |
+|---|---|---|---|
+| 1 | `5-A1`~`5-A8` 8 条全过、各有证据文件 | ✅ **满足** | `docs/acceptance/seg5/5-A1.md`~`5-A8.md` 8 个文件，逐条含判据 + 原始响应/SQL |
+| 2 | 案件状态机、提现状态机全部迁移有单测 | ✅ **本轮补齐** | 案件 6 合法 / 14 非法（`CaseStateMachineTest`）；提现 3 合法 / 9 非法（`WithdrawStateMachineTest`，6 用例）；提现申请 4 条校验 + 幂等 + 手续费（`WithdrawServiceTest`，8 用例） |
+| 3 | 账务恒等式成立 | ✅ **满足** | `PROGRESS-E-H.md` §2.9 实测：`cache_total` / `last_balance_after` / `SUM(delta)` 三者相等 |
+| 4 | 结算确认后一个字节都没变 | ✅ **满足** | `PROGRESS-E-H.md` §2.4：`0/10200/10200/version2` 前后不变 |
+| 5 | 四语言 key 齐全 + RTL 无错乱 | ❌ **不满足**（已裁决推段 8） | `H2-rtl.md`：只有 `zh-Hans`；`bo`/`ug`/`kk` 各缺 1462 key；RTL **运行时未验**（静态：0 处 left/right、letterSpacing 全 0、无手动反转） |
+| 6 | `npm run lint` + `mvn -q verify` 全绿 + ArchUnit 通过 | ⚠️ **部分满足** | `mvn test` 368/368 全绿（注入 `FAZE_*` 后；不注入会有 5 个 `@SpringBootTest` 报 `FAZE_DB_URL`）；APP `npm run lint` 零错误；**PC 无 lint 脚本**（R-6）；**ArchUnit 全仓不存在**（R-7） |
+| 7 | 上游 11 行回写完成、基线出新版本 | ✅ **满足** | v1.31 已完成 11 行；本轮新增 §11 回写与基线 v1.55（偏差表 + 证据齐全） |
+
+### 11.3 遗留挂账（交段 6 / 段 8）
+
+1. **四语言翻译 + RTL 运行时核验** → 段 8，收口时 `.i18n-pending.json` 必须为空（《技术路线》§二十六 第 1 项）。
+2. **PC 前端无 lint 脚本** → 段 6 决定是否补 ESLint（R-6）。
+3. **ArchUnit 未落地** → 段 0 CI 欠账，建议改出口口径而不是硬补（R-7）。
+4. **`balance_flow.biz_type` 五值** → 段 6 加 `recharge` 时不要改这五个的语义（EH-1）。
+5. **`case_library` 24 字段** → 《数据表规范》附录 A 需回写 21 → 24（EH-2）。
+6. **本文档 §三 A2「5 合法 / 非法 15」与 F3「5 合法 + 4 非法」两处数字** → 与各自表格/状态数不符，下一版修正（A-3、R-4）。
 
 ---
 

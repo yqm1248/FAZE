@@ -232,6 +232,8 @@ docs/
 | [acceptance/seg5/PROGRESS-C-D.md](acceptance/seg5/PROGRESS-C-D.md) | C/D 组施工与偏差（含 D2 发送未验、`5-A4` 当时挂账） |
 | [acceptance/seg5/PROGRESS-E-H.md](acceptance/seg5/PROGRESS-E-H.md) | E~H 组施工、实测数字与 **12 条偏差**（含解冻 `biz_type`、案例库 24 字段、凭证上传修正） |
 | [acceptance/seg5/A4-enums.md](acceptance/seg5/A4-enums.md) | A 组枚举清单（案件 5 态 / 案例 3 大类 + 6 细分 / 提现 4 态 / 结算 3 态） |
+| [acceptance/seg5/A1-schema.txt](acceptance/seg5/A1-schema.txt) | 段 5 建表与补字段的物证：9 张表 `SHOW CREATE TABLE` 原样输出（22 KB，flyway=`510`） |
+| [acceptance/seg5/H2-rtl.md](acceptance/seg5/H2-rtl.md) | 四语言与 RTL：静态核验**通过**（0 处 `left/right`、`letterSpacing` 全 0、无手动反转），但 **RTL 运行时未验**（缺译文，推段 8） |
 
 锚点结论：`5-A1`~`5-A8` **8/8 通过**。三条与计划口径不同的地方必须一起看：
 ① 解冻流水 `biz_type` 是 `income_unfreeze`（不是 `unfreeze`）、`balance_flow.biz_type` 共 **5 值**；
