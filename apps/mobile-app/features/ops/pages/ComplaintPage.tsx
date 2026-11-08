@@ -39,6 +39,7 @@ import { formatDate, formatDateTime } from '@/shared/i18n/datetime';
 import { useI18n } from '@/shared/i18n';
 import type { MessageKey } from '@/shared/i18n';
 import { getProfile } from '@/features/profile/api/profile';
+import { PAGE_ROUTES } from '@/shared/navigation/routes';
 import { getOrders } from '@/features/trade/api/orders';
 import type { OrderItem } from '@/features/trade/api/orders';
 import { uploadFile } from '@/features/account/api/upload';
@@ -190,7 +191,15 @@ export function ComplaintPage() {
           </View>
         </ScrollView>
         <ActionBar>
+          {/* 提交成功后直接给「查看我的投诉」：单号、状态与后台回复都在第 69 页 */}
           <PrimaryButton
+            label={t('ops.complaintList.goMine')}
+            onPress={() => {
+              router.push(PAGE_ROUTES.complaintList);
+            }}
+          />
+          <PrimaryButton
+            variant="outline"
             label={t('common.action.back')}
             onPress={() => {
               router.back();
@@ -217,6 +226,20 @@ export function ComplaintPage() {
             </LocalizedText>
           </View>
         </View>
+
+        {/* 我的投诉入口（第 69 页）：已提交过的可以随时回看进度与后台回复 */}
+        <Pressable
+          onPress={() => router.push(PAGE_ROUTES.complaintList)}
+          accessibilityRole="button"
+          accessibilityLabel={t('ops.complaintList.goMine')}
+          style={({ pressed }) => [styles.mineEntry, pressed ? styles.pressed : null]}
+        >
+          <Ionicons name="receipt-outline" size={18} color={color.brand.primary} />
+          <LocalizedText numberOfLines={1} style={styles.mineEntryText}>
+            {t('ops.complaintList.goMine')}
+          </LocalizedText>
+          <Ionicons name="chevron-forward" size={16} color={color.text.muted} />
+        </Pressable>
 
         {/* 投诉对象 */}
         <AppCard>
@@ -428,6 +451,21 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     borderRadius: radius.md,
     backgroundColor: color.brand.primarySoft,
+  },
+  mineEntry: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    minHeight: 44,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.sm,
+    backgroundColor: color.background.surface,
+  },
+  mineEntryText: {
+    ...typography.body,
+    flex: 1,
+    color: color.brand.primary,
   },
   tipBody: {
     flex: 1,

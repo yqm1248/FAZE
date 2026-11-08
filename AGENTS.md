@@ -171,7 +171,7 @@ services/faze-api/src/main/java/com/faze/
 | **后端代码规范（分层/注释/异常/校验/事务/持久层/并发/日志/安全 + 每条规则的承接手段）** | `docs/architecture/法泽FAZE_后端代码规范_v1.0.md`（写服务端代码前必读；**§十四 是规则承接手段矩阵**——新增规则时必须说明谁在拦） |
 | **i18n 规范（key 命名、14 个 namespace 映射、缺译降级、RTL 组件约定、完整性门禁）** | `docs/architecture/法泽FAZE_i18n规范_v1.0.md`（写任何界面文案前必读；技术路线 §13.2 的 5 个 json 划分已被取代） |
 | **审计与日志规范（审计≠日志的分界、必审计动作清单、留存期、不可篡改、查询索引）** | `docs/architecture/法泽FAZE_审计与日志规范_v1.0.md`（写管理端写接口前必读；留存年限由负责人拍板） |
-| 页面导航树 | `docs/design/法泽APP_页面导航树_v1.4.md`（文件名叫 v1.4，内容实为 **v1.5**，**68 页**） |
+| 页面导航树 | `docs/design/法泽APP_页面导航树_v1.4.md`（文件名叫 v1.4，内容实为 **v1.6**，**69 页**；第 69 页「我的投诉」列表是 2026-11-09 新增的实现页，**`design/ui/` 无其设计稿**） |
 | **APP UI 设计顺序（68 屏怎么分批画完的、每屏的设计依据）** | `docs/design/法泽APP_UI设计顺序_v1.0.md`（内容 **V3.0**） |
 | **设计稿本体（APP 71 个 HTML，不是文档）** | `design/ui/` —— 打开 `01-home.html` 起看；组件在 `components.css`、令牌在 `tokens.css` |
 | **PC 后台开发计划（28 页分 7 个阶段怎么开发）** | `docs/architecture/法泽FAZE_PC后台开发计划_v1.0.md` |

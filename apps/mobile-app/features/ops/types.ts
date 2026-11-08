@@ -39,7 +39,7 @@ export type FaqItem = {
   sortOrder: number;
 };
 
-/** 分页结果（后端 `PageResult<T>` 的 4 个字段）。 */
+/** 分页结果（后端 `PageResult<T>` 的 4 个字段 + 可选的 hasMore）。 */
 export type OpsPage<T> = {
   /** 当前页数据。 */
   list: T[];
@@ -49,6 +49,8 @@ export type OpsPage<T> = {
   pageNum: number;
   /** 每页条数。 */
   pageSize: number;
+  /** 是否还有下一页；投诉分页 2026-11-09 起下发，旧响应可能没有。 */
+  hasMore?: boolean;
 };
 
 /** 投诉对象类型（后端 `ComplaintSubmitBO.targetType` 的三个合法值）。 */
@@ -78,9 +80,17 @@ export type ComplaintItem = {
   reason: string;
   /** 截图 oss_key 的 JSON 字符串（见文件头注释第 2 条）。 */
   images: string | null;
-  /** pending / processing / resolved / rejected。 */
+  /**
+   * 工单处理状态。
+   *
+   * **2026-11-09 后端修复**：此前恒为 `pending`，现在返回工单状态
+   * `waiting`（待受理）/ `processing`（处理中）/ `replied`（已回复）/ `closed`（已关闭）。
+   * 页面按这四个值做徽标映射（见 `ComplaintListPage` 的 `statusMeta`）。
+   */
   status: string;
-  /** 处理结果说明。 */
+  /** 工单状态（后端同时下发，与 `status` 一致；旧响应可能没有该字段）。 */
+  ticketStatus?: string | null;
+  /** 处理结果说明（投诉结论；后端目前恒 null，保留字段）。 */
   result: string | null;
   /** 关联工单号（`TK...`）。 */
   ticketNo: string | null;

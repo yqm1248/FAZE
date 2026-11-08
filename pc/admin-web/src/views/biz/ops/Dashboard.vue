@@ -10,10 +10,10 @@
     1. **所有数字都来自接口，页面不造数**：接口里没有的指标不显示估算值；
        某指标 `value` 为 null 且带 `pendingReason` 时显示「口径待定」，
        绝不显示 0 或空白（工作流 F3 第 4 条）。
-    2. **涨跌配色以设计稿为准**：稿面 `stat__delta--up` = `--state-success`（青绿）、
-       `stat__delta--down` = `--state-danger`（红），即**涨绿跌红**。
-       工作流 F1 正文写的是「涨用红、跌用绿」，两者矛盾；本页按「以稿为准」实现，
-       并在验收报告里记「配色待负责人确认」（§十一 待定第 9 项），不自作主张。
+    2. **涨跌配色：涨红跌绿**（国内财务习惯）。设计稿 `stat__delta--up` = `--state-success`（青绿）、
+       `stat__delta--down` = `--state-danger`（红），即稿面是**涨绿跌红**；工作流 F1 正文写的是
+       「涨用红、跌用绿」。两者矛盾，**负责人 2026-11-09 明确拍板：按「涨红跌绿」实现**，
+       所以本页**故意与设计稿相反**（不是写错）。改回去只需交换下面两个 class 的颜色。
     3. **趋势图用 echarts 按需引入**（echarts/core + LineChart + 必要组件），
        不引全量包。稿面图表注释逐条落地：4 条水平网格线（0 起、3 段）、
        面积=品牌色 14% 透明、峰值只标一个点、横轴隔天标一个日期。
@@ -1186,12 +1186,12 @@ onBeforeUnmount(() => {
   font-family: 'Inter', 'SF Mono', ui-monospace, monospace;
   font-weight: 500;
 }
-/* 涨跌配色以稿为准：--up = success（青绿）、--down = danger（红） */
+/* 涨跌配色：**涨红跌绿**（负责人 2026-11-09 拍板，国内财务习惯；与设计稿的涨绿跌红相反） */
 .stat-delta--up {
-  color: #1f7a7a;
+  color: #ee0a24;
 }
 .stat-delta--down {
-  color: #ee0a24;
+  color: #1f7a7a;
 }
 .stat-delta--none {
   color: var(--el-text-color-placeholder);

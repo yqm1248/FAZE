@@ -174,6 +174,8 @@ export const PAGE_ROUTES = {
   favorites: '/favorites' as Href,
   /** 关注律师（`/following`，APP 52）。 */
   following: '/following' as Href,
+  /** 我的投诉（`/complaint-list`，段 7 新增第 69 页）。 */
+  complaintList: '/complaint-list' as Href,
 } as const;
 
 /** 路由常量表的值类型（用于接收「任一页面路径」的参数）。 */

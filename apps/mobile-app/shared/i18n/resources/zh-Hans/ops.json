@@ -74,6 +74,28 @@
     "replyLabel": "客服回复",
     "ticketLabel": "工单号"
   },
+  "complaintList": {
+    "title": "我的投诉",
+    "lead": "提交后的处理进度与客服回复都在这里。超过 3 个工作日没收到回复的，可以联系客服并提供工单号。",
+    "emptyTitle": "还没有投诉记录",
+    "emptyDesc": "提交投诉后，处理进度和客服回复会出现在这里。",
+    "emptyAction": "去提交投诉",
+    "goMine": "查看我的投诉",
+    "targetLawyer": "律师问题",
+    "targetService": "服务问题",
+    "targetOrder": "订单问题",
+    "targetUnknown": "其他问题",
+    "ticketLine": "工单号 {{ticketNo}}",
+    "timeLine": "提交于 {{time}}",
+    "replyLabel": "客服回复",
+    "statusWaiting": "待处理",
+    "statusProcessing": "处理中",
+    "statusReplied": "已回复",
+    "statusClosed": "已关闭",
+    "loadMore": "加载更多",
+    "loadingMore": "加载中",
+    "noMore": "没有更多了"
+  },
   "feedback": {
     "title": "意见反馈",
     "lead": "这里收集对产品本身的建议和问题：哪里用着别扭、哪里报错、想要什么功能。每条反馈都会有人看，但不承诺逐条回复；需要处理具体纠纷的，请走投诉或联系在线客服。",

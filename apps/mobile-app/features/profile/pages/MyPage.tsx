@@ -412,7 +412,7 @@ export function MyPage() {
                   </View>
                 </View>
 
-                {/* 我的与服务（段 7 C5）：客服中心 / 投诉 / 意见反馈 */}
+                {/* 我的与服务（段 7 C5 + 第 69 页）：客服中心 / 投诉 / 我的投诉 / 意见反馈 */}
                 <View style={styles.group}>
                   <SectionTitle text={t('profile.my.groupService')} style={styles.groupTitle} />
                   <View style={styles.groupList}>
@@ -423,6 +423,10 @@ export function MyPage() {
                     <SettingRow
                       label={t('profile.my.menuComplaint')}
                       onPress={() => router.push(PAGE_ROUTES.complaint)}
+                    />
+                    <SettingRow
+                      label={t('profile.my.menuComplaints')}
+                      onPress={() => router.push(PAGE_ROUTES.complaintList)}
                     />
                     <SettingRow
                       label={t('profile.my.menuFeedback')}
