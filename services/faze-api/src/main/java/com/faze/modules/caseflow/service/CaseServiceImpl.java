@@ -225,8 +225,21 @@ public class CaseServiceImpl implements CaseService {
                 throw new BusinessException(ErrorCode.CASE_STATE_INVALID, "状态已被其他操作修改");
             }
         }
-        if ("accepted".equals(bo.getNodeCode()) && bo.getCourtCaseNo() != null && !bo.getCourtCaseNo().isBlank()) {
-            legalCaseMapper.updateCourtCaseNo(caseId, lawyer.getId(), bo.getCourtCaseNo(), now);
+        if ("accepted".equals(bo.getNodeCode())) {
+            if (bo.getCourtCaseNo() != null && !bo.getCourtCaseNo().isBlank()) {
+                legalCaseMapper.updateCourtCaseNo(caseId, lawyer.getId(), bo.getCourtCaseNo(), now);
+            }
+            // 律师登记「人民法院受理并立案」后进入审理中：ACCEPTED → IN_PROGRESS
+            // （状态机注释与工作流 5-A2 判据 5 都要求这一步；B 组当时只写了案号、漏了状态迁移，
+            //  2026-11-08 实测 5-A2 时发现「案号写进去了但 status 仍是 accepted」）
+            if (current == CaseStatus.ACCEPTED) {
+                CaseStateMachine.assertCanTransit(current, CaseStatus.IN_PROGRESS, OperatorRole.LAWYER);
+                int rows = legalCaseMapper.casUpdateStatus(caseId, current.getCode(),
+                        CaseStatus.IN_PROGRESS.getCode(), null, now);
+                if (rows == 0) {
+                    throw new BusinessException(ErrorCode.CASE_STATE_INVALID, "状态已被其他操作修改");
+                }
+            }
         }
 
         // 任务 3：写进度节点（step = 当前最大 + 1，唯一索引兜底）

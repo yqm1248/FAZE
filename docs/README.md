@@ -212,6 +212,33 @@ docs/
 
 锚点结论：`4-A1`~`4-A8` **8/8 自动判定通过**（`deploy/verify-seg4.ps1`），其中 `4-A2` 的上下边距判据口径调整已单独说明；`4-A7` 的降级项与段 8 挂账见该文件 §5。
 
+## 段 5 验收证据索引（2026-11-08 收口）
+
+> 段 5 没有一键脚本（`5-A1/A2` 需要两个账号交替操作），锚点证据是「真打接口 + 查库」的手工留证：
+> 每条锚点一个文件，文件里写判据表、原始响应与 SQL 输出。
+> 环境：`faze-api` 8081（dev）+ MySQL `faze` + RuoYi 8080；律师账号 `13800000001 / 123456`、管理员 `admin / admin123`。
+
+| 文件 | 内容 |
+|---|---|
+| [acceptance/seg5/5-A1.md](acceptance/seg5/5-A1.md) | 在线立案：`CS` 单号、`form_snapshot` 9 字段、审核通过 → `accepted`、进度 2 条（含中文 `????` 数据瑕疵说明） |
+| [acceptance/seg5/5-A2.md](acceptance/seg5/5-A2.md) | 进度同步：律师推进 + 操作人 + `accepted → in_progress` + 法院案号（**含本轮修掉的「只写案号不迁状态」缺陷**） |
+| [acceptance/seg5/5-A3.md](acceptance/seg5/5-A3.md) | 案件送达：`SD` 回执、签收幂等 `407007`、签收设备、全文无三处法院表述 |
+| [acceptance/seg5/5-A4.md](acceptance/seg5/5-A4.md) | 收入对账：三处数字逐笔一致（66 页 / A-13 结算页 / SQL 流水），明细每行带订单号 |
+| [acceptance/seg5/5-A5.md](acceptance/seg5/5-A5.md) | 提现闭环：四步余额对照 + `freeze/unfreeze/withdraw` 流水 + 两条恒等式 + 四条边界校验 |
+| [acceptance/seg5/5-A6.md](acceptance/seg5/5-A6.md) | 服务设置：改价立即生效（无缓存）、区间校验 `405006`、`autoAccept` 回读 |
+| [acceptance/seg5/5-A7.md](acceptance/seg5/5-A7.md) | 案例库：PC 录入 → 上线 → APP 三分组可见 → 四块正文 + 法条引用 → 大类自动算 → 不显示案号/法院 |
+| [acceptance/seg5/5-A8.md](acceptance/seg5/5-A8.md) | 全局搜索：四域分域响应（原样贴 JSON）、单域只回一组、空态与 idle 态 |
+| [acceptance/seg5/PROGRESS-A-B.md](acceptance/seg5/PROGRESS-A-B.md) | A/B 组施工与偏差（含 3 个环境问题与 6 条偏差） |
+| [acceptance/seg5/PROGRESS-C-D.md](acceptance/seg5/PROGRESS-C-D.md) | C/D 组施工与偏差（含 D2 发送未验、`5-A4` 当时挂账） |
+| [acceptance/seg5/PROGRESS-E-H.md](acceptance/seg5/PROGRESS-E-H.md) | E~H 组施工、实测数字与 **12 条偏差**（含解冻 `biz_type`、案例库 24 字段、凭证上传修正） |
+| [acceptance/seg5/A4-enums.md](acceptance/seg5/A4-enums.md) | A 组枚举清单（案件 5 态 / 案例 3 大类 + 6 细分 / 提现 4 态 / 结算 3 态） |
+
+锚点结论：`5-A1`~`5-A8` **8/8 通过**。三条与计划口径不同的地方必须一起看：
+① 解冻流水 `biz_type` 是 `income_unfreeze`（不是 `unfreeze`）、`balance_flow.biz_type` 共 **5 值**；
+② `case_library` 实为 **24 字段**（补争议焦点 / 原告 / 被告）；
+③ 三语言文案**仍是登记式缺译**，段 8 统一翻译。
+三项都登记在《[技术路线 v2.3](architecture/法泽FAZE_技术路线_v2.3.md)》§二十六「段 5 施工登记」里——**该节与正文冲突时以该节为准**。
+
 > **【文档基线 v1.0】** 本文件属于「法泽 FAZE 文档基线 v1.0」（2026-10-28 确立，此后一直有效）。
 > 落款写的是**首次纳入基线的版本**，不随内容变更升级（本文件 §1.1）；当前基线版本见 `docs/BASELINE.md` 头部。
 > **后续一切文档从这里开始。** 基线清单与文件指纹见 `docs/BASELINE.md`。
