@@ -66,6 +66,9 @@ public class AccountConverter {
         vo.setIsMinor(Boolean.TRUE.equals(user.getIsMinor()));
         vo.setRoles(List.of(user.getRole() == null ? DEFAULT_ROLE : user.getRole()));
         vo.setPayPasswordSet(hasPayPassword(user));
+        // 地区：第 7 段尾巴起由注册页采集，历史账号为 null（前端显示占位）。
+        // 只加在 ProfileVO 上，不加进 UserVO——后者是登录响应的冻结契约，见 ProfileVO#region 注释。
+        vo.setRegion(user.getRegion());
         // 律师状态与余额要查别的表，Converter 不查库（本类第 2 条约束）：
         // 由 modules/account/service/ProfileService 拿到本 VO 后补齐，此处不写占位值。
         return vo;

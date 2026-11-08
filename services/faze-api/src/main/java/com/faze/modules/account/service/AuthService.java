@@ -100,6 +100,11 @@ public class AuthService {
     private final RiskControlService riskControlService;
 
     /**
+     * 地区枚举（第 7 段尾巴：注册页采集 `app_user.region`，校验白名单）。
+     */
+    private final RegionOptionsService regionOptionsService;
+
+    /**
      * 构造服务。
      *
      * @param accountMapper     用户 Mapper
@@ -110,6 +115,7 @@ public class AuthService {
      * @param loginGuardService 登录失败计数与锁定
      * @param loginLogService   登录日志
      * @param riskControlService 账号风控（异常注册检测 / 新设备提醒）
+     * @param regionOptionsService 地区枚举（注册时的白名单校验）
      * @param jwtProperties     JWT 配置（取 refresh 有效期）
      */
     public AuthService(AccountMapper accountMapper,
@@ -122,6 +128,7 @@ public class AuthService {
                        AccountConverter accountConverter,
                        DeviceService deviceService,
                        RiskControlService riskControlService,
+                       RegionOptionsService regionOptionsService,
                        FazeJwtProperties jwtProperties) {
         this.accountMapper = accountMapper;
         this.tokenProvider = tokenProvider;
@@ -133,6 +140,7 @@ public class AuthService {
         this.accountConverter = accountConverter;
         this.deviceService = deviceService;
         this.riskControlService = riskControlService;
+        this.regionOptionsService = regionOptionsService;
         this.refreshTtl = Duration.ofDays(jwtProperties.refreshTtlDays());
     }
 
@@ -196,7 +204,8 @@ public class AuthService {
     /**
      * 手机号 + 验证码注册，成功后直接登录。
      *
-     * <p>前置：验证码有效且未被使用；协议已勾选；未成年人必须填监护人手机号。</p>
+     * <p>前置：验证码有效且未被使用；协议已勾选；未成年人必须填监护人手机号；
+     * 地区必须命中 `sys_config.user.region_options` 白名单。</p>
      * <p>副作用：插入 app_user、写 login_log、登记 refresh token，三者同一事务。</p>
      *
      * <p>并发说明：两个请求同时注册同一手机号时，靠 app_user 的 uk_app_user_phone 拦，
@@ -206,7 +215,8 @@ public class AuthService {
      * @param clientIp  客户端 IP
      * @param userAgent User-Agent
      * @return 令牌 + 用户资料
-     * @throws BusinessException 402005 验证码错 / 402009 缺监护人 / 402010 密码弱 / 402006 手机号已注册
+     * @throws BusinessException 402005 验证码错 / 402009 缺监护人 / 402010 密码弱 / 402006 手机号已注册 /
+     *                           401001 地区不在可选列表内
      */
     @Transactional(rollbackFor = Exception.class)
     public LoginVO register(RegisterBO request, String clientIp, String userAgent) {
@@ -222,6 +232,17 @@ public class AuthService {
         if (minor && !StringUtils.hasText(request.getGuardianPhone())) {
             throw new BusinessException(ErrorCode.AUTH_GUARDIAN_REQUIRED);
         }
+
+        // 任务 2.5：所在地区必须在白名单内（第 7 段尾巴：注册页采集 app_user.region）。
+        //
+        // 白名单来自 sys_config.user.region_options（见 RegionOptionsService），**不写死在代码里**
+        // ——将来加一个县只改配置、不发版。
+        //
+        // **为什么放在消费验证码之前**：与协议/监护人/密码同理。非法地区被拒是「用户改一下
+        // 重试」的事，不该让验证码已经被消费掉、白等 60 秒（这个坑 1-A10 已经踩过一次，
+        // 见任务 5 的注释）。返回的是 trim 后的规范值，落库用它而不是 request 原文——
+        // 否则 " 伊宁市 " 会带空格进库，之后按地区统计/发公告的 IN 匹配永远对不上。
+        String region = regionOptionsService.assertValid(request.getRegion());
 
         // 任务 3：密码强度（≥8 位且含字母与数字）。
         PasswordPolicy.assertStrong(request.getPassword());
@@ -255,6 +276,8 @@ public class AuthService {
         user.setIsMinor(minor);
         user.setGuardianPhone(minor ? request.getGuardianPhone() : null);
         user.setGuardianConsentAt(minor ? LocalDateTime.now(ZoneOffset.UTC) : null);
+        // 地区：任务 2.5 已校验并规范化，这里直接落库（第 7 段尾巴）。
+        user.setRegion(region);
         user.setTokenVersion(0);
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
         user.setCreatedAt(now);

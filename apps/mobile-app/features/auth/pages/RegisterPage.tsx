@@ -18,10 +18,12 @@
  */
 
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
+import { DEFAULT_REGIONS, getRegions } from '@/features/auth/api/regions';
 import { register, sendSmsCode } from '@/features/auth/api/register';
+import { RegionPicker } from '@/features/auth/components/RegionPicker';
 import type { AppError } from '@/shared/api/types';
 import { AppHeader } from '@/shared/components/AppHeader';
 import { useToast } from '@/shared/components/AppToast';
@@ -86,6 +88,31 @@ export function RegisterPage() {
   const [submitting, setSubmitting] = useState(false);
   const [apiError, setApiError] = useState<AppError | null>(null);
   const [fieldError, setFieldError] = useState<string | null>(null);
+  /** 所在地区（必选，中文专有名词原样提交）。 */
+  const [region, setRegion] = useState('');
+  /** 可选地区：先用内置兜底列表，接口成功后替换成服务端列表。 */
+  const [regions, setRegions] = useState<readonly string[]>(DEFAULT_REGIONS);
+  /** 地区字段的独立错误（不用总错误，避免把地区提示顶到表单底部）。 */
+  const [regionError, setRegionError] = useState<string | null>(null);
+
+  /**
+   * 挂载时拉服务端地区列表。
+   *
+   * 接口失败或返回空列表时**保留内置默认列表**（地区必填，接口挂了也要能注册）。
+   */
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const result = await getRegions();
+      if (cancelled || !result.ok || result.data.length === 0) {
+        return;
+      }
+      setRegions(result.data);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   /**
    * 发送验证码。
@@ -115,6 +142,7 @@ export function RegisterPage() {
   const handleSubmit = async () => {
     setApiError(null);
     setFieldError(null);
+    setRegionError(null);
     if (!PHONE_PATTERN.test(phone)) {
       setFieldError(t('auth.register.phoneInvalid'));
       return;
@@ -127,6 +155,11 @@ export function RegisterPage() {
       && /[A-Za-z]/.test(password) && /\d/.test(password);
     if (!strong) {
       setFieldError(t('auth.register.passwordInvalid'));
+      return;
+    }
+    // 所在地区是注册必选项（负责人 2026-11-09 拍板）：未选时停在地区字段上提示。
+    if (region === '') {
+      setRegionError(t('auth.register.regionRequired'));
       return;
     }
     if (!agreed) {
@@ -147,6 +180,7 @@ export function RegisterPage() {
         isMinor,
         guardianPhone: isMinor ? guardianPhone : null,
         agreementAccepted: agreed,
+        region,
       });
       if (!result.ok) {
         // 402009：未成年人缺监护人号 —— 展开输入框并给定向提示。
@@ -236,6 +270,19 @@ export function RegisterPage() {
             </LocalizedText>
           </View>
         )}
+
+        {/* 所在地区（2026-11-09 起注册必选）：中文专有名词原样展示，不翻译 */}
+        <RegionPicker
+          label={t('auth.register.regionLabel')}
+          value={region}
+          options={regions}
+          placeholder={t('auth.register.regionPlaceholder')}
+          onSelect={(next) => {
+            setRegion(next);
+            setRegionError(null);
+          }}
+          error={regionError}
+        />
 
         <CheckRow
           checked={agreed}

@@ -37,20 +37,29 @@ groups:
           description: "job=faze-api 的 target 已连续 1 分钟不可达；查 logs/faze-api.out.log 与 8081 端口。"
           runbook: "docs/ops/运维手册.md#p0-fazeservicedown"
 
-      # ── P1：5xx 占比 > 5%，持续 3 分钟 ────────────────────────────────────
+      # ── P1：业务错误率 > 5%，持续 3 分钟（2026-11-09 改口径）──────────────
+      # **为什么不是 5xx**：本项目对外契约是「业务失败恒 HTTP 200 + 业务码」
+      # （《错误码规范》§2.2），GlobalExceptionHandler 把 RuntimeException 映射成
+      # HTTP 200 + 501001 → `faze_http_requests_total{status="5.."}` 恒为 0，
+      # 旧的「5xx 占比」规则**永远不会 firing**（负责人 2026-11-09 拍板改口径）。
+      # 新口径 = `faze_biz_errors_total{code,module}`（R.code != 200）
+      #        / `faze_biz_responses_total`（全部 R 响应）。
+      # 分子含 401/403 鉴权失败（它们也是业务码 402003/401008）；只看服务端故障时
+      # 可在查询里按 `code!~"4010.*|4020.*"` 过滤。
+      # 阈值 5% 与 sys_config.alert.error_rate_pct 对应（双处维护，见文件头第 1 条）。
       - alert: FazeHighErrorRate
         expr: |
-          sum(rate(faze_http_requests_total{status=~"5.."}[5m]))
+          sum(rate(faze_biz_errors_total[5m]))
             /
-          clamp_min(sum(rate(faze_http_requests_total[5m])), 0.0001)
+          clamp_min(sum(rate(faze_biz_responses_total[5m])), 0.0001)
           > 0.05
         for: 3m
         labels:
           severity: P1
           service: faze-api
         annotations:
-          summary: "faze-api 5xx 错误率 > 5%"
-          description: "近 5 分钟 5xx 占比已连续 3 分钟超过 5%；先看 /actuator/prometheus 的 status 标签分布与 logs/faze-api-error.log。"
+          summary: "faze-api 业务错误率 > 5%"
+          description: "近 5 分钟业务错误码（R.code != 200）占比已连续 3 分钟超过 5%；先看 /actuator/prometheus 里 faze_biz_errors_total 按 code/module 的分布，再看 logs/faze-api-error.log 与 traceId。"
           runbook: "docs/ops/运维手册.md#p1-接口错误率高"
 
       # ── P1：P95 延迟 > 1000ms，持续 5 分钟 ───────────────────────────────

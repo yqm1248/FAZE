@@ -53,6 +53,8 @@ class MinorGuardianTest {
     private static final String FIXED_SMS_CODE = "123456";
     /** 满足后端强度要求（8~64 位）的测试口令。 */
     private static final String PASSWORD = "Aa123456";
+    /** 注册必填的地区（V709 默认清单里的第一项）。 */
+    private static final String VALID_REGION = "伊宁市";
 
     @Autowired
     private MockMvc mockMvc;
@@ -152,6 +154,9 @@ class MinorGuardianTest {
         body.put("phone", p);
         body.put("smsCode", FIXED_SMS_CODE);
         body.put("password", PASSWORD);
+        // 第 7 段尾巴起 region 是必填字段（注册页采集 app_user.region）；
+        // 不传会让本类四条用例全部变成 401001，掩盖真正要测的 402009。
+        body.put("region", VALID_REGION);
         body.put("agreementAccepted", true);
         return body;
     }
