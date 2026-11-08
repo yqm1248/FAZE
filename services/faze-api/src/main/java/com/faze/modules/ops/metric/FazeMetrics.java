@@ -64,6 +64,26 @@ public class FazeMetrics {
     /** 备份最后成功时间（输出 `faze_backup_last_success_timestamp`）。 */
     private static final String BACKUP_LAST_SUCCESS = "faze.backup.last.success.timestamp";
 
+    /**
+     * 业务响应总数（输出 `faze_biz_responses_total`）。
+     *
+     * <p>**为什么错误率不能再用 HTTP 5xx 统计**：项目契约是「业务失败恒 HTTP 200 + 业务码」
+     * （《错误码规范》§2.2），`GlobalExceptionHandler` 把 RuntimeException 映射成
+     * `HTTP 200 + 501001`，所以 `faze_http_requests_total{status="500"}` 恒为 0，
+     * 旧的 `FazeHighErrorRate`（5xx 占比 > 5%）在本项目**永远不会 firing**（2026-11-09 定案）。
+     * 负责人拍板：错误率改为「业务错误码占比」——本指标是分母。</p>
+     */
+    private static final String BIZ_RESPONSES = "faze.biz.responses";
+
+    /**
+     * 业务错误总数（输出 `faze_biz_errors_total{code,module}`）。
+     *
+     * <p>分子：`R.code != 200` 的响应数。**包含 401/403 鉴权失败**——它们也是业务码
+     * （402003 / 401008），运营看错误率时不该被排除；如果只想看服务端故障，
+     * 在 Prometheus 里按 `code!~"4010.*|4020.*"` 过滤即可，不需要另建指标。</p>
+     */
+    private static final String BIZ_ERRORS = "faze.biz.errors";
+
     /** 未匹配到模板时的 path 标签值（防止每个 404 路径单独成一条序列）。 */
     public static final String UNKNOWN_PATH = "UNKNOWN";
 
@@ -95,9 +115,41 @@ public class FazeMetrics {
                 .register(registry);
         Counter.builder(SENSITIVE_RELOAD_FAIL).description("敏感词热更新失败次数").register(registry);
         Counter.builder(TICKET_OVERTIME).description("工单超时数").register(registry);
-        log.info("自定义指标已注册：{} / {} / {} / {} / {} / {}",
+        // 业务响应总数预注册：错误率的分母必须一开始就有序列，否则规则在首个请求前算不出比率。
+        // 分子（biz.errors）**不预注册**：预注册要给一个假 code（如 "none"），会让
+        // 「按 code 分组的错误分布」面板多一条无意义序列；第一条业务错误出现时再注册。
+        Counter.builder(BIZ_RESPONSES).description("业务响应总数（R 出口，含成功与失败）").register(registry);
+        log.info("自定义指标已注册：{} / {} / {} / {} / {} / {} / {}",
                 HTTP_REQUESTS, HTTP_DURATION, SENSITIVE_HIT, SENSITIVE_RELOAD_FAIL,
-                TICKET_OVERTIME, BACKUP_LAST_SUCCESS);
+                TICKET_OVERTIME, BACKUP_LAST_SUCCESS, BIZ_RESPONSES);
+    }
+
+    /**
+     * 记录一次业务响应（统一响应出口 `R<T>` 每次写出时调用）。
+     *
+     * <p>`code != 200` 的响应同时计入 `faze_biz_errors_total{code,module}`。
+     * 由 `config/BizMetricsAdvice`（ResponseBodyAdvice）在响应写回客户端前调用——
+     * 这样**连 Controller 里直接 `R.fail(...)` 的分支也能统计到**，不依赖异常路径。</p>
+     *
+     * <p>副作用：仅累加 Micrometer 计数器（无 IO）。</p>
+     *
+     * @param code   统一响应码（200 或 6 位业务码）
+     * @param module 业务域（用于分域下钻；空按 unknown）
+     */
+    public void recordBizResponse(int code, String module) {
+        Counter.builder(BIZ_RESPONSES)
+                .description("业务响应总数（R 出口，含成功与失败）")
+                .register(registry)
+                .increment();
+        if (code == 200) {
+            return;
+        }
+        Counter.builder(BIZ_ERRORS)
+                .description("业务错误数（R.code != 200）")
+                .tags("code", String.valueOf(code),
+                        "module", module == null || module.isBlank() ? "unknown" : module)
+                .register(registry)
+                .increment();
     }
 
     /**
