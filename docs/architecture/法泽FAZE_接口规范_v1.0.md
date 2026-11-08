@@ -866,9 +866,10 @@ GET  /admin/dashboard/ping
 > 第 8~13 项的会话码 `404001` / `404002` 是《错误码规范》§3.4 已冻结的码，此处只是登记使用。
 
 
-### 7.3.1 段 6 的 8 个接口（v1.32 新增，2026-11-02）
+### 7.3.1 段 6 的 10 个接口（v1.32 初版 8 个；2026-11-08 施工后补齐为 10 个）
 
 > 字段级契约写在《[法泽FAZE_第6段工作流_v1.0.md](法泽FAZE_第6段工作流_v1.0.md)》§三 B1 / C1 / C2 / D4 与 §五 5.2；本表只管「有哪些、怎么鉴权、怎么幂等」。
+> **2026-11-08 施工后变更**：初版第 6~8 项写的是 `/admin/reconciliation/diffs`，该路径段 5 已被「恒等式巡检内存态差异」占用（Tab1 依赖且已验收），本段实际落地为 `/channel-diffs`；另新增 Mock 回调入口与 CSV 导出，合计 10 个。
 
 | # | 方法 + 路径 | 用途 | 鉴权 | 幂等 | 主要错误码 |
 |---|---|---|---|---|---|
@@ -877,10 +878,14 @@ GET  /admin/dashboard/ping
 | 3 | `GET /app/wallet/recharges` | 充值记录（cursor 分页） | App JWT | 只读 | — |
 | 4 | `POST /pub/pay/callback/wechat` | 微信异步回调 | **无 JWT，只靠验签** | DB 唯一键 + 状态 CAS | 渠道要求格式（非 `R<T>`） |
 | 5 | `POST /pub/pay/callback/alipay` | 支付宝异步回调 | **无 JWT，只靠验签** | 同上 | 同上 |
-| 6 | `POST /admin/recharges/{orderNo}/sync` | 人工触发补单 | PC token + `finance:recharge:sync` | 状态 CAS | `405015` |
-| 7 | `PUT /admin/reconciliation/diffs/{id}` | 差异工单处理 | PC token + `finance:reconcile:handle` | 状态 CAS | `405018` |
-| 8 | `GET /admin/reconciliation/diffs` | 差异列表（复用） | PC token + `finance:reconcile:list` | 只读 | — |
+| 6 | `POST /pub/pay/callback/mock` | Mock 通道回调（仅 dev/验收；生产由 `ProdMockPayGuard` 拦住） | **无 JWT，只靠 HMAC 验签** | 同上 | 同上 |
+| 7 | `POST /admin/recharges/{orderNo}/sync` | 人工触发补单（**本段未实现**） | PC token（`ROLE_ADMIN`） | 状态 CAS | `405015` |
+| 8 | `GET /admin/reconciliation/channel-diffs` | 渠道差异列表（4 筛选 + 分页） | PC token（`ROLE_ADMIN`） | 只读 | — |
+| 9 | `GET /admin/reconciliation/channel-diffs/export` | 渠道差异 CSV 导出（同筛选，不分页；返回 `text/csv` 流，**非 `R<T>`**） | PC token（`ROLE_ADMIN`） | 只读 | — |
+| 10 | `PUT /admin/reconciliation/channel-diffs/{id}` | 差异工单标记已处理（备注必填 ≤500 字） | PC token（`ROLE_ADMIN`） | 已处理的不覆盖备注 | `401002` / `401003` / `405018` |
 
+> **鉴权口径说明（2026-11-08 负责人裁决）**：初版写的 `finance:reconcile:list` / `finance:reconcile:handle` **未落地**——与 §6.2「不做数据级权限细分」及《总纲》§5.8「不做多角色权限细分」冲突，裁决不做，实际仍为 `/api/v1/admin/**` + `ROLE_ADMIN`；差异处置有审计（`operation_log` 记 `handler_id` + before/after）。
+>
 > **第 1 项的路径变化**：技术路线原来写的是 `POST /app/wallet/recharge`（单数、动词式），且 `recharge` 不在 §3.3 的动词白名单里——v1.32 改为资源复数 `recharges`。
 
 ### 7.3.2 段 7 的 54 个接口（v1.34 新增，2026-11-02）

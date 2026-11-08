@@ -561,7 +561,7 @@ COMMENT='订单主表；状态枚举：created/paid/accepted/completed/cancelled
 | 42 | `sensitive_word` | D | **12** | ops | 段 7 | 敏感词库（**v1.34 补 `last_hit_at`**，A-25「最近命中」列用） |
 | 43 | `content_review` | B | **12** | ops | 段 7 | 审核命中记录，原文不改（**v1.34 补 `hit_snippet` 命中片段 / `biz_user_id` 内容作者**） |
 | 44 | `service_ticket` | C | **13** | ops | 段 7 | 客服工单（**v1.34 补 4 字段**：`ticket_no` 工单号前缀 `TK` / `title` / `priority` / `sla_due_at` 落库的 24h 受理时限） |
-| 45 | `reconciliation_diff` | B | 14 | trade | 段 5 | 对账差错 |
+| 45 | `reconciliation_diff` | B | **20** | trade | 段 5 | 对账差错（**v1.5x 实测更正**：`V507` 建 14 字段，`V510` 补 6 个恒等式巡检字段 `check_type` / `biz_type` / `biz_id` / `expected_cents` / `actual_cents` / `diff_cents` / `found_at` 并把 `bill_date`/`channel` 放宽为可空，实际 20 字段。本表被段 5 回写时漏改，段 6 D3/D4 施工时按 `SHOW CREATE TABLE` 更正） |
 | 46 | `invoice` | C | 15 | trade | **不建** | 发票；V1 明确不做 |
 | 47 | `file_record` | A | 14 | infra | 段 4 | 上传文件登记 |
 | 48 | `share_poster` | A | 8 | content | 段 7 | 分享海报与短链 |
