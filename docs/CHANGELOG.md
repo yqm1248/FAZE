@@ -15,7 +15,7 @@
 
 | 范围 | 内容 |
 |---|---|
-| B3 用户维度限流 | `RechargeRateLimitGuard`：Redis 固定窗口（INCR + 120s TTL，口径同 `LawSearchRateLimiter`）+ `V603` 配置 `recharge.rate_limit_per_min=3`；插在 `RechargeOrderService#create` 的「金额校验之后、渠道之前」；超限 `401007`；Redis 故障 fail-open |
+| B3 用户维度限流 | `RechargeRateLimitGuard`：Redis 固定窗口（INCR + 120s TTL，口径同 `LawSearchRateLimiter`）+ `V603` 配置 `recharge.rate_limit_per_min=3`；插在 `RechargeOrderService#create` 的「金额校验之后、渠道之前」；超限 **HTTP 429 + `Retry-After` + 专用码 `405030`**（不复用 401007）；Redis 故障 fail-open |
 | C4 JVM 内 2 线程 | `RechargeIdempotentTest`：`@SpringBootTest` + 真 MySQL + `CountDownLatch` 双线程各自开事务；串行重放 3 次 + 并发 2 次，均验「成功行=1 / 流水=1 / 余额+1 份额」；证据追加进 `C4-idempotent.txt` 第四节（原 HTTP 进程级证据保留） |
 | D1 人工补单接口 | `POST /api/v1/admin/recharges/{orderNo}/sync` + `AdminRechargeSyncService`（`@OperationLog(RECHARGE_SYNC)`）；`RechargeTaskService` 抽出 `onceQuery` 作为人工/自动两条路径的公共实现；返回 `syncResult` 枚举（`settled` / `marked_failed` / `channel_pending` / `channel_not_found` / `not_pending`），不抛 500 |
 | 错误码 | 新增 `TRADE_RECHARGE_NOT_FOUND(405029)`：本地无此单是入参错误，与「渠道查不到」（200 正常态）区分 |
@@ -33,7 +33,7 @@ C4「进程级并发证明力已足够」——**但工作流要的是可回归�
 
 ### 证据
 
-`docs/acceptance/seg6/B3-D1-final.txt`（B3：同一用户第 4 次下单 401007 + Redis 计数；
+`docs/acceptance/seg6/B3-D1-final.txt`（B3：同一用户第 4 次下单 **HTTP 429 + Retry-After + 码 405030** + Redis 计数；
 D1：`callback_lost` 掉单 → 人工 sync → `settled`，含流水与 `operation_log` 三方对照）、
 `C4-idempotent.txt` 第四节（JVM 内 2 线程）。
 

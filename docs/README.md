@@ -252,7 +252,7 @@ docs/
 | [acceptance/seg6/B4-reconcile-tab.md](acceptance/seg6/B4-reconcile-tab.md) | B4：A-09 包 el-tabs + 渠道对账 Tab；**数据由 D3/D4 任务真实产出**（3 张截图） |
 | [acceptance/seg6/C4-idempotent.txt](acceptance/seg6/C4-idempotent.txt) | C4：同一回调串行 3 次 + 并发 2 次（**HTTP 进程级 + JVM 内 2 线程两套证据**），只入账 1 次（余额/流水/单三方一致） |
 | [acceptance/seg6/D1-D2-tasks.txt](acceptance/seg6/D1-D2-tasks.txt) | D1 掉单补单 + D2 超时关单（关单前先查渠道） |
-| [acceptance/seg6/B3-D1-final.txt](acceptance/seg6/B3-D1-final.txt) | **B3 + D1 收尾实测**：B3 用户维度限流（第 4 次 401007 + Redis 计数）· D1 管理端人工补单（`callback_lost` 掉单 → sync → `settled` + 余额/流水/审计三方对照） |
+| [acceptance/seg6/B3-D1-final.txt](acceptance/seg6/B3-D1-final.txt) | **B3 + D1 收尾实测**：B3 用户维度限流（第 4 次 **HTTP 429 + Retry-After + 码 405030**，含 Redis 计数）· D1 管理端人工补单（`callback_lost` 掉单 → sync → `settled` + 余额/流水/审计三方对照） |
 | [acceptance/seg6/6-A4-reconcile.txt](acceptance/seg6/6-A4-reconcile.txt) | **D3/D4**：账单留档 + 三类差异落库 + `channel_only` 自动补单 + 幂等重跑 + 6-A4 五项证据逐条对照 |
 | [acceptance/seg6/6-A4-diffs-export.csv](acceptance/seg6/6-A4-diffs-export.csv) | D4：差异报表 CSV 导出的真实内容 |
 | [acceptance/seg6/6-A7-failure.txt](acceptance/seg6/6-A7-failure.txt) | 6-A7：支付失败 → 单 `failed`、0 流水、额度释放（不占配额） |
