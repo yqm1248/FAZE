@@ -56,13 +56,22 @@ public class FileRecordService {
     /** 业务类型：提现出款凭证（段 5 F2，管理员在 PC 上传）。 */
     public static final String BIZ_WITHDRAW = "withdraw";
 
+    /**
+     * 业务类型：渠道对账单（第 6 段 D3）。
+     *
+     * <p>**账单文件是财务凭证**，按《技术路线》§9.5 留存 3 年，**不许覆盖**——
+     * 所以同一账单日的重复下载会新增一行 `file_record`，取最新一行为准（见 ReconcileBillService）。
+     * `ownerUser` 固定传 0（运营侧产物，不归属任何 App 用户）。</p>
+     */
+    public static final String BIZ_RECONCILE_BILL = "reconcile_bill";
+
     /** 本地实现的桶名；接云 OSS 后换成真实 bucket。 */
     private static final String BUCKET = "local";
     private static final String STATUS_ACTIVE = "active";
     private static final int PRIVATE_YES = 1;
     private static final DateTimeFormatter MONTH = DateTimeFormatter.ofPattern("yyyyMM");
     private static final Set<String> ALLOWED_BIZ = Set.of(
-            BIZ_DOC_TEMPLATE, BIZ_DOCUMENT, BIZ_SIGNATURE, BIZ_WITHDRAW);
+            BIZ_DOC_TEMPLATE, BIZ_DOCUMENT, BIZ_SIGNATURE, BIZ_WITHDRAW, BIZ_RECONCILE_BILL);
 
     private final FileRecordMapper fileRecordMapper;
     private final FileStorage fileStorage;

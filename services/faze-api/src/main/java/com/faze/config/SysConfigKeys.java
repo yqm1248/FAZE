@@ -106,4 +106,16 @@ public final class SysConfigKeys {
 
     /** 回调金额偏移（分），造对账差异（6-A4）。 */
     public static final String PAY_MOCK_AMOUNT_OFFSET_CENTS = "pay.mock.amount_offset_cents";
+
+    // ── 渠道对账（D3/D4，段 6 追加） ─────────────────────────────────────────
+
+    /**
+     * Mock 账单的差异注入规格（JSON，**验收专用，生产必须为空**）。
+     *
+     * <p>结构见 `infra/pay/reconcile/BillInjection`：`extraRows` 造 channel_only、
+     * `dropOrderNos` 造 local_only、`amountShifts` 造 amount_mismatch。
+     * 只在 `pay.mock.enabled=true` 时被 `ReconcileBillService` 读取；真实渠道的账单
+     * 来自渠道，平台不生成也不改。默认值在 V602 里是**空串**（= 不注入）。</p>
+     */
+    public static final String RECONCILE_MOCK_INJECT = "reconcile.mock.inject";
 }

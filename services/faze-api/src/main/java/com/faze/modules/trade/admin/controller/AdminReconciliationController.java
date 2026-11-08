@@ -19,8 +19,14 @@ import com.faze.modules.trade.admin.service.AdminReconciliationService;
 import com.faze.modules.trade.admin.vo.ChannelDiffRowVO;
 import com.faze.modules.trade.admin.vo.ReconciliationDiffVO;
 import com.faze.modules.trade.admin.vo.ReconciliationSummaryVO;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -81,6 +87,29 @@ public class AdminReconciliationController {
     @GetMapping("/channel-diffs")
     public R<PageResult<ChannelDiffRowVO>> channelDiffs(ChannelDiffQueryBO query) {
         return R.ok(reconciliationService.pageChannelDiffs(query));
+    }
+
+    /**
+     * 导出渠道差异 CSV（第 6 段 D4 第 4 条）。
+     *
+     * <p>**返回的不是 `R<T>`**：文件下载是 `R<T>` 契约的唯一例外（与 RuoYi 的下载接口一致），
+     * 浏览器拿到的是 `text/csv` 流。筛选条件与 `GET /channel-diffs` 完全相同，
+     * 同一组参数下导出的行就是列表里的行（只是不分页）。</p>
+     *
+     * <p>带 UTF-8 BOM，Excel 直接双击打开中文不乱码。</p>
+     *
+     * @param query 筛选条件（账单日期区间 / 渠道 / 差异类型 / 状态）
+     * @return CSV 文件流
+     */
+    @GetMapping("/channel-diffs/export")
+    public ResponseEntity<byte[]> exportChannelDiffs(ChannelDiffQueryBO query) {
+        byte[] body = reconciliationService.exportChannelDiffs(query)
+                .getBytes(StandardCharsets.UTF_8);
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(new MediaType("text", "csv", StandardCharsets.UTF_8));
+        headers.setContentDisposition(ContentDisposition.attachment()
+                .filename("reconcile-diffs.csv", StandardCharsets.UTF_8).build());
+        return new ResponseEntity<>(body, headers, HttpStatus.OK);
     }
 
     /**

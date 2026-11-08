@@ -79,7 +79,7 @@
       </el-table-column>
       <el-table-column label="差异金额" width="120" align="right">
         <template #default="{ row }">
-          <span class="mono">{{ formatDiffCents(row.diffCents) }}</span>
+          <span class="mono">{{ formatDiffCents(diffAmountCents(row)) }}</span>
         </template>
       </el-table-column>
       <el-table-column label="状态" width="110">
@@ -236,6 +236,27 @@ function formatDateTime(value) {
   const pad = (item) => (item < 10 ? `0${item}` : String(item))
   return `${parsed.getFullYear()}-${pad(parsed.getMonth() + 1)}-${pad(parsed.getDate())} `
     + `${pad(parsed.getHours())}:${pad(parsed.getMinutes())}:${pad(parsed.getSeconds())}`
+}
+
+/**
+ * 取「差异金额」的分值——两类差异存在**不同字段**。
+ *
+ * - 渠道差异（`channel_only` / `local_only` / `amount_mismatch`）：第 6 段 D4 按《第 6 段
+ *   工作流》§三 D4 的字段映射写 `amount_cents`（渠道金额 − 本地金额），`diff_cents` 留 NULL。
+ * - 恒等式差异（`identity_mismatch`）：段 5 的巡检写 `diff_cents`（实际 − 应有），
+ *   `amount_cents` 留 NULL。
+ *
+ * 表格只有一列「差异金额」，所以按类型选字段。**不能只读 `diffCents`**：那样渠道差异
+ * 的行会全部显示 `+0.00`（第一版就是这么错的，Tab2 真实截图才发现——单测和接口
+ * 都对，错在页面读了另一个字段）。
+ *
+ * @param {object} row 差异行（`ChannelDiffRowVO`）
+ * @returns {number} 差异金额（分，可正可负）
+ */
+function diffAmountCents(row) {
+  if (!row) return 0
+  if (row.diffType === 'identity_mismatch') return row.diffCents ?? 0
+  return row.amountCents ?? row.diffCents ?? 0
 }
 
 /**

@@ -177,7 +177,12 @@ public class RechargeSettleService {
         compensation.setAmountCents(amountCents);
         compensation.setStatus(RechargeStatus.SUCCESS.getCode());
         compensation.setPaidAt(paidAt == null ? now : paidAt);
-        compensation.setExpireAt(null);
+        // `expire_at` 是 NOT NULL（V600）：补偿单已经成功，不存在"过期"，但列不允许 NULL。
+        // 填 `now` 而不是 paidAt：关单任务只扫 status='pending'，填什么都不会被它扫到；
+        // 填 now 表示"这张单从建的那一刻起就不再等待支付"，语义最直白。
+        // ⚠️ 这里原来写的是 null，直到第 6 段 D4 的自动补单第一次真的走到 compensate
+        //   才暴露（D1 的掉单补单走的是 settle，不建新单，所以一直没触发）。
+        compensation.setExpireAt(now);
         compensation.setRawPayload("原单 " + origin.getOrderNo() + " 已关闭，补入账");
         compensation.setCreatedAt(now);
         compensation.setUpdatedAt(now);

@@ -37,8 +37,11 @@ import com.faze.modules.trade.mapper.RechargeRecordMapper;
 import com.faze.modules.trade.mapper.ReconciliationDiffMapper;
 import com.faze.modules.trade.mapper.UserBalanceMapper;
 import com.faze.modules.trade.service.BalanceService;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -79,6 +82,12 @@ public class AdminReconciliationService {
 
     /** 处理备注长度上限（B4 第 6 条）。 */
     private static final int HANDLE_NOTE_MAX_LENGTH = 500;
+
+    /** 业务时区：页面上输入的账单日期按东八区解释（`found_at` 存 UTC）。 */
+    private static final ZoneId BIZ_ZONE = ZoneId.of("Asia/Shanghai");
+
+    /** CSV 导出的时间格式（东八区）。 */
+    private static final DateTimeFormatter FOUND_AT_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     private final BalanceFlowMapper balanceFlowMapper;
     private final UserBalanceMapper userBalanceMapper;
@@ -313,19 +322,8 @@ public class AdminReconciliationService {
     public PageResult<ChannelDiffRowVO> pageChannelDiffs(ChannelDiffQueryBO query) {
         int pageNum = query.getPageNum() == null || query.getPageNum() < 1 ? 1 : query.getPageNum();
         int pageSize = query.getPageSize() == null ? 20 : Math.min(Math.max(query.getPageSize(), 1), 100);
-        LambdaQueryWrapper<ReconciliationDiff> wrapper = Wrappers.<ReconciliationDiff>lambdaQuery()
-                .ge(query.getBeginDate() != null, ReconciliationDiff::getBillDate, query.getBeginDate())
-                .le(query.getEndDate() != null, ReconciliationDiff::getBillDate, query.getEndDate())
-                .eq(StringUtils.hasText(query.getChannel()), ReconciliationDiff::getChannel, query.getChannel())
-                .eq(StringUtils.hasText(query.getDiffType()), ReconciliationDiff::getDiffType, query.getDiffType());
-        // 「待处理」在库里有两个值：段 5 的巡检写 open，段 6 的渠道差异写 pending。
-        // 页面上是一个「待处理」选项，所以这里要 IN，而不是 eq——漏了 open 就永远查不到段 5 的差异。
-        if (STATUS_PENDING.equals(query.getStatus())) {
-            wrapper.in(ReconciliationDiff::getStatus, STATUS_OPEN, STATUS_PENDING);
-        } else if (StringUtils.hasText(query.getStatus())) {
-            wrapper.eq(ReconciliationDiff::getStatus, query.getStatus());
-        }
-        wrapper.orderByDesc(ReconciliationDiff::getId);
+        LambdaQueryWrapper<ReconciliationDiff> wrapper = buildChannelDiffWrapper(query)
+                .orderByDesc(ReconciliationDiff::getId);
         Page<ReconciliationDiff> page = new Page<>(pageNum, pageSize);
         Page<ReconciliationDiff> result = reconciliationDiffMapper.selectPage(page, wrapper);
 
@@ -355,6 +353,202 @@ public class AdminReconciliationService {
         pageResult.setPageSize(pageSize);
         pageResult.setHasMore((long) pageNum * pageSize < result.getTotal());
         return pageResult;
+    }
+
+    /**
+     * 东八区某日 00:00 对应的 UTC wall clock（`found_at` 按 UTC 存）。
+     *
+     * <p>例：东八区 2026-11-08 00:00 = UTC 2026-11-07 16:00。</p>
+     *
+     * @param day 东八区日期
+     * @return UTC 的 LocalDateTime
+     */
+    private static LocalDateTime startOfDayUtc(LocalDate day) {
+        return day.atStartOfDay(BIZ_ZONE).withZoneSameInstant(ZoneOffset.UTC).toLocalDateTime();
+    }
+
+    /**
+     * 构造渠道差异查询条件（列表与 CSV 导出共用，避免两处筛选口径漂移）。
+     *
+     * <p>日期筛选要**分两类口径**：
+     * ① 渠道差异（`channel_only` / `local_only` / `amount_mismatch`）有账期，按 `bill_date`（DATE，无时区）；
+     * ② 恒等式差异（`identity_mismatch`）是「余额 vs 流水」的账户级巡检，**没有账期概念**
+     * （V510 把 `bill_date` 放宽为 NULL，注释写明「恒等式差异为 NULL」），只能按 `found_at`。
+     * 只按 `bill_date` 筛会把 ② 全部筛掉——B4 §3 默认「昨日」、§5 又要求展示 4 类，两者互斥。
+     * 这里写成 `bill_date 区间 OR (identity_mismatch AND found_at 区间)`。</p>
+     *
+     * @param query 筛选条件
+     * @return 查询条件（不含排序与分页）
+     */
+    private LambdaQueryWrapper<ReconciliationDiff> buildChannelDiffWrapper(ChannelDiffQueryBO query) {
+        LambdaQueryWrapper<ReconciliationDiff> wrapper = Wrappers.<ReconciliationDiff>lambdaQuery()
+                .eq(StringUtils.hasText(query.getChannel()), ReconciliationDiff::getChannel, query.getChannel())
+                .eq(StringUtils.hasText(query.getDiffType()), ReconciliationDiff::getDiffType, query.getDiffType());
+        final LocalDate beginDate = query.getBeginDate();
+        final LocalDate endDate = query.getEndDate();
+        if (beginDate != null || endDate != null) {
+            final LocalDateTime beginUtc = beginDate == null ? null : startOfDayUtc(beginDate);
+            // 用 `< 次日 00:00` 而不是 `<= 当日 23:59:59`：DATETIME 无小数位时 MySQL 会把
+            // 23:59:59.999999999 四舍五入到次日，`<=` 反而漏掉边界内的行。
+            final LocalDateTime endExclusiveUtc = endDate == null ? null : startOfDayUtc(endDate.plusDays(1));
+            wrapper.and(w -> w
+                    .nested(x -> {
+                        if (beginDate != null) {
+                            x.ge(ReconciliationDiff::getBillDate, beginDate);
+                        }
+                        if (endDate != null) {
+                            x.le(ReconciliationDiff::getBillDate, endDate);
+                        }
+                    })
+                    .or(y -> {
+                        y.eq(ReconciliationDiff::getDiffType, DIFF_IDENTITY);
+                        if (beginUtc != null) {
+                            y.ge(ReconciliationDiff::getFoundAt, beginUtc);
+                        }
+                        if (endExclusiveUtc != null) {
+                            y.lt(ReconciliationDiff::getFoundAt, endExclusiveUtc);
+                        }
+                    }));
+        }
+        // 「待处理」在库里有两个值：段 5 的巡检写 open，段 6 的渠道差异写 pending。
+        // 页面上是一个「待处理」选项，所以这里要 IN，而不是 eq——漏了 open 就永远查不到段 5 的差异。
+        if (STATUS_PENDING.equals(query.getStatus())) {
+            wrapper.in(ReconciliationDiff::getStatus, STATUS_OPEN, STATUS_PENDING);
+        } else if (StringUtils.hasText(query.getStatus())) {
+            wrapper.eq(ReconciliationDiff::getStatus, query.getStatus());
+        }
+        return wrapper;
+    }
+
+    /**
+     * 导出渠道差异为 CSV（D4 第 4 条「差异报表能导出，导出的数据与接口一致」）。
+     *
+     * <p>与列表**共用同一份筛选条件**（`buildChannelDiffWrapper`），所以同一组筛选参数下
+     * 导出的行与接口返回的行是同一批；差异只在「不分页」与「中文文案」。导出不加页码上限
+     * 是因为对账差异是人工核对物料，分页导出会让第一次核对的人漏行。</p>
+     *
+     * <p>副作用：无（只读）。导出动作不写审计——它是只读查询的另一种输出，
+     * 与「导出即敏感操作」的场景（如导出用户手机号）不同，这里导出的是对账差异。</p>
+     *
+     * @param query 筛选条件（页码字段被忽略）
+     * @return CSV 文本（带 UTF-8 BOM，Excel 直接打开不乱码）
+     */
+    public String exportChannelDiffs(ChannelDiffQueryBO query) {
+        List<ReconciliationDiff> rows = reconciliationDiffMapper.selectList(
+                buildChannelDiffWrapper(query).orderByDesc(ReconciliationDiff::getId));
+        Map<Long, String> orderNoById = loadOrderNos(rows);
+        StringBuilder sb = new StringBuilder(rows.size() * 128 + 128);
+        sb.append('\ufeff');
+        sb.append("账单日期,渠道,差异类型,渠道交易号,本地单号,差异金额(元),状态,发现时间\r\n");
+        for (ReconciliationDiff row : rows) {
+            sb.append(csvCell(row.getBillDate() == null ? "" : row.getBillDate().toString())).append(',');
+            sb.append(csvCell(channelLabel(row.getChannel()))).append(',');
+            sb.append(csvCell(diffTypeLabel(row.getDiffType()))).append(',');
+            sb.append(csvCell(row.getChannelTxnId())).append(',');
+            sb.append(csvCell(orderNoById.get(row.getRechargeId()))).append(',');
+            sb.append(csvCell(centsToYuan(nonNull(row.getAmountCents())))).append(',');
+            sb.append(csvCell(statusLabel(row.getStatus()))).append(',');
+            sb.append(csvCell(formatFoundAt(row.getFoundAt()))).append("\r\n");
+        }
+        log.info("导出渠道差异 CSV rows={}", rows.size());
+        return sb.toString();
+    }
+
+    /**
+     * 渠道编码转中文（页面与导出共用）。
+     *
+     * @param channel 渠道编码
+     * @return 中文；未知或空返回原值
+     */
+    private static String channelLabel(String channel) {
+        if (channel == null) {
+            return "";
+        }
+        return switch (channel) {
+            case "wechat" -> "微信";
+            case "alipay" -> "支付宝";
+            case "mock" -> "Mock 通道";
+            default -> channel;
+        };
+    }
+
+    /**
+     * 差异类型转中文（与 B4 §5 的表格一致）。
+     *
+     * @param diffType 差异类型
+     * @return 中文；未知返回原值
+     */
+    private static String diffTypeLabel(String diffType) {
+        if (diffType == null) {
+            return "";
+        }
+        return switch (diffType) {
+            case "channel_only" -> "渠道有、本地无";
+            case "local_only" -> "本地有、渠道无";
+            case "amount_mismatch" -> "金额不一致";
+            case DIFF_IDENTITY -> "恒等式不平";
+            default -> diffType;
+        };
+    }
+
+    /**
+     * 差异状态转中文。
+     *
+     * @param status 状态
+     * @return 中文；未知返回原值
+     */
+    private static String statusLabel(String status) {
+        if (status == null) {
+            return "";
+        }
+        return switch (status) {
+            case STATUS_OPEN, STATUS_PENDING -> "待处理";
+            case "auto_fixed" -> "已自动修复";
+            case STATUS_HANDLED -> "已处理";
+            case "ignored" -> "已忽略";
+            default -> status;
+        };
+    }
+
+    /**
+     * 分转元文本（两位小数，禁浮点）。
+     *
+     * @param cents 分
+     * @return 如 `-5.00`
+     */
+    private static String centsToYuan(long cents) {
+        return java.math.BigDecimal.valueOf(cents).movePointLeft(2).toPlainString();
+    }
+
+    /**
+     * `found_at`（UTC）转东八区文本。
+     *
+     * @param utc UTC 时间；空返回空串
+     * @return `yyyy-MM-dd HH:mm:ss`
+     */
+    private static String formatFoundAt(LocalDateTime utc) {
+        if (utc == null) {
+            return "";
+        }
+        return utc.atZone(ZoneOffset.UTC).withZoneSameInstant(BIZ_ZONE).toLocalDateTime()
+                .format(FOUND_AT_FORMAT);
+    }
+
+    /**
+     * CSV 单元格转义：含逗号 / 引号 / 换行时用双引号包裹，内部引号翻倍。
+     *
+     * @param value 原值；null 返回空串
+     * @return CSV 安全单元格
+     */
+    private static String csvCell(String value) {
+        if (value == null) {
+            return "";
+        }
+        if (value.indexOf(',') < 0 && value.indexOf('"') < 0
+                && value.indexOf('\n') < 0 && value.indexOf('\r') < 0) {
+            return value;
+        }
+        return "\"" + value.replace("\"", "\"\"") + "\"";
     }
 
     /**

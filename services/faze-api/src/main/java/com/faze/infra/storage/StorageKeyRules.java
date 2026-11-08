@@ -32,15 +32,25 @@ public final class StorageKeyRules {
      * <p>段 5 新增 1 个：`withdraw`（提现出款凭证，管理员在 PC 上传，服务端落盘并登记
      * `file_record(biz_type='withdraw')`）。</p>
      *
+     * <p>段 6 新增 1 个：`reconcile_bill`（渠道对账单，服务端生成或从渠道下载后落盘，
+     * 按《技术路线》§9.5 留存 3 年，**只增不覆盖**）。</p>
+     *
      * <p>**必须与 {@link #KEY_PATTERN} 同步**：只改这里不改正则，`build()` 能生成但 `isValid()` 会拒，
      * 表现为「上传凭证签发成功、PUT 时 403」——排查时很容易误判成签名算错。</p>
      */
     public static final Set<String> ALLOWED_SCENES = Set.of(
             "realname", "identity", "license", "avatar", "chat",
-            "signature", "document", "doc_template", "withdraw");
+            "signature", "document", "doc_template", "withdraw", "reconcile_bill");
 
-    /** 允许的扩展名白名单。 */
-    private static final Set<String> ALLOWED_EXT = Set.of("jpg", "jpeg", "png", "webp", "pdf");
+    /**
+     * 允许的扩展名白名单。
+     *
+     * <p>段 6 新增 `csv` / `zip`：渠道对账单的原始格式就是这两种（微信是 CSV，支付宝是
+     * zip 里的 CSV）。它们**只由服务端 `storeGenerated` 写入**（用户直传走的
+     * `UploadService` 另有图片/PDF 校验），且桶是私有的、访问要现签地址，
+     * 不存在「用户上传一个 .csv 让浏览器执行」的路径。**不要**把它们加进用户直传白名单。</p>
+     */
+    private static final Set<String> ALLOWED_EXT = Set.of("jpg", "jpeg", "png", "webp", "pdf", "csv", "zip");
 
     /**
      * 完整 key 正则：与生成规则严格一致。
@@ -50,9 +60,10 @@ public final class StorageKeyRules {
      * 白名单就退化成黑名单了。</p>
      */
     private static final Pattern KEY_PATTERN = Pattern.compile(
-            "^private/(realname|identity|license|avatar|chat|signature|document|doc_template|withdraw)"
+            "^private/(realname|identity|license|avatar|chat|signature|document|doc_template|withdraw"
+                    + "|reconcile_bill)"
                     + "/\\d{6}/\\d+/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
-                    + "\\.(jpg|jpeg|png|webp|pdf)$");
+                    + "\\.(jpg|jpeg|png|webp|pdf|csv|zip)$");
 
     private StorageKeyRules() {
     }

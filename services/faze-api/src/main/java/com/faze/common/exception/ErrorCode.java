@@ -223,6 +223,13 @@ public enum ErrorCode {
     TRADE_CHANNEL_PREPAY_FAILED(405019, 200, "error.trade.channel-prepay-failed", "渠道下单失败"),
     /** 未实名用户不可充值（是拦截不是限额，App 引导实名）。HTTP 200。 */
     TRADE_RECHARGE_REALNAME_REQUIRED(405020, 200, "error.trade.recharge-realname-required", "未实名认证，不能充值"),
+    /*
+     * 段 6 D3/D4 追加登记（2026-11-08）：405013~405020 已被本段前序任务占满
+     * （405012 空号、405021/405022 段 2 评价、405023~405027 段 5 提现/结算），
+     * 按顺序取 **405028**，不复用任何已有码。
+     */
+    /** 渠道对账单非法（空文件 / 缺表头 / 列数不符 / 金额或时间无法精确解析）。HTTP 200。 */
+    TRADE_RECONCILE_BILL_INVALID(405028, 200, "error.trade.reconcile-bill-invalid", "渠道对账单格式非法"),
 
     // ── 内容域 09 段 5 补登（案例库，《错误码规范》§3.9） ────────────────────
     /*
