@@ -21,12 +21,14 @@ import com.faze.common.exception.ErrorCode;
 import com.faze.modules.account.entity.Lawyer;
 import com.faze.modules.account.mapper.LawyerMapper;
 import com.faze.modules.account.service.LawyerQueryService;
+import com.faze.modules.ops.service.SysConfigQueryService;
 import com.faze.modules.trade.bo.ServiceSettingsBO;
 import com.faze.modules.trade.mapper.OrdersMapper;
 import java.util.Map;
 import java.util.Optional;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -65,8 +67,24 @@ class LawyerWorkbenchServiceTest {
     @Mock
     private OrdersMapper ordersMapper;
 
+    /**
+     * D4 起价格区间从 `sys_config` 读（`lawyer.price.min_cents` / `max_cents`），
+     * 不再是写死常量——段 5 加这条依赖时漏了本测试，导致 4 个用例 NPE。
+     */
+    @Mock
+    private SysConfigQueryService sysConfigQueryService;
+
     @InjectMocks
     private LawyerWorkbenchService lawyerWorkbenchService;
+
+    /**
+     * 固定价格区间为 D4 默认值 20 ~ 2000 元（2000 ~ 200000 分）。
+     */
+    @BeforeEach
+    void stubPriceRange() {
+        when(sysConfigQueryService.getInt("lawyer.price.min_cents", 2000)).thenReturn(2000);
+        when(sysConfigQueryService.getInt("lawyer.price.max_cents", 200000)).thenReturn(200000);
+    }
 
     /**
      * 注册 Lawyer 的 TableInfo（lambda 列名解析需要）。
@@ -145,20 +163,51 @@ class LawyerWorkbenchServiceTest {
     }
 
     /**
-     * 0 价必须强制下架：价格写 0，图文开关写 false。
+     * 0 元价格越界（405006）。
+     *
+     * <p>段 5 D4 把价格区间定死为 20 ~ 2000 元，**下架走开关而不是写 0 价**。
+     * 本用例原名 `zeroPriceForcesSwitchOff`，断言的是段 2「0 价强制下架」的旧语义——
+     * 加了区间校验后 0 元在 `assertPrice` 就被拒，那条断言已不可能成立（2026-11-08 对齐 D4）。</p>
      */
     @Test
-    @DisplayName("0 元价格：强制下架该服务")
-    void zeroPriceForcesSwitchOff() {
+    @DisplayName("0 元价格：405006 越界")
+    void zeroPriceRejected() {
         lawyerAllOn();
         ServiceSettingsBO request = new ServiceSettingsBO();
         request.setConsultPriceCents(0L);
         request.setServiceTextOn(Boolean.TRUE);
 
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> lawyerWorkbenchService.updateServiceSettings(USER_ID, request));
+        assertEquals(ErrorCode.TRADE_AMOUNT_INVALID, ex.getErrorCode());
+        verify(lawyerMapper, never()).update(isNull(), any());
+    }
+
+    /**
+     * 库内现价已经是 0、本次没传价格时，即使请求要上架也必须强制下架。
+     *
+     * <p>这是「0 价强制下架」语义的唯一存活路径：段 2 期间遗留的 0 价律师，
+     * 只改开关会被 `resolveSwitch` 拦下来，否则会出现「上架但 0 元」→ 用户下单 405009。</p>
+     */
+    @Test
+    @DisplayName("库内现价 0：即使请求上架也强制下架")
+    void zeroStoredPriceForcesSwitchOff() {
+        Lawyer lawyer = new Lawyer();
+        lawyer.setId(LAWYER_ID);
+        lawyer.setConsultPriceCents(0L);
+        lawyer.setPhonePriceCents(8000L);
+        lawyer.setDocumentPriceCents(20000L);
+        lawyer.setServiceTextOn(Boolean.TRUE);
+        lawyer.setServicePhoneOn(Boolean.TRUE);
+        lawyer.setServiceDocOn(Boolean.TRUE);
+        when(lawyerOrderService.requireLawyer(USER_ID)).thenReturn(lawyer);
+
+        ServiceSettingsBO request = new ServiceSettingsBO();
+        request.setServiceTextOn(Boolean.TRUE);
+
         lawyerWorkbenchService.updateServiceSettings(USER_ID, request);
 
         Map<String, Object> params = captureWrapper().getParamNameValuePairs();
-        assertTrue(params.containsValue(0L), "价格应写 0：" + params);
         assertTrue(params.containsValue(Boolean.FALSE), "图文开关应被强制关闭：" + params);
     }
 
