@@ -81,6 +81,8 @@ public class RechargeOrderService {
 
     private final BalanceService balanceService;
 
+    private final com.faze.infra.mq.TaskQueueService taskQueueService;
+
     /**
      * 发起充值下单。
      *
@@ -133,6 +135,7 @@ public class RechargeOrderService {
             rechargeCreateExecutor.attachPrepayId(record.getId(), prepay.getPrepayId());
             rechargePrepayStore.save(record.getOrderNo(), prepay.getPayParams());
             rechargeIdempotencyGuard.bind(userId, idempotencyKey, record.getId());
+            scheduleTasks(record);
             return buildCreateVO(record, prepay.getPayParams());
         } catch (RuntimeException e) {
             if (!recordCreated) {
@@ -203,6 +206,29 @@ public class RechargeOrderService {
     }
 
     // ── 内部 ─────────────────────────────────────────────────────────────────
+
+    /**
+     * 下单成功后投递两条定时任务（D1 补单查询 + D2 超时关单）。
+     *
+     * <p>**必须在事务外投递**（本方法在 prepay 之后调用，此时落单事务已提交）：
+     * 任务先于事务提交会对一个还不存在的单号做查询，白跑一轮。</p>
+     *
+     * @param record 新落库的充值单
+     */
+    private void scheduleTasks(RechargeRecord record) {
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+        try {
+            // 5 分钟后第一次主动查渠道（技术路线 §9.4）；查不到由任务表 2^n 退避
+            taskQueueService.enqueue(RechargeTaskService.TASK_PENDING_QUERY, record.getOrderNo(),
+                    now.plusMinutes(5), null);
+            // 到期时触发关单；关单前会先查渠道，已付则补入账
+            taskQueueService.enqueue(RechargeTaskService.TASK_CLOSE, record.getOrderNo(),
+                    record.getExpireAt() == null ? now.plusMinutes(30) : record.getExpireAt(), null);
+        } catch (RuntimeException e) {
+            // 投递失败不影响用户拿到支付参数：回调仍是主链路，补单只是兜底
+            log.warn("充值单定时任务投递失败（不影响下单）orderNo={}", record.getOrderNo(), e);
+        }
+    }
 
     /**
      * 幂等命中时用已存在的单重建响应（不重新调 prepay，见 RechargePrepayStore 第 2 条）。

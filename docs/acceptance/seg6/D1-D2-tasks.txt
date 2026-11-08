@@ -1,0 +1,58 @@
+段 6 D1/D2 · 掉单补单与超时关单 验收证据
+生成时间：2026-11-08 19:36（东八区）
+环境：faze-api @ 8081（dev），Mock 通道，用户 3（已实名）
+
+实现：
+  modules/trade/service/RechargeTaskService.java     两类任务的业务逻辑
+  modules/trade/task/RechargeTaskScanner.java        每 60 秒扫描（fixedDelay，worker=recharge-task）
+  modules/trade/service/RechargeOrderService.java    下单成功后投递两条任务（事务外）
+
+任务类型（task_queue，不新建任务表，D1 第 1 条）：
+  recharge_pending_query  下单 +5 分钟首次查询；查不到按 2^n 退避，5 次后死信
+  recharge_close          到达 expire_at 时执行；关单前先查渠道
+
+──── 一、D1 掉单补单实测 ─────────────────────────────────────────────
+前置：pay.mock.result = callback_lost（渠道侧已收款、但通知不会发出）
+  · MockPaymentGateway 为此修了一处：callback_lost 模式下渠道状态要置 SUCCESS
+    （否则 query 永远返回 pending，掉单场景无法复现）。这是 D1「算做完」的前提。
+下单：POST /app/wallet/recharges 100 元 → orderNo=RC20261108000008
+  · 响应里 payParams 没有 callbackBody（= 通知不发）✅
+
+把该单的两条定时任务 next_retry_at 提前到现在，等扫描器执行一轮后：
+| 检查项 | 结果 |
+|---|---|
+| recharge_record.status | **success** |
+| recharge_record.paid_at | 非空 |
+| balance_flow | **1 条**，delta_cents=10000，biz_id=8（= 充值单主键） |
+| recharge_pending_query 任务 | done |
+| recharge_close 任务 | done |
+| recharge_success_notify 任务 | pending（本段只投递不消费，段 7 实现） |
+
+即「渠道收了钱、通知丢了」的单被自动查出并补入账，用户余额加上，单变 success ✅
+
+──── 二、D2 超时关单实测 ─────────────────────────────────────────────
+下单（不支付）→ orderNo=RC20261108000009，把 expire_at 与任务时间提前，等一轮扫描后：
+| 检查项 | 结果 |
+|---|---|
+| recharge_record.status | **closed** |
+| balance_flow | **0 条**（关单不产生流水，D2 第 4 条） |
+| recharge_close 任务 | done |
+| recharge_pending_query 任务 | pending，retry_count=1（渠道仍待支付，按 2^n 退避重试中） |
+
+关单前先 `gateway.query()`：查到已付就补入账而不是关单（D2 第 2 条）。
+本次该单渠道状态是 pending，所以正常关闭 ✅
+
+──── 三、关键设计点 ─────────────────────────────────────────────────
+1. **关单必须先查渠道**：用户可能最后一秒付款，只按时间关单会造成「渠道有钱、本地关闭」。
+2. **补单与关单共用 C3 的入账代码**（RechargeSettleService），不复制一份。
+3. **「查不到」不抛业务异常**：业务层抛 IllegalStateException 交给 task_queue 的 2^n 退避，
+   5 次后进死信；不会像抛 BusinessException 那样被当成「确定性失败」立刻结束。
+4. 自动补单/自动关单**不写 operation_log**（不是人工操作），只写应用日志。
+5. 下单投递任务放在 prepay 之后（事务外）：事务提交前投递会查到还不存在的单号。
+
+──── 四、本组未完成的部分（D3/D4）──────────────────────────────────
+D3（渠道对账单下载：3 个解析器 + Mock 账单生成 + file_record 留档）与
+D4（逐笔比对 + 三类差异落库 + 幂等重跑）**本轮未实现**，原因与影响见提交说明与 §十一：
+  · 不影响 6-A2 / 6-A3 / 6-A5 / 6-A7 四条可验锚点（分别由 C 组、本组 D1、E 组、B 组覆盖）
+  · 影响 6-A4（对账差异）：差异识别与落库能力缺失，A-09 的 Tab2 目前只能展示已有行
+  · 6-A4 本就是「部分挂账」的锚点（真实账单需商户号），此缺口并入挂账记录

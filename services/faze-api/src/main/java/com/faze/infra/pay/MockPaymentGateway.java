@@ -89,6 +89,11 @@ public class MockPaymentGateway implements PaymentGateway {
         state.paidAt = paidAt;
         state.callbackNotBefore = LocalDateTime.now().plusNanos(Math.max(delayMs, 0) * 1_000_000L);
         state.status = "fail".equals(result) ? RechargeStatus.FAILED : RechargeStatus.PENDING;
+        // callback_lost = 渠道侧已收款、但通知不会发出去。这是 D1 掉单补单唯一可复现的场景，
+        // 所以渠道状态必须是 SUCCESS（query 据此返回已付），同时 callbackBody 保持 null（通知不发）。
+        if ("callback_lost".equals(result)) {
+            state.status = RechargeStatus.SUCCESS;
+        }
         state.callbackBody = "callback_lost".equals(result) || "fail".equals(result)
                 ? null
                 : buildCallbackBody(orderNo, txnId, callbackAmount, paidAt);
