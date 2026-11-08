@@ -8,6 +8,8 @@ node_modules/
 dist/
 web-build/
 *.tsbuildinfo
+# Vite 依赖预构建缓存（`npx vite build` / dev 都会在包目录下生成）
+.vite/
 
 # 原生构建产物
 android/
