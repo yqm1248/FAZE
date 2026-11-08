@@ -6,12 +6,11 @@
  *   1. **为什么不引第三方限流组件**：规则只有一条，固定窗口计数用 INCR + TTL 就是十几行；
  *      引 Sentinel/Resilience4j 要多一套配置面和故障面，而本段只需要「第 4 次拒掉」。
  *      实现口径照抄项目已有的 `modules/ai/support/LawSearchRateLimiter`（同款 Redis 计数）。
- *   2. **超限抛 `COMMON_RATE_LIMITED`（401007），不是 HTTP 429**：
- *      工作流 B3 第 3 条原文写「超限返回 429」，但《接口规范》§6.5 裁决 11 明确规定
- *      「**业务限流返回 200 + 错误码，网关限流返回 429**」，且 B3 第 3 条自己也写
- *      「按《接口规范》的限流规则」。充值限流是按用户、要告诉客户端多久后重试的业务限流，
- *      属于裁决 11 的「业务限流」一侧 → 走统一响应体 + `data.retryAfterSeconds`。
- *      这条偏差已登记进工作流 §十一。
+ *   2. **超限抛 `RateLimitedException`（HTTP 429 + `Retry-After` 头），不用 401007**：
+ *      负责人 2026-11-08 明确要求按工作流 B3 第 3 条原文的「超限返回 429」执行。
+ *      不复用 `COMMON_RATE_LIMITED(401007)` 有两个原因：① 401007 被短信、登录锁定、
+ *      法条检索、支付密码锁定共用，充值混进去会让值班无法区分告警来源；② 401007 的
+ *      HTTP 状态是 200，与 429 是两条客户端处理路径。冲突与取舍登记在工作流 §十一 第 35 条。
  *   3. **fail-open**：Redis 不可用时放行并记 warn。理由与法条检索限流不同——充值有
  *      「单日金额/笔数限额 + 幂等键」三道硬约束兜底，而 Redis 抖动时把所有人挡在充值页外
  *      是更大的可用性事故。真正防重复入账的是 C4 的数据库唯一键 + CAS，不靠这里。
@@ -23,6 +22,7 @@ package com.faze.modules.trade.service;
 
 import com.faze.common.exception.BusinessException;
 import com.faze.common.exception.ErrorCode;
+import com.faze.common.exception.RateLimitedException;
 import com.faze.config.SysConfigKeys;
 import com.faze.modules.ops.service.SysConfigQueryService;
 import java.time.Clock;
@@ -89,10 +89,10 @@ public class RechargeRateLimitGuard {
     /**
      * 检查并累加当前用户本分钟的下单次数。
      *
-     * <p>副作用：INCR 一个 Redis key，必要时设置 120s TTL。超限抛 401007。</p>
+     * <p>副作用：INCR 一个 Redis key，必要时设置 120s TTL。超限抛 429。</p>
      *
      * @param userId 下单用户（调用方已保证非空，见 RechargeOrderService#create 第 99 行）
-     * @throws BusinessException 401007 超过每分钟下单次数
+     * @throws RateLimitedException 405030 / HTTP 429 超过每分钟下单次数（带 `Retry-After`）
      */
     public void check(Long userId) {
         if (userId == null) {
@@ -116,8 +116,10 @@ public class RechargeRateLimitGuard {
                 }
             }
             if (count > limit) {
-                log.warn("充值下单触发用户维度限流 userId={} count={} limit={}", userId, count, limit);
-                throw new BusinessException(ErrorCode.COMMON_RATE_LIMITED);
+                long retryAfter = secondsUntilNextMinute();
+                log.warn("充值下单触发用户维度限流 userId={} count={} limit={} retryAfter={}s",
+                        userId, count, limit, retryAfter);
+                throw new RateLimitedException(ErrorCode.TRADE_RECHARGE_RATE_LIMITED, retryAfter);
             }
         } catch (BusinessException e) {
             throw e;
@@ -126,5 +128,15 @@ public class RechargeRateLimitGuard {
             log.warn("充值限流不可用（Redis），本次放行 userId={} 原因={}",
                     userId, e.getClass().getSimpleName());
         }
+    }
+
+    /**
+     * 距下一分钟（窗口边界）还有多少秒，用于 `Retry-After` 头。
+     *
+     * @return 秒数，最小 1
+     */
+    private long secondsUntilNextMinute() {
+        int second = clock.instant().atZone(BIZ_ZONE).getSecond();
+        return Math.max(1L, 60L - second);
     }
 }

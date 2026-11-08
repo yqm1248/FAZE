@@ -110,6 +110,27 @@ public class GlobalExceptionHandler {
                 .body(R.<Void>fail(code));
     }
 
+    /**
+     * 拦截「限流」异常（HTTP 429 + `Retry-After` 头）。
+     *
+     * <p>**只有 `httpStatus=429` 的错误码会走到这里**（目前只有
+     * `TRADE_RECHARGE_RATE_LIMITED(405030)`）。`COMMON_RATE_LIMITED(401007)` 等
+     * 「业务限流 200 + 错误码」口径仍走 {@link #handleBusiness}，两条路径不能混。</p>
+     *
+     * @param e   限流异常
+     * @param req 当前请求
+     * @return 429 + `Retry-After` 头
+     */
+    @ExceptionHandler(RateLimitedException.class)
+    public ResponseEntity<R<Void>> handleRateLimited(RateLimitedException e, HttpServletRequest req) {
+        ErrorCode code = e.getErrorCode();
+        log.warn("触发限流 path={} code={} retryAfter={}s",
+                req.getRequestURI(), code.getCode(), e.getRetryAfterSeconds());
+        return ResponseEntity.status(code.getHttpStatus())
+                .header("Retry-After", String.valueOf(e.getRetryAfterSeconds()))
+                .body(R.<Void>fail(code));
+    }
+
     // ── 2~4. 参数类异常（三种来源）──────────────────────────────────────────
 
     /**

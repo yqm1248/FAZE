@@ -12,6 +12,7 @@
  */
 package com.faze.modules.trade.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -19,8 +20,8 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
-import com.faze.common.exception.BusinessException;
 import com.faze.common.exception.ErrorCode;
+import com.faze.common.exception.RateLimitedException;
 import com.faze.config.SysConfigKeys;
 import com.faze.modules.ops.service.SysConfigQueryService;
 import java.time.Clock;
@@ -90,9 +91,16 @@ class RechargeRateLimitGuardTest {
         when(ops.increment(anyString())).thenReturn(4L);
 
         assertThatThrownBy(() -> guard.check(USER_ID))
-                .isInstanceOf(BusinessException.class)
-                .extracting(e -> ((BusinessException) e).getErrorCode())
-                .isEqualTo(ErrorCode.COMMON_RATE_LIMITED);
+                .isInstanceOf(RateLimitedException.class)
+                .satisfies(e -> {
+                    RateLimitedException rle = (RateLimitedException) e;
+                    // 专用码 405030（不是被短信/登录/法条检索复用的 401007）
+                    assertThat(rle.getErrorCode()).isEqualTo(ErrorCode.TRADE_RECHARGE_RATE_LIMITED);
+                    // HTTP 429，不是业务限流的 200
+                    assertThat(rle.getErrorCode().getHttpStatus()).isEqualTo(429);
+                    // 固定时钟 22:30:00 → 距下一分钟 60 秒
+                    assertThat(rle.getRetryAfterSeconds()).isEqualTo(60L);
+                });
     }
 
     @Test

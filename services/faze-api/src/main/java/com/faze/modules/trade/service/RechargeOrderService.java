@@ -96,7 +96,7 @@ public class RechargeOrderService {
      * @param request        下单请求（金额 + 渠道）
      * @param idempotencyKey `Idempotency-Key` 头，可为空
      * @return 单号 + 金额 + 拉起渠道的参数 + 截止时间
-     * @throws BusinessException 405014 金额非法 / 401007 触发用户维度限流 / 405013 渠道未启用 /
+     * @throws BusinessException 405014 金额非法 / 405030 触发用户维度限流（HTTP 429）/ 405013 渠道未启用 /
      *                           405020 未实名 / 405016 超出单日限额 / 405019 渠道下单失败
      */
     public RechargeCreateVO create(Long userId, RechargeCreateBO request, String idempotencyKey) {
@@ -106,7 +106,7 @@ public class RechargeOrderService {
         // ① 金额区间（0 元单、负数、超出单笔上限都在这里拦掉）
         long amountCents = request.getAmountCents() == null ? 0L : request.getAmountCents();
         rechargeQuotaPolicy.ensureAmountAllowed(amountCents);
-        // ①-b 用户维度频次限流（B3 第 3 条）：同一用户每分钟第 4 次抛 401007
+        // ①-b 用户维度频次限流（B3 第 3 条）：同一用户每分钟第 4 次抛 405030（HTTP 429）
         rechargeRateLimitGuard.check(userId);
         // ② 渠道：未启用抛 405013，不回退到其他渠道
         PayChannel channel = PayChannel.of(request.getChannel());
