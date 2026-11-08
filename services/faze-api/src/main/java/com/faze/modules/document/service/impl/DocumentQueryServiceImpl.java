@@ -7,7 +7,9 @@
 package com.faze.modules.document.service.impl;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.faze.modules.document.entity.DocTemplate;
 import com.faze.modules.document.entity.Document;
+import com.faze.modules.document.mapper.DocTemplateMapper;
 import com.faze.modules.document.mapper.DocumentMapper;
 import com.faze.modules.document.service.DocumentQueryService;
 import java.util.Collection;
@@ -24,6 +26,7 @@ import org.springframework.stereotype.Service;
 public class DocumentQueryServiceImpl implements DocumentQueryService {
 
     private final DocumentMapper documentMapper;
+    private final DocTemplateMapper docTemplateMapper;
 
     @Override
     public Optional<Document> findById(Long id) {
@@ -65,5 +68,30 @@ public class DocumentQueryServiceImpl implements DocumentQueryService {
                 .eq(Document::getUserId, userId)
                 .isNull(Document::getDeletedAt)
                 .orderByDesc(Document::getUpdatedAt));
+    }
+
+    /**
+     * 按名称关键词搜已启用模板（全局搜索的「文书」域）。
+     *
+     * <p>只查 `status='active'`：段 4 的模板用三态 `status` 替代 `is_enabled`，
+     * 停用的模板不该被搜出来（点了也生成不了）。</p>
+     *
+     * @param keyword 关键词
+     * @param limit   最多条数（夹到 1~20）
+     * @return 模板列表；关键词为空返回空列表
+     */
+    @Override
+    public List<DocTemplate> searchActiveTemplates(String keyword, int limit) {
+        if (keyword == null || keyword.isBlank()) {
+            return List.of();
+        }
+        int size = Math.min(Math.max(limit, 1), 20);
+        return docTemplateMapper.selectList(Wrappers.<DocTemplate>lambdaQuery()
+                .eq(DocTemplate::getStatus, "active")
+                .like(DocTemplate::getName, keyword.trim())
+                .orderByAsc(DocTemplate::getSortOrder)
+                .orderByAsc(DocTemplate::getId)
+                // size 是服务端夹过的 int，不是用户输入，拼接安全（与项目既有做法一致）
+                .last("LIMIT " + size));
     }
 }

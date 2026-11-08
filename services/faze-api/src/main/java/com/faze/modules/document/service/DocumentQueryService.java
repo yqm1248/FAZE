@@ -51,4 +51,17 @@ public interface DocumentQueryService {
      * @return 文书列表（按更新时间倒序）
      */
     List<Document> listByUserId(Long userId);
+
+    /**
+     * 按名称关键词搜已启用的文书模板（段 5 G3 全局搜索的「文书」域）。
+     *
+     * <p>搜的是**文书模板**（`doc_template`），不是用户自己的文书——设计稿 40-search
+     * 的「文书」组跳转目标是模板表单页（工作流 G3 第 3 条）。</p>
+     *
+     * @param keyword 关键词（模板名）
+     * @param limit   最多返回条数（服务端夹到 1~20）
+     * @return 模板列表；关键词为空返回空列表
+     */
+    java.util.List<com.faze.modules.document.entity.DocTemplate> searchActiveTemplates(
+            String keyword, int limit);
 }
