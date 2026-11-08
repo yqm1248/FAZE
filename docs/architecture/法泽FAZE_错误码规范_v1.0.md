@@ -156,6 +156,7 @@ NNN = 3 位：域内序号，从 001 起
 | `405019` | 200 | `error.trade.channel-prepay-failed` | 渠道下单失败（`prepay` 调用失败） |
 | `405020` | **200** | `error.trade.recharge-realbame-required` | **未实名用户不可充值**（`sys_config.recharge.unverified_daily_cents = 0`，2026-11-02 定：是拦截不是限额） |
 | `405028` | 200 | `error.trade.reconcile-bill-invalid` | **渠道对账单非法**（空文件 / 缺表头 / 列数不符 / 金额或时间无法精确转分）——段 6 D3/D4 施工时追加（2026-11-08） |
+| `405029` | 200 | `error.trade.recharge-not-found` | **充值单不存在**（人工补单接口 `POST /admin/recharges/{orderNo}/sync` 的单号查不到本地记录）——段 6 D1 施工时追加（2026-11-08）。**不要与「渠道查不到」混用**：后者是正常业务态，接口返回 200 + `syncResult=channel_not_found` |
 | `505001` | 200 | `error.trade.channel-down` | 支付渠道不可用 |
 | `505002` | 200 | `error.trade.reconcile-diff` | 对账存在差异，需人工处理 |
 | `505003` | 200 | `error.trade.flow-write-failed` | 流水写入失败（资金链路致命错误） |

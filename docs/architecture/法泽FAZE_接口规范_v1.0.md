@@ -879,7 +879,7 @@ GET  /admin/dashboard/ping
 | 4 | `POST /pub/pay/callback/wechat` | 微信异步回调 | **无 JWT，只靠验签** | DB 唯一键 + 状态 CAS | 渠道要求格式（非 `R<T>`） |
 | 5 | `POST /pub/pay/callback/alipay` | 支付宝异步回调 | **无 JWT，只靠验签** | 同上 | 同上 |
 | 6 | `POST /pub/pay/callback/mock` | Mock 通道回调（仅 dev/验收；生产由 `ProdMockPayGuard` 拦住） | **无 JWT，只靠 HMAC 验签** | 同上 | 同上 |
-| 7 | `POST /admin/recharges/{orderNo}/sync` | 人工触发补单（**本段未实现**） | PC token（`ROLE_ADMIN`） | 状态 CAS | `405015` |
+| 7 | `POST /admin/recharges/{orderNo}/sync` | 人工触发补单（**✅ 已实现，2026-11-08**）；返回 `syncResult` 枚举而非抛错，仅「本地无此单」返回 `405029` | PC token（`ROLE_ADMIN`） | 状态 CAS | `405029`（单不存在） |
 | 8 | `GET /admin/reconciliation/channel-diffs` | 渠道差异列表（4 筛选 + 分页） | PC token（`ROLE_ADMIN`） | 只读 | — |
 | 9 | `GET /admin/reconciliation/channel-diffs/export` | 渠道差异 CSV 导出（同筛选，不分页；返回 `text/csv` 流，**非 `R<T>`**） | PC token（`ROLE_ADMIN`） | 只读 | — |
 | 10 | `PUT /admin/reconciliation/channel-diffs/{id}` | 差异工单标记已处理（备注必填 ≤500 字） | PC token（`ROLE_ADMIN`） | 已处理的不覆盖备注 | `401002` / `401003` / `405018` |

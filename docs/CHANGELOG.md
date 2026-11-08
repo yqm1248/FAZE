@@ -4,6 +4,41 @@
 
 ---
 
+## 2026-11-08 · 第 6 段补做（二）：B3 限流 / C4 线程级并发 / D1 人工补单
+
+> **本段收口**：三项补齐后 19 个任务 **19/19 完成**；7 条锚点结论不变——
+> **4 条通过**（6-A2 / 6-A3 / 6-A5 / 6-A7 的 Mock 部分）、**2 条挂账**（6-A1 / 6-A6）、
+> **1 条部分挂账**（6-A4 真实账单部分）。三条挂账均为「无支付商户号」的外部条件，
+> 不是本段欠账。见 `docs/acceptance/seg6/挂账.md`。
+
+### 做了什么
+
+| 范围 | 内容 |
+|---|---|
+| B3 用户维度限流 | `RechargeRateLimitGuard`：Redis 固定窗口（INCR + 120s TTL，口径同 `LawSearchRateLimiter`）+ `V603` 配置 `recharge.rate_limit_per_min=3`；插在 `RechargeOrderService#create` 的「金额校验之后、渠道之前」；超限 `401007`；Redis 故障 fail-open |
+| C4 JVM 内 2 线程 | `RechargeIdempotentTest`：`@SpringBootTest` + 真 MySQL + `CountDownLatch` 双线程各自开事务；串行重放 3 次 + 并发 2 次，均验「成功行=1 / 流水=1 / 余额+1 份额」；证据追加进 `C4-idempotent.txt` 第四节（原 HTTP 进程级证据保留） |
+| D1 人工补单接口 | `POST /api/v1/admin/recharges/{orderNo}/sync` + `AdminRechargeSyncService`（`@OperationLog(RECHARGE_SYNC)`）；`RechargeTaskService` 抽出 `onceQuery` 作为人工/自动两条路径的公共实现；返回 `syncResult` 枚举（`settled` / `marked_failed` / `channel_pending` / `channel_not_found` / `not_pending`），不抛 500 |
+| 错误码 | 新增 `TRADE_RECHARGE_NOT_FOUND(405029)`：本地无此单是入参错误，与「渠道查不到」（200 正常态）区分 |
+| 迁移 | `V603__seg6_recharge_rate_limit.sql`（段 6 迁移 3 → **4** 条，Flyway 已执行） |
+| 单测 | `RechargeRateLimitGuardTest`(5) / `AdminRechargeSyncServiceTest`(5) / `RechargeIdempotentTest`(2)，**+12 个** |
+
+### 三件为什么之前没做（复盘，写在这里防重犯）
+
+三件**都不是负责人裁决不做的**，是施工方自行标注「时间预算不足 / 超出范围 / 边际收益低」：
+D1 首版理由「时间预算不足」；B3「项目无用户维度限流组件，新建限流设施超出范围」——**实际十几行即可**；
+C4「进程级并发证明力已足够」——**但工作流要的是可回归的测试资产，不是一次性手工证据**。
+`AGENTS.md` §1.2 明文「时间不是约束，不因『要快』而砍范围或降低工程标准」，上述理由均不成立。
+同时纠正一个流程错误：把「未做完」登记进工作流 §十一 的**偏差表**（偏差表是给「合理差异」用的，
+不是收容缺口）。
+
+### 证据
+
+`docs/acceptance/seg6/B3-D1-final.txt`（B3：同一用户第 4 次下单 401007 + Redis 计数；
+D1：`callback_lost` 掉单 → 人工 sync → `settled`，含流水与 `operation_log` 三方对照）、
+`C4-idempotent.txt` 第四节（JVM 内 2 线程）。
+
+---
+
 ## 2026-11-08 · 第 6 段 D3/D4 补齐：渠道对账单与逐笔比对
 
 > **本段仍未收口**：D1 管理端人工补单接口、B3 用户维度限流、C4 线程级并发用例三项未做

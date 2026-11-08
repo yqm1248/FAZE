@@ -19,7 +19,7 @@
 | **②.7** | [architecture/法泽FAZE_第3段工作流_v1.0.md](architecture/法泽FAZE_第3段工作流_v1.0.md) | **第 3 段具体怎么做？**（9 组 33 任务 / 8 条锚点 / 3 张表 / 16 个接口；含负责人 2026-11-01 拍板的 12 项与 **16 项已定裁决**——**法条检索 + 豆包 SSE + 三层防护 + 显式标识 + 后台两页**） |
 | **②.8** | [architecture/法泽FAZE_第4段工作流_v1.0.md](architecture/法泽FAZE_第4段工作流_v1.0.md) | **第 4 段具体怎么做？**（7 组 24 任务 / 8 条锚点 / 4 张表 / 17 个接口；**当天改过两次范围**——①只做中文 ②渲染从 LibreOffice 换成 **openhtmltopdf**、模板从 `.docx` 换成 HTML、**不出 Word**。开工前必读那一节必须看） |
 | **②.9** | [architecture/法泽FAZE_第5段工作流_v1.0.md](architecture/法泽FAZE_第5段工作流_v1.0.md) | **第 5 段具体怎么做？**（8 组 37 任务 / 8 条锚点（`5-A9` 已删）/ 建 8 张表 / 41 个接口；含负责人 2026-11-01 拍板的 **18 项**——**案件中心 + 律师工作台 5 页 + 送达 + 结算引擎 + 提现闭环 + 案例库 + 全局搜索**；§零之二 里三条改变了资金与送达口径，必须先读） |
-| **②.10** | [architecture/法泽FAZE_第6段工作流_v1.0.md](architecture/法泽FAZE_第6段工作流_v1.0.md) | **第 6 段具体怎么做？**（5 组 19 任务 / 7 条锚点（**3 条挂账**：`6-A1`/`6-A4` 真实部分/`6-A6` 需商户号）/ 建 1 张表（`recharge_record` 13 字段）/ 8 个接口 / 改造 A-09 加「渠道对账」Tab；含 18 项负责人裁决——手续费平台承担、单笔 0.1~5000 元、未实名不可充值、超时 30 分钟；含 Mock 通道先行的验收路径与挂账条件） |
+| **②.10** | [architecture/法泽FAZE_第6段工作流_v1.0.md](architecture/法泽FAZE_第6段工作流_v1.0.md) | **第 6 段具体怎么做？**（5 组 19 任务（**已全部完成 19/19**）/ 7 条锚点（**3 条挂账**：`6-A1`/`6-A4` 真实部分/`6-A6` 需商户号）/ 建 1 张表（`recharge_record` 13 字段）/ **10 个接口** / 改造 A-09 加「渠道对账」Tab；含 18 项负责人裁决——手续费平台承担、单笔 0.1~5000 元、未实名不可充值、超时 30 分钟；含 Mock 通道先行的验收路径与挂账条件） |
 | **②.11** | [architecture/法泽FAZE_第7段工作流_v1.0.md](architecture/法泽FAZE_第7段工作流_v1.0.md) | **第 7 段具体怎么做？**（8 组 41 任务 / 10 条锚点 / 建 11 张表（**新增第 54 张 `sensitive_word_appeal`、第 55 张 `announcement`**）/ 54 个接口（新增 26）/ APP 10 页 + PC 8 页；**26 项负责人裁决**——看板口径已定、告警走钉钉、表数 53→55、A-20 只看命中片段、**操作日志留存按合规 ≥3 年而非设计稿的 90 天**；开工前必读那节列了 **11 处上游冲突**） |
 | **③** | [architecture/法泽FAZE_技术路线_v2.3.md](architecture/法泽FAZE_技术路线_v2.3.md) | 做什么、怎么做（技术栈、12 个域、51 张表、接口清单、状态机） |
 | **③.5** | [architecture/法泽FAZE_数据表规范_v1.0.md](architecture/法泽FAZE_数据表规范_v1.0.md) | **表怎么命名、字段怎么定、索引怎么建、迁移怎么排、一共 51 张表**（建表前必读） |
@@ -238,7 +238,8 @@ docs/
 ## 段 6 验收证据（真实充值渠道 + 掉单补单 + 渠道对账）
 
 > 环境：`faze-api` 8081（dev）+ MySQL `faze` + RuoYi 8080 + Redis；Mock 通道（`pay.mock.enabled=true`）。
-> **段 6 尚未收口**：19 个任务完成 17 个；锚点 **4 通过 / 2 挂账（`6-A1`/`6-A6`）/ 1 部分挂账（`6-A4` 的真实账单部分）**。未完成项见 `挂账.md`。
+> **段 6 任务完成度 19/19**；锚点 **4 通过 / 2 挂账（`6-A1`/`6-A6`）/ 1 部分挂账（`6-A4` 的真实账单部分）**。
+> 挂账项是「无支付商户号」的外部条件，不是本段欠账，见 `挂账.md`。
 
 | 文件 | 内容 |
 |---|---|
@@ -249,8 +250,9 @@ docs/
 | [acceptance/seg6/B2-page.md](acceptance/seg6/B2-page.md) | B2：充值页四态 + 四类金额校验 + 未实名拦截 + Mock 模拟支付（4 张截图） |
 | [acceptance/seg6/B3-limit.txt](acceptance/seg6/B3-limit.txt) | B3：限额策略 17 个单测 + 金额/笔数/未实名三类拦截 |
 | [acceptance/seg6/B4-reconcile-tab.md](acceptance/seg6/B4-reconcile-tab.md) | B4：A-09 包 el-tabs + 渠道对账 Tab；**数据由 D3/D4 任务真实产出**（3 张截图） |
-| [acceptance/seg6/C4-idempotent.txt](acceptance/seg6/C4-idempotent.txt) | C4：同一回调串行 3 次 + 并发 2 次，只入账 1 次（余额/流水/单三方一致） |
+| [acceptance/seg6/C4-idempotent.txt](acceptance/seg6/C4-idempotent.txt) | C4：同一回调串行 3 次 + 并发 2 次（**HTTP 进程级 + JVM 内 2 线程两套证据**），只入账 1 次（余额/流水/单三方一致） |
 | [acceptance/seg6/D1-D2-tasks.txt](acceptance/seg6/D1-D2-tasks.txt) | D1 掉单补单 + D2 超时关单（关单前先查渠道） |
+| [acceptance/seg6/B3-D1-final.txt](acceptance/seg6/B3-D1-final.txt) | **B3 + D1 收尾实测**：B3 用户维度限流（第 4 次 401007 + Redis 计数）· D1 管理端人工补单（`callback_lost` 掉单 → sync → `settled` + 余额/流水/审计三方对照） |
 | [acceptance/seg6/6-A4-reconcile.txt](acceptance/seg6/6-A4-reconcile.txt) | **D3/D4**：账单留档 + 三类差异落库 + `channel_only` 自动补单 + 幂等重跑 + 6-A4 五项证据逐条对照 |
 | [acceptance/seg6/6-A4-diffs-export.csv](acceptance/seg6/6-A4-diffs-export.csv) | D4：差异报表 CSV 导出的真实内容 |
 | [acceptance/seg6/6-A7-failure.txt](acceptance/seg6/6-A7-failure.txt) | 6-A7：支付失败 → 单 `failed`、0 流水、额度释放（不占配额） |

@@ -582,7 +582,7 @@ AGENTS.md 写的是「9 个段严格串行，不许两段并行」。这句要�
 | PC 页（0 新增 / 改造 1） | **A-09 加「渠道对账」Tab**（不新增页，「PC 28 页」口径不变）；**Tab1「恒等式巡检」由段 1 交付、原样不动** |
 | 服务端 | 支付网关抽象 + 微信支付 / 支付宝适配器；充值下单、异步回调验签、掉单补单；渠道对账（下载对账单、比对、差异落库）；恒等式定时巡检 |
 | 数据库 | **本段建 `recharge_record`**（11 字段基线 + 2 个新字段 = **13 字段**）；渠道参数走 `sys_config`（**24 个键**：21 渠道/充值键 + 3 个 Mock 测试开关；2026-11-08 施工实测口径。加密项复用项目 AES-256-GCM 的 `ConfigCipher`，**不引入 Jasypt**）**不建表**；`reconciliation_diff` 由段 5 建（`V507` + `V510`，实际 20 字段），本段**只写不建** |
-| 接口 | **10 个**（2026-11-08 施工后更正，初版写 8 个）：App 3（下单 / 单笔查询 / 记录列表）+ 回调 3（`/pub/pay/callback/wechat` 与 `/alipay` 与 `/mock`，免 JWT、只靠验签）+ 管理端 4（人工补单**[本段未实现]** / 渠道差异列表 `/channel-diffs` / 差异 CSV 导出 `/channel-diffs/export` / 差异处理 `PUT /channel-diffs/{id}`）。**差异列表没复用 `/admin/reconciliation/diffs`**——该路径段 5 已被恒等式巡检占用。契约见《[法泽FAZE_第6段工作流_v1.0.md](法泽FAZE_第6段工作流_v1.0.md)》§五 5.2 |
+| 接口 | **10 个**（2026-11-08 施工后更正，初版写 8 个）：App 3（下单 / 单笔查询 / 记录列表）+ 回调 3（`/pub/pay/callback/wechat` 与 `/alipay` 与 `/mock`，免 JWT、只靠验签）+ 管理端 4（人工补单 `/admin/recharges/{orderNo}/sync` **[✅ 已实现，2026-11-08]** / 渠道差异列表 `/channel-diffs` / 差异 CSV 导出 `/channel-diffs/export` / 差异处理 `PUT /channel-diffs/{id}`）。**差异列表没复用 `/admin/reconciliation/diffs`**——该路径段 5 已被恒等式巡检占用。契约见《[法泽FAZE_第6段工作流_v1.0.md](法泽FAZE_第6段工作流_v1.0.md)》§五 5.2 |
 
 **必须做**
 
