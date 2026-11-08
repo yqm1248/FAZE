@@ -2415,7 +2415,22 @@ A-25 敏感词  →  A-20 内容审核  →  A-21/A-22 工单  →  A-23/A-24 �
 
 | # | 计划 | 实际 | 偏差原因 | 影响 |
 |---|---|---|---|---|
-| | | | | |
+| 1 | A1 建 11 张表（9 在册 + 第 54/55 张） | **已完成**：V700（9 张）/V701（announcement）/V702（sensitive_word_appeal）/V703（种子）/V704（审核开关）/V705（风控阈值）/V706（补 type_id）。Flyway 在 `faze` 库执行成功，业务表 43 → **53 张** | 计划外多出 V704~V706 三个迁移（见 #2/#3/#4） | 无（表结构目标一致） |
+| 2 | A1 第 4 步的 sys_config 清单 | `log.operation_retention_days` 写 **1095**（不是清单里的 90）、`log.login_retention_days=180`；并补 `sensitive.enabled`/`sensitive.block_enabled`（V704） | 清单里的 90 与同文档**裁决 16**（operation_log ≥ 3 年）直接冲突，且 A4 第 6 条要求低于下限则启动失败；两个审核开关 A3 第 8 条需要但 A1 清单没列 | 无（按合规下限执行） |
+| 3 | A1 种子 50 条敏感词（五类各 10 条） | **已完成 50 条**，但政治/暴恐/色情三类 **30 条是占位词**（`【示例】…`），维吾尔文/哈萨克文/藏文三语示意词**未做** | 真实敏感词不宜写进仓库种子；三语词库由运营提供（裁决 17 已挂账） | 上线前必须整体替换（挂账已记） |
+| 4 | 裁决 23：工单用 `type_id` 指向投诉/反馈原表 id | **A1 的 13 字段里没有 `type_id`** → 补 `V706` 加列 + `idx_ticket_type` | 裁决 23 与 A1 的字段清单互相矛盾（前者要类型关联，后者没列该列） | 不补则 A-22 详情拿不到投诉正文、C2 的回复也定位不到工单 |
+| 5 | A6 错误码 410005~410016 的 HTTP 状态 | 按**错误码规范 §3.10 逐码表**落地：410008/410010/410012 = **409**、410014 = **400**，其余 200 | §2.2 说「只有 401/403 破例、其余恒 200」，与 §3.10 的具体码表冲突；工作流 A6 与 §3.10 一致，故取后者 | 需回写《错误码规范》§2.2 加一句「§3.10 的逐码表优先」 |
+| 6 | B3 封禁：`app_user.status='banned'` | **改用 `blocked`** 并复用 account 域 `AdminUserService.ban`（同时 `token_version+1`，旧 token 立即失效） | 段 1 已交付的封禁用的是 `blocked`；工作流写的 `banned` 与既有数据不一致，硬写会让登录拦截失效 | 无（比「等 60s 缓存过期」更彻底） |
+| 7 | B3 详情：返回命中前后各 3 条上下文 | **降级为 `contextAvailable=false` + 说明** | 上下文属 conversation 域，本段未接（工作流 B3「卡住怎么办」明确允许） | 已记 §八.2；要看全文走投诉工单截图 |
+| 8 | B5：风控（异常注册 + 新设备） | 放 **account 域** `RiskControlService`，违规写入经 ops 的 `UserViolationWriteService` | 若放 ops 会形成 account↔ops 循环依赖（规范 §2.3 第 3 条禁止） | 无（依赖方向单向） |
+| 9 | C2：投诉/反馈生成工单 | 已完成（同事务），并补 `OrderQueryService` 校验「律师投诉必须关联本用户已完成订单」 | trade 域原先没有订单只读接口 | 无 |
+| 10 | D2 测试发送：发给自己站内信 | **改为只返回渲染预览文本**，不写 notification | 操作者是 RuoYi 管理员（`faze_admin.sys_user`），**不在 `faze.app_user` 里**，notification.user_id 无处可写 | 段 8 需补「管理员 → 站内信」身份映射 |
+| 11 | D1 `region` 目标人群 | 接口与发送均**明确不可用**（返回 0 / 抛 401001），不静默发 0 人 | `app_user` 没有 `region` 列（A5 假设「段 1 已有」是错的） | 需段 1 补列后才能启用 |
+| 12 | A4 A-26 操作人列显示名字 | 只返回 `operatorId`，`operatorName` 恒为 null | `operation_log.operator_id` 是 `faze_admin.sys_user.id`（跨库），faze 库无权读 RuoYi 用户表 | 段 8 补「管理员 id → 名字」查询通道 |
+| 13 | A4 清理任务：先归档再删 operation_log | **只归档、不删除**（DELETE 被数据库拒绝时打 WARN） | `faze_app` 对 `operation_log` **刻意只有 SELECT + INSERT**（B 类追加表不可改删），这是安全设计不是缺陷 | 超期清理需人工审批 + 高权限账号执行 |
+| 14 | 段 7 建表后 DB 授权 | **启动失败一次**：`faze_app` 对 11 张新表无权限 → 已手动 GRANT 补上 | `deploy/sync-db-grants.ps1` 是**表级授权**，新建表不会自动继承 | **后续每段建表都要补授权**；建议改成扫 `information_schema` 自动补齐 |
+| 15 | A-26 列表分页形状 | 用 `R<PageResult>`（`list/total/pageNum/pageSize/hasMore`） | 工作流 A4 明确写这个形状；与接口规范「PC 用 TableDataInfo」不一致 | PC 页面按 `res.data.list` 读（ops.js 已注明） |
+| 16 | 本批交付范围 | **A/B/C/D 的后端全部完成 + PC 端 6 页**（A-25/A-20/A-21/A-22/A-23/A-24）+ 菜单种子；**C5 的 APP 4 页、E/F/G/H 组未做** | 按负责人「先做到 D 组」的指令，APP 页面（C5）与段 7 的 E~H 组顺延 | C5 未做则 `7-A5`「App 能看到回复」只有服务端证据，无界面证据 |
 
 ---
 
