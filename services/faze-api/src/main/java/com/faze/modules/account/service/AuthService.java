@@ -96,6 +96,9 @@ public class AuthService {
     /** 单飞槽位：refreshToken → 正在执行/已完成的轮换。 */
     private final Map<String, RefreshingEntry> refreshing = new ConcurrentHashMap<>();
 
+    /** 账号风控（第 7 段 B5 接入；旁路能力，失败不影响登录/注册）。 */
+    private final RiskControlService riskControlService;
+
     /**
      * 构造服务。
      *
@@ -106,6 +109,7 @@ public class AuthService {
      * @param smsCodeService    短信验证码（注册 / 短信登录校验）
      * @param loginGuardService 登录失败计数与锁定
      * @param loginLogService   登录日志
+     * @param riskControlService 账号风控（异常注册检测 / 新设备提醒）
      * @param jwtProperties     JWT 配置（取 refresh 有效期）
      */
     public AuthService(AccountMapper accountMapper,
@@ -117,6 +121,7 @@ public class AuthService {
                        LoginLogService loginLogService,
                        AccountConverter accountConverter,
                        DeviceService deviceService,
+                       RiskControlService riskControlService,
                        FazeJwtProperties jwtProperties) {
         this.accountMapper = accountMapper;
         this.tokenProvider = tokenProvider;
@@ -127,6 +132,7 @@ public class AuthService {
         this.loginLogService = loginLogService;
         this.accountConverter = accountConverter;
         this.deviceService = deviceService;
+        this.riskControlService = riskControlService;
         this.refreshTtl = Duration.ofDays(jwtProperties.refreshTtlDays());
     }
 
@@ -177,6 +183,9 @@ public class AuthService {
         loginLogService.recordSuccess(user.getId(), phone, LOGIN_TYPE_PASSWORD,
                 clientIp, userAgent, request.getDeviceId());
         deviceService.touch(user.getId(), request.getDeviceId(), userAgent);
+
+        // 任务 5b：新设备登录提醒（第 7 段 B5）。旁路能力，内部吞异常，不影响登录。
+        riskControlService.notifyNewDeviceLogin(user.getId(), request.getDeviceId(), clientIp);
 
         // 任务 6：签发令牌对并组装响应。
         return issue(user);
@@ -255,6 +264,11 @@ public class AuthService {
         // 任务 7：注册即首次登录——写日志并签发令牌。
         loginLogService.recordSuccess(user.getId(), phone, LOGIN_TYPE_REGISTER,
                 clientIp, userAgent, null);
+
+        // 任务 8：异常注册检测（第 7 段 B5）。只记录不拦（同 IP 24h 超阈写 user_violation），
+        // 内部吞异常：风控失败不能让注册失败。
+        riskControlService.checkAbnormalRegister(user.getId(), clientIp);
+
         return issue(user);
     }
 
