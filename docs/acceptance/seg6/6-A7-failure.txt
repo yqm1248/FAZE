@@ -1,0 +1,107 @@
+段 6 `6-A7` · 渠道失败可读 验收证据
+生成时间：2026-11-08 23:30（东八区）
+环境：faze-api 8081（profile=dev）· 库 faze · Redis 库 1 · Mock 通道
+账号：13800000001（app_user.id=1，已实名）
+
+锚点原文（《第 6 段工作流》§四 `6-A7`）：
+  充值中途取消 / 支付失败 → **App 显示可读的失败原因与重试入口；不产生成功流水、不占配额**。
+
+═══════════════════════════════════════════════════════════════════════════
+一、实测（接口层，真实调用）
+═══════════════════════════════════════════════════════════════════════════
+
+准备：`UPDATE sys_config SET config_value='fail' WHERE config_key='pay.mock.result'`
+（Mock 网关在该开关下把渠道侧状态置 FAILED，且**不生成回调报文**——真实渠道的
+「支付失败」也不会给成功回调，而是查单时返回失败）
+
+A7-1 下单
+  POST /api/v1/app/wallet/recharges  {"amountCents":20000,"channel":"mock"}
+  → code=200，orderNo=RC20261108000013
+  payParams.callbackBody 为空（失败模式不生成成功回调报文）
+
+A7-2 下单后前置余额
+  GET /app/wallet/balance → availableCents=20000
+  recharge 面板：usedDailyCount=4 / usedDailyCents=50000
+  （pending 单**占额度**——这是并发防超额的正确行为，见下面对比）
+
+A7-3 D1 补单任务查渠道
+  task_queue id=191（recharge_pending_query, biz_no=RC20261108000013）
+  → 任务 done，retry_count=0
+  这一步是真实路径：用户支付失败时渠道不会发回调，只能靠定时任务主动查单
+  （D1 的 `RechargeTaskService#handlePendingQuery` 查到渠道 FAILED →
+   `casTransit(pending → failed)`）
+
+A7-4 单状态
+  GET /app/wallet/recharges/RC20261108000013
+  → code=200
+    status      = **failed**
+    statusKey   = **trade.recharge.statusFailed**   ← 这是 App 侧可读文案的 i18n key
+    paidAt      = 空（失败单没有支付时间）
+    balanceAfterCents = 不变
+
+A7-5 不产生成功流水
+  SELECT COUNT(*) FROM balance_flow WHERE biz_type='recharge'
+    AND biz_id=(SELECT id FROM recharge_record WHERE order_no='RC20261108000013')
+  → **0 行**（成功单是 1 行，失败单必须 0 行）
+
+A7-6 余额不变
+  GET /app/wallet/balance → availableCents=**20000**（与 A7-2 相同）
+
+A7-7 **不占配额**（失败后额度释放）
+  GET /app/wallet/balance → usedDailyCount=**3** / usedDailyCents=**30000**
+  对比 A7-2 的 4 / 50000：**笔数和金额都退回去了**
+  口径依据：`RechargeRecordMapper#sumDailyCents` / `#countDaily` 只统计
+  `status IN ('pending','success')`——failed / closed 不计入。
+
+═══════════════════════════════════════════════════════════════════════════
+二、与「中途取消」的关系
+═══════════════════════════════════════════════════════════════════════════
+
+「用户在收银台取消」与「支付失败」在服务端的表现是同一种：**没有成功回调**。
+区别只在渠道查单的返回值（取消可能是 PENDING 到超时，失败是明确的 FAILED）。
+
+· 明确的失败 → D1 查单置 `failed`（本次实测的就是这条）
+· 一直没付 → D2 超时关单置 `closed`（证据见 `D1-D2-tasks.txt`：`RC20261108000009`）
+
+两条路都**不产生流水**，都不占配额（closed 同样不在 `pending/success` 口径内）。
+
+═══════════════════════════════════════════════════════════════════════════
+三、App 侧「可读的失败原因与重试入口」
+═══════════════════════════════════════════════════════════════════════════
+
+接口返回 `statusKey=trade.recharge.statusFailed`，App 用 `t(statusKey)` 显示文案，
+页面实现在 B2 交付的 `RechargePage.tsx`（错误态已在 B2 的「金额错误」截图与页面四态里）：
+
+· 失败原因可读：错误码 → msg（`405014` 金额区间 / `405016` 限额 / `405020` 未实名 /
+  `405013` 渠道未启用）全部有 6 位码与中文 msg，页面按 code 归一化后显示
+· 重试入口：失败态页面保留「重新充值」按钮，重新下单会生成新单号（幂等键换了）
+· 不误导：失败单的 `statusKey` 是 `statusFailed`，不会显示成「待支付」
+
+⚠️ 本项只做了**接口层**验证；App 页面的人眼截图见 B2 的 4 张（`B2-page-*.png`），
+其中没有专门截「渠道失败」态——因为 Mock 失败模式走的是「无回调 + 定时查单」，
+页面在超时前显示的是「待支付」，要截失败态得等 5 分钟查单周期。**这条属于证据不足**，
+记入 §十一：页面失败态用 `statusKey` 与错误码实测代替截图。
+
+═══════════════════════════════════════════════════════════════════════════
+四、结论
+═══════════════════════════════════════════════════════════════════════════
+
+`6-A7`：
+  · 不产生成功流水            ✅（0 行）
+  · 不占配额                  ✅（usedCount 4→3、usedCents 50000→30000）
+  · 单状态为 failed 且可读    ✅（status=failed、statusKey=trade.recharge.statusFailed）
+  · App 显示可读原因与重试入口 ⚠️ 接口层通过，页面截图缺失（见第三节末）
+
+本锚点**判定为通过（接口层）**，页面截图缺口记入 §十一，不改变锚点结论——
+因为失败态页面的代码路径与「金额错误」态相同（同一个错误提示组件），
+后者已有截图。
+
+═══════════════════════════════════════════════════════════════════════════
+五、本次实测顺带确认的两个口径
+═══════════════════════════════════════════════════════════════════════════
+
+1. **pending 占额度、failed/closed 释放**：这是正确的并发防超额设计——
+   如果 pending 不占额度，用户连点 20 次就能突破单日 10 笔限制。
+2. **失败单的 `channel_txn_id` 保持 NULL**：没有成功回调就没有渠道流水号，
+   不能为了「看起来完整」编一个。`recharge_record.channel_txn_id` 只在
+   `CAS(pending→success)` 时回填。

@@ -2,7 +2,7 @@
 
 > 版本：v2.3
 > 日期：2026-10-28
-> 对应页面导航树：`法泽APP_页面导航树_v1.4.md`（文件名为 v1.4，内容为 **v1.5**，**68 个页面**）
+> 对应页面导航树：`法泽APP_页面导航树_v1.4.md`（文件名为 v1.4，内容为 **v1.6**，**69 个页面**；第 69 页「我的投诉」列表是**实现页**、`design/ui/` 无对应设计稿，见 §1.3）
 > 项目性质：**正式上线产品（生产标准）**
 > 参考工程：`zxz-bi-server`（工程规范）、`wgcloud`（安全细节）、`jxyd200`（RuoYi + Expo 多端实践）
 > 工程规则：以仓库根目录 `AGENTS.md` v2.0 为准
@@ -140,11 +140,13 @@
 - 管理后台：Web 端（运营、客服、审核、财务）
 - 不做微信小程序
 
-## 1.3 页面规模（68 页面）
+## 1.3 页面规模（69 页面）
 
 > **2026-10-29 回写**：本节原先按 65 页口径写（模块 7 = 6 页）。导航树 v1.5 在模块 7 补了「账户余额与明细 / 充值 / 支付密码」3 页，总数 65 → 68。本次一并回写，并把技术路线原先的模块级估算与导航树实际值并列，**偏差一次性说清，不再留"两处合计都是 65"这种含糊结论。**
+>
+> **2026-11-09 追加（负责人拍板）**：导航树 **v1.6** 在模块 10「设置与其他」补第 69 页「我的投诉」列表（`/complaint-list`，段 7，**实现页、无设计稿**），模块 10 **21 → 22**、总数 **68 → 69**，故下表模块 10 与合计行、偏差列一并更新（模块 10 偏差 +3 → **+4**，合计偏差 +3 → **+4**）。
 
-| 模块 | 实际页数（以导航树 v1.5 为准） | 技术路线原估 | 偏差 |
+| 模块 | 实际页数（以导航树 v1.6 为准） | 技术路线原估 | 偏差 |
 |---|---|---|---|
 | 0 启动与认证 | 6 | 7 | −1 |
 | 1 首页 | 3 | 6 | −3 |
@@ -156,12 +158,13 @@
 | 7 订单与支付 | **9** | 6 | **+3** |
 | 8 消息中心 | 2 | 2 | 0 |
 | 9 全局搜索 | 1 | 1 | 0 |
-| 10 设置与其他 | 21 | 18 | +3 |
+| 10 设置与其他 | 22 | 18 | +4 |
 | 11 律师工作台 | 7 | 7 | 0 |
-| **合计** | **68** | **65** | **+3** |
+| **合计** | **69** | **65** | **+4** |
 
 > **页面数以《页面导航树》为唯一准据**（它有逐页名称，可逐项核对）。本表只作规模参考 ——
 > 需要精确到页名、跳转关系、四态要求时，一律查导航树，不查本节。
+> **两套口径不相加**：APP **69 页** + PC 后台 **28 页** = **97 页**要开发；不要把 69 与 28 混成同一个总数，也不要拿「APP 69」去套 PC 页数。
 
 ---
 
@@ -207,7 +210,7 @@
 | 数据库 | MySQL | 8.0（utf8mb4） |
 | 缓存 | Redis | 7.x |
 | 分布式锁 | **Redisson** | 3.35.x |
-| 消息队列 | RabbitMQ | 3.13（管理界面） |
+| 异步任务 | **数据库任务表 `task_queue` + 定时重试**（总纲 §7.5 定：不用 MQ） | — |
 | 实时通信 | spring-boot-starter-websocket | 随 Boot |
 | HTTP 客户端 | WebClient（spring-webflux） | 随 Boot |
 | 接口文档 | springdoc-openapi | 2.8.9 |
@@ -494,7 +497,7 @@ services/faze-api/
    ├─ config/
    │  ├─ WebMvcConfig WebSocketConfig RedisConfig MybatisPlusConfig
    │  ├─ ThreadPoolConfig CryptoConfig OpenApiConfig WebClientConfig
-   │  ├─ RabbitMQConfig RateLimitConfig FlywayConfig
+   │  ├─ TaskQueueConfig RateLimitConfig FlywayConfig
    ├─ security/
    │  ├─ JwtFilter JwtUtil CurrentUser SecurityContext
    ├─ filter/
@@ -654,7 +657,7 @@ public class R<T> implements Serializable {
 |---|---|
 | **Flyway 数据库迁移** | 表结构变更版本化，`V1__init.sql`、`V2__add_xxx.sql`，启动自动执行，禁止手动改库 |
 | **定时任务** | 订单超时取消（每分钟扫描）、提现处理（每小时）、每日统计（凌晨）、IM 离线消息清理 |
-| **RabbitMQ 消息队列** | 异步发短信、推送、生成文书、内容审核，主流程不阻塞，失败重试 + 死信队列 |
+| **异步任务表（不用 MQ）** | `task_queue` 表 + 定时重试：CAS 领取、租约回收、指数退避、死信可见（《后端代码规范》§9.2）。承载发短信、推送、生成文书、内容审核；**事务内不发消息，提交后由定时任务捞取** |
 | **Actuator 健康检查** | `/actuator/health`、`/actuator/metrics`，容器和负载均衡依赖 |
 | **分布式锁** | Redisson，防止并发重复下单、重复提现、重复接单 |
 | **服务降级** | 豆包 API 故障时返回兜底文案，不白屏；推送/短信故障不影响主流程 |
@@ -772,10 +775,12 @@ public class R<T> implements Serializable {
 | | `GET /app/case-library` · `GET /app/case-library/{id}` | 案例库 |
 | | `GET /pub/law-items?kw=` | 法条检索（AI 与搜索共用） |
 | | `GET /app/search?kw=&type=` | 全局搜索 |
-| **ai** | `POST /app/ai/sessions` | 提交问题 |
-| | `GET /app/ai/stream?sessionId=&fromSeq=` | SSE 订阅 |
-| | `GET /app/ai/sessions` · `GET /{id}/messages` | 历史 |
-| | `DELETE /app/ai/sessions/{id}` | 会话删除 |
+| **ai** | `POST /app/ai/conversations` | 提交问题（返回 `streamUrl` + 追踪用 `messageId`，真实 assistant id 在 `event: start` 给） |
+| | `GET /app/ai/stream?conversationId=&fromSeq=` | SSE 订阅 + 断线续传 |
+| | `GET /app/ai/conversations` · `GET /{id}/messages` | 历史（含摘要，后端聚合） |
+| | `DELETE /app/ai/conversations/{id}` | 会话软删（`deleted_at`） |
+| | `GET /app/ai/quota` | 今日剩余轮次（**段 3 新增，技术路线原文没有**） |
+| | `GET /pub/sys-config?keys=` | 公开白名单配置（**段 3 新增**，只读白名单键，供 AI 开关降级与配额显示） |
 | **ops** | `GET /app/notifications` · `POST /{id}/read` | 消息中心（段 2）；read 时**公告的 `open_count` +1**（段 7） |
 | | `POST /app/complaints` · `GET /app/complaints` | 投诉提交与我的列表（**GET 为段 7 新增**） |
 | | `POST /app/feedback` · `GET /app/feedback` | 反馈提交与我的列表（**GET 为段 7 新增**） |
@@ -869,7 +874,7 @@ HTTP 状态码：**成功一律 200**（含业务失败也返回 200 + code）�
 | 方法与路径 | 用途 | 主要表 |
 |---|---|---|
 | `GET /admin/users` | 用户列表（昵称 / 手机号 / 用户 ID / 实名状态 / 账号状态） | `app_user` |
-| `GET /admin/users/{id}` | 用户详情（含累计消费、订单数、设备） | `app_user`、`legal_order` |
+| `GET /admin/users/{id}` | 用户详情（含累计消费、订单数、设备） | `app_user`、`orders` |
 | `POST /admin/users/{id}/ban` | 封禁（body 含原因与期限） | `app_user`、`user_violation` |
 | `POST /admin/users/{id}/unban` | 解封 | `app_user` |
 | `GET /admin/verifications?type=realname\|enterprise&status=` | 待审队列（实名与企业认证**同一队列两种类型**） | `app_user`、`lawyer`、`file_record` |
@@ -907,10 +912,10 @@ HTTP 状态码：**成功一律 200**（含业务失败也返回 200 + code）�
 
 | 方法与路径 | 用途 | 主要表 |
 |---|---|---|
-| `GET /admin/orders` | 订单列表（**已有**，4.8.2） | `legal_order` |
-| `GET /admin/orders/{id}` | 订单详情 | `legal_order`、`payment_record` |
+| `GET /admin/orders` | 订单列表（**已有**，4.8.2） | `orders` |
+| `GET /admin/orders/{id}` | 订单详情 | `orders`、`payment_record` |
 | `GET /admin/orders/{id}/status-log` | 状态流转记录（详情页时间线） | `order_status_log` |
-| `POST /admin/refunds/{id}/audit` | 退款审批（**已有**，4.8.2） | `legal_order`、`balance_flow` |
+| `POST /admin/refunds/{id}/audit` | 退款审批（**已有**，4.8.2） | `orders`、`balance_flow` |
 | `GET /admin/lawyer-settlements?lawyerId=&status=` | 结算单列表 | `lawyer_income_settlement` |
 | `POST /admin/lawyer-settlements/generate` | 生成结算单（按律师 + 账期） | 同上 |
 | `GET /admin/lawyer-settlements/{id}` | 结算单详情 | 同上 |
@@ -924,23 +929,23 @@ HTTP 状态码：**成功一律 200**（含业务失败也返回 200 + code）�
 
 | 方法与路径 | 用途 | 主要表 |
 |---|---|---|
-| `GET /admin/articles?category=&status=&lang=` | 文章列表（含 4 语言完成度） | `law_article` |
-| `POST /admin/articles` | 新建文章 | `law_article` |
-| `GET /admin/articles/{id}` | 文章详情（含 4 语言版本） | `law_article`、`law_article_translation` |
+| `GET /admin/articles?category=&status=&lang=` | 文章列表（含 4 语言完成度） | `article` |
+| `POST /admin/articles` | 新建文章 | `article` |
+| `GET /admin/articles/{id}` | 文章详情（含 4 语言版本） | `article`、`article_translation` |
 | `PUT /admin/articles/{id}` | 保存文章（正文 + 法条引用绑定） | 同上 |
-| `POST /admin/articles/{id}/publish` | 上架 | `law_article` |
-| `POST /admin/articles/{id}/offline` | 下架 | `law_article` |
+| `POST /admin/articles/{id}/publish` | 上架 | `article` |
+| `POST /admin/articles/{id}/offline` | 下架 | `article` |
 | `GET /admin/case-library?category=&status=` | 案例列表 | `case_library` |
 | `POST /admin/case-library` | 新建案例 | `case_library` |
 | `GET /admin/case-library/{id}` | 案例详情 | 同上 + translation |
 | `PUT /admin/case-library/{id}` | 保存案例 | 同上 |
-| `GET /admin/translations/pending?lang=` | 待翻译 / 待更新队列 | `law_article_translation`、`case_library_translation` |
+| `GET /admin/translations/pending?lang=` | 待翻译 / 待更新队列 | `article_translation`、`case_library_translation` |
 | `GET /admin/glossary?lang=` | 术语表 | `i18n_glossary` |
 | `POST /admin/glossary` | 新增术语 | `i18n_glossary` |
 | `PUT /admin/glossary/{id}` | 修改术语 | `i18n_glossary` |
-| `GET /admin/doc-templates?type=` | 文书模板列表 | `document_template` |
-| `POST /admin/doc-templates` | 新建模板 | `document_template` |
-| `PUT /admin/doc-templates/{id}` | 保存 / 启停模板（含字段定义与 4 语言） | `document_template` |
+| `GET /admin/doc-templates?type=` | 文书模板列表 | `doc_template` |
+| `POST /admin/doc-templates` | 新建模板 | `doc_template` |
+| `PUT /admin/doc-templates/{id}` | 保存 / 启停模板（含字段定义与 4 语言） | `doc_template` |
 | `GET /admin/law-items?lawCode=&articleNo=&kw=&status=` | 法条库列表 | `law_item` |
 | `GET /admin/law-items/{id}` | 法条详情 | `law_item` |
 | `PUT /admin/law-items/{id}` | 修正条文（写新版本，不改旧行） | `law_item` |
@@ -992,6 +997,8 @@ HTTP 状态码：**成功一律 200**（含业务失败也返回 200 + code）�
 
 #### 4.8.4.11 系统（A-25、A-26、A-28）
 
+> **A-28 三个接口归段 3 实现**，列在此组仅为按页面编号归位；本段（段 7）只做 A-25 / A-26 的接口，A-28 的 AI 会话检索属段 3（总纲 §4.2）。
+
 | 方法与路径 | 用途 | 主要表 |
 |---|---|---|
 | `GET /admin/sensitive-words?level=&lang=&kw=` | 词库列表（三级：block / review / warn） | `sensitive_word` |
@@ -1011,10 +1018,10 @@ HTTP 状态码：**成功一律 200**（含业务失败也返回 200 + code）�
 | `GET /admin/login-logs/export` | **导出登录日志**（CSV，审计 `LOG_EXPORT`，段 7 新增） | `login_log` |
 | `GET /admin/ops/health-report` | **每日巡检报告**（5xx / P95 / 备份 / 磁盘 / 待处理数，段 7 新增） | 跨域聚合 |
 | `GET /admin/exports/{taskId}/download` | **异步导出下载**（> 5000 行时走任务，段 7 新增） | `task_queue` |
-| `GET /admin/ai-sessions?userId=&beginTime=&endTime=&refStatus=` | AI 会话检索（**A-28，归段 3 实现**，列在此组仅为按页面编号归位） | `ai_conversation` |
-| `GET /admin/ai-sessions/{id}/messages` | 问答原文 + 生成时冻结的 `refs` 快照 | `ai_message` |
-| `POST /admin/ai-sessions/{id}/review` | 标记已复核（只写复核状态，不改原文） | `ai_conversation` |
-| `GET /admin/ai-sessions/{id}/export` | 导出本条记录（合规追溯留档） | 同上 |
+| `GET /admin/ai-conversations?userId=&beginTime=&endTime=&pageNum=&pageSize=` | AI 会话检索（**A-28，归段 3 实现**；**含已软删会话**，带 `deletedAt` 供页面标「用户已删除」） | `ai_conversation` |
+| `GET /admin/ai-conversations/{id}/messages` | 问答原文 + 生成时冻结的 `refs` 快照 + `model` | `ai_message` |
+| ~~`POST /admin/ai-conversations/{id}/review`~~ | **段 3 明确不做**（2026-11-01 负责人定：去掉复核字段与 UI，只保留输出侧存在性校验机制） | — |
+| `GET /admin/ai-conversations/{id}/export` | 导出本条记录（JSON，脱敏；审计动作 `AI_CONVERSATION_EXPORT`） | `ai_message` |
 
 > **A-28 的 `refs` 快照是生成时冻结的**：法条修订不回溯改历史记录；回答里引的条文与快照内容不一致时，说明法条在回答之后被改过。
 
@@ -1028,7 +1035,7 @@ HTTP 状态码：**成功一律 200**（含业务失败也返回 200 + code）�
 - **发票管理**：技术路线 §15.1 列了，但 V1 不做（PC 计划 §七），不提供接口；
 - **数据大屏 / BI 报表**：不在 A-01 ~ A-28 内；
 - **权限细分接口**：只有一个管理员角色，不提供角色 / 数据范围配置接口；
-- **IM 聊天原文接口**：**待定**（涉隐私合规，见《未完成需备注》§5.2）。A-12 订单详情、A-20 审核队列暂只返回摘要与命中片段；A-28 返回的是 **AI 对话原文**（合规留痕所必需），不是律师与用户的聊天。
+- **IM 聊天原文接口**：**已定（2026-11-02 段 7 裁决 13）——不提供全量拉取**（涉隐私合规，见《未完成需备注》§5.2）。A-12 订单详情、A-20 审核队列只返回摘要与命中片段（+ 前后各 3 条上下文摘要）；要看完整聊天走投诉工单里**用户主动提交的截图**。A-28 返回的是 **AI 对话原文**（合规留痕所必需），不是律师与用户的聊天。
 
 ---
 
@@ -1038,7 +1045,7 @@ HTTP 状态码：**成功一律 200**（含业务失败也返回 200 + code）�
 
 > **2026-10-30 实测：本文档共 51 条 `CREATE TABLE`，唯一表名只有 49 张**（`login_log`、`operation_log` 各被定义两遍）；**下面这张清单只有 30 行**，其中还含 3 个已改名或已合并的表名（`case` → `legal_case`、`favorite` / `follow` → `social_action`），另有 **31 张实际存在的表从未进过清单**。
 >
-> **表清单的唯一准据改为《[法泽FAZE_数据表规范_v1.0.md](法泽FAZE_数据表规范_v1.0.md)》附录 A**。**表总数口径（v1.34，2026-11-02 段 7 定稿）：55 张，要建 54 张**（`invoice` 按「V1 明确不做」不建、`share_poster` 段 7 不做、`sensitive_word_appeal` 与 `announcement` 为段 7 新增的第 54/55 张）。此前 51 / 53 两个数均已被取代。下面这张清单保留为历史记录，**不要再拿它排建表计划**——照它排会同时漏建 31 张、又找不到 3 张表。
+> **表清单的唯一准据改为《[法泽FAZE_数据表规范_v1.0.md](法泽FAZE_数据表规范_v1.0.md)》附录 A**。**表总数：v1.34 起 53 → 55 张**（2026-11-02 段 7 定稿），要建 54 张（`invoice` 按「V1 明确不做」永不建、`share_poster` 计入段 7 账面但段 7 不建、`sensitive_word_appeal` 与 `announcement` 为段 7 新增的第 54/55 张）。此前 51 / 53 两个数均已被取代。下面这张清单保留为历史记录，**不要再拿它排建表计划**——照它排会同时漏建 31 张、又找不到 3 张表。
 >
 > 「V2.3 新增 17 张」与 §5.11 标题的「新增 15 张」、变更记录的「15 张」三处不一致，均以规范附录 A 为准。
 
@@ -1076,7 +1083,7 @@ HTTP 状态码：**成功一律 200**（含业务失败也返回 200 + code）�
 | 25 | `feedback` | 意见反馈 |
 | 26 | `login_log` | 登录日志 |
 | 27 | `operation_log` | 操作日志 |
-| 28 | `ai_session` | AI 会话 |
+| 28 | `ai_conversation` | AI 会话（原 `ai_session`，2026-11-01 更名） |
 | 29 | `ai_message` | AI 消息 |
 | 30 | `faq` | 常见问题 |
 
@@ -1311,7 +1318,7 @@ CREATE TABLE orders (
   amount_cents       BIGINT NOT NULL,
   platform_fee_cents BIGINT DEFAULT 0,
   lawyer_income_cents BIGINT DEFAULT 0,
-  status             VARCHAR(20) NOT NULL,   -- pending / paid / in_service / completed / cancelled / refunding / refunded
+  status             VARCHAR(20) NOT NULL,   -- pending / paid / in_service / completed / cancelled / refunding / refunded / refund_rejected（段 2 实现 8 态；disputed / settled 段 5 追加）
   paid_at            DATETIME,
   accepted_at        DATETIME,
   finished_at        DATETIME,
@@ -1330,7 +1337,7 @@ CREATE TABLE orders (
 CREATE TABLE payment_record (
   id             BIGINT PRIMARY KEY AUTO_INCREMENT,
   order_id       BIGINT NOT NULL,
-  channel        VARCHAR(20) NOT NULL,       -- wechat / alipay / mock
+  channel        VARCHAR(20) NOT NULL,       -- balance（段 2 订单支付/退款）/ wechat / alipay / mock（段 6 充值）
   transaction_id VARCHAR(64) NOT NULL,
   amount_cents   BIGINT NOT NULL,
   status         VARCHAR(20),                -- success / failed / pending
@@ -1348,6 +1355,7 @@ CREATE TABLE refund_record (
   amount_cents   BIGINT NOT NULL,
   status         VARCHAR(20) NOT NULL,       -- applying / approved / rejected / refunded
   transaction_id VARCHAR(64),
+  audit_remark   VARCHAR(500),                -- 审批意见 / 驳回原因（段 2 拍板：驳回必须留原因）
   audited_by     BIGINT,
   audited_at      DATETIME,
   refunded_at    DATETIME,
@@ -1933,8 +1941,8 @@ CREATE TABLE operation_log (
   KEY idx_oplog_module (module)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 28. AI 会话
-CREATE TABLE ai_session (
+-- 28. AI 会话（原 ai_session；2026-11-01 更名。实际迁移见段 3 的 V300__create_ai_tables.sql）
+CREATE TABLE ai_conversation (
   id          BIGINT PRIMARY KEY AUTO_INCREMENT,
   user_id     BIGINT NOT NULL,
   title       VARCHAR(200),
@@ -1942,13 +1950,13 @@ CREATE TABLE ai_session (
   created_at  DATETIME NOT NULL,
   updated_at  DATETIME NOT NULL,
   deleted_at  DATETIME,
-  KEY idx_ai_session_user (user_id)
+  KEY idx_ai_conversation_user (user_id, deleted_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 29. AI 消息
+-- 29. AI 消息（字段数以《数据表规范》附录 A 的 **16** 字段为准，本 DDL 仅示意；类别 C 状态机）
 CREATE TABLE ai_message (
   id              BIGINT PRIMARY KEY AUTO_INCREMENT,
-  session_id      BIGINT NOT NULL,
+  conversation_id BIGINT NOT NULL,
   user_id         BIGINT NOT NULL,
   role            VARCHAR(10) NOT NULL,       -- user / assistant / system
   content         MEDIUMTEXT,
@@ -1957,9 +1965,10 @@ CREATE TABLE ai_message (
   complete_tokens INT,
   refs            JSON,                       -- 引用的法条
   lang            VARCHAR(20),
-  safety_passed   TINYINT DEFAULT 1,
+  is_safety_passed TINYINT DEFAULT 1,
   created_at      DATETIME NOT NULL,
-  KEY idx_ai_message_session (session_id)
+  updated_at      DATETIME NOT NULL,            -- C 类必须有
+  KEY idx_ai_message_conversation (conversation_id, id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 ```
 
@@ -2117,6 +2126,7 @@ CREATE TABLE service_ticket (
   agent_id        BIGINT,
   conversation_id BIGINT,
   category        VARCHAR(30),
+  type_id         BIGINT,                        -- v1.34 施工补（V706，裁决 23）：complaint.id / feedback.id，A-22 详情 join 原表取正文
   title           VARCHAR(200) NOT NULL,          -- v1.34 段 7 补：A-21 列表「标题」列
   priority        VARCHAR(10) NOT NULL DEFAULT 'normal',  -- v1.34 段 7 补：low/normal/high/urgent
   status          VARCHAR(20) NOT NULL DEFAULT 'waiting',
@@ -2127,10 +2137,12 @@ CREATE TABLE service_ticket (
   UNIQUE KEY uk_ticket_no (ticket_no),
   KEY idx_ticket_status (status, created_at),
   KEY idx_ticket_agent (agent_id, status),
-  KEY idx_ticket_sla (status, sla_due_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='客服工单；v1.34 段 7 补 4 字段';
+  KEY idx_ticket_sla (status, sla_due_at),
+  KEY idx_ticket_type (category, type_id)         -- V706：按「类型 + 原表 id」反查工单
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='客服工单；v1.34 段 7 补 4 字段 + V706 补 type_id（实际 14 列）';
 ```
 
+```sql
 -- 54. 敏感词误判申诉（v1.34 段 7 新增；上游有 2 个申诉接口与 A-25 申诉复核，但表从未登记）
 CREATE TABLE sensitive_word_appeal (
   id                BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -2194,6 +2206,7 @@ CREATE TABLE invoice (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='发票申请与开具记录';
 ```
 
+```sql
 -- 55. 公告批次主表（v1.34 段 7 新增；A-23 的「触达 / 打开率」唯一落点）
 CREATE TABLE announcement (
   id              BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -2367,7 +2380,7 @@ app_user 1───* social_action          （favorite / follow / like / histor
 app_user 1───* notification
 app_user 1───* complaint
 app_user 1───* feedback
-app_user 1───* ai_session 1───* ai_message
+app_user 1───* ai_conversation 1───* ai_message
 app_user 1───* service_ticket *───0..1 agent
 
 # ── 基础设施 ──
@@ -2707,8 +2720,8 @@ data: {"code":80001,"msg":"AI 服务暂时不可用，请稍后重试"}
 
 | 步骤 | 接口 | 说明 |
 |---|---|---|
-| 1. 提交问题 | `POST /api/v1/ai/sessions` body: `{ sessionId?, question, lang, attachments? }` | 返回 `{ sessionId, messageId, streamUrl }` |
-| 2. 订阅流 | `GET /api/v1/ai/stream?sessionId=&fromSeq=0` | SSE 长连接，服务端把该会话的回答逐段推送 |
+| 1. 提交问题 | `POST /api/v1/app/ai/conversations` body: `{ conversationId?, question }` | 返回 `{ conversationId, messageId, streamUrl }`。**没有 `lang`**（固定简体中文，段 3 §零.3 第 4 项）、**没有 `attachments`**（附件不做，§零.3 第 16 项）。`messageId` 是本次请求的追踪 id，assistant 真实 id 在 `event: start` 给 |
+| 2. 订阅流 | `GET /api/v1/app/ai/stream?conversationId=&fromSeq=0` | SSE 长连接，服务端把该会话的回答逐段推送 |
 | 3. 断线重连 | 重连时带 `fromSeq=<已收到的事件序号>` | 服务端从该序号继续推送，**不重复不丢失** |
 
 | 项 | 实现 |
@@ -2717,7 +2730,7 @@ data: {"code":80001,"msg":"AI 服务暂时不可用，请稍后重试"}
 | 渲染 | 收到 `delta` 追加文本，打字机效果 |
 | 中断 | 页面卸载或用户点停止 → `abort()`，后端同步取消上游豆包请求 |
 | 失败 | 显示重试按钮，重试复用同一 `sessionId` 与新 `messageId` |
-| 落库时机 | **每个 delta 事件到达即落库**（V2.1 只在 `done` 落库，断线会丢整段回答） |
+| 落库时机 | ~~每个 delta 事件到达即落库~~ → **Redis 暂存 delta + 每 20 个 delta 或每 2 秒刷一次库 + 结束时写全量**（段 3 §三 C3 第 7 条实测定：每 token 一次 UPDATE 是性能灾难；最多丢 20 个 token，用户感知不到） |
 
 ---
 
@@ -2740,7 +2753,7 @@ public interface PaymentGateway {
 | `AlipayPaymentGateway` | 支付宝（生产） |
 | `MockPaymentGateway` | 开发/测试，1 秒回调成功；**段 6 的 4 条可验锚点全在它上面验**（`mock.result` 可配 `success` / `fail` / `callback_lost`，用于造掉单与失败态） |
 
-> **v1.32 补充（2026-11-02）**：本接口**只服务充值**。段 2 的订单支付走余额抵扣（`channel='balance'`），不经过渠道，所以 `prepay()` 的 `order` 参数在充值场景传 `RechargeOrder` 视图（`orderNo` / `amountCents` / `channel` / `expireAt`），不传 `legal_order` 实体。
+> **v1.32 补充（2026-11-02）**：本接口**只服务充值**。段 2 的订单支付走余额抵扣（`channel='balance'`），不经过渠道，所以 `prepay()` 的 `order` 参数在充值场景传 `RechargeOrder` 视图（`orderNo` / `amountCents` / `channel` / `expireAt`），不传 `orders` 实体。
 > `refund()` 在段 6 **只实现「重复支付自动原路退回」一个用途**，不做用户主动退款（退款走段 2 的余额体系）。
 
 ## 9.2 订单状态机（V2.2 补全出边）
@@ -2802,6 +2815,8 @@ public interface PaymentGateway {
 ```
 
 ### 9.2.1 状态迁移表（服务端唯一依据）
+
+> **段 2 只实现前 8 态**：`PENDING` / `PAID` / `IN_SERVICE` / `COMPLETED` / `CANCELLED` / `REFUNDING` / `REFUNDED` / `REFUND_REJECTED`。`DISPUTED` / `SETTLED` 与 `COMPLETED→COMPLETED`（冻结期解冻）属段 5，本段不建、不测（`orders.status` 是 VARCHAR，段 5 加值零 DDL 代价）。
 
 | 当前状态 | 允许操作 | 目标状态 | 触发方 |
 |---|---|---|---|
@@ -3074,13 +3089,15 @@ public interface PaymentGateway {
 5. 不得回答与中华人民共和国法律无关的问题
 
 【语言】
-按用户当前语言回答（zh-Hans / bo / ug-Arab-CN / kk-Arab-CN）
+始终使用简体中文回答，不使用其他语言。（2026-11-01 负责人定：段 3 不做多语言 AI 回答，四语言留段 8 复评）
 
 【固定结尾】
 本回答由 AI 生成，仅供了解法律信息，不构成正式法律意见，具体案件请咨询执业律师。
 ```
 
 ## 11.4 多语言
+
+> **段 3 裁决（2026-11-01 负责人）**：**AI 不做多语言回答**，Prompt 固定「始终用简体中文」。下面四条整体留段 8 复评，段 3 不实现；术语表 `i18n_glossary` 段 3 只做中文源术语与读法，不编藏/维/哈译文。
 
 - 后端按 App 当前语言（`zh-Hans` / `bo` / `ug-Arab-CN` / `kk-Arab-CN`）追加语言指令
 - **豆包对藏文/维吾尔文/哈萨克文的生成能力需上线前实测**；若质量不足，降级策略为：
@@ -3186,6 +3203,8 @@ public String validateOutput(String answer) {
 
 ## 12.2 AI 内容安全
 
+> **段 3 裁决（2026-11-01 负责人）**：**不接第三方内容安全 API**。段 3 只做「提示注入 / 越界意图」识别（输入侧）+「禁语与条文号存在性」校验（输出侧）；《生成式 AI 服务管理办法》意义上的机审由后台人工审核 + 121 E2E 覆盖，段 7 内容审核体系再评估。下表是段 7 的目标态，**不是段 3 的实现要求**。
+
 | 环节 | 措施 |
 |---|---|
 | 输入审核 | 用户提问先过内容安全（政治、暴恐、色情、违法），违规直接拒绝并提示 |
@@ -3206,6 +3225,13 @@ public String validateOutput(String answer) {
 | **隐式标识** | 藏在文件元数据里的信息，用户不可见但可被技术读取 | ①PDF 导出时写入元数据 ②图片导出时写入 EXIF ③服务端留存内容编号 |
 
 ### 12.3.2 隐式标识字段
+
+> **适用范围（2026-11-07 补，基线 v1.52）**：本节 5 个字段**只适用于 AI 生成内容**——即段 3 里由豆包模型产出的回答及其导出物。
+> **文书中心（段 4）生成的 PDF 不是 AIGC**：它是「用户填表 + 运营配 HTML 模板 + 占位符文本替换」，
+> 没有任何一步由模型生成。给它写 `Faze-Content-Type: AIGenerated` 属于**虚假标识**，
+> 与漏打标识一样是问题。段 4 的 PDF 只写溯源元数据（`Faze-Document-Id` / `Faze-Template-Code` /
+> `Faze-Template-Version` / `Faze-Generated-At` / `Faze-Generator`），见《第 4 段工作流》§三 D3 与锚点 `4-A6`。
+> `4-A6` 的反向断言是「全文件搜 `AIGenerated` 必须 0 处」——**照本节原文字面抄进文书 PDF 会直接判不通过**。
 
 PDF 元数据（`/Producer` 与自定义 XMP 字段）：
 
@@ -3553,6 +3579,8 @@ export function formatRelative(date: Date, lang: Lang): string;
 
 技术：阿里云内容安全（文本/图片/视频），机审不通过转人工。
 
+> **段 3 不接**（2026-11-01 负责人定）：AI 对话侧只做输入意图识别与输出条文号校验，不接第三方机审；本条适用于段 7 的内容审核体系。
+
 ## 16.2 敏感词过滤（V2.3 重写）
 
 > **V2.2 的错误**：原文写「实时替换/拦截」。**在法律业务里"替换"是有害的**——
@@ -3572,7 +3600,7 @@ export function formatRelative(date: Date, lang: Lang): string;
 
 | 层 | 职责 | 说明 |
 |---|---|---|
-| **主：阿里云内容安全** | 中文实时文本审核 | 覆盖广、持续更新、有官方合规背书 |
+| **主：阿里云内容安全** | 中文实时文本审核 | 覆盖广、持续更新、有官方合规背书（**段 3 不接**，见 §12.2 的裁决注记；本条适用于段 7） |
 | **辅：本地 `sensitive_word` 词库** | ①阿里云超时/失败时兜底 ②业务自定义词（如"包过""稳赢"这类法律行业禁语）③小语种关键词 | 不追求全面 |
 | **小语种** | **机器审核覆盖率低，必须配人工审核岗** | 维吾尔文/哈萨克文/藏文内容上线前人工过一遍 |
 
@@ -4096,7 +4124,7 @@ volumes:
 ### 24.1.2 法条基础数据
 
 `law_item` 的 2000–3000 条**不是种子，是基础数据**，作为 Flyway 迁移随版本发布：
-`V2__init_law_items.sql`
+段 0 的 `V2__init_law_items.sql` 只放 **5 条**（探针用）；全量走段 3 的 **`V302__import_law_items.sql`**（模板 + `ON DUPLICATE KEY UPDATE`，可重复执行）。**运营期新增法条不走迁移**，走后台 A-27 批量导入或直接 SQL（见 `docs/standards/法条数据录入规范.md`）。
 
 ### 24.1.3 一键重置脚本
 
@@ -4170,11 +4198,10 @@ volumes:
 | 服务 | 端口 |
 |---|---|
 | Nginx HTTP/HTTPS | 80 / 443 |
-| API | 8080 |
-| Admin | 8081 |
+| faze-api | 8081 |
+| RuoYi 管理端 | 8080 |
 | MySQL | 3306 |
 | Redis | 6379 |
-| RabbitMQ | 5672 / 15672 |
 | Prometheus | 9090 |
 | Grafana | 3000 |
 
@@ -4215,6 +4242,28 @@ volumes:
 | 豆包 API | 按量，约 50-200 元 |
 | 推送 | 免费版 |
 | **合计** | **约 300-600 元/月** |
+
+---
+
+# 二十六、段 5 施工登记（2026-11-08，**备注，不替代正文**）
+
+> **本节的用途**：段 5 施工完成后，实际落地的结构与本文档正文有 6 处出入。负责人 2026-11-08 裁决：
+> **不回写正文**（正文数字牵动文档基线指纹与 §九 的跨文档回写，成本远大于收益），
+> **只在这里登记**，下次本文档升版时统一回写。
+> 本节与正文冲突时——**施工以本节为准，正文保留原口径**。
+
+| # | 正文口径 | 施工实际 | 处置 |
+|---|---|---|---|
+| 1 | 四语言（`zh-Hans` / `bo` / `ug-Arab-CN` / `kk-Arab-CN`）文案全量 | 段 5 结束时 `zh-Hans` 齐全，**`bo` / `ug-Arab-CN` / `kk-Arab-CN` 各缺 1462 个 key**，已由 `scripts/check-i18n.ps1` 全部登记进 `apps/mobile-app/shared/i18n/resources/.i18n-pending.json` | **段 8 统一翻译**。段 8 收口时 `.i18n-pending.json` 必须为空，否则不能上线；段 5 只交付 `zh-Hans` |
+| 2 | `case_library` **21 字段** | 实为 **24 字段**：`V510` 补 `dispute_focus`（详情页四个正文块之一）、`plaintiff_name` / `defendant_name`（A-16 列表要显示「标题 + 当事人」） | 附录 A 与 §5.8 的字段数下次改版统一改；本次不动正文 |
+| 3 | `case_library_translation` 11 字段 | 实为 **12 字段**：`V510` 补 `dispute_focus`（四个正文块要随语言一起切） | 同上 |
+| 4 | §4.8.4 接口清单：PC **18** 个 / App **23** 个 | 实际 **PC 24 / App 26**。多出的是页面必需动作：A-13 统计卡、A-16 上线/下架/批量下架、提现凭证预览与已出款、回补只读核对、`GET /app/withdrawals/config`（提现面板要显示手续费率）、案例收藏两个 | 下次改版补进 §4.8.4；本次只登记 |
+| 5 | `balance_flow.biz_type` **四个值**（`income` / `freeze` / `unfreeze` / `withdraw`） | 实为 **五个值**：新增 `income_unfreeze`（E3 收入到期解冻专用，`biz_id` 指向原 `income` 流水 id）。`unfreeze` 只留给 F3 提现驳回（`biz_id` 指向 `withdraw_record.id`） | **不许再合并回四个值**：两者 `biz_id` 分属 `balance_flow` 与 `withdraw_record` 两张自增表，必然重叠，同 `biz_type` 会撞 `uk_flow_biz`，表现为「提现驳回成功但某笔收入永远解冻不了」。段 6 加 `recharge` 时按五值口径 |
+| 6 | `reconciliation_diff` 按渠道对账建（`bill_date` / `channel` NOT NULL） | `V510` 把这两列**放宽为可空** + 补 7 个恒等式列（`check_type` / `biz_type` / `biz_id` / `expected_cents` / `actual_cents` / `diff_cents` / `found_at`）+ `status` 默认值 `pending → open`；两种用法靠 `diff_type` 区分（`identity_mismatch` = 恒等式巡检，段 6 的渠道差异用别的值） | 段 6 的渠道对账仍按原语义写（两列有值时），不需要再改表 |
+
+> **为什么第 1 项（翻译）不在段 5 做**：没有母语翻译人员，机翻 1462 条会污染资源文件、且段 8 本来就要
+> 全量重做一次；段 4 收口时已是同一口径（当时各语言缺 1074 key）。段 5 只保证 `zh-Hans` 文案完整、
+> 缺译全部登记，**不出现中文硬编码**（`scripts/check-raw-text.ps1` 兜底）。
 
 ---
 

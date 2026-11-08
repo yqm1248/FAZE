@@ -1,0 +1,72 @@
+{
+  "version": 1,
+  "fields": [
+    {
+      "key": "court_name",
+      "label": "受理法院",
+      "type": "text",
+      "required": true,
+      "maxLength": 50,
+      "placeholder": "如：伊宁市人民法院"
+    },
+    {
+      "key": "plaintiffs",
+      "label": "原告信息",
+      "type": "array",
+      "required": true,
+      "minItems": 1,
+      "maxItems": 5,
+      "itemSchema": {
+        "fields": [
+          { "key": "name", "label": "姓名", "type": "text", "required": true, "maxLength": 30 },
+          { "key": "gender", "label": "性别", "type": "text", "required": true, "maxLength": 4 },
+          { "key": "birth", "label": "出生日期", "type": "date", "required": true },
+          { "key": "ethnicity", "label": "民族", "type": "text", "maxLength": 20 },
+          { "key": "address", "label": "住址", "type": "text", "required": true, "maxLength": 200 },
+          { "key": "phone", "label": "联系电话", "type": "text", "required": true, "maxLength": 20 }
+        ]
+      }
+    },
+    {
+      "key": "defendants",
+      "label": "被告信息",
+      "type": "array",
+      "required": true,
+      "minItems": 1,
+      "maxItems": 5,
+      "itemSchema": {
+        "fields": [
+          { "key": "name", "label": "名称/姓名", "type": "text", "required": true, "maxLength": 100 },
+          { "key": "address", "label": "住所地", "type": "text", "required": true, "maxLength": 200 },
+          { "key": "phone", "label": "联系电话", "type": "text", "maxLength": 20 }
+        ]
+      }
+    },
+    {
+      "key": "claims",
+      "label": "诉讼请求",
+      "type": "array",
+      "required": true,
+      "minItems": 1,
+      "maxItems": 10,
+      "itemSchema": {
+        "fields": [
+          { "key": "text", "label": "请求内容", "type": "textarea", "required": true, "maxLength": 500 }
+        ]
+      }
+    },
+    {
+      "key": "facts",
+      "label": "事实与理由",
+      "type": "textarea",
+      "required": true,
+      "maxLength": 5000
+    },
+    {
+      "key": "filing_date",
+      "label": "具状日期",
+      "type": "date",
+      "required": true
+    }
+  ]
+}

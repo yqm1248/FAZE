@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  法条检索 SQL（段 0 唯一自定义查询）
+  职责：用 ngram 全文索引检索 law_item，返回命中行与相关度得分
+  调用方：com.faze.infra.law.mapper.LawItemMapper#searchByNgram
+  数据来源：MySQL faze.law_item（FULLTEXT KEY ft_law_content WITH PARSER ngram）
+  注意事项：
+    1. 全部参数用 #{} 绑定；美元符号占位符一律禁用（后端规范 §8.2 硬规则）
+    2. MATCH 必须两个地方都写：SELECT 里算得分、WHERE 里做过滤；只写一处会全表扫或得分恒 0
+    3. 语序/词形不处理：ngram 按 2 字切词，单字查询必然 0 命中（实测），这是索引的语义不是 bug
+    4. status/expire_date 过滤条件不能省：失效条文被 AI 引用会出事故
+-->
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.faze.infra.law.mapper.LawItemMapper">
+
+    <!--
+      ngram 全文检索。
+      返回 LawSearchRow：id / lawCode / articleNo / content / score
+      说明：content 只用于生成摘要，出参不暴露全文（见 LawHitVO）
+    -->
+    <select id="searchByNgram" resultType="com.faze.infra.law.mapper.LawSearchRow">
+        SELECT id,
+               law_code                         AS lawCode,
+               article_no                       AS articleNo,
+               content,
+               MATCH(content) AGAINST (#{kw})   AS score
+        FROM law_item
+        WHERE MATCH(content) AGAINST (#{kw})
+          AND status = 'active'
+          AND (expire_date IS NULL OR expire_date &gt; CURRENT_DATE)
+        ORDER BY score DESC
+        LIMIT #{limit}
+    </select>
+
+    <!--
+      ==========================================================================
+      段 3 B1/B2 追加（与上面 searchByNgram 共用同一 XML、同一表；不许在别处复制 SQL）
+      公共口径：status='active' AND is_enabled=1。
+      按 B1 工作流第 5 条**不过滤 expire_date**（有失效日期的仍返回，由出参 expireDate 交 D1 判断）；
+      段 0 的 searchByNgram 冻结时带了 expire_date 过滤，保持原样不动。
+      全部参数 #{} 绑定，不使用美元符号占位符。
+      ==========================================================================
+    -->
+
+    <!-- 按 id 批量补全全文检索结果字段（searchByNgram 只给 id/条号/内容/得分） -->
+    <select id="selectEnabledByIds" resultType="com.faze.infra.law.mapper.LawItemSearchRow">
+        SELECT id,
+               law_code      AS lawCode,
+               law_name      AS lawName,
+               article_no    AS articleNo,
+               article_seq   AS articleSeq,
+               content,
+               effective_date AS effectiveDate,
+               expire_date   AS expireDate,
+               status
+        FROM law_item
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+          AND status = 'active'
+          AND is_enabled = 1
+        <if test="lawCode != null and lawCode != ''">
+            AND law_code = #{lawCode}
+        </if>
+    </select>
+
+    <!-- 四路径第 1 条：条号精确。article_no 存中文，article_seq 存整数，两者都匹配 -->
+    <select id="selectByArticleNo" resultType="com.faze.infra.law.mapper.LawItemSearchRow">
+        SELECT id,
+               law_code      AS lawCode,
+               law_name      AS lawName,
+               article_no    AS articleNo,
+               article_seq   AS articleSeq,
+               content,
+               effective_date AS effectiveDate,
+               expire_date   AS expireDate,
+               status
+        FROM law_item
+        WHERE status = 'active'
+          AND is_enabled = 1
+          AND (article_no = #{articleNo}
+               <if test="articleSeq != null">
+                   OR article_seq = #{articleSeq}
+               </if>)
+        <if test="lawNameHint != null and lawNameHint != ''">
+            AND (law_name LIKE CONCAT('%', #{lawNameHint}, '%') OR law_code = #{lawNameHint})
+        </if>
+        <if test="lawCode != null and lawCode != ''">
+            AND law_code = #{lawCode}
+        </if>
+        ORDER BY article_seq ASC, id ASC
+        LIMIT 20
+    </select>
+
+    <!-- 四路径第 3 条：LIKE 兜底（单字查询必需，ngram_token_size=2 时全文检索命中 0 是预期） -->
+    <select id="selectByLike" resultType="com.faze.infra.law.mapper.LawItemSearchRow">
+        SELECT id,
+               law_code      AS lawCode,
+               law_name      AS lawName,
+               article_no    AS articleNo,
+               article_seq   AS articleSeq,
+               content,
+               effective_date AS effectiveDate,
+               expire_date   AS expireDate,
+               status
+        FROM law_item
+        WHERE status = 'active'
+          AND is_enabled = 1
+          AND content LIKE CONCAT('%', #{kw}, '%')
+        <if test="lawCode != null and lawCode != ''">
+            AND law_code = #{lawCode}
+        </if>
+        ORDER BY article_seq ASC, id ASC
+        LIMIT #{limit}
+    </select>
+
+    <!-- 四路径第 4 条：keywords 同义扩展。terms 由 Service 切词、去重、限数量后传入，保证非空 -->
+    <select id="selectByKeywords" resultType="com.faze.infra.law.mapper.LawItemSearchRow">
+        SELECT id,
+               law_code      AS lawCode,
+               law_name      AS lawName,
+               article_no    AS articleNo,
+               article_seq   AS articleSeq,
+               content,
+               effective_date AS effectiveDate,
+               expire_date   AS expireDate,
+               status
+        FROM law_item
+        WHERE status = 'active'
+          AND is_enabled = 1
+          AND keywords IS NOT NULL
+          AND (
+            <foreach collection="terms" item="term" separator=" OR ">
+                keywords LIKE CONCAT('%', #{term}, '%')
+            </foreach>
+          )
+        <if test="lawCode != null and lawCode != ''">
+            AND law_code = #{lawCode}
+        </if>
+        ORDER BY article_seq ASC, id ASC
+        LIMIT #{limit}
+    </select>
+
+    <!-- B2 公开列表：kw 为空时按 lawCode 过滤的分页（总条数由 countEnabled 同口径统计） -->
+    <select id="selectEnabledPage" resultType="com.faze.infra.law.mapper.LawItemSearchRow">
+        SELECT id,
+               law_code      AS lawCode,
+               law_name      AS lawName,
+               article_no    AS articleNo,
+               article_seq   AS articleSeq,
+               content,
+               effective_date AS effectiveDate,
+               expire_date   AS expireDate,
+               status
+        FROM law_item
+        WHERE status = 'active'
+          AND is_enabled = 1
+        <if test="lawCode != null and lawCode != ''">
+            AND law_code = #{lawCode}
+        </if>
+        ORDER BY article_seq ASC, id ASC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <!-- B2 公开列表：与 selectEnabledPage 完全一致的 where 口径 -->
+    <select id="countEnabled" resultType="long">
+        SELECT COUNT(*)
+        FROM law_item
+        WHERE status = 'active'
+          AND is_enabled = 1
+        <if test="lawCode != null and lawCode != ''">
+            AND law_code = #{lawCode}
+        </if>
+    </select>
+
+</mapper>

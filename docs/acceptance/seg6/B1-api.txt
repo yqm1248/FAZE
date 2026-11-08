@@ -1,0 +1,87 @@
+段 6 B1 · 充值下单与查询接口（3 个）验收证据
+生成时间：2026-11-08 19:00（东八区）
+环境：faze-api @ http://127.0.0.1:8081，profile=dev，库 faze，Redis 逻辑库 1
+配置现值（sys_config，V601 种子）：
+  recharge.min_cents=10 / recharge.max_amount_cents=500000 / recharge.max_daily_cents=500000
+  recharge.max_daily_count=10 / recharge.unverified_daily_cents=0 / recharge.expire_minutes=30
+  pay.mock.enabled=true / pay.wechat.enabled=false / pay.alipay.enabled=false
+
+接口清单（实际生效的 3 个路由）：
+  POST /api/v1/app/wallet/recharges            充值下单
+  GET  /api/v1/app/wallet/recharges/{orderNo}  单笔查询
+  GET  /api/v1/app/wallet/recharges?cursor=&limit=  充值记录（游标分页）
+
+──── 验收项 A：未登录访问 ─────────────────────────────────────────────
+POST /api/v1/app/wallet/recharges  {"amountCents":10000,"channel":"mock"}
+  HTTP=401 code=402003 msg=登录凭证无效，请重新登录
+判据：B1「算做完」要求返回 401 而不是 404 —— 通过。
+
+──── 验收项 B：同一 Idempotency-Key 连续提交只产生 1 张单 ────────────────
+Idempotency-Key=seg6-b1-idem-190014，请求体 {"amountCents":10000,"channel":"mock"}
+  [1] HTTP=200 orderNo=RC20261108000003 amount=10000 channel=mock expireAt=2026-11-08T11:30:14Z
+  [2] HTTP=200 orderNo=RC20261108000003 amount=10000 channel=mock expireAt=2026-11-08T11:30:15Z
+  [3] HTTP=200 orderNo=RC20261108000003 amount=10000 channel=mock expireAt=2026-11-08T11:30:15Z
+  [4] HTTP=200 orderNo=RC20261108000003 amount=10000 channel=mock expireAt=2026-11-08T11:30:15Z
+数据库校验（同一 key 共打 4 次）：
+  idem_same_key_rows     1     ← 只有 1 行
+  all_recharge_rows      3     ← 3 次验收各自 1 单（第一/二/三轮脚本各一张）
+  txn_id_null_rows       3     ← pending 期间 channel_txn_id 全为 NULL（A2 第 4 条硬要求）
+  prepay_written_rows    3     ← channel_prepay_id 均已回写
+判据：B1「算做完」要求「相同幂等键重复提交 3 次只产生 1 张单」—— 通过。
+
+──── 验收项 C：金额越界 ───────────────────────────────────────────────
+C1  {"amountCents":9}        → code=405014 msg=充值金额超出允许区间   （低于 recharge.min_cents=10）
+C2  {"amountCents":500001}   → code=405014 msg=充值金额超出允许区间   （高于单笔上限 500000）
+判据：B1「算做完」原文写「金额 999 分（低于 1000）被拒并返回 405014」。
+  ⚠️ 该判据是旧口径（单笔 10 元起）；负责人 2026-11-02 已裁决改为 0.1 元起（10 分，§零之二 第 16 项 / V601 种子），
+  因此 999 分在现行配置下是合法金额，不能用来验「被拒」。本段改验边界值 9 分与 500001 分，两者均被拒。
+  该口径冲突已记入 §十一 偏差清单。
+
+──── 验收项 D：未实名用户拦截（B3 规则的运行时确认）────────────────────
+用户 13900009999（app_user.id=9227，realname_status=none）下单 {"amountCents":10000,"channel":"mock"}
+  HTTP=200 code=405020 msg=未实名认证，不能充值
+判据：负责人裁决「未实名 = 0 额度、是拦截不是限额」（§零之二 第 16 项）—— 通过。
+
+──── 验收项 E：他人单号查询 ───────────────────────────────────────────
+token2（用户 9227）GET /api/v1/app/wallet/recharges/RC20261108000003（用户 3 的单）
+  HTTP=403 body={"code":405007,"data":null,"msg":"非本人订单，无权访问"}
+判据：B1「算做完」要求「别人的单号查返回 403」—— 通过（错误码 405007 与 HTTP 403 同时成立）。
+
+──── 验收项 F：本人单笔查询 ───────────────────────────────────────────
+GET /api/v1/app/wallet/recharges/RC20261108000003（token1 = 用户 3）
+  HTTP=200 orderNo=RC20261108000003 status=pending statusKey=trade.recharge.statusPending
+           amount=10000 channelKey=trade.pay.channelMock balanceAfter=21318
+判据：状态用 i18n key 返回、余额取流水汇总（与段 1 D1 同源，21318 分与 /app/wallet/balance 一致）—— 通过。
+
+──── 验收项 G：充值记录游标分页 ───────────────────────────────────────
+GET /api/v1/app/wallet/recharges?limit=2
+  HTTP=200 count=2 hasMore=true nextCursor=2
+    row id=3 orderNo=RC20261108000003 amount=10000 status=pending
+    row id=2 orderNo=RC20261108000002 amount=10000 status=pending
+GET /api/v1/app/wallet/recharges?limit=2&cursor=2
+  HTTP=200 count=1 hasMore=false
+判据：C 端 cursor 场景（不用 pageNum）、nextCursor 是本页最后一条 id —— 通过。
+
+──── 单元测试 ────────────────────────────────────────────────────────
+mvn '-Dtest=RechargeOrderServiceTest,RechargeStateMachineTest,PaymentGatewayFactoryTest,ConfigCipherTest' test
+  Tests run: 5  ConfigCipherTest
+  Tests run: 6  PaymentGatewayFactoryTest
+  Tests run: 7  RechargeStateMachineTest
+  Tests run: 7  RechargeOrderServiceTest
+  Tests run: 25, Failures: 0, Errors: 0, Skipped: 0 —— BUILD SUCCESS
+
+──── 与工作流文档的偏差（3 条，全部记入 §十一）─────────────────────────
+1. 类名：文档要求产出 `RechargeService` / `RechargeServiceImpl`，但该名字已被段 1 D4 的
+   「手工充值/调账」服务占用（modules/trade/service/RechargeService.java，已验收）。
+   本段实现为 `RechargeOrderService`（App 充值单）+ `RechargeCreateExecutor`（事务落单）。
+   不合并、不复用：手工充值是管理端后台入账，线上充值是渠道回调入账，事务边界与幂等口径不同。
+2. Swagger：文档「算做完」要求「Swagger 列出 3 个接口」，但本项目 pom 无 springdoc/knife4j 依赖
+   （段 0~5 均未接入），`/v3/api-docs` 返回 401。本段不擅自引入新依赖（需登记依赖清单 + 评审），
+   改用「直接调通 3 个路由」作为证据。若负责人要 Swagger，属新需求，记入 §十。
+3. 金额 999 分判据旧口径，见验收项 C 的说明。
+
+──── 本轮未做（按分组顺序留给后续任务）───────────────────────────────
+1. 「本地 pending 且距下单超过 5 秒就现查渠道」的**入账部分**：本轮只调 gateway.query() 并记日志，
+   不改本地状态（本地 pending 改成 success 而不写流水会破坏「余额=流水汇总」铁律）。
+   入账能力在 C3 实现后接上，验收锚点 6-A3 在 D1 复验。
+2. 单日限额的边界组合（10 笔 / 5000 元 / 关单后额度恢复）由 B3 的单测与证据覆盖。

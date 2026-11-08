@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ai_message 自定义 SQL（段 3 B4）
+  职责：从 refs JSON 快照现算「AI 引用次数」
+  调用方：com.faze.modules.ai.mapper.AiMessageMapper#selectRefCounts
+          ← com.faze.modules.ai.service.LawRefStatsService ← A-27 法条库列表页
+  数据来源：MySQL faze.ai_message（refs 为 JSON 列，schema 见 D4）
+  注意事项：
+    1. 全部参数用 #{}，禁用 ${}（后端规范 §7 硬规则）
+    2. JSON 路径必须是 '$.lawItemId'（D4 定死的字段名）；写成 snake_case 会静默统计成 0
+    3. 只算 role='assistant' 且 refs IS NOT NULL —— user 消息不该有 refs；
+       refs 为 NULL 表示「没查过」，为 '[]' 表示「查过没引用」，两者都不该进统计
+    4. 单次一条 SQL 覆盖整页 id（IN 列表），**不许**在 service 里循环调
+    5. 软删会话的消息也要算（合规追溯要全量），所以不加任何 deleted 过滤
+    6. 性能兜底：ai_message 超 10 万行后本查询会慢，届时改为在 refs 上建多值索引（MySQL 8.0.17+）。
+       本段不做，只在文档里写明。
+-->
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.faze.modules.ai.mapper.AiMessageMapper">
+
+    <!--
+      按法条 id 统计被引用次数。
+      返回 RefCountRow：lawItemId / refCount
+      JSON_TABLE 把 refs 数组展开成行，再按 law_item_id 分组计数。
+      ids 由调用方保证非空；这里仍然加 foreach 判断，避免空集合生成 `IN ()` 语法错。
+    -->
+    <select id="selectRefCounts" resultType="com.faze.modules.ai.mapper.RefCountRow">
+        SELECT jt.law_item_id AS lawItemId,
+               COUNT(*)      AS refCount
+        FROM ai_message m,
+             JSON_TABLE(m.refs, '$[*]' COLUMNS (law_item_id BIGINT PATH '$.lawItemId')) AS jt
+        WHERE m.role = 'assistant'
+          AND m.refs IS NOT NULL
+          AND jt.law_item_id IN
+          <foreach collection="ids" item="id" open="(" separator="," close=")">
+              #{id}
+          </foreach>
+        GROUP BY jt.law_item_id
+    </select>
+
+    <!--
+      A-28 单条导出回写：is_exported=1 + export_urls 追加一条 {type:"json", at:"..."}。
+      要点：
+        1. export_urls 是 JSON 列，用 JSON_ARRAY_APPEND **只追加不覆盖**（《AI对话留存策略》§四）；
+        2. 列为 NULL 时先 COALESCE 成 JSON_ARRAY()，否则 JSON_ARRAY_APPEND(NULL, ...) 返回 NULL；
+        3. 只更新本次真正导出的消息 id（≤200 条），并带 conversation_id 作附加条件防越界；
+        4. updated_at 是 C 类表的必填列，回写也算一次更新，同步刷新。
+    -->
+    <update id="markExported">
+        UPDATE ai_message
+        SET is_exported = 1,
+            export_urls = JSON_ARRAY_APPEND(
+                COALESCE(export_urls, JSON_ARRAY()), '$',
+                JSON_OBJECT('type', 'json', 'at', #{at})),
+            updated_at = UTC_TIMESTAMP()
+        WHERE conversation_id = #{conversationId}
+          AND id IN
+          <foreach collection="ids" item="id" open="(" separator="," close=")">
+              #{id}
+          </foreach>
+    </update>
+
+</mapper>

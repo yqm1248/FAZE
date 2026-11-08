@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
+import { LocalizedText } from './LocalizedText';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import type { ReactNode } from 'react';
 
 import { color, gradient, radius, size, spacing, typography } from '@/shared/theme';
@@ -22,21 +23,21 @@ import { color, gradient, radius, size, spacing, typography } from '@/shared/the
  * @param title 标题文本。为空时不渲染标题，仅保留左右区域，用于纯图标栏。
  * @param showBack 是否显示返回按钮，默认 `true`
  * @param onBack 自定义返回回调；不传则使用默认返回逻辑
- * @param right 右侧插槽，渲染在图标的右侧
+ * @param trailing 尾部插槽，渲染在图标的末端（RTL 下自动换到左边）
  * @param variant 视觉形态，默认 `plain`
  */
 export function AppHeader({
   title,
   showBack = true,
   onBack,
-  right,
+  trailing,
   variant = 'plain',
   titleAlign = 'left',
 }: {
   title?: string;
   showBack?: boolean;
   onBack?: () => void;
-  right?: ReactNode;
+  trailing?: ReactNode;
   variant?: 'plain' | 'brand';
   titleAlign?: 'left' | 'center';
 }) {
@@ -77,7 +78,7 @@ export function AppHeader({
       </View>
 
       {title ? (
-        <Text
+        <LocalizedText
           numberOfLines={1}
           style={[
             styles.title,
@@ -86,12 +87,12 @@ export function AppHeader({
           ]}
         >
           {title}
-        </Text>
+        </LocalizedText>
       ) : (
         <View style={styles.titleSpacer} />
       )}
 
-      <View style={[styles.side, styles.sideRight]}>{right}</View>
+      <View style={[styles.side, styles.sideRight]}>{trailing}</View>
     </View>
   );
 
@@ -161,7 +162,7 @@ export function HeaderIconButton({
     <Pressable
       onPress={onPress}
       hitSlop={spacing.sm}
-      style={[styles.backButton, { marginLeft: spacing.md, borderRadius: radius.pill }]}
+      style={[styles.backButton, { marginStart: spacing.md, borderRadius: radius.pill }]}
       accessibilityRole="button"
     >
       <Ionicons name={name} size={iconSize} color={color.text.body} />

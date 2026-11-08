@@ -18,6 +18,10 @@ ios/
 *.keystore
 *.jks
 
+# Java / Maven 构建产物（第 0 段 A1 追加；不加 *.jar 全局忽略，避免误伤将来的 libs/*.jar）
+target/
+*.class
+
 # 环境与密钥
 .env
 .env.*
@@ -28,6 +32,9 @@ logs/
 runtime/
 tmp/
 *.log
+# 例外：验收证据必须入库，否则别人 clone 下来看不到「跑过什么、结果如何」。
+# 《第1段工作流》H1 要求每条锚点都有证据文件路径，log 属于证据本体。
+!docs/acceptance/**/*.log
 
 # 测试与覆盖率
 coverage/

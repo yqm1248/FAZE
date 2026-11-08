@@ -20,4 +20,6 @@ export {
 
 export type { Tokens } from './tokens';
 
-export { typography } from './typography';
+export { typography, lineHeightFor } from './typography';
+
+export { FONT_ASSETS, FONT_FAMILY } from './fonts';

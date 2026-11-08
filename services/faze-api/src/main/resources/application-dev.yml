@@ -1,0 +1,66 @@
+# ══════════════════════════════════════════════════════════════════
+# 法泽 FAZE 本地开发配置（dev profile）
+# 注意：这里的 JWT 默认密钥**只允许本地开发使用**，生产 profile 不提供默认值（未设置即启动失败）
+# ══════════════════════════════════════════════════════════════════
+spring:
+  data:
+    redis:
+      # 第 1 段 A2：逻辑库 1（RuoYi 用 0，两者 key 不互相污染）
+      host: ${FAZE_REDIS_HOST:127.0.0.1}
+      port: ${FAZE_REDIS_PORT:6379}
+      database: ${FAZE_REDIS_DATABASE:1}
+      timeout: 3s
+      connect-timeout: 3s
+
+faze:
+  jwt:
+    secret: faze-local-dev-only-secret-key-0123456789abcdef
+  ai:
+    # 第 3 段 C1：豆包 client。true 时走 DoubaoClientStub（每 60ms 一块的固定中文，不联网不花钱）。
+    # 为什么 dev 默认 mock：本机 deploy/.env 的 FAZE_ARK_API_KEY 为空（负责人最后配），
+    # 不 mock 的话每次提问都会 508001，C2~C5 无法自测。
+    # 真 key 到位后改成 false（或设 FAZE_AI_MOCK=false）即走真实实现；日志出现 AI_MOCK_ACTIVE 表示仍是 mock。
+    mock: ${FAZE_AI_MOCK:true}
+  crypto:
+    # 身份证号 AES-256-GCM 密钥，必须正好 32 字节；生产由 FAZE_IDCARD_SECRET 提供
+    id-card-key: ${FAZE_IDCARD_SECRET:faze-local-idcard-key-32-bytes!!}
+    # 第 6 段：支付渠道密钥（sys_config 里的 ENC(...)）专用密钥，必须正好 32 字节。
+    # **不能与 id-card-key 共用**：一个进审计日志、一个进渠道报文，泄漏面不同。
+    # 生产由 FAZE_CONFIG_SECRET 提供。
+    config-key: ${FAZE_CONFIG_SECRET:faze-local-config-key-32-bytes!!}
+  redis:
+    # 业务 key 统一前缀；不同环境共用同一 Redis 时靠它隔离
+    key-prefix: "faze:"
+  admin-auth:
+    # 管理端鉴权桥：dev 用 RuoYi 发行版出厂默认 secret（abcdefghijklmnopqrstuvwxyz）。
+    # 这里给默认值只为了本机能直接跑；生产不提供默认值，必须走 FAZE_ADMIN_TOKEN_SECRET。
+    token-secret: ${FAZE_ADMIN_TOKEN_SECRET:abcdefghijklmnopqrstuvwxyz}
+  doc:
+    # 第 4 段 A2：本机 Windows 自带字体。生产由 FAZE_FONT_PATH 注入（无默认值，未设置即启动失败）；
+    # dev 给默认值只为了本机能直接跑起来。
+    font-path: ${FAZE_FONT_PATH:C:/Windows/Fonts/simfang.ttf}
+    # 仿宋只有 Regular，粗体用黑体承担 700 字重（否则 CSS 的 bold 静默不加粗）
+    bold-font-path: ${FAZE_BOLD_FONT_PATH:C:/Windows/Fonts/simhei.ttf}
+  backup:
+    # 备份最后成功时间的文件（第 7 段 G1 的 faze_backup_last_success_timestamp 读它；
+    # OpsHealthService 的「备份新鲜度」也读它）。
+    # **必须是绝对路径**：相对路径按进程工作目录解析，而 faze-api 由 deploy/start-api.ps1 在
+    # `services/faze-api` 目录下启动 → 会去找 `services/faze-api/logs/...`（不存在 → gauge 恒 0）。
+    # T4 的备份脚本按约定写仓库根的 `logs/backup-last-success.txt`，这里显式对齐。
+    last-success-file: E:/dshcode/FAZE/logs/backup-last-success.txt
+  probe:
+    ai:
+      mock: true
+    # 开发期 CORS 白名单（`@Profile("!prod")` 的 config/CorsConfig 读这个键）。
+    # 为什么必须加 localhost 与 127.0.0.1（80 端口）：
+    #   PC 后台跑在 http://localhost（vite dev server），业务接口在 8081，
+    #   **浏览器对非 GET 请求一律带 Origin 头**，vite 代理只转发不改 Origin，
+    #   于是写接口（封禁/审核/充值/保存）会被 CORS 拦成 HTTP 403 `Invalid CORS request`，
+    #   而 GET 列表接口正常——2026-11-05 实测踩过，表现是「只有写操作 403」。
+    # 8090 保留给 expo web 自测。生产 profile 不加载本文件、也不注册这个 bean。
+    web:
+      allowed-origins: http://localhost,http://127.0.0.1,http://localhost:80,http://127.0.0.1:80,http://localhost:8090,http://127.0.0.1:8090
+
+logging:
+  level:
+    com.faze: DEBUG

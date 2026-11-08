@@ -922,7 +922,10 @@
 1. 文案来源：《i18n 规范》§10.4 L461 已定 **`common.aiGeneratedLabel` = 「本内容由 AI 生成，仅供参考」**。**直接用这个 key，不新造。**
 2. 组件：`shared/components/AiGeneratedLabel.tsx`
    - 用 `<LocalizedText>`（AGENTS §4.5：所有用户可见文本走 `t()`，禁裸 `<Text>`）
-   - 视觉：`tokens.fontSize.xs` + `tokens.color.textMuted`，`marginTop tokens.spacing.xs`
+   - 视觉：`tokens.fontSize.micro` + `tokens.color.text.muted`，`marginTop tokens.spacing.xs`
+     （**2026-11-07 施工回写**：原文写的是 `fontSize.xs` / `color.textMuted`，这两个令牌在
+     `apps/mobile-app/shared/theme/tokens.ts` 里不存在，实际是 `fontSize.micro` / `color.text.muted`；
+     另见 §十一 第 19 条：`text.muted` 对比度 2.85:1 低于 WCAG AA，是否升 `text.secondary` 待负责人拍板）
    - **固定挂载点**：每条 `role='assistant'` 消息气泡的**正下方**，不含用户消息
 3. **可断言的钩子（这是 `3-A5` 的核心，也是 121 E2E 的抓手）**：
    | 钩子 | 值 | 为什么 |
@@ -2164,7 +2167,48 @@ ON DUPLICATE KEY UPDATE
 
 | # | 计划 | 实际 | 偏差原因 | 影响 |
 |---|---|---|---|---|
-| | | | | |
+| 1 | A1：三张表 7/16/10 字段，`V300` 建表，空库可重放 | **一致**。开发库与临时库双验证：7/16/10、`COLLATE` 全对、`ai_message` 有 `updated_at`、`uk_ai_message_content_id` 唯一；18 个迁移在空库 `faze_seg3_replay` 顺序重放全 `exit=0`，重放库已删 | — | 无 |
+| 2 | A2：`law_item` 12→15，裁决不加 `ft_law_keywords` | **一致**。`is_enabled` 为 `NOT NULL DEFAULT 1`，V2 的 5 条自动为 1；`ft_on_keywords=0` | — | 无 |
+| 3 | A3：`V302` 是模板 + 首批法条 | **偏差**：`V302` 只放 **1 条**（民法典第 679 条），不是本文档 §五.8 的 5 条 | 段 0 施工时 `V2` 已灌 5 条，但实际内容（464/509/667/680/1079）与 §五.8 列的那组（679/577/1062/1165/47）**不是同一组**（段 0 已按负责人口径回写）。V302 只补 V2 缺的 679，避免同一迁移链里重复灌同一条 | 无。§五.8 与 `V2` 实际内容的不一致属段 0 的资产口径问题，不在本段修 |
+| 4 | A3：配置种子文件 `database/seed/sys_config_ai.sql` | **偏差**：实际文件名 `database/seed/seg3_config.sql` | 与段 1/段 2 的 `seg1_config.sql` / `seg2_config.sql` 命名保持一致；文件名不影响内容与幂等性 | 无。§五.7 的表格应回写为新名字 |
+| 5 | A4：首批约 50 个术语 | **一致**：51 条（技术路线 §13.8 的 40 个 + 补 11 个），全部 `zh-Hans`、`target_text` 空串、藏/维/哈行数 0 | — | 无 |
+| 6 | B1：`LawHit` 字段按 L420 的 8 个 | **偏差**：另加 `effectiveDate`（`LocalDate`）与 `status`（`String`） | D4 的 `refs` schema（L874–L885）要求冻结这两个字段，B1 字段表漏列 | 无（D4 与 A-28 都要用） |
+| 7 | B1：新建 `modules/ai/service/LawSearchService` | **偏差（施工事故）**：与段 0 的 `infra/law/LawSearchService` 简单类名相同，Spring 默认 bean 名撞车 → `ConflictingBeanDefinitionException` → **应用启动失败** | 两套检索共用一个 Mapper 是对的，但类名重复没预料到 | 无（已修：本段类改为 `@Service("aiLawSearchService")`，段 0 的类未动；按类型注入不受影响） |
+| 8 | B2：分页返回 `total` | **偏差**：`kw` 非空且候选取数超 200 条时 `total=-1`（`PageResult` 的「未统计」语义） | 深分页不重复扫全量；`-1` 是既有语义，不是本段新造 | 无（已在类注释与 B2 验收文档写明） |
+| 9 | C1：真豆包 key 跑真链路 | **偏差**：key 未到位，全程 `DoubaoClientStub`（每 60ms 一块，含真条号） | 本文档 §十 第 7 项（唯一未结案项） | **`3-A2` / `3-A3` / `3-A4` / `3-A8` 四条锚点挂账不判过**（mock 结果一律注明「本次为 mock」） |
+| 10 | C3：每 20 delta 用 `UPDATE ... SET content = CONCAT(content, ?)` | **偏差**：改成「每 20 delta / 2 秒刷**当前累积的全量**」 | 语义等价，且不把模型输出拼进 SQL（避免输出里的引号/反斜杠进入 SQL 文本） | 无。结束时的「写全量」与之幂等 |
+| 11 | C3/C4：中断即 `Disposable.dispose()` 取消上游 | **偏差**：断线后**不立即取消**，继续写 Redis/刷库并挂 30 秒回收；30 秒内无人重连才 `dispose()` 并记 `UPSTREAM_CANCELED` | RN 的 `abort()` 与服务端「客户端断线」在 HTTP 层不可区分；立即取消会让 `3-A8`「断网 10 秒重连从断点接上」物理上做不到 | **`3-A8` 的判定依赖这个实现**，`3-A8` 文档必须写明 |
+| 12 | C3：`event: start` 字段名 | **偏差（缺陷，已修）**：实测还带着旧字段 `sessionId`，已删除，只留 `conversationId` / `messageId` / `model` | 技术路线改名后残留 | 无 |
+| 13 | C1：配置项全部从 `sys_config` 读 | **偏差**：`ai_ark_base_url` **不**种进 `sys_config` | baseUrl 是部署环境参数，不是运营可调参数；放环境变量（`FAZE_ARK_BASE_URL`）更合适，`sys_config` 覆盖只作排障口子 | 无。§五.5 的键表本就没有它 |
+| 14 | D1：`【检索到的法条】`给条文全文 | **偏差**：全文由 `LawItemMapper.selectByIds` **回查数据库**，不用 `LawHit.content` | L758 要求给全文、L420 要求 `LawHit.content` 截断 200 字——两者冲突；全文只能回查 | 无（`selectBatchIds` 在 MP 3.5.18.1 已 `@Deprecated`，改用 `selectByIds`） |
+| 15 | D3：`PARTIAL_MISS` 删条号；`508002` 只给「所有条号都不存在且无法降级」 | **偏差**：统一为「**先删条号，再判剩余**」——删完去空白与标点后 <20 字 → `508002`；≥20 字 → 返回删除版 + 追加核实提示 | L845 与锚点 `3-A3`（L1691–1693）表面冲突，按「无法降级」的文义统一；20 字阈值定义「无法降级」 | `3-A3` 的两支都可用单测断言 |
+| 16 | D4：`refs` schema 里 `lawItemId` 是数字 | **偏差**：实际序列化为**字符串**（`"lawItemId":"7"`） | 项目全局规则「Long 型 ID 一律序列化为字符串」（AGENTS §4 第 7 条 + `JacksonConfig`），`refs` 里的 Long 也被这条规则覆盖 | 段 4 / A-28 读 `refs` 时要按字符串解析或兼容两种；B4 的 `JSON_TABLE ... BIGINT PATH '$.lawItemId'` **实测能正确转换**（679 → 2 次、7 → 7 次） |
+| 17 | E1：组件用 `tokens.fontSize.xs` + `tokens.color.textMuted` | **偏差**：实际令牌是 `fontSize.micro` + `color.text.muted` | 本文档 L925 写的令牌名在 `shared/theme/tokens.ts` 里不存在 | 本文档 L925 已按实际改写 |
+| 18 | E1：四语言 json 同一 key 都要有位置 | **偏差**：`bo` / `ug-Arab-CN` / `kk-Arab-CN` **不写 null**，只由脚本登记进 `.i18n-pending.json` | 现有 `check-i18n.ps1` 把「key 存在且值为 null」视作已存在 → 缺译登记失效；且 pending 文件是脚本生成、无 reason 字段 | 段 8 收口时必须清零该 key；本段记录在 `E1-label.md` |
+| 19 | E1：标识用 `textMuted` | **偏差（遗留风险）**：`textMuted #999999` 实测对比度 on `#FFF` = 2.85:1，低于 WCAG AA 4.5:1 | 令牌本身的问题，不是本段引入 | **需负责人拍板**是否把标识文案升到 `color.text.secondary`（5.74:1）。本段按文档用了 `textMuted` |
+| 20 | 工程：C2~C5 的线程/调度基础设施 | **偏差（施工事故，已修）**：`AiStreamSchedulerConfig` 的 `@Bean` 直接返回 `ScheduledExecutorService`，命中 Boot 的 `TaskExecutionAutoConfiguration#@ConditionalOnMissingBean(Executor.class)` → `applicationTaskExecutor` 不再创建 → `ProbeController` 注入失败 → **应用启动失败** | 容器装配错误只能在启动时暴露（javac 自检验不出） | 无（已修：新增包装类 `AiStreamScheduler`，不实现 `Executor`，线程池与策略全部保留） |
+| 21 | 全量测试 | **通过**：注入 `deploy/.env` 的 `FAZE_*` 后 `mvn -B -o test` **316 tests / 0 failures / 0 errors / 0 skipped** | — | 无 |
+| 22 | 工程：SSE 断线后的异步分派 | **偏差（基础设施缺陷，已修）**：`SseEmitter` 完成/超时后容器做 `DispatcherType.ASYNC` 重新分派，此时 `JwtAuthenticationFilter` 跳过、`SecurityContext` 已清 → `AuthorizationFilter` 拒绝 → 日志刷 `AuthorizationDeniedException` + `Cannot render error page`（数据不受影响，但日志被污染、看起来像 401） | `authorizeHttpRequests` 只按「请求路径」授权，而 ASYNC 分派复用的是同一路径 | 已在 `SecurityConfig` 最前面加 `.dispatcherTypeMatchers(DispatcherType.ASYNC).permitAll()`（只放行异步分派这一种 type，普通 `REQUEST` 仍走 `authenticated()`）。修后实测：一次完整 SSE 的新增日志里该类异常 **0 条** |
+| 23 | H1/H2 产出路径写 `pc/ruoyi-ui/` | **偏差**：实际是 `pc/admin-web/`（前端）+ `pc/admin-server/`（后端），2026-11-05 已整体入库 | 仓库结构变更（`pc/README.md` 有记录），本文档 H1/H2 的「产出」段落写于变更前 | 无。按实际路径落地，`src/views/biz/ai/**`、`src/api/biz/ai/**` 都正确 |
+| 24 | H3：控制器加 `@PreAuthorize("@ss.hasPermi('biz:law:list')")` | **偏差（做不了）**：faze-api 里**没有 RuoYi 的 `@ss` bean**，且 `AdminLoginUser` 明确只带 `adminId/username`、**不携带 permissions**（接口规范 §6.2 已裁定「只校验角色，不做数据级权限细分」） | 管理端业务接口在 faze-api（8081），RuoYi 只负责登录/菜单/权限；两套鉴权模型不同 | **H3 的「换无权限角色 → 直接调接口返回 403」这条验收做不到**（后端只有 `hasRole('ADMIN')` 门槛）。菜单可见性由 RuoYi 前端 `v-hasPermi` 控制、**是有效的**。**待负责人决策**：接受现状（只有角色门槛），还是在 faze-api 里自建 permission 校验 |
+| 25 | H1 列表查询参数只有 `lawCode/articleNo/kw/pageNum/pageSize` | **偏差（补参数）**：新增可选 `isEnabled`（不传=只看启用；`0`=只看失效；`all`=全部） | H1「算做完」要求「标记失效后**加筛选可看**」，冻结的参数表里没有这个筛选 | 无。已实现并实测（`isEnabled=0`/`all` 都验过） |
+| 26 | H2 时间参数按 UTC 墙钟解释（与用户管理页一致） | **偏差（改正）**：无偏移 `yyyy-MM-dd HH:mm:ss` / ISO 串按 **Asia/Shanghai** 解释成绝对时刻再转 UTC；纯 `yyyy-MM-dd` 取当天 00:00:00 / 23:59:59 | 按 UTC 解释会让运维选「今天 00:00–24:00」时**漏掉北京时间当天凌晨的会话**（实测库里 `createdAt=2026-11-06T17:xx` 的会话正是这种情况），A-28 的「按时间筛」会假通过 | 既有页面（用户管理）的同类问题**未修**，属全站一致性问题，建议后续统一 |
+| 27 | B2 公开检索返回「命中路径」（`hitReason`：`fulltext` / `article_no`） | **偏差（字段不存在）**：`LawItemBrief` 只有 `id/lawCode/lawName/articleNo/content/effectiveDate/status`，**没有 `hitReason`** | B 组交付时未实现该字段，工作流 `3-A1` 第③条却要求用它证明 ngram 对新数据生效 | `3-A1` 第③条改用「V304 新导入的 4 条能否被检索命中」间接证明（证据略弱） |
+| 28 | H1 导入：multipart 文件 ≤5MB | **偏差（漏洞，已修）**：`spring.servlet.multipart.max-request-size` **只约束 multipart**，`application/json` 直接 body 完全不限；实测 8.6MB JSON 被接收并写库 | 两项配置只管 multipart，JSON body 走的是另一条路 | 已修：控制器入口读 `Content-Length`，>5MB 直接 401001 + 可读文案（不进反序列化）。复测 8.6MB → `401001「导入内容超过 5MB（当前 8.6 MB）…」`，未写库 |
+| 29 | H1 导入：超 5MB 应回可读业务错误 | **偏差（错误码不对，已修）**：multipart 超限抛 `MaxUploadSizeExceededException` 被 `GlobalExceptionHandler` 兜底成 `501001「服务器内部错误」` | 兜底分支没有专门的 multipart 异常处理 | 已修：新增 `MaxUploadSizeExceededException` 与 `MultipartException` 两条 handler → 401001 + 可读文案 |
+| 30 | 单条 `content` 长度无契约 | **偏差（新增防御）**：导入侧单条 > 5000 字 → 归入 `failed[{index,reason}]`（不整体拒绝）；修正侧 `@Size(max=5000)` → 字段级 401001 | 实测写入过一条 30000 字的条文（测试脚本 bug 造的），证明没有上限；真实法条最长也就几百字 | 无。属主动加固，记在这里备查 |
+| 31 | G1 列表按 `ai_conversation.updated_at DESC` 排序 | **偏差（C 组遗留缺陷，已修）**：`AiQuestionService` 原本只在**建会话**时写一次 `updated_at`，流式落库不刷新 → 「最近发言置顶」失效、`lastMessageAt` 实为创建时间 | C 组实现时没意识到 G1 依赖这个字段的语义 | 已修：在 `AiQuestionService#insertUserMessage` 落库 user 消息后补一次 `UPDATE ai_conversation SET updated_at=...`（覆盖每一轮，含被拦截轮次）。实测：新提问后该会话排到第一 |
+| 32 | 会话的 `title` / 摘要必有值 | **偏差（契约现实）**：`summary` 可为 `null`（会话还没有 assistant 消息）、`ai_conversation.title` 列允许 NULL | `V300` 建表时 title DEFAULT NULL；摘要来自首条 assistant 消息，不存在时自然为空 | G1 页面已做「暂无摘要」「未命名对话」占位，否则 `summary.trim()` 会崩页。接口类型标注为 `string \| null` |
+| 33 | H2 导出回写 `export_urls` 的元素为 `{type,url,at}`（E3 文档写法） | **偏差**：实际写 `{"type":"json","at":"..."}`，**没有 `url`** | 本段导出是流式响应，**没有持久文件落点**（没接 OSS/本地存储），编造 url 是错的 | 无。段 7 接入文件存储后再补 `url` |
+| 34 | H2 脱敏范围：工作流说「只对 `role='user'` 脱敏」，E3 文档说「作用于 `messages[].content` 与 `conversation.title`」 | **按工作流实现**：只对 **user 消息 content + 会话 title** 脱敏，assistant 消息与 `refs` **不脱敏** | assistant 回答里含法条原文与条号，脱敏会破坏条文可读性；两份文档表述冲突时以任务书（工作流）为准 | 无 |
+| 35 | A-28 照设计稿 `27-ai-retrieval.html` 全量实现 | **偏差（删 3 项）**：删「导出检索结果」（列表级导出无契约，且前端本地 CSV 会绕开审计）、删「法条引用」查询项（`ref_check_status` 已被 §零.3 第 9 项砍掉，无数据源）、删「复核状态」查询项（`ai_conversation` 无复核字段） | H2 原文「页脚**只剩**『导出本条记录』」已隐含要删其他按钮；另两项是字段不存在 | 无。页面实测全页业务按钮只有「查询/重置/导出本条记录」 |
+| 36 | H3：A-27 挂「内容管理」第 5 项、A-28 挂「系统设置」第 4 项（设计稿 11 组一级导航） | **偏差**：实际库只有 5 组一级目录（系统管理/法泽业务/系统监控/系统工具/若依官网），**没有「内容管理」「系统设置」** → 本段**新建这两个一级目录**，只挂新增的 2 页（order 5 / 4，前几项留空位）；既有 12 页仍在「法泽业务」下 | 段 1/段 2 的菜单是扁平目录，整体 IA 归段 8 收口 | 无。已插 `sys_menu` 10 行 + `sys_role_menu` 10 行（admin 角色），侧边栏实测出现两项 |
+| 37 | PC 后台菜单可由 `database/seed/` 复现 | ~~偏差（既有债务）~~ → **已修（2026-11-07 负责人批准「现在补上」）**：新增 `database/seed/seg2_admin_menu.sql`，把段 2 的 4 个菜单（2109~2112）写成幂等 seed 并补授权 | 段 2 收尾时漏了；换机器/重建库后订单管理与文章管理没有菜单入口。顺带发现这 4 个菜单在 `sys_role_menu` 里**一条授权都没有**（超管靠 `*:*:*` 仍能看到，非超管看不到） | 已解决：实测执行两次无报错、菜单 4 行、授权 4 行。**换机器现在能复现** |
+| 38 | 前端新增路由文件后（无需重启）即可访问 | **偏差（运维事实）**：`expo-router` 的路由表在 Metro 启动时由 `require.context` 生成，**新增 `(tabs)` 目录 / 移动 `app/home.tsx` / 新增 `app/ai-history.tsx` 后必须重启 Metro**，否则访问新路由显示「页面不存在」、`/home` 连 tab bar 都没有 | Metro 对「新增路由文件」的热更新不完整 | 无（已写进 F1/G1 证据与交接说明）。**任何人接手都要知道这一条** |
+| 39 | 日志安全：`ai_message.content`（L4）不得进日志 | **偏差（已知风险，prod 已兜住）**：dev profile 下 MyBatis DEBUG 会把 SQL **参数**打进日志，实测能看到回答全文 | `com.faze: INFO` 只配在 `application-prod.yml`；dev 下 mapper 日志是 DEBUG | **生产环境安全**（`com.faze: INFO` 覆盖了 `com.faze.modules.ai.mapper.*` 的 DEBUG）；**开发/联调环境的日志文件里有真实对话原文**，不能外发。段 8 收口时应给 dev 也加一条 `logging.level.com.faze.modules.ai.mapper: INFO` |
+| 40 | F5：断网重连后页面「今日还剩 N 次」应与服务端一致 | **偏差（缺陷，未修）**：`3-A8` 实测服务端 `used` 16→17（扣对了），但页面仍显示「今日还剩 34 次」（滞后一格） | `useAiQuota` 在 `done` 后 refresh，重连路径可能没走到刷新；或刷新请求在恢复瞬间失败后无重试 | **待修**（F5 遗留）。不影响 `3-A8` 的服务端判据 |
+| 41 | 黄金 30 题能覆盖 6 部法 | ~~偏差（数据不足）~~ → **已修（2026-11-07 负责人批准「可以扩到 30 题」）**：新增 `V305__import_law_items_golden30.sql`，库内法条 **10 → 34 条**，覆盖 **7 部法**（民法典 19 / 民诉法 4 / 劳动合同法 4 / 劳动争议调解仲裁法 2 / 消保法 3 / 劳动法 1 / 婚姻家庭编解释（一）1）；新增 `law_code=labor_law` 并已在《法条数据录入规范》§一③ 登记 | 负责人原口径是「先用占位几条验证」，验收时发现 30 题里绝大多数 expectedRefs 指向库外条号，体验过差 | **30 题里 28 题有库内依据**（实测 23 个代表关键词全部命中）。仍不覆盖第 23 题（诉讼费用交纳办法 13，行政法规不在白名单）与第 22 题（治安管理处罚法，但该题另有民法典 1179）。**V305 的 24 条条文文本待负责人用 flk.npc.gov.cn 逐条核对**（已在迁移头注释列清单） |
+| 42 | `V302`/`V304` 用 `ON DUPLICATE KEY UPDATE ... VALUES(col)` | **告警（非错误）**：MySQL 8.0.20+ 报 `'VALUES function' is deprecated`（SQL State HY000 / Error Code 1287），每个迁移 7 条 | 沿用 `V2`（段 0）的既有写法 | 无。MySQL 8.0 仍支持，9.0 之前不会失效；段 4+ 写新迁移时建议改用 `AS alias` 写法 |
 
 ---
 

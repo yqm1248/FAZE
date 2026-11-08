@@ -68,6 +68,8 @@ NNN = 3 位：域内序号，从 001 起
 
 **为什么其余仍返回 200**：业务失败（余额不足、订单状态非法）是**正常的业务语义**，不是传输层错误。用 HTTP 5xx 表达会让监控误报。
 
+> **§3.10 的逐码表优先（2026-11-02 段 7 落地）**：`410008` / `410010` / `410012` 回 **409**、`410014` 回 **400**。这与本表「其余业务失败一律 200」的通则不矛盾——**逐码表是特例，特例优先于通则**。理由：这三类 409 是「状态已被别人改过」的**并发冲突**（审核/申诉已被处置、工单状态不允许），回 409 让前端能识别「刷新后重试」而不是当成业务提示；`410014` 是**入参错误**（导入文件格式），归 400。除这四个码外，第 7 段其余新码仍按通则回 200。
+
 ---
 
 # 三、完整错误码表
@@ -105,7 +107,7 @@ NNN = 3 位：域内序号，从 001 起
 | `402008` | 200 | `error.auth.account-cancelled` | 账号已注销 |
 | `402009` | 200 | `error.auth.guardian-required` | 未成年人需监护人同意 |
 | `402010` | 200 | `error.auth.password-weak` | 密码强度不足 |
-| `402011` | **403** | `error.auth.account-banned` | **账号已被封禁**（段 7 新增；与「密码错误」必须可区分，提示含客服电话或申诉入口） |
+| ~~`402011`~~ | — | ~~`error.auth.account-banned`~~ | **作废，未实现**。段 7 施工时核对代码：`ErrorCode.AUTH_ACCOUNT_BLOCKED` 用的是 **`402004`**（段 1 已登记，见本表上一行），`402011` 在 `ErrorCode.java` 里**从未存在**。`7-A4`「提示不能只是密码错误」由 `402004` 承担（HTTP 403，与 `402001` 的 200 可区分），**不新增码**。段 8 从 `410017` 起编时不要再启用本行 |
 | `502001` | 200 | `error.auth.sms-send-failed` | 短信发送失败 |
 | `502002` | 200 | `error.auth.realname-service-down` | 实名核验服务不可用 |
 
@@ -142,11 +144,11 @@ NNN = 3 位：域内序号，从 001 起
 | `405005` | 200 | `error.trade.refund-exceeds` | 退款金额超出可退上限 |
 | `405006` | 200 | `error.trade.amount-invalid` | 金额非法（负数、超限、非整数分） |
 | `405007` | **403** | `error.trade.not-order-owner` | 非本人订单 |
-| `405008` | 200 | `error.trade.withdraw-below-min` | 提现金额低于最低限额（`sys_config.withdraw.min_amount_cents`，当前 10 分） |
-| `405009` | 200 | `error.trade.withdraw-insufficient` | 可提现余额不足（`lawyer_balance.available_cents`） |
-| `405010` | 200 | `error.trade.withdraw-state-invalid` | 提现单状态非法，当前操作不允许（非法迁移一律 403 语义走 200 + 本码） |
-| `405011` | 200 | `error.trade.settlement-mismatch` | 结算数据不一致（流水净额 ≠ 订单收入 − 服务费，**发现即停**，不许写结算单） |
-| `405012` | 200 | `error.trade.withdraw-too-frequent` | 提现过于频繁（单日笔数超限） |
+| `405023` | 200 | `error.trade.withdraw-below-min` | 提现金额低于最低限额（`sys_config.withdraw.min_amount_cents`，当前 10 分） |
+| `405024` | 200 | `error.trade.withdraw-insufficient` | 可提现余额不足（`lawyer_balance.available_cents`） |
+| `405025` | 200 | `error.trade.withdraw-state-invalid` | 提现单状态非法，当前操作不允许（非法迁移一律 403 语义走 200 + 本码） |
+| `405026` | 200 | `error.trade.settlement-mismatch` | 结算数据不一致（流水净额 ≠ 订单收入 − 服务费，**发现即停**，不许写结算单） |
+| `405027` | 200 | `error.trade.withdraw-too-frequent` | 提现过于频繁（单日笔数超限） |
 | `405013` | 200 | `error.trade.channel-disabled` | 支付渠道未启用（`sys_config.pay.*.enabled=false`）；**不许静默回退到 Mock** |
 | `405014` | 200 | `error.trade.recharge-amount-invalid` | 充值金额超出单笔区间（`recharge.min_cents` ~ `recharge.max_amount_cents`，当前 0.1~5000 元） |
 | `405015` | 200 | `error.trade.recharge-state-invalid` | 充值单状态非法，当前操作不允许（非法迁移一律 200 + 本码） |
@@ -155,9 +157,35 @@ NNN = 3 位：域内序号，从 001 起
 | `405018` | 200 | `error.trade.reconcile-diff-pending` | 对账存在未处理差异，相关操作需先处理差异 |
 | `405019` | 200 | `error.trade.channel-prepay-failed` | 渠道下单失败（`prepay` 调用失败） |
 | `405020` | **200** | `error.trade.recharge-realbame-required` | **未实名用户不可充值**（`sys_config.recharge.unverified_daily_cents = 0`，2026-11-02 定：是拦截不是限额） |
+| `405028` | 200 | `error.trade.reconcile-bill-invalid` | **渠道对账单非法**（空文件 / 缺表头 / 列数不符 / 金额或时间无法精确转分）——段 6 D3/D4 施工时追加（2026-11-08） |
+| `405029` | 200 | `error.trade.recharge-not-found` | **充值单不存在**（人工补单接口 `POST /admin/recharges/{orderNo}/sync` 的单号查不到本地记录）——段 6 D1 施工时追加（2026-11-08）。**不要与「渠道查不到」混用**：后者是正常业务态，接口返回 200 + `syncResult=channel_not_found` |
+| `405030` | **429** | `error.trade.recharge-rate-limited` | **充值下单过于频繁**（用户维度限流：`recharge.rate_limit_per_min`，默认 3 次/分钟）——段 6 B3 施工时追加（2026-11-08）。**本码是本规范里唯一「业务失败回 429」的例外**：其他余额类业务失败一律 200（§2.2）。响应带 `Retry-After` 头给重试秒数；不复用 `401007`（那个被短信 / 登录锁定 / 法条检索 / 支付密码锁定共用，且是 200 口径） |
 | `505001` | 200 | `error.trade.channel-down` | 支付渠道不可用 |
 | `505002` | 200 | `error.trade.reconcile-diff` | 对账存在差异，需人工处理 |
 | `505003` | 200 | `error.trade.flow-write-failed` | 流水写入失败（资金链路致命错误） |
+
+### 3.5.1 段 2 施工登记（2026-11-06）
+
+> **✅ 冲突已裁决（2026-11-06，负责人）：段 5 的 5 个交易域码整体顺延。**
+> 段 2 施工时实际落地的 `405008`~`405011` 与 §3.5 表原本给段 5（提现 / 结算）的预留号重叠；
+> 负责人选择**不动已交付的段 2 码**（改段 2 会牵动 C 端文案映射与已出的 4 份验收证据），
+> 把段 5 的 5 个码从 `405008`~`405012` **顺延到 `405023`~`405027`**（§3.5 表已同步）。
+> 段 6 的 `405013`~`405020` 与段 2 无交集，**保持不动**。
+> 段 5、段 6 工作流与《接口规范》的相关表述已同步更新。
+
+| code | HTTP | msgKey（代码实际值） | 段 2 用途 | 说明 |
+|---|---|---|---|---|
+| `405008` | 200 | `error.trade.lawyer-unavailable` | 律师当前不可接单（G2.1） | 段 2 占用；段 5 原定此号已顺延到 `405023` |
+| `405009` | 200 | `error.trade.service-unavailable` | 律师未开通该服务（G2.1） | 同上（段 5 原定 → `405024`） |
+| `405010` | 200 | `error.trade.lawyer-offline` | 律师当前不在线（G3.3） | 同上（段 5 原定 → `405025`） |
+| `405011` | 200 | `error.trade.refund-not-found` | 退款单不存在（G4.1） | 同上（段 5 原定 → `405026`） |
+| `405021` | 200 | `error.trade.review-not-found` | 评价不存在（G5.1 律师回复） | 段 2 占用（段 6 文档曾写「段 7 从 405021 起编」，段 7 实际用 `410xxx`，故无冲突） |
+| `405022` | 200 | `error.trade.review-duplicate` | 该订单已评价（G5.1） | 同上 |
+
+> 代码侧对应 `com.faze.common.exception.ErrorCode`；C 端文案在
+> `apps/mobile-app/shared/i18n/resources/zh-Hans/error.json`，其余三语已登记缺译。
+
+
 
 ## 3.6 文书域 `06`
 
@@ -169,7 +197,7 @@ NNN = 3 位：域内序号，从 001 起
 | `406004` | **403** | `error.document.forbidden` | 无权访问该文书 |
 | `506001` | 200 | `error.document.generate-failed` | 文书生成失败 |
 | `506002` | 200 | `error.document.pdf-failed` | PDF 转换失败 |
-| `506003` | 200 | `error.document.font-missing` | 所需字体缺失（少数民族文字） |
+| `506003` | 200 | `error.document.font-missing` | 渲染所需字体缺失（**中文场景指仿宋 `simfang.ttf` 不存在或 `doc.font.path` 配错**）。2026-11-07 改：段 4 起文书只做中文，本码不再表示「少数民族文字缺失」 |
 
 ## 3.7 案件域 `07`
 
@@ -233,9 +261,13 @@ NNN = 3 位：域内序号，从 001 起
 | `410015` | 200 | `error.ops.export-too-large` | 导出行数超限，已转后台任务（段 7） |
 | `410016` | 200 | `error.ops.retention-archive-failed` | 归档失败，已停止清理（段 7） |
 
-**合计 91 个码**（各域：01=14、**02=13**、03=6、04=6、05=10、06=7、07=5、08=7、09=4、**10=19**），覆盖第 0～8 段会出现的全部业务失败。
+**合计 90 个有效码**（各域：01=14、**02=12**、03=6、04=6、05=10、06=7、07=5、08=7、09=4、**10=19**），覆盖第 0～8 段会出现的全部业务失败。
+另在 §3.2 保留 **1 行已作废的 `402011`**（计划期拟新增、施工时确认从未实现），**不计入 90**，保留是为了让读到旧文档的人能查到「这个码去哪了」。
 
-> **v1.34 补 13 个（2026-11-02，段 7）**：账户域 `402011`（账号已封禁，`7-A4` 要求「提示不能只是密码错误」）；运营域 `410005`~`410016` 共 12 个。**段 8 从 `410017` 起编**。
+> **v1.34 补 12 个（2026-11-02 计划 / 2026-11-09 施工核对，段 7）**：运营域 `410005`~`410016` 共 12 个。
+> **账户域没有新增码**：计划里写的 `402011 error.auth.account-banned` **施工时确认从未实现**，
+> `7-A4`（账号封禁的提示必须与「密码错误」可区分）由段 1 就有的 **`402004 error.auth.account-blocked`（HTTP 403）** 承担，
+> 见 §3.2 的作废说明。**段 8 从 `410017` 起编**。
 
 ---
 

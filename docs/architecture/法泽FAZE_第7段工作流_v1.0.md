@@ -2237,7 +2237,11 @@ A-25 敏感词  →  A-20 内容审核  →  A-21/A-22 工单  →  A-23/A-24 �
 
 **复用但不重做的接口**（段 1/2/5 已交付，本段只调用）：`POST /admin/users/{id}/ban`、`/unban`、`POST /admin/lawyers/{id}/violations`、`POST /app/upload/token`、`GET /app/upload/url`、`GET /admin/orders`、`GET /app/notifications`。
 
-### 5.3 APP 页面（10 页）
+### 5.3 APP 页面（10 页 → **11 页**）
+
+> **2026-11-09 负责人拍板新增第 11 行**（`/complaint-list`「我的投诉」列表）：原 68 页清单与设计稿**都没有这一页**，
+> 它是为满足 `7-A1` 第 3 步与 `7-A5`「App 端能看到回复与状态变化」补的实现页，**没有设计稿**（稿面依据只能用 57 投诉页的卡片与列表样式）。
+> 因此 **APP 页面总数 68 → 69**，页面归属随之改；详见 §十一 第 58 条。
 
 | # | 页面 | 设计稿 | 行数 | 主要接口 |
 |---|---|---|---|---|
@@ -2251,6 +2255,7 @@ A-25 敏感词  →  A-20 内容审核  →  A-21/A-22 工单  →  A-23/A-24 �
 | 8 | 意见反馈页 | `58-feedback.html` | 302 | `POST/GET /app/feedback` |
 | 9 | 关于我们页 | `59-about.html` | 331 | `GET /pub/app/config` |
 | 10 | 功能总览页 | `61-all-features.html` | 431 | 无（纯路由） |
+| 11 | **我的投诉列表**（**新增，无设计稿**） | —（沿用 57 页样式） | — | `GET /app/complaints` |
 
 > `41b-version-update.html` **不新增页面**，实现为弹窗（E5）。
 
@@ -2404,7 +2409,7 @@ A-25 敏感词  →  A-20 内容审核  →  A-21/A-22 工单  →  A-23/A-24 �
 | 6 | **正式敏感词库**（本段只给 50 条示例） | 上线后的审核效果 | 上线前（段 8） |
 | 7 | **`faq` 正式内容**（本段给 7 条稿面对应的答案草稿） | APP 56 页显示内容 | 段 8 前运营补充 |
 | 8 | **`notify_template` 正式文案**（本段给 6 条） | 通知内容 | 段 8 前 |
-| 9 | **A-02 涨跌配色**（红涨绿跌 vs 绿涨红跌） | A-02 视觉 | 段 7 开工前若稿有歧义 |
+| 9 | ~~A-02 涨跌配色~~ ✅ **已定（2026-11-09）：涨红跌绿** | A-02 视觉；已按此实现（一处 CSS 两个 class 的颜色对调） | 已定 |
 | 10 | **公告是否允许定向到单个用户**（`user_ids` 上限 5000） | A-23 的人群选择 | 段 7 施工中 |
 
 ---
@@ -2415,7 +2420,101 @@ A-25 敏感词  →  A-20 内容审核  →  A-21/A-22 工单  →  A-23/A-24 �
 
 | # | 计划 | 实际 | 偏差原因 | 影响 |
 |---|---|---|---|---|
-| | | | | |
+| 1 | A1 建 11 张表（9 在册 + 第 54/55 张） | **已完成**：V700（9 张）/V701（announcement）/V702（sensitive_word_appeal）/V703（种子）/V704（审核开关）/V705（风控阈值）/V706（补 type_id）。Flyway 在 `faze` 库执行成功，业务表 43 → **53 张** | 计划外多出 V704~V706 三个迁移（见 #2/#3/#4） | 无（表结构目标一致） |
+| 2 | A1 第 4 步的 sys_config 清单 | `log.operation_retention_days` 写 **1095**（不是清单里的 90）、`log.login_retention_days=180`；并补 `sensitive.enabled`/`sensitive.block_enabled`（V704） | 清单里的 90 与同文档**裁决 16**（operation_log ≥ 3 年）直接冲突，且 A4 第 6 条要求低于下限则启动失败；两个审核开关 A3 第 8 条需要但 A1 清单没列 | 无（按合规下限执行） |
+| 3 | A1 种子 50 条敏感词（五类各 10 条） | **已完成 50 条**，但政治/暴恐/色情三类 **30 条是占位词**（`【示例】…`），维吾尔文/哈萨克文/藏文三语示意词**未做** | 真实敏感词不宜写进仓库种子；三语词库由运营提供（裁决 17 已挂账） | 上线前必须整体替换（挂账已记） |
+| 4 | 裁决 23：工单用 `type_id` 指向投诉/反馈原表 id | **A1 的 13 字段里没有 `type_id`** → 补 `V706` 加列 + `idx_ticket_type` | 裁决 23 与 A1 的字段清单互相矛盾（前者要类型关联，后者没列该列） | 不补则 A-22 详情拿不到投诉正文、C2 的回复也定位不到工单 |
+| 5 | A6 错误码 410005~410016 的 HTTP 状态 | 按**错误码规范 §3.10 逐码表**落地：410008/410010/410012 = **409**、410014 = **400**，其余 200 | §2.2 说「只有 401/403 破例、其余恒 200」，与 §3.10 的具体码表冲突；工作流 A6 与 §3.10 一致，故取后者 | 需回写《错误码规范》§2.2 加一句「§3.10 的逐码表优先」 |
+| 6 | B3 封禁：`app_user.status='banned'` | **改用 `blocked`** 并复用 account 域 `AdminUserService.ban`（同时 `token_version+1`，旧 token 立即失效） | 段 1 已交付的封禁用的是 `blocked`；工作流写的 `banned` 与既有数据不一致，硬写会让登录拦截失效 | 无（比「等 60s 缓存过期」更彻底） |
+| 7 | B3 详情：返回命中前后各 3 条上下文 | **降级为 `contextAvailable=false` + 说明** | 上下文属 conversation 域，本段未接（工作流 B3「卡住怎么办」明确允许） | 已记 §八.2；要看全文走投诉工单截图 |
+| 8 | B5：风控（异常注册 + 新设备） | 放 **account 域** `RiskControlService`，违规写入经 ops 的 `UserViolationWriteService` | 若放 ops 会形成 account↔ops 循环依赖（规范 §2.3 第 3 条禁止） | 无（依赖方向单向） |
+| 9 | C2：投诉/反馈生成工单 | 已完成（同事务），并补 `OrderQueryService` 校验「律师投诉必须关联本用户已完成订单」 | trade 域原先没有订单只读接口 | 无 |
+| 10 | D2 测试发送：发给自己站内信 | **改为只返回渲染预览文本**，不写 notification | 操作者是 RuoYi 管理员（`faze_admin.sys_user`），**不在 `faze.app_user` 里**，notification.user_id 无处可写 | 段 8 需补「管理员 → 站内信」身份映射 |
+| 11 | D1 `region` 目标人群 | **原为「接口与发送均明确不可用（返回 0 / 抛 401001），不静默发 0 人」**；**尾巴已解除（2026-11-09，V707）**：建 `app_user.region`（`VARCHAR(64) NULL`）+ `idx_app_user_region`；`AnnouncementSendService` 的 `region` 分支与 `AdminDashboardService.regions()` **均已接通真实查询**。但该列**无采集点、恒为 NULL** | `app_user` 段 1 没建 `region`（A5 假设「段 1 已有」是错的）；补列只给查询一个列名，**注册流程不收集地区**，资料页也没有该字段 | **当前仍无真实数据**：地区分布只返回一项「其他」（合计 = 未注销用户数）、按地区发送必然 0 人（正常走完 `sent`，不报错）。采集入口（注册页 / 资料页的地区选择器）**段 8 补**，补完才真正可用 |
+| 12 | A4 A-26 操作人列显示名字 | 只返回 `operatorId`，`operatorName` 恒为 null | `operation_log.operator_id` 是 `faze_admin.sys_user.id`（跨库），faze 库无权读 RuoYi 用户表 | 段 8 补「管理员 id → 名字」查询通道 |
+| 13 | A4 清理任务：先归档再删 operation_log | **只归档、不删除**（DELETE 被数据库拒绝时打 WARN） | `faze_app` 对 `operation_log` **刻意只有 SELECT + INSERT**（B 类追加表不可改删），这是安全设计不是缺陷 | 超期清理需人工审批 + 高权限账号执行 |
+| 14 | 段 7 建表后 DB 授权 | **启动失败一次**：`faze_app` 对 11 张新表无权限 → 已手动 GRANT 补上 | `deploy/sync-db-grants.ps1` 是**表级授权**，新建表不会自动继承 | **后续每段建表都要补授权**；建议改成扫 `information_schema` 自动补齐 |
+| 15 | A-26 列表分页形状 | 用 `R<PageResult>`（`list/total/pageNum/pageSize/hasMore`） | 工作流 A4 明确写这个形状；与接口规范「PC 用 TableDataInfo」不一致 | PC 页面按 `res.data.list` 读（ops.js 已注明） |
+| 16 | 本批交付范围 | **A/B/C/D 的后端全部完成 + PC 端 6 页**（A-25/A-20/A-21/A-22/A-23/A-24）+ 菜单种子；**C5 的 APP 4 页、E/F/G/H 组未做** | 按负责人「先做到 D 组」的指令，APP 页面（C5）与段 7 的 E~H 组顺延 | C5 未做则 `7-A5`「App 能看到回复」只有服务端证据，无界面证据 |
+| 17 | 段 7 告警通道（原计划：钉钉群机器人；`alert.dingtalk_webhook` / `alert.dingtalk_secret` 两键 V703 已建、值为空串） | **本段不实现任何发送通道**：按**文件口径维持钉钉**（两键值为空串），`TicketSlaScanTask` 在 webhook 为空时**只打 WARN 日志、不发送**。**负责人 2026-11-09 明确：邮箱方案留备注、段 8 处理；本段不改任何 `alert.*` 键与发送代码。**（邮件评估要点见下方「备选方案记录」） | 通道选型本段不做决定：按既有文档口径**维持钉钉**，邮件方案仅作备选记录备查 | **本段没有任何真实告警出口**——超时工单只在服务端打 WARN 日志，运营侧完全看不到。**段 8 必须落地一条通道**，否则 `7-A8`「告警真的响」永远没有证据 |
+| 18 | **D1 公告目标人群状态口径笔误（已修）** | `AccountQueryServiceImpl.selectUserIds` 的 `status='normal'` → `'active'`（2026-11-09，常量 `STATUS_ACTIVE`）；新增的 `listUserIdsByRegion` 同口径 | 库内 `app_user.status` 自 `V1__baseline.sql` L32 起只有 `active / blocked / cancelled`（`DEFAULT 'active'`），**`normal` 恒 0 行**；`NORMAL/BANNED/CANCELLED` 只是管理端出参枚举（`AdminUserService.toDbAccountStatus` 才翻回小写）。导致公告「全量 / 按角色 / 指定用户」三种目标**全部静默发 0 人**（接口 200、状态 `sent`、触达 0，看起来一切正常） | 无（已修）。实测：修前 `estimate?targetType=all` = `0`，修后 = `6`；`role=lawyer`=1、`role=user`=4、`user_ids=[1,3]`=2。**这条要写进 CHANGELOG 的 Fix 段** |
+| 19 | **看板「地区分布」与公告「按地区」的口径差** | 看板 `DashboardMapper.selectRegions` 只过滤 `deleted_at IS NULL`（不过滤 `status`）；公告可发人群过滤 `status='active'` | 看板沿用 `countNewUsers` 的口径（是否注销看 `deleted_at`）；于是 `cancelled` 但未软删的用户**会计入看板、却收不到公告**。当前库内差 1 人（`app_user` 共 7 行，`active` 6 + `cancelled` 1） | 段 8 决定是否把看板也加上 `status` 过滤；两种口径都能自圆其说，但**不能一直并存而不写** |
+
+> **以下第 20~46 条是「E/F/G/H 组」这一批（2026-11-09）施工后追加的。** 第 17 条写的「本段不实现任何发送通道」已被第 20 条取代（G3 实现了钉钉发送 + mock 演练）；本条不删原文，是因为它是当时的事实记录。
+
+| # | 计划 | 实际 | 偏差原因 | 影响 |
+|---|---|---|---|---|
+| 20 | 第 17 条：本段无任何告警出口 | **已实现**：`AlertDispatcher`（`@Scheduled` 60s 轮询 Prometheus `/api/v1/alerts`）→ 钉钉 markdown（含加签）→ 失败降级 mock；Redis `SETNX` 1 小时去重；`resolved` 发「✅ 已恢复」。**没有真实钉钉群**，演练把 `sys_config.alert.dingtalk_webhook` 临时指向 `scripts/alert/mock-receiver.py`（:8088），**收到的是系统自动触发的 HTTP POST**（非手 curl）：`[P1] FazeBackupStale`、`[P1] FazeHighErrorRate`、`[P1] 审计链路中断` + `✅ 已恢复：FazeHighErrorRate` 共 6 条 | 真实群需要负责人提供 webhook + 加签密钥；本段把「通道代码 + 自动触发」全部打通，只差凭据 | `7-A8` 记**部分完成**：系统侧「真的发出去了」有完整证据，**「钉钉群里看到」没有证据**。`挂账.md` 写清补验方式：把 webhook 换成真实地址、注入 500、等 3~5 分钟 |
+| 21 | `7-A2`：正文含 `block` 级词（举例如「包打赢」） | **举错级别**：`包打赢` 在种子词库里是 **`review` 级**（`FRAUD` 类 20 条之一）；`block` 30 条全是 `【示例】…` 占位词。验收已改用 `【示例】政治类敏感词01` 作 block 样本 | A1 种子的分级与文档举例不一致 | 锚点文档已按实测更正（见 `7-A2-no-rewrite.md` §2）。**段 8 换正式词库时，这句话要跟着改** |
+| 22 | `7-A2` 第 3/4 步：查业务表原文 + 查 `content_review` 命中记录 | **block 分支两步都查不到**：`ComplaintService`/`FeedbackService` 先审后落库，`block` 时抛 `410006` → **业务行与命中记录在同一事务里一起回滚**（实测提交前后 `feedback` Δ0、`content_review` Δ0）。锚点这两步在 block 分支**不适用** | 锚点作者假设「block 也把内容存下来再标」，与本段「block 整条拒绝」的设计冲突 | 已在 `review` 分支取证（原文完整、命中词/级别/片段齐全）。**是否为「被拦截的提交」单独留一条审计记录（独立事务），段 8 决定**；本段不改事务语义 |
+| 23 | `7-A2`：`content_review.biz_id` 关联被审内容 | **修复前恒为 `0`**：投诉/反馈先审后落库，`ReviewRequest` 的 `bizId` 传 null，落库 `biz_id=0`（A-20 队列三条记录全部 `bizId:"0"`，点不到内容）。已修：落库后用 `ReviewVerdict.reviewId` 回填，实测 `content_review.id=7 → biz_id=9`（= `feedback.id`） | 施工时漏了「业务行 id 在审查之后才存在」这一步 | 无（已修）。block 分支不回填，属预期（整条回滚） |
+| 24 | `7-A5`：APP 端看到状态 `replied` | **修复前 `GET /app/complaints` 的状态恒为 `pending`**：`ComplaintService.listMine` 的 `toVO` 取的是 `complaint.status`，而流转改的是 `service_ticket.status`。已修（`ComplaintService` / `FeedbackService` 同改，新增 `ticketStatus`），实测 `waiting → processing → replied` | C2 交付时只验证了「提交成功」，没做「后台流转后回查」 | 无（已修）。**但 APP 侧仍缺界面**，见第 25 条 |
+| 25 | `7-A5`：App 端投诉列表能看到回复 | **68 页清单与设计稿里都没有「我的投诉列表」页**：`design/ui/57-complaint.html` 只有提交表单（逐行核过），APP 侧无列表界面 | 页面归属是总纲 §4.2 定的，本段不许加页 | **`7-A5` 的界面证据无法产出**，只能给接口级证据（`GET /app/complaints` 返回 `status=replied` + `replyContent`）。**要新开一页还是并进 57 页，段 8 拍板** |
+| 26 | `7-A4`：封禁提示「含申诉入口或客服电话」 | **修复前 msg 只有「账号已被封禁」**（`code=402004`，HTTP 403，与密码错误的 `402001`=200 可区分）。已修：`「账号已被封禁，如需申诉请联系客服 002-00854967 或通过 APP 客服中心提交」`，**号码从 `sys_config.service.phone` 读**（`ServicePhoneProvider`），未配置时降级不提号码 | C/B4 交付时只验「拦得住」，没验「提示内容」 | 无（已修）。`7-A4` 通过：403+独立码+含客服电话；旧 token 立即失效（`token_version+1` → 401/402003） |
+| 27 | `SensitiveWordSaveBO.lang` | **无白名单校验**，而 `SensitiveWordEngine.check` 是「请求 lang 的树存在就只查那一棵」。实测：用 `lang='zh'` 建一条 block 词，保存成功、引擎 reload 成功（日志 `count=51, languages=[zh-Hans, zh]`），但正文含该词的反馈**照常放行 200** | 两处各写各的：写入侧不校验枚举，读取侧按精确 lang 选树 | **误配即静默失效**（界面有词、库里有词、就是不拦）。真实 UI 默认 `zh-Hans`，API/CSV 导入是裸字符串。**挂账段 8**：`lang` 加白名单 + `check` 在精确 lang 未命中时退回全树扫描 |
+| 28 | A-02 趋势与 4 卡同一口径 | **修复前矛盾**：`trends` 按库内 UTC 切日，`summary` 按 Asia/Shanghai 自然日。造 3 笔单（`created_at`=UTC 11-08 17:21 = 上海 11-09 01:21）→ 4 卡「今日订单 3」，折线却把这 3 单画在 **11-08**。已修：`DATE(created_at + INTERVAL 8 HOUR)`（revenue 用 `paid_at` 同改），实测末三点 `11-07:0 / 11-08:0 / 11-09:3` | A5 交付时按「库内 UTC」实现，与 §1 时间窗定义冲突；当时无数据看不出来 | 无（已修）。`A-02-指标口径.md` §6 的「已知局限」已改为「已修正」 |
+| 29 | 导出统一（F4）| **`PaginationInnerInterceptor.setMaxLimit(200)` 会对所有分页查询静默 clamp**：导出复用分页查询时最多只导 200 行（实测操作日志 263 行却只导 200）。已修：导出改走 `selectList` / 专用 `listForExport`；`CsvWriter.java` 删除，全仓只剩 `common/export/CsvExporter` | 分页上限是全局配置，对「导出」这种非翻页场景是隐式截断 | 无（已修）。5 处导出实测行数均与列表一致；新增 `CsvExporterTest`(5) + `ExportServiceTest`(4)，`mvn test` 489 → **498** |
+| 30 | `7-A8`：让某接口返回 500 → 错误率告警 | **`GlobalExceptionHandler` 把所有 RuntimeException 映射成 HTTP 200 + 业务码，`status="500"` 恒为 0**，`FazeHighErrorRate` 在本项目**永远无法自然触发**。已加 **dev-only** `GET /api/v1/dev/fault?mode=500|slow&delayMs=2000`（`@Profile("!prod")`，`sendError(500)` 绕过全局映射），实测 500 模式 HTTP **500**、slow 模式睡 2s 后 200 | 本段错误处理口径是「业务错误一律 200 + 码」，没有 5xx 通路 | 无（已修）。`docs/ops/运维手册.md` 的故障分级与应用日志要看这个端点。**生产没有这个端点**，所以生产的错误率口径要段 8 重新定义（按业务错误码统计） |
+| 31 | `management.server.address=127.0.0.1` 限制 actuator 只绑本机 | **SB4 同端口配置该键直接启动失败**（43 个 `@SpringBootTest` 上下文全挂）。已去掉该键，「不裸奔」改由两道保证：`SecurityConfig` 对 `/actuator/**` 要求「本机来源 **或** ROLE_ADMIN」；`exposure.include` 只放 `health,info,prometheus,metrics`。实测 `/actuator/env`=/beans=/configprops=**404** | SB4 对 management 端口与主端口关系的校验比 SB3 严 | 要真做到「只绑本机」需给 management 独立端口，那会破坏 G2 用 8081 抓取的约定，本段未采用。**生产部署时必须重新评**（`挂账.md` 已记） |
+| 32 | F1 涨跌配色 | **设计稿与工作流文字相反**：`design/admin/components.css` 里 `--up → --state-success`（青绿）、`--down → --state-danger`（红），即**稿面是涨绿跌红**；工作流 F1 正文却写「涨用红、跌用绿」。**负责人 2026-11-09 拍板：按「涨红跌绿」**（国内财务习惯），实现已按此改（`stat-delta--up` = `#ee0a24` 红、`--down` = `#1f7a7a` 青绿），**故意与设计稿相反**，改的是一处 CSS 两个 class | 工作流写这条时没对照稿的 CSS 变量；两者矛盾，最终由负责人定 | **已定**（§十 第 9 项关闭）。实测：`stat-delta--up` 计算色 `rgb(238, 10, 36)`，正环比 `▲ +11.8%` 显示为红。**注意：`design/admin/components.css` 原件未改**，所以以后照稿重画仍会画成涨绿跌红 |
+| 33 | F1「切今日/7天/30天 → 4 卡与趋势图同时变」 | **只变 4 卡与页头，折线不变**：`trends` 接口只有 `metric` 参数、固定 14 天，没有 `range` | 接口契约如此（A5 定的），本段不改接口 | 若要联动，段 8 给 `trends` 加 `range`。趋势图标题已写死「近 14 天」，不会误导 |
+| 34 | F2 留存天数读 `audit.operation-log-days` / `audit.login-log-days` | **这两个键不存在**，库内实际是 `log.operation_retention_days=1095` / `log.login_retention_days=180`。页面两个键名都兼容读，实际命中 `log.*`，文案显示「≥ 3 年（当前配置 1095 天）」 | 工作流写的键名与 A1 实际建的不一致 | 无（页面已兼容）。**改稿那一条**（稿面「保留 90 天」→「≥3 年」）已落地，但改的是实现不是设计稿文件——`design/admin/25-logs.html` 原件未改，§九 第 8b 项仍是**待负责人决定** |
+| 35 | F2 目标对象显示可读名称 | 白名单从 6 类扩到覆盖 `APP_USER`（`用户 用户8888`）、`LAWYER`、`SYS_CONFIG`、`DASHBOARD`、`BALANCE_FLOW`、`OPERATION_LOG`/`LOGIN_LOG` 等高频类型；**库里 `target_type` 共 28 种，未覆盖的仍显示 `类型#id`** | 工作流 F2 明确「只做白名单，不做通用反射」，本段照做 | 未覆盖的长尾类型在列表里仍是 `CODE#id`。段 8 可按实际出现频次继续补 |
+| 36 | F4 异步导出「完成后写 notification 给管理员」 | **做不到**：`notification.user_id` 指向 `app_user`，而操作者是 `faze_admin.sys_user` 里的人。降级为：落文件 + INFO 日志 + 前端提示任务号 | 同 D2 测试发送（第 10 条）的根因：管理员不在 `app_user` 里 | 异步导出完成后**管理员收不到站内信**，要自己去任务/文件目录取。段 8 补「管理员 → 站内信」身份映射 |
+| 37 | F4「6000 行导出 → 410015 + taskId」实 curl 验证 | **没用 curl 真造 6000 行**：`operation_log` 是只追加表（无 DELETE 权限），造完清不掉。改用 `ExportServiceTest` 固化（>阈值→入队+taskId+pending；`runTask` 生成 CSV/meta；download 可读、过期被拒、`../../etc/passwd` 被拒） | 为了不在不可清理的表里留 6000 行垃圾 | 阈值路径由单测保证，**不是 curl 实测**。运维手册给了复验办法：把 `FAZE_EXPORT_SYNC_MAX_ROWS` 设成 5，任意导出即转异步 |
+| 38 | E1 用 `AsyncStorage` 存设置 | **`@react-native-async-storage/async-storage` 没装**（新增依赖要登记清单，不在 T2 写作用域）。`features/settings/storage.ts` 做等价封装：**Web 用 `localStorage`**（验收环境，重启浏览器保持）、**原生退回进程内 Map（真机重启丢设置）**；深色模式与字体四档同此 | 依赖清单变更需要走登记流程，本批没做 | 浏览器验收口径下全部通过（实测 `settings.theme=on` 重载仍在）。**原生端重启丢设置**是明确降级，段 8 装包时改成 AsyncStorage，只动 `storage.ts` 一处 |
+| 39 | E1「清除缓存显示真实大小」 | **`expo-file-system` 也没装** → Web 口径 = `performance` 资源字节 + Cache Storage + `faze.cache.*` 键 − 基线（实测「约 3.6 MB」→ 清除后「约 0 B」）；**原生返回 0，不编数字** | 同上（依赖未装） | 清除动作与「token 不被清、草稿不删」都已实测通过；**原生的真实缓存统计**段 8 补 |
+| 40 | E2 企业认证采集「法定代表人身份证号」 | **不采集**：设计稿有该列，但段 1 的 `EnterpriseBO` 没有这个字段 | 少收一份敏感信息优于私加字段 | 认证通过所需信息由人工审核（A-04 `type=enterprise`）从执照照片核对。若业务确实需要，段 8 走迁移加列 |
+| 41 | E3 收藏「Tab 数字 = 列表条数」 | **可能不一致**，设计如此：收藏的目标下架/归档后列表不展示，但计数保留。实测 3 篇文章中 2 篇 `archived` → Tab 显示 3、列表 1 条 | 计数是「收藏过多少」，列表是「现在还能看的」 | 前端如实渲染。**若产品要求两者相等，段 8 拍板**（要么计数也过滤可见性，要么列表显示「已下架」占位） |
+| 42 | E3 关注页「在线 + 有新动态」 | 只产出 `reply`（回复了评价）与 `none`（暂无新动态）；**`article` feed 不产出**，因为 `article` 表没有作者字段，无法判断「关注的律师发了文章」 | 表结构缺字段 | 页面已有 `article` 渲染分支，后端补字段后即可用。段 8 |
+| 43 | E4 关于页「联系方式」含客服邮箱 | **未放邮箱**：设计稿的 `service@faze.example` 是占位域名、服务端无来源，不编联系方式。只有客服电话（读 `sys_config`）与服务时段 | 不伪造联系方式 | 要真邮箱需负责人给，段 8 |
+| 44 | `41b-version-update.html` | **做成弹窗，不新增第 69 页**（`shared/components/UpdateModal.tsx`）。三态实测：`latest=1.0.1` → 可关闭提示；`min=9.9.9` → **只有「立即更新」、点遮罩不关**；相等 → 「已是最新版本」。4 个 `app.version.*` 键由 **V708** 建 | 工作流 E5 已预判此偏差并要求按弹窗做 | 无。**「立即更新」只打开 `downloadUrl`**，应用内下载安装仍挂段 8（热更新通道） |
+| 45 | 上一批 A~D 组 PC 6 页的编译 | **既有 `biz/ops/NotifyTemplate.vue`（A-24，段 7 D4 交付物）模板插值写错**：`{{ '{{' + v + '}}' }}` 里的 `}}` 会提前闭合插值 → `npx vite build` 报 `Unterminated string constant`，**整个 PC 前端构建失败**。本批改为脚本函数 `formatVariable(v)` 后 build 通过 | A~D 组那一轮**从未跑过 `vite build`**（只跑了 dev server，dev 能容忍部分模板错误） | **教训：PC 端的门禁必须包含 `npx vite build`**，不能只看页面能打开。已记入 `docs/README.md` 的验收口径 |
+| 46 | A-02 的菜单归属 | **复用段 1 的 2101「业务总览」**：`UPDATE sys_menu SET path='ops/dashboard', component='biz/ops/Dashboard', route_name='OpsDashboard' WHERE menu_id=2101`。旧文件 `src/views/biz/dashboard/index.vue` **保留不删**（段 1 的交付物），链路自检能力搬进 A-02 的可折叠「链路自检」条 | §九 已定「A-02 不新增菜单」；但要真看板就得换 component | 实际 URL 变成 `/biz/ops/dashboard`（旧 `/biz/dashboard` 失效，已 grep 确认仓库内无硬编码）。A-26 新增菜单 **2236**（`ops/log-center`） |
+| 47 | H1 运营动作清单「五步全部在界面完成」 | **未完成界面走查**：`7-A1` 的 15 张截图（5 步 × 3）**没有拍**。本批把 H1 的时间用在了「补 9 个产品缺陷 + 10 条锚点取证」上；且第 3、4 步依赖的两个前置（APP 无投诉列表页 / 封禁提示当时缺客服电话）本来就过不了 | 用户要求「E/F/G/H 全做完 + 问题留到最后」，时间优先给了「能让锚点过」的修复 | **`7-A1` 记「未完成」**，不写成通过。补验方式写在 `docs/acceptance/seg7/挂账.md`：第 3 步等「APP 投诉列表页」拍板；其余四步可直接跑 |
+| 48 | §九 第 14 项：依赖登记 4 项 | **登记 3 项 + 1 项标「框架已带」**：`spring-boot-starter-actuator`、`micrometer-registry-prometheus`（版本由 Boot 4.0.6 父 POM 管）、`net.logstash.logback:logstash-logback-encoder:**8.1**`（**不在 BOM 里，必须显式锁**）；`echarts` 改记「RuoYi-Vue3 3.9.2 已带 5.6.0，非新增」 | 实际依赖情况与计划描述不同 | 无。**logback 升级前必须重验 logstash encoder 版本** |
+| 49 | 错误码：§九 第 6 项要求补 `420014 error.account.banned` | **这个码不存在也不合法**：本规范域码是两位（`40`=运营、`41`=…），`42` 不是域；代码里 `ErrorCode` 只有 **`402004 AUTH_ACCOUNT_BLOCKED`**（HTTP 403，段 1 就有）。文档 §3.2 里既有的 `402011 error.auth.account-banned` 是**计划期拟新增、从未实现的幻影码** | §九 写这条时没有对照 `ErrorCode.java` | 已在《错误码规范》§3.2 把 `402011` 标**作废**、§3.3 注与合计改「90 个有效码（另有 1 行作废）」；段 8 从 `410017` 起编 |
+| 50 | 数据表规范「53 / 54 / 55」的加总 | **原算术错误**：附录 A 的段分布行把「段 7 = 11（实建）」混进按「在册」计的分布，2+12+12+3+4+8+1+11 = **53** ≠ 声明的 55。已写清：**54 张在册**（段 7 在册 12）+ `invoice` 1 张不建 = **55**；**段 7 实建 11** = 12 − `share_poster` | 实建数与在册数混用 | 无（已修）。`announcement` 实际 **15 字段**（§九 第 8 项误写 16）；`service_ticket` 施工后实际 **14 列**（13 + V706 的 `type_id`） |
+| 51 | G2 部署 Prometheus + Grafana | **已部署并跑通**：Prometheus `:9090`（target `faze-api` = **UP**，6 条告警规则）、Grafana `:3000`（4 图面板已导入）、mock 接收端 `:8088`。**不部署 Alertmanager**（沿用 G2 的取舍，自研 60s 轮询） | 本机 Windows 二进制，非 Docker（裁决 18） | `FazeIdentityBroken` 依赖段 5 巡检指标，**当前无此指标** → 该条规则登记但恒为 `inactive`；`FazeDiskLow` 需 `node_exporter`，**未装**（G2 明文写「可选」） |
+| 52 | G5 备份/恢复 + 每日 03:00 计划任务 | **备份与恢复演练已完成**（逐表行数对比 + 3 张表抽样 MD5，见 `7-A9-restore.md`）；**Windows 计划任务没有真的注册**（不动系统级配置） | 未经负责人同意不改系统计划任务 | 备份脚本可手工跑、`logs/backup-last-success.txt` 已写（gauge 已验证非 0）。**补验**：`schtasks /create` 命令行写在运维手册里，由负责人执行 |
+| 53 | G4「日志统一 JSON 格式」 | **文件日志双写**：原 pattern 文件（`faze-api.log` / `faze-api-error.log`）**保留**，新增 `logs/faze-api.json.log`（`logstash-logback-encoder` 8.1，字段 timestamp/level/logger/message/thread/env/traceId/spanId）。console 仍是 pattern | `deploy/verify-*.ps1` 有脚本 grep pattern 格式的日志，全量替换会打断既有验收脚本 | 三处 traceId 同值实测通过（响应头 `X-Trace-Id` = 响应体 `traceId` = JSON 日志 `traceId`）。段 8 若要纯 JSON，改 `logback-spring.xml` 一处 |
+| 54 | G4 审计落库失败降级 | **已实测**：`RENAME operation_log → _bak` 后调 `unban` → 业务仍 200、`logs/audit-fallback.log` 出现一行、mock 接收端收到 `[P1] 审计链路中断`（320B）。表已恢复 | — | 无。这条是「审计链断了」的唯一可见出口，**P1 级** |
+| 55 | `deploy/restart-api.ps1` 的可用性 | **两个问题叠加，已绕开**：① 只等「端口可连接」就报 ready（8081 被占时**假阳性**，早前已记）；② **由后台 job 启动时，job 一结束就会把 java 进程树一起清理**（实测两次停服、8081 不可达） | 脚本用 `Start-Process`/子进程树，job 生命周期绑定了它 | 本批改用「前台 `start-api.ps1`（超时转后台 job 并保持 running）」才稳定。**段 8 必须修 ①**；②在运维手册里写明「别 kill 那个 job」 |
+| 56 | H2 十条锚点的完成度 | **通过 4 条**：`7-A3`（无重启即时生效，实测三轮）、`7-A4`（403+独立码+客服电话+旧 token 失效）、`7-A7`（10 次请求 Δ=10 精确、500 计入、path 是模板、`/actuator/env`=404）、`7-A9`（备份恢复行数+MD5 一致）。**部分/未完成 6 条**：`7-A1`（未做界面走查）、`7-A2`（block 分支不可取证）、`7-A5`（APP 无列表页）、`7-A6`（A-26 四项齐全，但操作人只有 id、无姓名）、`7-A8`（系统真发出去了，钉钉群无证据）、`7-A10`（口径文档 10 节齐全 + 4 卡手算一致，但地区分布只有「其他」一项） | 见第 25/47 条与前文各条 | **不许写成「10 条全过」**。逐条结论见 `docs/acceptance/seg7/` 各文件与 `挂账.md` |
+| 57 | 本批留下的测试数据 | `app_user` id=**9324**（13900008888，已解封）、9341/9342（seg7f 看板造数）；`orders` id 14/15/16（`OR20261109009001~003`）；`feedback` id=9、`complaint` id=8、`service_ticket` TK…16/17、`content_review` id=7；`sys_config` 现值：`alert.dingtalk_webhook=http://127.0.0.1:8088/dingtalk`（演练保留）、`app.version.latest=1.0.1` | 验收必须有真实数据；`operation_log` 只追加不可删，导出审计行无法清理 | **清理 SQL 见 `docs/acceptance/seg7/挂账.md` 末节**。`app.version.latest` 若要恢复成「无更新提示」改回 `1.0.0` 即可 |
+
+| 58 | APP 页面总数 **68 页**（总纲 §4.1 页面归属） | **69 页**：负责人 **2026-11-09 拍板新开第 69 页**「我的投诉」列表（`/complaint-list`，`features/ops/pages/ComplaintListPage.tsx` + `app/complaint-list.tsx`），入口两处（57 投诉页顶部 + 提交成功态主按钮、我的页「我的与服务」）。实测：5 条真实投诉、状态徽标「已回复」、**客服回复内容与时间可见**、四态徽标都有文字、空态/底栏/「没有更多了」均通过 | `7-A1` 第 3 步与 `7-A5` 的「App 端能看到回复与状态变化」原本**没有界面可验**（`design/ui/` 71 个 HTML 里没有这一页，57 投诉页只有提交表单）。这不是本段擅自加页，是负责人裁决 | **APP 页面 68 → 69**，总纲 §4.1/§3.1、导航树（内容 v1.5 → **v1.6**，文件名仍 v1.4）、技术路线 §1.3、AGENTS.md 索引行、`docs/design/README.md` 已同步。**这一页没有设计稿**，稿面依据只有 57 投诉页样式，`design/ui/` 仍是 68 屏（**不许声称有第 69 屏**）。`7-A5` 因此由「界面级未完成」转为**通过**；`7-A1` 五步的前置障碍解除，但**15 张截图仍未拍** |
+| 59 | F1 涨跌配色「待负责人确认」（第 32 条） | **已定：涨红跌绿**（国内财务习惯）。`Dashboard.vue` 的 `stat-delta--up` 改 `#ee0a24`（红）、`--down` 改 `#1f7a7a`（青绿）。实测正环比 `▲ +11.8%` 计算色 `rgb(238, 10, 36)` = 红 | 设计稿 `components.css` 是涨绿跌红、工作流正文是涨红跌绿，两者矛盾，由负责人定 | **§十 第 9 项关闭、第 32 条改「已定」。`design/admin/components.css` 原件未改**，所以以后照稿重画仍会画成涨绿跌红——**改稿时记得同步** |
+| 60 | 文档口径「68 页」 | 全仓逐份核过：改了 **9 份**（总纲 16 处、导航树 9 处并升内容版本 v1.6、技术路线 6 处、页面清单 3 处、`docs/README.md` 10 处、`docs/design/README.md` 3 处、`AGENTS.md` 1 处、CHANGELOG 1 条）。**故意保留「68 屏」的 4 处**：`法泽APP_UI设计顺序`（整篇）、`法泽PC后台UI设计说明` L96、`PC后台开发计划` L11、总纲/README 各 1 处——**设计稿确实只有 68 屏**，机械替换成 69 会与 `design/ui/` 的 71 个 HTML 矛盾 | 第 69 页是实现页、无设计稿，所以「页数」与「屏数」从这一版起**不是同一个数** | **以后写「68 页」前先想清是「页面数」（69）还是「设计屏数」（68）**。`第0段工作流` 与 `acceptance/seg7` 里的历史「68 页」措辞按「当时点快照」保留不动 |
+
+### 备选方案记录：邮件告警（仅供段 8 参考，不改口径）
+
+> **本文档的既定口径仍是钉钉**；以下邮件评估仅作为段 8 的参考记录，**不改口径**。
+> **本节只是备注，不含任何实现**：`alert.*` 配置键、`TicketSlaScanTask`、任何发送代码本段都**未改动**。
+> 负责人 2026-11-09 明确：**邮箱方案留备注、段 8 处理**（参考实现见监控系统 `wgcloud` 的邮件告警）。
+
+**评估对象**：以 **QQ 邮箱 SMTP** 作为告警出口（**备选，非拟采用**）。评估结论：**技术上可行**——
+零第三方 SDK、不依赖企业主体、不依赖建群与加签；代价是**必须自己补齐可靠性兜底**（见下表 8 条）。
+
+**技术栈硬约束**：SB4 + `spring-boot-starter-mail`（Jakarta Mail 2.x）。
+`commons-email` 1.5 与 `javax.mail` 在 Jakarta EE 10 下**包名已不存在，直接编译不过**——
+参考实现只能抄设计（配置入库、测试发送、连续 N 次、静默窗口、恢复通知），**不能抄代码**。
+
+段 8 落地时必须包含以下 8 条，**少一条就会出现「告警发了但没人看到」**：
+
+| # | 要点 | 为什么必须有 |
+|---|---|---|
+| 1 | **QQ 邮箱 SMTP**（`smtp.qq.com`，465/SSL 或 587/STARTTLS；凭据是**授权码**，不是登录密码） | 授权码属密钥，**必须走环境变量，不许进仓库、不许入库**（《后端代码规范》§九） |
+| 2 | **`spring-boot-starter-mail`**（Jakarta Mail 2.x） | SB4 配套；`commons-email` / `javax.mail` 在 Jakarta EE 10 下编译不过。新增依赖要登记《依赖清单》 |
+| 3 | **连续 N 次才告警** | 单次抖动就发信会刷满邮箱；与「静默窗口」是**两层**过滤，不能互相替代 |
+| 4 | **恢复通知** | 只发「出事了」不发「好了」，运维无法判断是否已恢复 |
+| 5 | **暂停开关** | 出问题时的临时止血手段，不能靠改代码发版 |
+| 6 | **异步 + 三项超时 + 重试** | 同步发送且不设 `connectiontimeout` / `timeout` / `writetimeout` 会**永久挂死**告警线程（JavaMail 这三项默认无限） |
+| 7 | **发送结果落库**（如 `alert_record`） | SMTP 只保证「交付到对方服务器」，**不保证进收件箱**。不落库就无法回答「这条告警到底发出去没有」 |
+| 8 | **每日自检 + 本地降级** | 邮件可能进垃圾箱、可能被 QQ 限流（约 50 封/时、200 封/天，经验值）；且**失败是静默的**。必须每日发一封自检信，失败时降级写 `logs/alerts/` |
+
+**段 8 同时要收的尾**：`alert.dingtalk_webhook` / `alert.dingtalk_secret` 两键若最终确定不用，
+应新增一个迁移把它们删除或标记废弃——**本段不许改**（V703 已执行，且选型未定）。
 
 ---
 

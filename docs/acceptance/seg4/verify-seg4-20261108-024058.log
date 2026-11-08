@@ -1,0 +1,21 @@
+﻿── 探针（真实接口跑一遍）────────────────────────────────────────────
+复用上次探针结果（-UseCached）
+== 第 4 段验收（verify-seg4） 20261108-024058 ==
+仓库：E:\dshcode\FAZE
+API ：http://127.0.0.1:8081
+口径：本地存储（非 OSS）｜浏览器验收（非真机）｜4-A7 降级见 §零.5
+
+环境：faze-api=OK  MySQL=OK  simfang.ttf=OK
+
+
+── 结论 ────────────────────────────────────────────────────────────
+PASS  4-A1       PDF 生成                 status=generated；PDF 30407 字节；3 原告/2 被告/2 诉求/法院/日期全在；{{ 残留 0 处
+PASS  4-A2       PDF 版式与字体嵌入            PAGES 2；A4 595.28x841.89；未嵌入字体 0；边距 左90/右72/上95.14/下88.03 pt（左右按 90/72±2、上下按「不小于 70」判，理由见 4-A2.md）
+PASS  4-A3       PDF 文本层可选中可搜索          PDFTextStripper 抽出 523 字符，含全部当事人/法院名；第 1 页图片对象 0（正文非贴图）
+PASS  4-A4       模板热更新不改历史文书            H1=ff5ae73fe7f6… == H2；H3=da9f3ae2d38e… != H1；模板 v5→v6，旧行 inactive / 新行 active；重新生成后 template_version=6
+PASS  4-A5       签名位置（≤4mm）             实测量得 x=390 y=711 w=102 h=37 pt，预期（按笔迹解析算）x=390 y=712.5 w=100 h=35，最大偏差 2.00 pt ≤ 11.34pt（4mm）；该区域原本 UNSIGNED-INK-PIXELS=0
+PASS  4-A6       文书溯源元数据                5 个 Faze-* 字段齐全且值正确（id=36、code=LAWSUIT-001、version=5、Generated-At 带时区、Generator=法泽文书中心 v1.0）；AIGenerated/Faze-Content-Type 均为 0 处
+PASS  4-A7       后处理链（浏览器口径）            ①列表首条是本单据 ②真实下载 30407 字节 PDF ③export expiresIn=60 且 61s 后 403 ⑦两页无交集 ⑧按类型筛选仅诉讼文书；④分享降级 ⑥打印触发 ⑤存相册留段 8（浏览器证据 4-A7-browser.json）
+PASS  4-A8       失败不留半成品                基线 documentId=40 status=generated ｜ [占位符不匹配] failed / keys NULL / last_error=406002: 表单校验失败 —— 模板引用了未定义的字段：not_in_schema / TEMP 13→13 / file_record 2→2 ｜ [非法 XHTML] failed / keys NULL / last_error=406002: 表单校验失败 —— 模板不是合法 XHTML：第 35 行第 7 列 —— 元素类型 "br" 必须由匹配的结束标记 "</br>" 终止。 / TEMP 13→13 / file_record 2→2 ｜ 恢复后重试 status=generated
+
+合计：8/8 通过

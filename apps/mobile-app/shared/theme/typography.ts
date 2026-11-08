@@ -1,5 +1,7 @@
 import type { TextStyle } from 'react-native';
 
+import type { Lang } from '@/shared/i18n/lang';
+
 import { fontSize, fontWeight, lineHeight } from './tokens';
 
 /**
@@ -80,3 +82,25 @@ export const typography = {
     lineHeight: Math.round(fontSize.bodyLarge * lineHeight.loose),
   } satisfies TextStyle,
 } as const;
+
+/**
+ * 按语言给出行高（dp）。
+ *
+ * 依据：i18n 规范 §7.2——藏文 `lineHeight ≥ 1.6 × fontSize`；阿拉伯系需要更大的行距
+ * 才能容纳上下延伸的字形；混排取两字体要求里**更大**的那个。
+ *
+ * 为什么做成函数而不是常量：行高依赖字号，页面里手算 `size * 1.6` 迟早算错一处。
+ *
+ * @param lang 当前语言
+ * @param size 字号（dp）
+ * @returns 取整后的行高（dp）
+ */
+export function lineHeightFor(lang: Lang, size: number): number {
+  if (lang === 'bo') {
+    return Math.round(size * 1.6);
+  }
+  if (lang === 'ug-Arab-CN' || lang === 'kk-Arab-CN') {
+    return Math.round(size * 1.8);
+  }
+  return Math.round(size * lineHeight.normal);
+}

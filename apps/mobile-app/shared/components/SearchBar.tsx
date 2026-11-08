@@ -1,13 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import {
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-  type StyleProp,
-  type ViewStyle,
-} from 'react-native';
+import { LocalizedText } from './LocalizedText';
+import { Pressable, StyleSheet, TextInput, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { color, radius, size, spacing, typography } from '@/shared/theme';
 
@@ -26,6 +19,7 @@ import { color, radius, size, spacing, typography } from '@/shared/theme';
  * @param editable 是否可输入，默认 `false`
  * @param value 受控值，仅在可输入态使用
  * @param onChangeText 输入回调，仅在可输入态使用
+ * @param onSubmit 按下键盘「搜索」键的回调，仅在可输入态使用
  * @param onPress 只读态的点击回调
  */
 export function SearchBar({
@@ -33,6 +27,7 @@ export function SearchBar({
   editable = false,
   value,
   onChangeText,
+  onSubmit,
   onPress,
   style,
 }: {
@@ -40,6 +35,7 @@ export function SearchBar({
   editable?: boolean;
   value?: string;
   onChangeText?: (text: string) => void;
+  onSubmit?: () => void;
   onPress?: () => void;
   style?: StyleProp<ViewStyle>;
 }) {
@@ -57,9 +53,9 @@ export function SearchBar({
         accessibilityLabel={placeholder}
       >
         <Ionicons name="search" size={16} color={color.text.muted} />
-        <Text style={styles.placeholder} numberOfLines={1}>
+        <LocalizedText style={styles.placeholder} numberOfLines={1}>
           {placeholder}
-        </Text>
+        </LocalizedText>
       </Pressable>
     );
   }
@@ -74,6 +70,7 @@ export function SearchBar({
         placeholder={placeholder}
         placeholderTextColor={color.text.muted}
         returnKeyType="search"
+        onSubmitEditing={onSubmit}
       />
     </View>
   );
@@ -104,14 +101,14 @@ const styles = StyleSheet.create({
   placeholder: {
     ...typography.body,
     flex: 1,
-    marginLeft: spacing.sm,
+    marginStart: spacing.sm,
     color: color.text.muted,
   },
   input: {
     ...typography.body,
     flex: 1,
     height: size.inputHeight - 6,
-    marginLeft: spacing.sm,
+    marginStart: spacing.sm,
     color: color.text.body,
     paddingVertical: 0,
   },

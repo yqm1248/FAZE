@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  balance_flow 的聚合查询（第 1 段 D1 起；第 1 段 F3 追加 A-07 / A-09 用的三个聚合）
+  职责：按归属方 / 业务类型汇总流水净额，作为余额的**唯一权威来源**
+  调用方：com.faze.modules.trade.mapper.BalanceFlowMapper
+          （sumDeltaByOwner / sumDeltaByOwnerAndBizType / selectLastFlowTime / selectOwnerSums）
+  数据来源：MySQL faze.balance_flow（B 追加型，只插入）
+  注意事项：
+    1. 全部参数用 #{}，禁用 ${}（后端规范 §8.2）
+    2. COALESCE(...,0)：无流水时返回 0 而不是 NULL，避免调用方到处判空
+    3. 走 idx_flow_owner_time(owner_type, owner_id, created_at) 的最左前缀，
+       不要在这里加 ORDER BY / LIMIT，聚合不该带排序
+    4. **这条 SQL 就是「余额」的定义**：user_balance.balance_cents 只是它的缓存。
+       改这条 SQL 等于改账，评审必须逐字看（锚点 1-A6）
+    5. selectOwnerSums 对账用：GROUP BY 后与 user_balance / lawyer_balance 的
+       「可用 + 冻结」逐行比对（与 deploy/verify-balance.ps1 同一恒等式）
+-->
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.faze.modules.trade.mapper.BalanceFlowMapper">
+
+    <!--
+      按归属方汇总流水净额（分）。
+      delta_cents 为 0 的行是冻结/解冻的转移记录，加 0 不影响结果，天然兼容。
+    -->
+    <select id="sumDeltaByOwner" resultType="java.lang.Long">
+        SELECT COALESCE(SUM(delta_cents), 0)
+        FROM balance_flow
+        WHERE owner_type = #{ownerType}
+          AND owner_id = #{ownerId}
+    </select>
+
+    <!-- 按归属方 + 业务类型汇总（A-07 钱包页的累计充值 / 累计消费） -->
+    <select id="sumDeltaByOwnerAndBizType" resultType="java.lang.Long">
+        SELECT COALESCE(SUM(delta_cents), 0)
+        FROM balance_flow
+        WHERE owner_type = #{ownerType}
+          AND owner_id = #{ownerId}
+          AND biz_type = #{bizType}
+    </select>
+
+    <!-- 最近一条流水时间（A-07 的 lastFlowAt）；无流水返回 NULL，由 Service 转 null -->
+    <select id="selectLastFlowTime" resultType="java.time.LocalDateTime">
+        SELECT MAX(created_at)
+        FROM balance_flow
+        WHERE owner_type = #{ownerType}
+          AND owner_id = #{ownerId}
+    </select>
+
+    <!-- 全量按归属方汇总（A-09 对账：一次查询拿全部 owner 的流水净额） -->
+    <select id="selectOwnerSums" resultType="com.faze.modules.trade.mapper.OwnerFlowSum">
+        SELECT owner_type AS owner_type,
+               owner_id   AS owner_id,
+               COALESCE(SUM(delta_cents), 0) AS sum_cents
+        FROM balance_flow
+        GROUP BY owner_type, owner_id
+    </select>
+
+    <!--
+      段 5 E4：某律师在 [beginAt, endAt) 内的 income 流水净额。
+      区间由 Service 按东八区账期换算成 UTC 后传入——SQL 里做时区换算会废掉
+      idx_flow_owner_time 的可用性，且 MySQL 的 CONVERT_TZ 依赖时区表是否装载。
+      结算页的「应结金额」口径就是这条 SQL，不是 orders 重算（5-A4 的三列对照里它是 SQL 列）。
+    -->
+    <select id="sumIncomeByOwnerAndRange" resultType="java.lang.Long">
+        SELECT COALESCE(SUM(delta_cents), 0)
+        FROM balance_flow
+        WHERE owner_type = 'lawyer'
+          AND owner_id = #{ownerId}
+          AND biz_type = 'income'
+          AND created_at &gt;= #{beginAt}
+          AND created_at &lt; #{endAt}
+    </select>
+
+    <!--
+      段 5 E3：到期可解冻的 income 流水。
+      NOT EXISTS 判断是否已有对应的解冻流水（biz_id 指向 income.id），
+      这是「不给只追加表加标记列」的唯一正确做法（见 Mapper 方法注释）。
+
+      ⚠️ 解冻流水的 biz_type 是 `income_unfreeze`，**不是** `unfreeze`：
+      提现驳回回滚也用 `unfreeze`（biz_id=withdraw_record.id，5-A5 要求），
+      两个 biz_id 分属 income 与 withdraw_record 两张表的自增 id，**必然重叠**
+      （都从 1 开始），同 (owner_type, owner_id, biz_type, biz_id) 会撞 uk_flow_biz，
+      导致「提现驳回成功但某笔收入永远解冻不了」。这是计划文档 E0 的缺口，
+      段 5 施工裁决：按业务来源拆成两个 biz_type，语义也更清楚。
+
+      uk_flow_biz(owner_type, owner_id, 'income_unfreeze', income.id) 是并发下的最后一道兜底。
+    -->
+    <select id="selectDueUnfreezeIncomes" resultType="com.faze.modules.trade.entity.BalanceFlow">
+        SELECT f.id,
+               f.owner_type,
+               f.owner_id,
+               f.biz_type,
+               f.biz_id,
+               f.delta_cents,
+               f.balance_after,
+               f.frozen_until,
+               f.remark,
+               f.created_at
+        FROM balance_flow f
+        WHERE f.owner_type = 'lawyer'
+          AND f.biz_type = 'income'
+          AND f.frozen_until IS NOT NULL
+          AND f.frozen_until &lt;= #{now}
+          AND NOT EXISTS (
+              SELECT 1
+              FROM balance_flow u
+              WHERE u.owner_type = 'lawyer'
+                AND u.biz_type = 'income_unfreeze'
+                AND u.biz_id = f.id
+          )
+        ORDER BY f.id
+        LIMIT #{limit}
+    </select>
+</mapper>

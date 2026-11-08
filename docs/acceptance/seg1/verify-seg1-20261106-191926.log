@@ -1,0 +1,83 @@
+﻿
+===== 1. 环境自检 =====
+  [OK]   MySQL:3306
+  [OK]   Redis:6379
+  [OK]   PC 后端 RuoYi:8080
+  [OK]   业务 API:8081
+  [OK]   PC 前端:80
+
+===== 2. 后端测试 mvn test =====
+  [INFO] Tests run: 54, Failures: 0, Errors: 0, Skipped: 0
+  完整日志：E:\dshcode\FAZE\logs\verify-seg1-mvn-test.log
+  [OK]   mvn test
+
+===== 3. 对账恒等式 verify-balance.ps1 =====
+  [OK]   verify-balance.ps1（退出码 0 = 差异 0）
+
+===== 4. 管理端接口复核 verify-admin-api.mjs =====
+  RuoYi token 已取到（长度 203）
+  
+  PASS  AUTH-1  管理端无 token → HTTP200 + code401  [HTTP 200 code=401]  
+  PASS  AUTH-2  管理端带 RuoYi token → 200  [HTTP 200 code=200]  
+  PASS  A-03-1  用户列表 rows/total  [HTTP 200 code=200]  
+  PASS  A-03-2  行字段冻结集（大写枚举 + 脱敏 + 金额数字）  [HTTP 200 code=200]  
+  PASS  A-03-3  用户详情  [HTTP 200 code=200]  
+  PASS  A-04-1  实名+企业合并队列 rows/total  [HTTP 200 code=200]  
+  PASS  A-04-2  行含 type 与脱敏字段  [HTTP 200 code=200]  
+  PASS  A-05-1  待审队列 rows/total  [HTTP 200 code=200]  
+  SKIP  A-05-2  四步详情 + 审核流水  [待审队列为空（库里没有 pending 的入驻申请），无法验证详情接口；先造一条申请再跑]
+  PASS  A-06-1  律师列表 rows/total  [HTTP 200 code=200]  
+  PASS  A-06-2  律师详情  [HTTP 200 code=200]  
+  PASS  A-07-1  钱包概览（余额来自流水汇总）  [HTTP 200 code=200]  balanceCents=39316
+  PASS  A-07-2  充值 1 分成功  [HTTP 200 code=200]  
+  PASS  A-07-3  同幂等键重放 → duplicated=true  [HTTP 200 code=200]  
+  PASS  A-07-4  幂等不重复入账（余额相等）  [HTTP 200 code=200]  
+  PASS  A-07-5  调账 delta=0 → 405006  [HTTP 200 code=405006]  
+  PASS  A-07-6  流水分页  [HTTP 200 code=200]  
+  PASS  A-08-1  参数列表  [HTTP 200 code=200]  
+  PASS  A-08-2  editable 是 boolean  [HTTP 200 code=200]  共 12 项
+  PASS  A-08-3  keys 过滤  [HTTP 200 code=200]  
+  PASS  A-09-1  巡检摘要  [HTTP 200 code=200]  checked=2 diffOwners=0
+  PASS  A-09-2  差异列表  [HTTP 200 code=200]  
+  PASS  A-09-3  手动巡检  [HTTP 200 code=200]  
+  
+  ========== 管理端接口复核：22 通过 / 0 失败 / 1 跳过（共 23） ==========
+  跳过项（没有前置数据，**不算通过**）：
+   - A-05-2 四步详情 + 审核流水：待审队列为空（库里没有 pending 的入驻申请），无法验证详情接口；先造一条申请再跑
+  [OK]   管理端接口复核
+
+===== 5. 端到端验收 verify-e2e.js =====
+  [SKIP] 按参数跳过（锚点里依赖端到端的几条会显示 SKIP）
+
+===== 6. 前端错误态与重试证据（1-A9）=====
+  证据：7 页有错误态与重试记录，失败 0 页
+  [OK]   错误态 + 重试恢复
+
+===== 7. 数据库账号权限（operation_log 只追加）=====
+  [db-grants] mysql 客户端：C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe
+  [db-grants] 库：faze / 迁移账号：faze_migrate / 运行时账号：faze_app
+  [db-grants] 库级授权已清空（faze_app 只剩表级授权）
+  [db-grants] 表级授权覆盖全部 15 张表
+  [db-grants] operation_log 对 faze_app 只开放：INSERT, SELECT
+  [db-grants] faze_app 实测 UPDATE operation_log 被拒（1142 command denied）
+  [db-grants] faze_app 实测 UPDATE app_user 通过（业务表可写）
+  [db-grants] faze_app 实测 CREATE TABLE 被拒（运行时账号无 DDL）
+  [db-grants] 权限形态符合《审计与日志规范》：迁移与运行分离，operation_log 只追加。
+  完整输出：E:\dshcode\FAZE\logs\verify-seg1-grants.log
+  [OK]   迁移/运行账号分离 + operation_log 对 faze_app 只读可插入
+
+===== 8. 段 1 验收锚点（1-A1 ~ 1-A10）=====
+  SKIP  1-A1      端到端七步：注册→登录→我的→忘记密码→新密码登录→有余额拒注销→清余额注销→同号重注册
+  SKIP  1-A2      端到端：上传→实名提交→PENDING→PC 队列（脱敏）→审核→APPROVED
+  SKIP  1-A3      端到端：四步入驻提交→PENDING→PC 审核→APPROVED→profile 律师状态联动
+  SKIP  1-A4      端到端：PC 充值 100 元→App 余额 10000 分→流水 1 条；幂等由 A-07-3/4 另验
+  PASS  1-A5      后端集成测试 PayPasswordLockTest（端到端 1A5-* 另验响应头与锁定期）
+  PASS  1-A6      后端集成测试 BalanceSourceOfTruthTest + 端到端 profile.balanceCents 走流水口径
+  PASS  1-A7      verify-balance.ps1 + A-09 对账页
+  PASS  1-A8      后端集成测试 DeductServiceTest（含 10 线程并发）
+  PASS  1-A9      四态：正常/空态见 G5-states/，错误态与「点重试能恢复」见 G5-states/error-states/（真 RTL 仍无法在浏览器验，单列挂账）
+  PASS  1-A10     端到端：未成年不填监护人 402009 → 填了能注册（且验证码不被浪费）
+
+可自动判定的检查：全部通过
+有锚点显示 SKIP：本次用了 -SkipTests / -SkipE2E，或缺少对应证据文件。SKIP 不算通过。
+本段能否收口：还不可以（见上面的 PARTIAL / SKIP 说明）

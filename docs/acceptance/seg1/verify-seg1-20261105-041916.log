@@ -1,0 +1,97 @@
+﻿
+===== 1. 环境自检 =====
+  [OK]   MySQL:3306
+  [OK]   Redis:6379
+  [OK]   PC 后端 RuoYi:8080
+  [OK]   业务 API:8081
+  [OK]   PC 前端:80
+
+===== 2. 后端测试 mvn test =====
+  [INFO] Tests run: 48, Failures: 0, Errors: 0, Skipped: 0
+  完整日志：E:\dshcode\FAZE\logs\verify-seg1-mvn-test.log
+  [OK]   mvn test
+
+===== 3. 对账恒等式 verify-balance.ps1 =====
+  [OK]   verify-balance.ps1（退出码 0 = 差异 0）
+
+===== 4. 管理端接口复核 verify-admin-api.mjs =====
+  RuoYi token 已取到（长度 203）
+  
+  PASS  AUTH-1  管理端无 token → HTTP200 + code401  [HTTP 200 code=401]  
+  FAIL  AUTH-2  管理端带 RuoYi token → 200  [HTTP 200 code=401]  
+         ↳ {"code":401,"data":null,"msg":"登录状态已过期","traceId":"2be0945e-a814-4f23-b47b-6811cc0dc1dc"}
+  FAIL  A-03-1  用户列表 rows/total  [HTTP 200 code=401]  
+         ↳ {"code":401,"data":null,"msg":"登录状态已过期","traceId":"d268c9c9-30e0-456a-ba8c-ea22c9ae91c5"}
+  PASS  A-03-2  行字段冻结集（大写枚举 + 脱敏 + 金额数字）  [HTTP 200 code=401]  
+  FAIL  A-04-1  实名+企业合并队列 rows/total  [HTTP 200 code=401]  
+         ↳ {"code":401,"data":null,"msg":"登录状态已过期","traceId":"96347d69-c517-448f-b0ab-a315c4b962c9"}
+  PASS  A-04-2  行含 type 与脱敏字段  [HTTP 200 code=401]  
+  FAIL  A-05-1  待审队列 rows/total  [HTTP 200 code=401]  
+         ↳ {"code":401,"data":null,"msg":"登录状态已过期","traceId":"6d608e02-0af0-4eef-944b-d81092fe5410"}
+  FAIL  A-06-1  律师列表 rows/total  [HTTP 200 code=401]  
+         ↳ {"code":401,"data":null,"msg":"登录状态已过期","traceId":"8aaf5d8c-fd2c-4e6c-a26a-79016446fb61"}
+  FAIL  A-07-1  钱包概览（余额来自流水汇总）  [HTTP 200 code=401]  balanceCents=undefined
+         ↳ {"code":401,"data":null,"msg":"登录状态已过期","traceId":"3700ac7b-d42e-4293-b7f0-168ce1d61079"}
+  FAIL  A-07-2  充值 1 分成功  [HTTP 200 code=401]  
+         ↳ {"code":401,"data":null,"msg":"登录状态已过期","traceId":"76ad90f5-5080-4b37-8351-81a712f7f4a4"}
+  FAIL  A-07-3  同幂等键重放 → duplicated=true  [HTTP 200 code=401]  
+         ↳ {"code":401,"data":null,"msg":"登录状态已过期","traceId":"0cec8d5a-a613-4070-acaa-5cef552b32bb"}
+  PASS  A-07-4  幂等不重复入账（余额相等）  [HTTP 200 code=401]  
+  FAIL  A-07-5  调账 delta=0 → 405006  [HTTP 200 code=401]  
+         ↳ {"code":401,"data":null,"msg":"登录状态已过期","traceId":"5fbe4bbb-ec25-487a-863f-384e9db9cd55"}
+  FAIL  A-07-6  流水分页  [HTTP 200 code=401]  
+         ↳ {"code":401,"data":null,"msg":"登录状态已过期","traceId":"a5167558-d638-4d6d-abde-0da8d2ddf455"}
+  FAIL  A-08-1  参数列表  [HTTP 200 code=401]  
+         ↳ {"code":401,"data":null,"msg":"登录状态已过期","traceId":"5abc7eb8-4f4b-40c8-8626-4d84fac20081"}
+  PASS  A-08-2  editable 是 boolean  [HTTP 200 code=401]  共 undefined 项
+  FAIL  A-08-3  keys 过滤  [HTTP 200 code=401]  
+         ↳ {"code":401,"data":null,"msg":"登录状态已过期","traceId":"417df337-be45-4780-9532-e0fd6ef17106"}
+  FAIL  A-09-1  巡检摘要  [HTTP 200 code=401]  checked=undefined diffOwners=undefined
+         ↳ {"code":401,"data":null,"msg":"登录状态已过期","traceId":"fb55be3f-934b-4d81-8e94-5a063ea5c7fb"}
+  FAIL  A-09-2  差异列表  [HTTP 200 code=401]  
+         ↳ {"code":401,"data":null,"msg":"登录状态已过期","traceId":"bad72b95-39c6-4798-a2f8-ccaec90c80ce"}
+  FAIL  A-09-3  手动巡检  [HTTP 200 code=401]  
+         ↳ {"code":401,"data":null,"msg":"登录状态已过期","traceId":"f7a03ea1-3048-47f4-a0af-93127201763e"}
+  
+  ========== 管理端接口复核：5/20 通过 ==========
+  失败项：
+   - AUTH-2 管理端带 RuoYi token → 200 [HTTP 200 code=401]
+   - A-03-1 用户列表 rows/total [HTTP 200 code=401]
+   - A-04-1 实名+企业合并队列 rows/total [HTTP 200 code=401]
+   - A-05-1 待审队列 rows/total [HTTP 200 code=401]
+   - A-06-1 律师列表 rows/total [HTTP 200 code=401]
+   - A-07-1 钱包概览（余额来自流水汇总） [HTTP 200 code=401]
+   - A-07-2 充值 1 分成功 [HTTP 200 code=401]
+   - A-07-3 同幂等键重放 → duplicated=true [HTTP 200 code=401]
+   - A-07-5 调账 delta=0 → 405006 [HTTP 200 code=401]
+   - A-07-6 流水分页 [HTTP 200 code=401]
+   - A-08-1 参数列表 [HTTP 200 code=401]
+   - A-08-3 keys 过滤 [HTTP 200 code=401]
+   - A-09-1 巡检摘要 [HTTP 200 code=401]
+   - A-09-2 差异列表 [HTTP 200 code=401]
+   - A-09-3 手动巡检 [HTTP 200 code=401]
+  [FAIL] 管理端 23 项接口复核
+
+===== 5. 端到端验收 verify-e2e.js =====
+  端到端 38/38 通过
+  [OK]   端到端验收（退出码 0）
+  完整日志：E:\dshcode\FAZE\logs\verify-seg1-e2e.log
+
+===== 6. 前端错误态与重试证据（1-A9）=====
+  证据：7 页有错误态与重试记录，失败 0 页
+  [OK]   错误态 + 重试恢复
+
+===== 7. 段 1 验收锚点（1-A1 ~ 1-A10）=====
+  PASS  1-A1      端到端七步：注册→登录→我的→忘记密码→新密码登录→有余额拒注销→清余额注销→同号重注册
+  PASS  1-A2      端到端：上传→实名提交→PENDING→PC 队列（脱敏）→审核→APPROVED
+  PASS  1-A3      端到端：四步入驻提交→PENDING→PC 审核→APPROVED→profile 律师状态联动
+  PASS  1-A4      端到端：PC 充值 100 元→App 余额 10000 分→流水 1 条；幂等由 A-07-3/4 另验
+  PASS  1-A5      后端集成测试 PayPasswordLockTest（端到端 1A5-* 另验响应头与锁定期）
+  PASS  1-A6      后端集成测试 BalanceSourceOfTruthTest + 端到端 profile.balanceCents 走流水口径
+  PASS  1-A7      verify-balance.ps1 + A-09 对账页
+  PASS  1-A8      后端集成测试 DeductServiceTest（含 10 线程并发）
+  PASS  1-A9      四态：正常/空态见 G5-states/，错误态与「点重试能恢复」见 G5-states/error-states/（真 RTL 仍无法在浏览器验，单列挂账）
+  PASS  1-A10     端到端：未成年不填监护人 402009 → 填了能注册（且验证码不被浪费）
+
+可自动判定的检查：有失败项
+本段能否收口：还不可以（见上面的 PARTIAL / SKIP 说明）

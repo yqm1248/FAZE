@@ -1,0 +1,259 @@
+﻿=== 段 5 表结构证据（A1-schema） ===
+# 导出时间：2026-11-08 17:52 (Asia/Shanghai)
+# 来源：MySQL 8.0.44 / 库 faze / SHOW CREATE TABLE 原样输出（--raw，换行未转义）
+# 用途：《第 5 段工作流》§5.5 要求的 A1-schema.txt —— 段 5 建表与补字段的物证
+
+flyway_schema_history 最新 success 记录 = 510 / seg5 case library and recon fix
+
+──────────────────────────────────────────────────────────────
+### legal_case
+──────────────────────────────────────────────────────────────
+legal_case	CREATE TABLE `legal_case` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `case_no` varchar(32) NOT NULL COMMENT '平台案件单号 CS+yyyyMMdd+6位，对外唯一标识（无分隔符）',
+  `user_id` bigint NOT NULL COMMENT '委托人 user_id（归属校验依据，禁止从请求体取）',
+  `lawyer_id` bigint DEFAULT NULL COMMENT '承办律师 lawyer.id；未分配为 NULL',
+  `title` varchar(200) DEFAULT NULL COMMENT '案件标题（用户填写的简述）',
+  `case_type` varchar(30) DEFAULT NULL COMMENT '案件类型 5 类：civil/criminal/administrative/labor/family',
+  `description` text COMMENT '案情陈述（与 form_snapshot 不同：这里是摘要，快照是原始表单）',
+  `evidence_urls` json DEFAULT NULL COMMENT '证据文件 file_record 的 key 数组',
+  `status` varchar(20) NOT NULL DEFAULT 'filed' COMMENT 'filed 待立案审核 / accepted 立案中 / in_progress 审理中 / closed 已结案 / rejected 已驳回',
+  `court_name` varchar(100) DEFAULT NULL COMMENT '管辖法院名称',
+  `court_case_no` varchar(64) DEFAULT NULL COMMENT '法院案号（受理后由律师登记）；与平台单号 case_no 是两回事，APP 不展示',
+  `form_snapshot` json DEFAULT NULL COMMENT '立案四步的原始表单快照（PC 立案审核逐字段看，生成后不随页面改动）',
+  `reject_reason` varchar(500) DEFAULT NULL COMMENT '立案审核驳回理由（status=rejected 时必填）',
+  `amount_cents` bigint DEFAULT NULL COMMENT '争议金额（分）；NULL 表示未填',
+  `created_at` datetime NOT NULL COMMENT '创建时间（UTC，应用层填）',
+  `updated_at` datetime NOT NULL COMMENT '更新时间（UTC，应用层填）',
+  `deleted_at` datetime DEFAULT NULL COMMENT '软删时间（UTC）；C 类表必须有，NULL 表示未删',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_legal_case_no` (`case_no`),
+  KEY `idx_legal_case_user` (`user_id`),
+  KEY `idx_legal_case_lawyer` (`lawyer_id`),
+  KEY `idx_legal_case_status` (`status`,`created_at`)
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='案件主表；状态 5 态由服务端状态机校验（客户端只发意图）；单号 CS 应用层生成'
+
+──────────────────────────────────────────────────────────────
+### case_progress
+──────────────────────────────────────────────────────────────
+case_progress	CREATE TABLE `case_progress` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `case_id` bigint NOT NULL COMMENT 'legal_case.id',
+  `step` int NOT NULL COMMENT '顺序号，从 1 起；同一案件唯一',
+  `node_code` varchar(30) NOT NULL COMMENT '节点编码 submitted/review/accepted/supplement/hearing/judgment/effective/closed',
+  `title` varchar(100) NOT NULL COMMENT '节点标题（展示用，可由 node_code 取 i18n，但保留一列防历史文案随版本漂移）',
+  `description` text COMMENT '节点说明',
+  `operator_id` bigint DEFAULT NULL COMMENT '操作人 app_user.id；系统自动节点为 NULL',
+  `operator_role` varchar(20) DEFAULT NULL COMMENT '操作人角色 user/lawyer/admin/system',
+  `created_at` datetime NOT NULL COMMENT '发生时间（UTC，应用层填）',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_progress_case_step` (`case_id`,`step`),
+  KEY `idx_progress_case` (`case_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='案件进度节点，只追加；本表即案件状态迁移日志（不另建 case_status_log）'
+
+──────────────────────────────────────────────────────────────
+### case_delivery
+──────────────────────────────────────────────────────────────
+case_delivery	CREATE TABLE `case_delivery` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `case_id` bigint NOT NULL COMMENT 'legal_case.id',
+  `document_id` bigint NOT NULL COMMENT 'document.id（该文书必须已生成 PDF，否则不允许送达）',
+  `user_id` bigint NOT NULL COMMENT '收件人 user_id（冗余一列：按用户查送达列表时不必 join legal_case）',
+  `method` varchar(20) NOT NULL COMMENT 'platform 平台内电子送达 / sms_pickup 短信通知自行查看 / mail 邮寄纸质',
+  `sent_at` datetime NOT NULL COMMENT '发起送达时间（UTC）；送达时间即证据',
+  `signed_at` datetime DEFAULT NULL COMMENT '签收时间（UTC）；未签收为 NULL',
+  `receipt_no` varchar(32) NOT NULL COMMENT '回执号 SD+yyyyMMdd+6位，发起送达时即生成（唯一）',
+  `sign_device` varchar(100) DEFAULT NULL COMMENT '签收设备（型号 + OS），签收时写入',
+  `ip` varchar(45) DEFAULT NULL COMMENT '签收 IP（VARCHAR(45) 兼容 IPv6）',
+  `status` varchar(20) NOT NULL DEFAULT 'pending' COMMENT 'pending 待签收 / signed 已签收',
+  `created_at` datetime NOT NULL COMMENT '创建时间（UTC，应用层填）',
+  `updated_at` datetime NOT NULL COMMENT '更新时间（UTC，应用层填）',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_delivery_receipt` (`receipt_no`),
+  KEY `idx_delivery_user` (`user_id`,`status`,`sent_at`),
+  KEY `idx_delivery_case` (`case_id`),
+  KEY `idx_delivery_doc` (`document_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='文书送达记录；只送平台自有文书，不做法院转达；回执号是平台凭证'
+
+──────────────────────────────────────────────────────────────
+### case_library
+──────────────────────────────────────────────────────────────
+case_library	CREATE TABLE `case_library` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `case_no` varchar(50) NOT NULL COMMENT '平台案例编号 CL+yyyyMMdd+6位，对外唯一标识',
+  `court_case_no` varchar(64) DEFAULT NULL COMMENT '法院案号，只供后台内部核对，APP 不展示',
+  `title` varchar(200) NOT NULL COMMENT '案例标题（简体中文源语言）',
+  `plaintiff_name` varchar(50) DEFAULT NULL COMMENT '原告（脱敏姓名，如 张*；段 5 G1 补：A-16 列表要显示当事人）',
+  `defendant_name` varchar(50) DEFAULT NULL COMMENT '被告（脱敏姓名，如 李*；段 5 G1 补）',
+  `court_name` varchar(100) DEFAULT NULL COMMENT '审理法院',
+  `case_type` varchar(30) DEFAULT NULL COMMENT '大类 3 值：civil 民事 / administrative 行政 / criminal 刑事（App 列表按它分组）',
+  `category` varchar(30) DEFAULT NULL COMMENT '细分 6 值：marriage/labor/contract/traffic/criminal/policy（PC 筛选用）',
+  `judgment_date` date DEFAULT NULL COMMENT '裁判日期',
+  `keywords` varchar(500) DEFAULT NULL COMMENT '关键词标签（逗号分隔）',
+  `summary` text COMMENT '案情简介',
+  `dispute_focus` text COMMENT '争议焦点（段 5 G1 补：详情页四个正文块之一）',
+  `judgment` text COMMENT '裁判结果',
+  `insight` text COMMENT '案例启示',
+  `law_refs` json DEFAULT NULL COMMENT '关联法条：[{"lawName","articleNo","lawItemId"}]，条号须经 ArticleNoValidator 校验',
+  `source` varchar(100) DEFAULT NULL COMMENT '案例来源（脱敏后的出处说明）',
+  `view_count` int NOT NULL DEFAULT '0' COMMENT '浏览量',
+  `status` varchar(20) NOT NULL DEFAULT 'draft' COMMENT 'draft 草稿 / published 已上线 / offline 已下架',
+  `published_at` datetime DEFAULT NULL COMMENT '上线时间（UTC）',
+  `source_updated_at` datetime NOT NULL COMMENT '源内容最后更新时间（UTC）；译文过期告警依据（译文更早于它就提示过期）',
+  `created_at` datetime NOT NULL COMMENT '创建时间（UTC，应用层填）',
+  `updated_at` datetime NOT NULL COMMENT '更新时间（UTC，应用层填）',
+  `deleted_at` datetime DEFAULT NULL COMMENT '软删时间（UTC）；已上线案例不能直删，须先下架',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_case_library_no` (`case_no`),
+  KEY `idx_caselib_type` (`case_type`,`status`),
+  KEY `idx_caselib_pub` (`status`,`published_at`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='案例库主表，存简体中文源内容；译文见 case_library_translation；court_case_no 不对 App 展示'
+
+──────────────────────────────────────────────────────────────
+### case_library_translation
+──────────────────────────────────────────────────────────────
+case_library_translation	CREATE TABLE `case_library_translation` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `case_id` bigint NOT NULL COMMENT 'case_library.id',
+  `lang` varchar(20) NOT NULL COMMENT '语言：zh-Hans / ug-Arab-CN / bo / kk-Arab-CN（源语言 zh-Hans 存主表，本表只存译文）',
+  `title` varchar(200) DEFAULT NULL COMMENT '译文标题',
+  `summary` text COMMENT '译文案情简介',
+  `dispute_focus` text COMMENT '译文的争议焦点（段 5 G1 补：四块正文要一起切语言）',
+  `judgment` text COMMENT '译文裁判结果',
+  `insight` text COMMENT '译文案例启示',
+  `status` varchar(20) NOT NULL DEFAULT 'draft' COMMENT 'draft 草稿 / reviewed 已校对 / published 已发布',
+  `translator` varchar(100) DEFAULT NULL COMMENT '译者（人工校对时填）',
+  `translation_engine` varchar(50) DEFAULT NULL COMMENT '翻译引擎标识（机翻时填，便于区分人工/机翻）',
+  `translated_from` datetime DEFAULT NULL COMMENT '译文对应的源内容时间点（UTC）；早于主表 source_updated_at 即过期',
+  `created_at` datetime NOT NULL COMMENT '创建时间（UTC，应用层填）',
+  `updated_at` datetime NOT NULL COMMENT '更新时间（UTC，应用层填）',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_case_trans` (`case_id`,`lang`),
+  KEY `idx_case_trans_lang` (`lang`,`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='案例译文；与主表 case_library 是 1:N（每条案例每种语言至多一条译文）'
+
+──────────────────────────────────────────────────────────────
+### withdraw_record
+──────────────────────────────────────────────────────────────
+withdraw_record	CREATE TABLE `withdraw_record` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `withdraw_no` varchar(32) NOT NULL COMMENT '业务单号 WD+yyyyMMdd+6位，对外只暴露它（无分隔符）',
+  `lawyer_id` bigint NOT NULL COMMENT 'lawyer.id（归属校验依据）',
+  `amount_cents` bigint NOT NULL COMMENT '申请金额（分）',
+  `fee_cents` bigint NOT NULL DEFAULT '0' COMMENT '提现手续费 = floor(申请金额 × 0.6%)；10 分时记 0',
+  `actual_cents` bigint NOT NULL DEFAULT '0' COMMENT '实际到账 = 申请金额 − 手续费（分）',
+  `channel` varchar(20) DEFAULT NULL COMMENT 'wechat / alipay / bank / offline',
+  `bank_name` varchar(50) DEFAULT NULL COMMENT '收款银行名称（列表展示用）',
+  `account_name` varchar(50) DEFAULT NULL COMMENT '收款人姓名',
+  `account_number` varchar(100) DEFAULT NULL COMMENT '完整收款账号（加密或仅内部使用，任何接口不返回完整值）',
+  `bank_account_tail` varchar(4) DEFAULT NULL COMMENT '卡号后 4 位，列表展示用',
+  `status` varchar(20) NOT NULL COMMENT 'applying 待审核 / approved 已通过 / rejected 已驳回 / paid 已出款',
+  `transaction_id` varchar(64) DEFAULT NULL COMMENT '渠道出款流水号',
+  `voucher_file_id` bigint DEFAULT NULL COMMENT '出款凭证 file_record.id（biz_type=withdraw）',
+  `audited_by` bigint DEFAULT NULL COMMENT '审核人 app_user.id（管理端）',
+  `audited_at` datetime DEFAULT NULL COMMENT '审核时间（UTC）',
+  `paid_at` datetime DEFAULT NULL COMMENT '出款完成时间（UTC）',
+  `reject_reason` varchar(500) DEFAULT NULL COMMENT '驳回理由（status=rejected 时必填）',
+  `created_at` datetime NOT NULL COMMENT '创建时间（UTC，应用层填）',
+  `updated_at` datetime NOT NULL COMMENT '更新时间（UTC，应用层填）',
+  `deleted_at` datetime DEFAULT NULL COMMENT '软删时间（UTC）',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_withdraw_no` (`withdraw_no`),
+  KEY `idx_withdraw_lawyer` (`lawyer_id`,`created_at`),
+  KEY `idx_withdraw_status` (`status`,`created_at`)
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='律师提现单；只记状态，动钱在 balance_flow（freeze/withdraw/unfreeze）；完整卡号不对任何接口返回'
+
+──────────────────────────────────────────────────────────────
+### lawyer_income_settlement
+──────────────────────────────────────────────────────────────
+lawyer_income_settlement	CREATE TABLE `lawyer_income_settlement` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `settlement_no` varchar(32) NOT NULL COMMENT '结算单号 JS+yyyyMMdd+6位（无分隔符）',
+  `lawyer_id` bigint NOT NULL COMMENT 'lawyer.id',
+  `period` varchar(7) NOT NULL COMMENT '账期 yyyy-MM',
+  `order_count` int NOT NULL DEFAULT '0' COMMENT '该账期完成订单数（来自 orders）',
+  `income_cents` bigint NOT NULL DEFAULT '0' COMMENT '订单收入合计（来自 orders.amount_cents）',
+  `fee_cents` bigint NOT NULL DEFAULT '0' COMMENT '平台服务费合计（来自 orders.platform_fee_cents）',
+  `settle_cents` bigint NOT NULL DEFAULT '0' COMMENT '应结金额 = income 净额 − fee（来自 balance_flow 的 income 流水净额，不是重算订单）',
+  `status` varchar(20) NOT NULL DEFAULT 'pending' COMMENT 'pending 待结算 / settled 已结算 / rejected 已驳回',
+  `settled_by` bigint DEFAULT NULL COMMENT '确认人 app_user.id（管理端）',
+  `settled_at` datetime DEFAULT NULL COMMENT '确认时间（UTC）',
+  `remark` varchar(500) DEFAULT NULL COMMENT '备注（驳回理由或人工说明）',
+  `created_at` datetime NOT NULL COMMENT '创建时间（UTC，应用层填）',
+  `updated_at` datetime NOT NULL COMMENT '更新时间（UTC，应用层填）',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_settlement_no` (`settlement_no`),
+  UNIQUE KEY `uk_settlement_lawyer_period` (`lawyer_id`,`period`),
+  KEY `idx_settlement_status` (`status`,`period`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='结算批次状态记录，非资金真相；确认只改状态，不动余额、不写流水'
+
+──────────────────────────────────────────────────────────────
+### reconciliation_diff
+──────────────────────────────────────────────────────────────
+reconciliation_diff	CREATE TABLE `reconciliation_diff` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `bill_date` date DEFAULT NULL COMMENT '账单日期（渠道对账用；恒等式差异为 NULL）',
+  `channel` varchar(20) DEFAULT NULL COMMENT '渠道 wechat / alipay / bank 等（恒等式差异为 NULL）',
+  `diff_type` varchar(30) NOT NULL COMMENT '差异类型：平台有渠道无 / 渠道有平台无 / 金额不一致 等',
+  `check_type` varchar(30) DEFAULT NULL COMMENT '巡检类型：identity_balance（缓存 vs 最后一条流水）/ identity_sum（缓存 vs 流水汇总）',
+  `biz_type` varchar(30) DEFAULT NULL COMMENT '差异主体类型：lawyer / user',
+  `biz_id` bigint DEFAULT NULL COMMENT '差异主体主键（lawyer.id / app_user.id）',
+  `expected_cents` bigint DEFAULT NULL COMMENT '按流水算出的应有余额（分）',
+  `actual_cents` bigint DEFAULT NULL COMMENT '缓存表里的实际余额（分）',
+  `diff_cents` bigint DEFAULT NULL COMMENT '差异额 = actual − expected（分）',
+  `found_at` datetime DEFAULT NULL COMMENT '发现时间（UTC）',
+  `channel_txn_id` varchar(64) DEFAULT NULL COMMENT '渠道流水号；无则为 NULL',
+  `recharge_id` bigint DEFAULT NULL COMMENT 'recharge_record.id（若差异关联充值单）',
+  `amount_cents` bigint DEFAULT NULL COMMENT '差异金额（分），可正可负',
+  `detail` json DEFAULT NULL COMMENT '原始差异明细（用于人工核对）',
+  `status` varchar(20) NOT NULL DEFAULT 'open' COMMENT 'open 待处理 / handled 已处理 / ignored 已忽略',
+  `handler_id` bigint DEFAULT NULL COMMENT '处理人 app_user.id',
+  `handle_note` varchar(500) DEFAULT NULL COMMENT '处理说明',
+  `handled_at` datetime DEFAULT NULL COMMENT '处理时间（UTC）',
+  `created_at` datetime NOT NULL COMMENT '创建时间（UTC，应用层填）',
+  `updated_at` datetime NOT NULL COMMENT '更新时间（UTC，应用层填）',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_diff_day_channel_txn_type` (`bill_date`,`channel`,`channel_txn_id`,`diff_type`),
+  KEY `idx_diff_date` (`bill_date`,`channel`,`status`),
+  KEY `idx_diff_status` (`status`,`created_at`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='对账差错工单；段 5 只写不展示（段 6 在 A-09 加「渠道对账」Tab）'
+
+──────────────────────────────────────────────────────────────
+### lawyer
+──────────────────────────────────────────────────────────────
+lawyer	CREATE TABLE `lawyer` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `user_id` bigint NOT NULL COMMENT '关联 app_user.id；一个用户最多一名律师',
+  `real_name` varchar(50) NOT NULL COMMENT '执业姓名',
+  `license_number` varchar(50) NOT NULL COMMENT '律师执业证号',
+  `license_image` varchar(500) DEFAULT NULL COMMENT '执业证影像 OSS key（私有桶）',
+  `law_firm` varchar(100) DEFAULT NULL COMMENT '执业律所',
+  `practice_years` int DEFAULT NULL COMMENT '执业年限',
+  `region` varchar(100) DEFAULT NULL COMMENT '执业地区',
+  `specialties` json DEFAULT NULL COMMENT '擅长领域，如 ["婚姻家事","合同纠纷"]',
+  `bio` text COMMENT '个人简介',
+  `avatar_url` varchar(500) DEFAULT NULL COMMENT '头像地址',
+  `consult_price_cents` bigint DEFAULT '0' COMMENT '图文咨询价格（分）',
+  `phone_price_cents` bigint DEFAULT '0' COMMENT '电话咨询价格（分）',
+  `document_price_cents` bigint DEFAULT '0' COMMENT '文书代写价格（分）',
+  `service_text_on` tinyint NOT NULL DEFAULT '1' COMMENT '图文咨询上架开关：1 上架 0 下架（v1.30 段 5）',
+  `service_phone_on` tinyint NOT NULL DEFAULT '1' COMMENT '电话咨询上架开关：1 上架 0 下架（v1.30 段 5）',
+  `service_doc_on` tinyint NOT NULL DEFAULT '1' COMMENT '文书代写上架开关：1 上架 0 下架（v1.30 段 5）',
+  `auto_accept` tinyint NOT NULL DEFAULT '0' COMMENT '自动接单开关：1 开 0 关（v1.30 段 5）',
+  `rating` decimal(2,1) DEFAULT '5.0' COMMENT '评分，0.0~5.0',
+  `review_count` int DEFAULT '0' COMMENT '评价数',
+  `order_count` int DEFAULT '0' COMMENT '累计接单数',
+  `online_status` varchar(20) DEFAULT 'offline' COMMENT 'online / busy / offline',
+  `audit_status` varchar(20) DEFAULT 'pending' COMMENT 'pending / approved / rejected',
+  `withdraw_bank_name` varchar(50) DEFAULT NULL COMMENT '提现收款开户行（v1.30 段 5）',
+  `withdraw_bank_account` varchar(100) DEFAULT NULL COMMENT '提现收款卡号（v1.30 段 5）；对外只返回尾 4 位',
+  `balance_cents` bigint DEFAULT '0' COMMENT '⚠️ 冗余缓存，权威是 lawyer_balance；段 5 起禁止读写本字段',
+  `created_at` datetime NOT NULL COMMENT '创建时间（UTC）',
+  `updated_at` datetime NOT NULL COMMENT '更新时间（UTC）',
+  `deleted_at` datetime DEFAULT NULL COMMENT '软删除时间（UTC）；NULL 表示未删除',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_lawyer_user` (`user_id`),
+  UNIQUE KEY `uk_lawyer_license` (`license_number`)
+) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='律师资料；余额权威在 lawyer_balance，balance_cents 仅历史缓存'
+
+

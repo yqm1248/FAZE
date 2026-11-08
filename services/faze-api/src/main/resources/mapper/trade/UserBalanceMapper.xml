@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  user_balance 的加锁查询（第 1 段 D3）
+  职责：扣费前把余额行锁住，避免「先查后改」的 TOCTOU
+  调用方：com.faze.modules.trade.mapper.UserBalanceMapper#selectByUserIdForUpdate
+  数据来源：MySQL faze.user_balance
+  注意事项：
+    1. 全部参数用 #{}，禁用 ${}（后端规范 §8.2）
+    2. FOR UPDATE 必须放在 XML 里，不用 Wrapper.last("FOR UPDATE")——
+       规范 §11.3 禁止 .last() 拼字符串，即使是常量也不开这个口子
+    3. 必须在事务内调用；事务外 FOR UPDATE 会立即释放锁，等于没锁
+    4. 锁顺序固定为 user_balance 单行：多个扣费并发时按行串行，不会死锁
+-->
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.faze.modules.trade.mapper.UserBalanceMapper">
+
+    <!--
+      按用户主键加行锁读取余额缓存。
+      resultType 用全类名 + map-underscore-to-camel-case 自动映射。
+    -->
+    <select id="selectByUserIdForUpdate" resultType="com.faze.modules.trade.entity.UserBalance">
+        SELECT id, user_id, balance_cents, frozen_cents, version, created_at, updated_at
+        FROM user_balance
+        WHERE user_id = #{userId}
+        FOR UPDATE
+    </select>
+</mapper>

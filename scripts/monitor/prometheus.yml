@@ -1,0 +1,56 @@
+# =============================================================================
+# 职责：本机 Prometheus 抓取/规则配置（第 7 段 G2）。
+# 调用方：scripts/monitor/start-monitor.ps1 以「本文件所在目录」为工作目录启动
+#         prometheus.exe --config.file=<本文件>；运维手册「监控启动与停止」一节。
+# 数据来源：faze-api 的 /actuator/prometheus（Micrometer，G1 由 T1 交付）。
+# 注意事项：
+#   1. **抓取端口是 8081，不是工作流 §三 G2 写的 8080**。本项目 8080 是 RuoYi
+#      （PC 后台后端），faze-api 在 8081（deploy/.env 的 FAZE_API_PORT=8081）。
+#      这是必须记录的偏差，见 docs/acceptance/seg7/7-A7-metrics.md。
+#   2. `rule_files` 里的文件名是**相对路径**，Prometheus 按「进程工作目录」解析，
+#      不是按配置文件所在目录。start-monitor.ps1 已把工作目录设为
+#      scripts/monitor/，所以这里才能只写文件名；手工启动 prometheus 时必须
+#      先 cd 到 scripts/monitor/，否则会报 "error loading rules"。
+#   3. 本段**不部署 Alertmanager**（工作流 G2 明写的取舍）：alerting 显式置空，
+#      告警结果由 G3 的自研推送器（T1 的 AlertDispatcher）轮询
+#      /api/v1/alerts 后走 webhook。所以这里看不到「通知」，只有 firing 状态。
+#   4. `/actuator/prometheus` 按工作流 G1 要求必须鉴权。Prometheus **无法携带
+#      会过期的 JWT**，因此要求 faze-api 侧对 127.0.0.1 放行（管理端点绑定
+#      127.0.0.1 即满足「仅本机」）。若 T1 最终改成 Bearer 鉴权，需要在下面
+#      job 里加 `authorization: {type: Bearer, credentials_file: ...}`，
+#      并把 token 放 tmp/monitor/scrape-token（不入库）。
+#   5. 端口冲突时改本文件 target 与 start-monitor.ps1 的 -ApiPort/-PromPort。
+# =============================================================================
+
+global:
+  scrape_interval: 15s          # 工作流 G2 规定 15s
+  evaluation_interval: 15s      # 告警规则求值间隔，与抓取对齐
+  external_labels:
+    env: local-dev
+    app: faze
+
+# 告警规则文件（相对 scripts/monitor/）
+rule_files:
+  - alert-rules.yml
+
+# 本段不部署 Alertmanager（工作流明确取舍，§三 G2 第 2 条）
+alerting:
+  alertmanagers: []
+
+scrape_configs:
+  # faze-api（Spring Boot 4 + Micrometer）
+  - job_name: faze-api
+    metrics_path: /actuator/prometheus
+    scrape_interval: 15s
+    scrape_timeout: 10s
+    static_configs:
+      - targets: ['127.0.0.1:8081']
+        labels:
+          service: faze-api
+
+  # Prometheus 自身指标：用于证明 Prometheus 正常在跑（7-A7 的旁证）
+  - job_name: prometheus
+    static_configs:
+      - targets: ['127.0.0.1:9090']
+        labels:
+          service: prometheus

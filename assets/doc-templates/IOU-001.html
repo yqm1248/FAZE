@@ -1,0 +1,42 @@
+<html>
+<head>
+<meta charset="utf-8" />
+<!-- 借条没有官方统一模板，要素依《中华人民共和国民法典》第六百六十七条
+     与最高人民法院关于审理民间借贷案件适用法律若干问题的规定拟定。
+     本模板不是官方文本，交付前需人工核对一次（见《第 4 段工作流》§六 R3）。 -->
+<style>
+@page { size: A4; margin: 72pt 72pt 72pt 90pt; }
+body { font-family: 'FangSong'; font-size: 16pt; line-height: 28pt; margin: 0; color: #000000; }
+h1 { font-size: 22pt; text-align: center; font-weight: bold; margin: 0 0 24pt 0; line-height: 32pt; }
+p { margin: 0 0 6pt 0; text-align: justify; }
+div.notice { margin: 0 0 12pt 0; font-size: 12pt; line-height: 20pt; text-align: center; }
+div.signature { margin-top: 36pt; line-height: 28pt; }
+</style>
+</head>
+<body>
+<h1>借　　条</h1>
+<div class="notice">（非官方文本，由法泽拟定，仅供参考）</div>
+
+<p>出借人：{{lender_name}}</p>
+<p>借款人：{{borrower_name}}</p>
+<p>借款人公民身份号码：{{borrower_id_card}}</p>
+
+<p>今借到出借人人民币（大写）{{amount_text}}元整，小写{{amount_num}}元。</p>
+
+<p>借款用途为借款人合法经营与生活需要，借款利息按{{interest_rate}}计算。</p>
+
+<p>借款人应于{{repay_date}}前一次性偿还全部借款本金及利息。</p>
+
+<p>担保方式：{{guarantee}}</p>
+
+<p>借款人逾期还款的，应按约定利率支付逾期期间的利息，并承担出借人为实现债权支出的合理费用。</p>
+
+<p>本借条自出借人交付借款之日起生效，一式两份，出借人与借款人各执一份。</p>
+
+<div class="signature">
+<p>出借人（签字）：{{lender_name}}</p>
+<p>借款人（签字）：{{borrower_name}}</p>
+<p>{{issue_date}}</p>
+</div>
+</body>
+</html>

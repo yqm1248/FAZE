@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "fields": [
+    { "key": "seller_name", "label": "卖方名称", "type": "text", "required": true, "maxLength": 100 },
+    { "key": "seller_address", "label": "卖方地址", "type": "text", "required": true, "maxLength": 200 },
+    { "key": "buyer_name", "label": "买方名称", "type": "text", "required": true, "maxLength": 100 },
+    { "key": "buyer_address", "label": "买方地址", "type": "text", "required": true, "maxLength": 200 },
+    {
+      "key": "goods",
+      "label": "商品清单",
+      "type": "array",
+      "required": true,
+      "minItems": 1,
+      "maxItems": 20,
+      "itemSchema": {
+        "fields": [
+          { "key": "name", "label": "商品名称", "type": "text", "required": true, "maxLength": 100 },
+          { "key": "spec", "label": "规格", "type": "text", "maxLength": 100 },
+          { "key": "quantity", "label": "数量", "type": "text", "required": true, "maxLength": 20 },
+          { "key": "unit_price", "label": "单价（含币种）", "type": "text", "required": true, "maxLength": 50 }
+        ]
+      }
+    },
+    { "key": "delivery_terms", "label": "交货与运输条款", "type": "textarea", "required": true, "maxLength": 1000 },
+    { "key": "dispute_resolution", "label": "争议解决方式", "type": "textarea", "required": true, "maxLength": 1000 },
+    { "key": "sign_date", "label": "签订日期", "type": "date", "required": true }
+  ]
+}

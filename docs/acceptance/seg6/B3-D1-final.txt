@@ -1,0 +1,92 @@
+═══════════════════════════════════════════════════════════════════════
+段 6 收尾实测 · B3 用户维度限流 + D1 管理端人工补单
+生成时间：2026-11-08 22:55:04（东八区）
+环境：faze-api 8081（profile=dev）· MySQL 8.0 库 faze · Redis（键分布在 db1/db14）· Mock 通道
+账号：D1 用 App 13800000001（id=1，approved）· B3 用 App 13900000009（id=3，approved）· RuoYi admin
+═══════════════════════════════════════════════════════════════════════
+
+──────────────── D1 · 管理端人工补单 ────────────────
+D1-1 登录 13800000001
+   发码 code=200
+   登录 code=200 userId=1 tokenLen=239
+D1-2 把 pay.mock.result 设为 callback_lost → 读回=[callback_lost]
+D1-3 App 下单 200.00 元：code=200 orderNo=RC20261108000021（渠道已收款但回调不发）
+D1-4 补单前查单：status=pending paidAt=[]
+D1-5 管理端登录：code=200 tokenLen=203
+D1-6 POST /api/v1/admin/recharges/RC20261108000021/sync → code=200
+      syncResult=settled status=success channelTxnId=MOCKTXNRC20261108000021 paidAt=2026-11-08T14:55:05
+D1-7 补单后查单：status=success paidAt=2026-11-08T14:55:05 balanceAfterCents=100000
+D1-8 查余额：availableCents=100000 totalCents=100000
+      SQL：该单
+order_no	status	channel_txn_id	amount_cents
+RC20261108000021	success	MOCKTXNRC20261108000021	20000
+
+      SQL：该单的 recharge 流水
+id	owner_id	biz_type	biz_id	delta_cents	balance_after
+994	1	recharge	42	20000	100000
+
+      SQL：operation_log 的 RECHARGE_SYNC 审计
+id	operator_type	module	action	target_type	target_id	result	created_at
+2119443598861611010	admin	trade	RECHARGE_SYNC	RECHARGE_RECORD	42	success	2026-11-08 14:55:06
+
+D1-9 恢复 pay.mock.result=success → 读回=[success]
+
+──────────────── B3 · 用户维度限流（1 分钟 3 次）────────────────
+> ⚠️ **本节是 2026-11-08 23:00 的口径（HTTP 200 + 401007），已被负责人推翻。**
+> 23:07 改回 HTTP 429 + 专用码 405030，重测见文末「补充」一节；本节保留不删，作为口径变更前的事实记录。
+B3-1 登录 13900000009（独立账号，当日笔数不受 D1 影响）
+   发码 code=200
+   登录 code=200 userId=3 tokenLen=237
+B3-2 清空限流计数 key（db1+db14 共清掉 1 个）
+      （临时把 recharge.max_daily_count=100 / max_daily_cents=100000000，避免 405016 抢先；B3 结束恢复）
+B3-3 阈值配置 recharge.rate_limit_per_min = 3 次/分钟
+B3-4 第 1 次下单：code=200 orderNo=RC20261108000022
+B3-4 第 2 次下单：code=200 orderNo=RC20261108000023
+B3-4 第 3 次下单：code=200 orderNo=RC20261108000024
+B3-4 第 4 次下单：code=401007（401007 = COMMON_RATE_LIMITED「请求过于频繁」）
+B3-5 恢复 recharge.max_daily_count=10 / max_daily_cents=500000
+B3-6 Redis 限流计数（db1 + db14）：
+      db1  faze:trade:recharge:rate:3:202611082255 = 4  (TTL 120s)
+      db1  faze:trade:recharge:rate:1:202611082255 = 1  (TTL 118s)
+
+──────────────── 收尾 ────────────────
+F1 13800000001 最终余额：availableCents=100000 当日已用 usedDailyCents=100040 usedDailyCount=10
+F2 13900000009 余额：availableCents=101318 当日已用 usedDailyCount=16
+
+═══════════════════════════════════════════════════════════════════════
+──────────────── 补充：口径变更后重测（2026-11-08 23:07）────────────────
+
+变更原因：负责人要求 B3 限流「超限返回 429」，且不要复用通用错误码 401007。
+实现改动：
+  · ErrorCode 新增 TRADE_RECHARGE_RATE_LIMITED(405030, httpStatus=429)
+  · 新增 common/exception/RateLimitedException（带 retryAfterSeconds）
+  · GlobalExceptionHandler 新增 @ExceptionHandler(RateLimitedException) → 429 + Retry-After 头
+  · RechargeRateLimitGuard 改抛 RateLimitedException；retryAfter = 距下一分钟秒数
+  · COMMON_RATE_LIMITED(401007) 保持原样，仍用于短信 / 登录锁定 / 法条检索 / 支付密码锁定
+
+重测（13900000009，id=3；临时放宽单日限额避免 405016 抢先，跑完已恢复为 10 笔 / 500000 分）：
+B3-1 发码：HTTP=200
+B3-2 登录：HTTP=200 userId=3 tokenLen=237
+B3-3 清空限流计数 key（db1+db14 共清掉 1 个）
+B3-4 临时放宽单日限额（count=100 / cents=100000000）
+B3-5 阈值配置：recharge.rate_limit_per_min=3 次/分钟
+B3-6 第 1 次下单：HTTP=200 code=200 orderNo=RC20261108000028
+B3-6 第 2 次下单：HTTP=200 code=200 orderNo=RC20261108000029
+B3-6 第 3 次下单：HTTP=200 code=200 orderNo=RC20261108000030
+B3-6 第 4 次下单：HTTP=429 Retry-After=56 body={"code":405030,"data":null,"msg":"充值操作过于频繁，请稍后重试","traceId":"aa651590-92ee-43ec-962f-d94ff20efdf4"}
+B3-7 恢复单日限额配置（count=10 / cents=500000）
+B3-8 Redis 限流计数：db1 faze:trade:recharge:rate:3:202611082307 = 4 (TTL 120s)
+
+对照：
+  变更前（本节上部）：HTTP 200 + code 401007 + msg「请求过于频繁」
+  变更后（本补充）：  HTTP 429 + Retry-After 头 + code 405030 + msg「充值操作过于频繁，请稍后重试」
+
+客户端注意：429 是 HTTP 层状态，不能用「只看 body.code」的统一响应体方式处理；
+必须按状态码分支，并按 Retry-After 秒数退避后重试。
+结论：
+  D1：人工补单接口可打通掉单——pending 单同步后变 success、余额增加 20000 分、
+      balance_flow 有 1 条 recharge 流水、operation_log 有 1 条 RECHARGE_SYNC（admin）。
+  B3：同一用户 1 分钟内前 3 次下单 200、第 4 次 **HTTP 429 + Retry-After + code 405030**，
+      符合 B3「算做完」的限流判据。**最终口径以文末「补充」为准**：2026-11-08 23:07 按负责人
+      要求把限流从「200 + 401007」改回 HTTP 429，且不复用通用码 401007。
+═══════════════════════════════════════════════════════════════════════

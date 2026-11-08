@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "fields": [
+    { "key": "lender_name", "label": "出借人姓名", "type": "text", "required": true, "maxLength": 30 },
+    { "key": "borrower_name", "label": "借款人姓名", "type": "text", "required": true, "maxLength": 30 },
+    { "key": "borrower_id_card", "label": "借款人身份证号", "type": "text", "required": true, "maxLength": 18 },
+    { "key": "amount_text", "label": "借款金额（大写）", "type": "text", "required": true, "maxLength": 50 },
+    { "key": "amount_num", "label": "借款金额（小写）", "type": "text", "required": true, "maxLength": 30 },
+    { "key": "interest_rate", "label": "利率约定", "type": "text", "required": true, "maxLength": 100 },
+    { "key": "repay_date", "label": "还款日期", "type": "date", "required": true },
+    { "key": "guarantee", "label": "担保方式", "type": "textarea", "required": true, "maxLength": 500 },
+    { "key": "issue_date", "label": "出具日期", "type": "date", "required": true }
+  ]
+}

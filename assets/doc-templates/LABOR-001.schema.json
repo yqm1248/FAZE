@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "fields": [
+    { "key": "employer_name", "label": "甲方名称", "type": "text", "required": true, "maxLength": 100 },
+    { "key": "employer_legal_rep", "label": "法定代表人", "type": "text", "required": true, "maxLength": 30 },
+    { "key": "employer_address", "label": "甲方住所地", "type": "text", "required": true, "maxLength": 200 },
+    { "key": "employee_name", "label": "乙方姓名", "type": "text", "required": true, "maxLength": 30 },
+    { "key": "employee_id_card", "label": "乙方身份证号", "type": "text", "required": true, "maxLength": 18 },
+    { "key": "employee_address", "label": "乙方住址", "type": "text", "required": true, "maxLength": 200 },
+    { "key": "position", "label": "岗位", "type": "text", "required": true, "maxLength": 50 },
+    { "key": "work_location", "label": "工作地点", "type": "text", "required": true, "maxLength": 100 },
+    { "key": "contract_start", "label": "合同起始日", "type": "date", "required": true },
+    { "key": "contract_end", "label": "合同终止日", "type": "date", "required": true },
+    { "key": "salary", "label": "月工资（含币种）", "type": "text", "required": true, "maxLength": 50 },
+    { "key": "sign_date", "label": "签订日期", "type": "date", "required": true }
+  ]
+}

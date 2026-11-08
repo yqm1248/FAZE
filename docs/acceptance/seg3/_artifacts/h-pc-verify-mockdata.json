@@ -1,0 +1,170 @@
+{
+  "at": "2026-11-06T17:34:38.005Z",
+  "mode": "mock（仅布局自查，不是接口验收）",
+  "viewport": "1440x900",
+  "sidebar": {
+    "contentOpen": {
+      "containerClient": 900,
+      "wrapClient": 850,
+      "wrapScroll": 850,
+      "viewHeight": 468,
+      "itemCount": 33,
+      "subMenuCount": 7
+    },
+    "withBizGroupOpen": {
+      "containerClient": 900,
+      "wrapClient": 850,
+      "wrapScroll": 864,
+      "viewHeight": 864,
+      "itemCount": 33,
+      "subMenuCount": 7
+    }
+  },
+  "failedRequests": [],
+  "consoleErrors": [],
+  "results": [
+    {
+      "name": "RuoYi 登录成功",
+      "ok": true,
+      "detail": "token 203 字符",
+      "info": true
+    },
+    {
+      "name": "mock 模式：/biz-api/api/v1/admin/** 已由 CDP Fetch 拦截，截图仅供布局自查",
+      "ok": true,
+      "detail": "",
+      "info": true
+    },
+    {
+      "name": "动态路由与侧边栏已就绪",
+      "ok": true,
+      "detail": "",
+      "info": true
+    },
+    {
+      "name": "侧边栏出现一级目录「内容管理」",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "侧边栏出现一级目录「系统设置」",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "侧边栏高度（1440×900，内容管理展开）",
+      "ok": true,
+      "detail": "{\"containerClient\":900,\"wrapClient\":850,\"wrapScroll\":850,\"viewHeight\":468,\"itemCount\":33,\"subMenuCount\":7}",
+      "info": true
+    },
+    {
+      "name": "1440×900 展开内容管理后侧边栏无滚动条",
+      "ok": true,
+      "detail": "wrap client=850 scroll=850"
+    },
+    {
+      "name": "侧边栏高度（追加展开「法泽业务」12 项后）",
+      "ok": true,
+      "detail": "{\"containerClient\":900,\"wrapClient\":850,\"wrapScroll\":864,\"viewHeight\":864,\"itemCount\":33,\"subMenuCount\":7}",
+      "info": true
+    },
+    {
+      "name": "A-27 页面可打开",
+      "ok": true,
+      "detail": "法条库"
+    },
+    {
+      "name": "A-27 三处删除项不在页面",
+      "ok": true,
+      "detail": "已全部删除"
+    },
+    {
+      "name": "A-27 保留列与按钮齐全",
+      "ok": true,
+      "detail": "全部存在"
+    },
+    {
+      "name": "A-27 表头 7 列完整可见（含 更新时间）",
+      "ok": true,
+      "detail": "法律名称 | 条号 | 生效版本 | 条文摘要 | AI 引用次数 | 更新时间 | 操作"
+    },
+    {
+      "name": "A-27 查看弹窗可关闭",
+      "ok": true,
+      "detail": "关闭方式=footer，残留可见弹窗=0"
+    },
+    {
+      "name": "A-27 修正弹窗可关闭",
+      "ok": true,
+      "detail": "关闭方式=footer，残留可见弹窗=0"
+    },
+    {
+      "name": "A-27「显示已失效」能筛出停用条文",
+      "ok": true,
+      "detail": "中华人民共和国民法典\n\t\n第 1198 条\n\t\n2016-01-01 施行\n已停用\n\t\n宾馆、商场、银行、车站等经营场所"
+    },
+    {
+      "name": "A-28 页面可打开",
+      "ok": true,
+      "detail": "AI 对话检索"
+    },
+    {
+      "name": "A-28 设计稿删除项不在页面",
+      "ok": true,
+      "detail": "已全部删除"
+    },
+    {
+      "name": "A-28 保留区块与查询项齐全",
+      "ok": true,
+      "detail": "全部存在"
+    },
+    {
+      "name": "A-28 详情区无任何编辑控件（只读）",
+      "ok": true,
+      "detail": "input/textarea 数量=0"
+    },
+    {
+      "name": "A-28 左栏会话队列渲染",
+      "ok": true,
+      "detail": "4 条"
+    },
+    {
+      "name": "A-28 右侧消息与 refs 快照渲染",
+      "ok": true,
+      "detail": "消息 2，refs 块 1"
+    },
+    {
+      "name": "A-28 已软删会话标「用户已删除」",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "A-28 快照 vs 当前提示（已更新 / 已查不到）",
+      "ok": true,
+      "detail": "该条文已于 2026-11-01 更新，以下为引用当时快照。 || 该条文的当前版本已查不到，以下为引用当时快照。"
+    },
+    {
+      "name": "A-28 分栏几何（1440×900）",
+      "ok": true,
+      "detail": "{\"splitTop\":333,\"splitBottom\":840,\"innerHeight\":900,\"cardBottom\":840,\"cardHeight\":507,\"cardStyle\":{\"height\":\"507.203px\",\"flex\":\"0 1 auto\",\"minHeight\":\"0px\",\"overflow\":\"hidden\"},\"colStyle\":{\"height\":\"507.203px\",\"display\":\"flex\",\"alignItems\":\"normal\",\"colH\":507},\"bodyClient\":396,\"bodyScroll\":732,\"exportFootTop\":770,\"exportFootBottom\":839,\"exportVisible\":true,\"listFootVisible\":true,\"exportDisabled\":false}",
+      "info": true
+    },
+    {
+      "name": "A-28 分栏不超出视口且页脚常驻",
+      "ok": true,
+      "detail": "{\"splitTop\":333,\"splitBottom\":840,\"innerHeight\":900,\"cardBottom\":840,\"cardHeight\":507,\"cardStyle\":{\"height\":\"507.203px\",\"flex\":\"0 1 auto\",\"minHeight\":\"0px\",\"overflow\":\"hidden\"},\"colStyle\":{\"height\":\"507.203px\",\"display\":\"flex\",\"alignItems\":\"normal\",\"colH\":507},\"bodyClient\":396,\"bodyScroll\":732,\"exportFootTop\":770,\"exportFootBottom\":839,\"exportVisible\":true,\"listFootVisible\":true,\"exportDisabled\":false}"
+    },
+    {
+      "name": "页面发出的 /api 全部 2xx",
+      "ok": true,
+      "detail": "",
+      "info": true
+    },
+    {
+      "name": "浏览器 console 无报错",
+      "ok": true,
+      "detail": "",
+      "info": true
+    }
+  ]
+}

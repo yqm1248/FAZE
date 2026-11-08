@@ -1,0 +1,124 @@
+﻿{
+    "generatedAt":  "2026-11-07T18:38:40.587Z",
+    "api":  "http://127.0.0.1:8081",
+    "templates":  [
+                      {
+                          "id":  "9",
+                          "code":  "LAWSUIT-001",
+                          "name":  "民事起诉状"
+                      },
+                      {
+                          "id":  "2",
+                          "code":  "EVIDENCE-001",
+                          "name":  "证据清单"
+                      },
+                      {
+                          "id":  "3",
+                          "code":  "LABOR-001",
+                          "name":  "劳动合同"
+                      },
+                      {
+                          "id":  "4",
+                          "code":  "CROSSBORDER-001",
+                          "name":  "跨境电商合同"
+                      },
+                      {
+                          "id":  "5",
+                          "code":  "IOU-001",
+                          "name":  "借条欠条"
+                      }
+                  ],
+    "templateId":  "9",
+    "docId":  "36",
+    "status":  "generated",
+    "templateVersion":  5,
+    "generating":  false,
+    "preview":  {
+                    "pages":  2,
+                    "pageW":  595,
+                    "pageH":  842,
+                    "msFirst":  222,
+                    "msCached":  10,
+                    "firstImageBytes":  377580
+                },
+    "export":  {
+                   "code":  200,
+                   "expiresIn":  "60",
+                   "fileName":  "验收探针文书-20261107.pdf",
+                   "url":  "http://127.0.0.1:8081/api/v1/pub/file/get?key=private%2Fdocument%2F202611%2F1%2F0e83c969-7c5d-4346-b218-887307c3f0ae.pdf\u0026exp=1794076785\u0026sig=0tHbUycwdDICbVYbEmodY1S-SaStQCvZQcHDMSX1fkg",
+                   "badFormatCode":  401001,
+                   "expiredStatus":  403
+               },
+    "unsignedPdfBytes":  30407,
+    "unsignedHash":  "74e77f1d99fbcd0a6fe98d3dd567d00ea8ffb73be6b886a790d9e389313a695a",
+    "signatureAddCode":  406005,
+    "signatureId":  "13",
+    "signatureReused":  "13",
+    "sign":  {
+                 "code":  200,
+                 "documentHash":  "74e77f1d99fbcd0a6fe98d3dd567d00ea8ffb73be6b886a790d9e389313a695a"
+             },
+    "signedHash":  "3a55a8c0dbd59fbeeb835a6677e4f2ff893b8a4833c821eacf7972003f23b894",
+    "statusAfterSign":  "signed",
+    "exportAfterSignHash":  "3a55a8c0dbd59fbeeb835a6677e4f2ff893b8a4833c821eacf7972003f23b894",
+    "list":  {
+                 "total":  34,
+                 "page1":  [
+                               "36",
+                               "33",
+                               "32",
+                               "31",
+                               "30"
+                           ],
+                 "page2":  [
+                               "29",
+                               "28",
+                               "27",
+                               "26",
+                               "25"
+                           ],
+                 "disjoint":  true,
+                 "hasMore":  true
+             },
+    "filter":  {
+                   "count":  28,
+                   "docTypes":  [
+                                    "诉讼文书"
+                                ],
+                   "allMatch":  true
+               },
+    "a5":  {
+               "docId":  "37",
+               "status":  "generated",
+               "signCode":  200,
+               "expected":  {
+                                "x":  380,
+                                "y":  700,
+                                "w":  120,
+                                "h":  60
+                            },
+               "expectedInk":  {
+                                   "x":  390,
+                                   "y":  712.5,
+                                   "w":  100,
+                                   "h":  35
+                               },
+               "signedBytes":  32454
+           },
+    "a4":  {
+               "templateIdBefore":  "9",
+               "versionBefore":  5,
+               "docId":  "38",
+               "statusBefore":  "generated",
+               "h1":  "ff5ae73fe7f6240a908c0a45b6de2dd24007fb3fe82cea0a79a0a1ed35871806",
+               "saveCode":  200,
+               "newTemplateId":  "10",
+               "versionAfter":  6,
+               "newStatus":  "active",
+               "oldStatus":  "inactive",
+               "h2":  "ff5ae73fe7f6240a908c0a45b6de2dd24007fb3fe82cea0a79a0a1ed35871806",
+               "statusAfter":  "generated",
+               "templateVersionAfter":  6,
+               "h3":  "da9f3ae2d38e76eb9d9cd42300d4512f8c9e49a3cb4782edbb6001f486d8e700"
+           }
+}

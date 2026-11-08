@@ -200,7 +200,7 @@
 
 #### A1 · 12 张表的 DDL 定稿与 Flyway 迁移脚本
 
-**目标**：12 张表进 `V2__`~`V5__` 迁移脚本，`mvn flyway:migrate` 一次跑通，空库可重放。
+**目标**：12 张表进 `V3__`~`V6__` 迁移脚本（**2026-11-06 更正**：本篇原写 `V2__`~`V5__`，但 `V2` 已被段 0 的 `V2__init_law_items.sql` 占用，实际执行时顺延为 `V3`~`V6`；后续段 1 补丁迁移到 `V12`），`mvn flyway:migrate` 一次跑通，空库可重放。
 
 **前置**：A3 通过；MySQL 凭据可用（前置 #8）。
 
@@ -235,10 +235,10 @@
 
 1. 定位迁移目录（段 0 已定，预期 `services/faze-api/src/main/resources/db/migration`）
 2. **按业务闭包拆 4 个脚本**（不是按表数平均）：
-   - `V2__account_auth.sql`：`realname_auth`、`enterprise_auth`、`user_device`、`login_log`
-   - `V3__lawyer.sql`：`lawyer`、`lawyer_application`、`lawyer_application_log`
-   - `V4__wallet.sql`：`user_balance`、`lawyer_balance`、`balance_flow`
-   - `V5__ops_config.sql`：`sys_config`、`operation_log`
+   - `V3__account_auth.sql`：`realname_auth`、`enterprise_auth`、`user_device`、`login_log`（实际文件名，原写 `V2__`）
+   - `V4__lawyer.sql`：`lawyer`、`lawyer_application`、`lawyer_application_log`（实际文件名，原写 `V3__`）
+   - `V5__wallet.sql`：`user_balance`、`lawyer_balance`、`balance_flow`（实际文件名，原写 `V4__`）
+   - `V6__ops_config.sql`：`sys_config`、`operation_log`（实际文件名，原写 `V5__`）
 3. 每张表 `CREATE TABLE IF NOT EXISTS`（救「手工建过表」后的重放）
 4. **每个字段带 `COMMENT`**（《数据表规范》强制条款）
 5. `mvn -o flyway:info` → `mvn -o flyway:migrate`
@@ -1128,6 +1128,9 @@
 
 ### 5.2 接口（C 端 24 + PC 端 20 = 44）
 
+> **2026-11-05 施工后实测**：C 端 **27** + PC 端 **21** = **48**。差异逐条见 §九-3/§九-2，
+> 清单以《接口规范》§7.2 回写后的版本为准。
+
 > **修正**：《接口规范》§7.2 写「C 端 20 个」，实际表内相加 23，加上遗漏的「换绑手机」应为 **24**。修正依据见 B 组开头与 B3。
 
 | 组 | 数量 | 备注 |
@@ -1153,9 +1156,16 @@
 
 ### 5.4 迁移脚本（4 个）
 
+> **2026-11-05 施工后实测：10 个**（V3~V12）。多出来的 6 个都是建表后暴露的列宽/补列问题，
+> 逐条见 §九-5。
+
 `V2__account_auth.sql`、`V3__lawyer.sql`、`V4__wallet.sql`、`V5__ops_config.sql`
 
 ### 5.5 配置项（`sys_config`）
+
+> **2026-11-05 施工后实测：12 条**。比这里多一条 `login_lock_minutes`（登录锁定与支付密码
+> 锁定时长必须分开配置，否则改一个会连带动另一个）。两条法务正文的分类是 `legal`，
+> 与 `sms`/`security`/`trade` 分开，PC A-08 按分类筛时一眼能看出它们不是技术参数。
 
 `sms_fixed_code_enabled`、`sms_fixed_code`、`sms_send_interval_seconds`、`sms_daily_limit`、`pay_pwd_max_fail`、`pay_pwd_lock_minutes`、`login_max_fail`、`platform_fee_rate`（占位 15）、`order_no_format`、`user_agreement_content`、`privacy_policy_content`
 
@@ -1244,10 +1254,25 @@
 ## 九、实际完成与偏差（施工后回写，不删原文）
 
 > 施工完成后在这里追加，**不改上面的内容**。每条写：计划 vs 实际、偏差原因、是否影响下一段。
+>
+> 回写时间：2026-11-05。收口证据：`docs/acceptance/seg1/verify-seg1-20261105-041320.log`
+> （十条锚点全部 PASS，脚本判定「本段能否收口：可以」）。
 
 | # | 计划 | 实际 | 偏差原因 | 影响 |
 |---|---|---|---|---|
-| | | | | |
+| 1 | APP 18 页（G1~G4） | **18 页全部交付**，路由壳与 `features/<域>/pages` 分离 | — | 无 |
+| 2 | PC 7 页（F 组）+ 20 个管理端接口 | **7 页全部交付**；管理端实测 **21 条路由**，`verify-admin-api.mjs` 23/23 通过 | 按页面需要补了律师详情（`GET /admin/lawyers/{id}`） | 接口规范 §7.2 与总纲 §5.2 已回写 |
+| 3 | C 端接口 24 个 | **27 个** | 原清单漏 3 个（支付密码校验、换绑手机、修改登录密码），另补 1 个 `GET /pub/config/{configKey}`（G1 的协议/隐私正文要求来自配置） | 同上 |
+| 4 | 数据表 12 张 | **12 张全齐**（`realname_auth`/`enterprise_auth`/`lawyer`/`lawyer_application`/`lawyer_application_log`/`user_balance`/`lawyer_balance`/`balance_flow`/`login_log`/`operation_log`/`user_device`/`sys_config`） | — | 无 |
+| 5 | 迁移脚本 4 个 | **10 个**（V3~V12） | 建表后陆续补：V8 注销手机号宽度、V9/V10 实名掩码与密文列宽、V11 支付密码、V12 `config_value` 扩 TEXT | 无 |
+| 6 | 配置项 11 个 | **12 个** | 多 `login_lock_minutes`（登录锁定与支付密码锁定时长必须分开） | 无 |
+| 7 | 真机验收 | **全部改为浏览器验收**（CDP 驱动真实 Chrome，390×844@2x） | 负责人 2026-11-05 决定：无设备，浏览器看效果即可 | 真 RTL 的硬判据无法在浏览器完成 → 挂 §十-1 |
+| 8 | 协议/隐私正文存 `sys_config` | 已实现，但 `config_value` 原是 `varchar(500)`，**实测导入即 `ERROR 1406 Data too long`** | V6 建表时按「技术参数」估的列宽，没考虑法务正文 | 已由 V12 扩到 TEXT |
+| 9 | 管理端鉴权「`LoginUser` 是标准 JSON」 | **不成立**：Fastjson2 写进 Redis 的是带 `103L`、`permissions:Set[...]` 标注的非标准文本 | 原判据只看了 `RedisConfig` 的序列化器配置，没看实际存进去的值 | 改为按相邻键值对定点抽取、抽不到 fail closed；已回写 §1.3.1 第 5 条与 `docs/analysis/ruoyi-patches.md` |
+| 10 | 注册流程「先消费验证码」 | 改为「所有前置校验之后才消费」 | 原顺序下「未成年漏填监护人」被正确拒绝后验证码已作废，用户改好重试得 402005 且要再等 60 秒发码 | 防重放语义不变；体验问题，不影响下一段 |
+| 11 | `ProfileVO` 的余额 / 律师状态 / 支付密码状态 | 三个字段原来都是**写死的占位值**（0 / NONE / false），实测「已入驻用户显示未入驻」 | 段 1 后半段才补齐数据来源，TODO 没接 | 已由 `ProfileService` 接上，端到端三个时点断言通过 |
+| 12 | `lawyer_application.practiceYears` | **恒 null** | C3 的 16 列里没有「执业年限」采集项，App 四步表单也没有这一项 | 挂 §十-2 |
+| 13 | 前端验收工具用设计工作台 | **不可用**：`look_design`/`check_design` 在 RN Web 上会在 React 挂载前截图（纯白），且量 document 高度（把 1437px 正文报成「一屏放得下」） | 工具面向静态 HTML/SSR 页面设计 | 改用 CDP 自写脚本，这是口径变更不是缺陷 |
 
 ---
 
@@ -1260,7 +1285,36 @@
 | 3 | 律师入驻四步的具体字段划分（16 列 → 4 步） | C3、F2 | C3 开工前 |
 | 4 | 平台抽成比例真实值（15% 占位） | A-08、段 5 结算 | 段 1 结束前 |
 
+### 10.1 遗留挂账（2026-11-05 段 1 收口时登记）
+
+前 4 条已按原计划在施工中定掉，以下是本段结束时**仍未闭合**的项，逐条写清「为什么留着」与「最晚什么时候必须解决」。
+
+| # | 事项 | 现状 / 为什么留着 | 最晚什么时候解决 |
+|---|---|---|---|
+| G-1 | **真 RTL 判据**（原生 `I18nManager.isRTL` + 杀进程重启仍 RTL） | 负责人已把真机验收改为浏览器验收，而 RN Web 的 `I18nManager` 是空实现，浏览器里只能做 `dir=rtl` 的近似验证（5 页镜像正常）。`0-A3` 与 `1-A9` 的这一半都因此无法闭合 | 段 8 上线清单；若届时仍无真机，必须在清单上明确写「该项未验」 |
+| G-2 | `lawyer_application.practiceYears` **恒 null** | C3 的 16 列里没有「执业年限」的采集口径，App 四步表单也没有这一项，后端没做假数据 | 段 2 补采集，或从表里删掉这个字段 |
+| G-4 | **缺「给本人发码」接口** | `/pub/sms/code` 要完整手机号，而 `profile` 只回脱敏号；换绑手机 / 支付密码重置因此需要用户手输完整手机号（页面已加这个输入框，与设计稿有差异） | 段 2；补一个「给当前登录用户发码」的接口即可回退这个差异 |
+| G-5 | `UserVO` **不返回 `gender`** | 资料编辑页能设置性别，但无法回显已保存值（后端 `UpdateProfileBO` 收、`UserVO` 不回） | 段 2 |
+| G-6 | 换绑手机的验证码**没有 scene 语义** | `SmsCodeBO.scene` 只有 `register/login/reset`，换绑按手机号直接校验（不区分用途） | 接口规范补一条 scene 或明确「按手机号校验即可」 |
+| G-7 | 三个语种（`bo`/`ug-Arab-CN`/`kk-Arab-CN`）**译文为空** | 登记式缺译 517 条，`check-i18n.ps1` 通过但 `resources/.i18n-pending.json` 非空 | 段 8 收口时该表**必须为空** |
+| G-8 | **通知设置 / 隐私设置没有后端接口** | 段 1 的 C 端清单里没有它们，当前存本地偏好（`prefStore`），换设备会丢 | 段 2 决定「补接口」还是「正式定义为本地设置」 |
+| G-10 | 换绑手机未进端到端自动化 | 要给「旧号」「新号」各发一条验证码，同号发码有 60 秒间隔，端到端要多等两轮；本段只做了契约核对与页面渲染 | 段 8 前的回归清单 |
+| G-11 | **部分基线文档的落款被「跟随升级」**，与 `BASELINE.md` §1.1 冲突 | §1.1 规定落款是「该文档第一次纳入基线的版本」、不随内容变更升级，但收口时容易顺手改成当前基线号（本工作流自己的落款就是 v1.22 → v1.43）。v1.44 只纠正了 `docs/README.md`，其余文档未逐一核对 | 下次文档收口时统一核一遍，与 §1.1 对齐 |
+
+> **G-3 / G-9 已在 v1.44 修掉**，见下一节。这两个编号保留不重用——别的文档和聊天记录里引用过。
+
+### 十.2 v1.44 收口后补漏：已闭合的 3 项
+
+段 1 的十条锚点验的是**功能**，下面三项都在锚点清单之外，属于工程与合规缺口。
+三项都是「写文档时以为做了、实测发现没做」，完整叙述见 `docs/CHANGELOG.md` 的 2026-11-05「第 1 段收口后补漏」节。
+
+| # | 原挂账 | 实测发现的事实（比原记录更严重） | 怎么修的 | 怎么验的 |
+|---|---|---|---|---|
+| **G-3** | PC A-08 系统参数页只能单行编辑，900 字法务正文没法维护 | 不只前端：`AdminSysConfigUpdateBO.Item.configValue` 上有 `@Size(max = 500)`，而两条法务正文是 619 / 633 字 → **PC 后台永远存不进去**（`401001 配置值过长`）。seed 是 SQL 直插所以开发阶段完全没暴露 | 后端上限 → 20000 字（与 V12 把列改成 `TEXT` 匹配）；前端长文本改「表格摘要 + 多行 textarea 弹窗」，判定用「原值与当前值较大者」，编辑中删短不掉控件 | `AdminSysConfigLongTextTest` 3 个用例（用库里真实的 619 字做样本）+ `verify-g3-longtext.js` 真实 Chrome 14/14 |
+| **G-9** | 注销前判余额用缓存口径 → 资金悬空 | `BalanceQueryService` 的接口注释当时还在为这个做法辩护（「缓存只用于注销前置校验」），等于把风险写成了设计 | 账本与缓存**取较大值**做保守判定，两个口径不一致时打 WARN；接口注释同步改成「决策点一律以账本为准并交叉校验」 | `CancelAccountBalanceTest` 3 个用例（缓存偏小 / 缓存偏大 / 两边都为 0），每个都先制造「缓存 ≠ 流水」 |
+| **新增** | （不在原挂账里） | 《审计与日志规范》要求 `operation_log` 只追加、**DB 账号无 UPDATE/DELETE**，§八 还指定「在 `start-services.ps1` 里做」——实测 `faze_app` 对 `faze.*` 持全套 DDL+DML，且**迁移与运行共用一个账号**，审计表可被应用连接直接改删 | 拆 `faze_migrate`（DDL）与 `faze_app`（逐表 DML，`operation_log` 只 `SELECT/INSERT`）；`deploy/sync-db-grants.ps1` 幂等收敛 + `-Verify` 6 项探针；Flyway 改用独立账号且缺配置即启动失败 | `sync-db-grants.ps1 -Verify` 6/6；已接进 `verify-seg1.ps1` 第 7 步，作「能否收口」的一票否决项 |
+
 ---
 
-> **【文档基线 v1.22】** 本文件属于「法泽 FAZE 文档基线 v1.22」（2026-11-01 纳入）。
+> **【文档基线 v1.43】** 本文件属于「法泽 FAZE 文档基线 v1.43」（2026-11-05 第 1 段收口时重算）。
 > **后续一切文档从这里开始。** 基线清单与文件指纹见 `docs/BASELINE.md`。

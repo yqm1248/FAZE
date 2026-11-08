@@ -1,0 +1,36 @@
+段 6 E1 · 账务恒等式巡检 验收证据（锚点 6-A5）
+生成时间：2026-11-08 19:37（东八区）
+环境：faze-api @ 8081（dev），admin token，库 faze
+
+复用的段 1 能力（不重写）：
+  POST /api/v1/admin/reconciliation/run      现算巡检并写 operation_log（RECONCILE_RUN）
+  GET  /api/v1/admin/reconciliation/summary  摘要
+  GET  /api/v1/admin/reconciliation/diffs    差异列表（内存态）
+恒等式：Σ balance_flow.delta_cents = user_balance.balance_cents + frozen_cents，
+与 deploy/verify-balance.ps1 同一口径（锚点 1-A7）。
+
+──── 三次巡检对比（6-A5 的证据形式）──────────────────────────────────
+第 1 次（干净状态）
+  {"checkedOwners":4,"balancedOwners":4,"diffOwners":0,"totalCheckedCents":43518}
+第 2 次（手工 `UPDATE user_balance SET balance_cents = balance_cents + 1 WHERE user_id=3`）
+  {"checkedOwners":4,"balancedOwners":3,"diffOwners":1,"totalCheckedCents":43519}
+  → 巡检**检出 1 条不平衡主体** ✅
+第 3 次（`-1` 恢复）
+  {"checkedOwners":4,"balancedOwners":4,"diffOwners":0,"totalCheckedCents":43518}
+  → 回到全部平衡 ✅
+
+落库证据（reconciliation_diff，段 1 巡检写入）：
+  id=4  diff_type=identity_mismatch  status=open  diff_cents=1   bill_date=NULL
+  id=1  diff_type=identity_mismatch  status=open  diff_cents=100 bill_date=NULL
+
+──── 发现的两个既有问题（段 1 遗留，本段不修，记 §十一）────────────
+1. **巡检写入的差异行不带 bill_date**：A-09 Tab2 按「账单日期区间」筛选（默认昨日）时
+   永远筛不到这些行。段 6 的渠道差异（D4）会强制带 bill_date；段 1 的历史行不迁移。
+2. **同一次不平衡会重复落行**（id=1 与 id=4 是同一类问题在不同时间各落一条）：
+   段 1 的巡检没有「按 diff 类型 + 业务键去重」，每次 run 都可能新增一行。
+   D4 的比对会按 `bill_date + channel + channel_txn_id + diff_type` 先查后插去重；
+   段 1 的这条路径不在本段范围。
+
+──── 结论 ───────────────────────────────────────────────────────────
+6-A5 的「正常无输出、手工改余额能检出 1 条」两条判据均满足 ✅
+「告警日志第 2 次应命中」：巡检检测到的差异已落 reconciliation_diff 并可被 A-09 看到。

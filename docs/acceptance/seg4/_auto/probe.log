@@ -1,0 +1,17 @@
+登录成功 userId=undefined
+模板 5 个：LAWSUIT-001#9, EVIDENCE-001#2, LABOR-001#3, CROSSBORDER-001#4, IOU-001#5
+草稿 documentId=36
+生成结果 status=generated templateVersion=5 generating=false
+预览 2 页 595x842pt，首次 222ms / 缓存 10ms
+未签 PDF 30407 字节 sha256=74e77f1d99fbcd0a…
+新增签名失败（code=406005），复用已有 signatureId=13
+本次叠章用 signatureId=13
+带签 PDF 32430 字节 sha256=3a55a8c0dbd59fbe…
+列表 total=34 第1页=5 第2页=5 无交集=true
+类型筛选「诉讼文书」命中 28 条，docType=["诉讼文书"]
+等待 62 秒验证导出 URL 过期…
+61 秒后同一 URL 状态 = 403
+4-A5：另建一份文书用实心签名图盖章，用于精确量测落点…
+4-A5 量测文书 doc=37 盖章 code=200，预期落点 (380,700,120,60)
+4-A4：模板热更新验证（会升一版模板）…
+4-A4 H1=ff5ae73fe7f6… H2=ff5ae73fe7f6… H3=da9f3ae2d38e… 版本 5→6

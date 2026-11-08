@@ -1,0 +1,93 @@
+[
+  {
+    "name": "n01-profile",
+    "route": "/profile",
+    "landed": "/profile",
+    "text": "法泽万物 法护民生   用户0777 普通用户 未实名 138****0777 账户余额 ⁦¥0.00⁩ 查看余额明细 去充值  完成实名认证后可提交立案材料  账号与身份 实名认证 未认证  律师入驻 未入驻  个人资料编辑 ",
+    "errors": []
+  },
+  {
+    "name": "n02-verify-realname",
+    "route": "/verify-realname",
+    "landed": "/verify-realname",
+    "text": " 实名认证  为什么需要实名 向法院提交的材料必须由本人签署，所以平台要先确认你是你。实名信息只用于身份核验与文书签署，加密存储，不会用于营销。 真实姓名 身份证号 证件照片  身份证人像面 点击上传  身份证国徽面 点击上传 照片",
+    "errors": []
+  },
+  {
+    "name": "n03-pay-password",
+    "route": "/pay-password",
+    "landed": "/pay-password",
+    "text": " 支付密码 设置 6 位数字支付密码 输满 6 位会自动进入下一步 下一步 关于支付密码 付款时会让你输一次，输入时不显示数字。 连续输错 5 次，支付密码会被锁定 30 分钟。 锁定期间不能付款，浏览、看订单、找律师都不受影响。 密码只",
+    "errors": []
+  },
+  {
+    "name": "n04-lawyer-join",
+    "route": "/lawyer-join",
+    "landed": "/lawyer-join",
+    "text": " 律师入驻 1 2 3 4 第 1 / 4 步 身份信息 请填写与执业证一致的信息 真实姓名 律师执业证号 每一步都可以点「保存草稿」，下次进来会接着填 下一步 保存草稿",
+    "errors": []
+  },
+  {
+    "name": "n05-lawyer-join-status",
+    "route": "/lawyer-join-status",
+    "landed": "/lawyer-join-status",
+    "text": " 入驻审核状态  还未提交入驻申请 提交律师执业资质后，平台会进行人工审核。 去提交入驻申请 联系客服",
+    "errors": []
+  },
+  {
+    "name": "n06-edit-profile",
+    "route": "/edit-profile",
+    "landed": "/edit-profile",
+    "text": " 个人资料编辑  更换头像 个人资料编辑 昵称 6 / 50 性别 男 女 不展示 昵称会展示给咨询的律师和客服。请不要填写身份证号或手机号。 手机号 138****0777 手机号与实名信息请在「账号与安全」中修改。 账号与安全 保存",
+    "errors": []
+  },
+  {
+    "name": "n07-change-phone",
+    "route": "/change-phone",
+    "landed": "/change-phone",
+    "text": " 换绑手机号 1 验证现在的手机号 当前绑定 138****0777 当前手机号 验证码会发送到这个号码。资料接口只返回脱敏手机号，所以这里需要你填写完整号码用于接收验证码。 验证码 获取验证码 2 绑定新的手机号 新手机号 新手机号验证",
+    "errors": []
+  },
+  {
+    "name": "n08-change-password",
+    "route": "/change-password",
+    "landed": "/change-password",
+    "text": " 修改登录密码 旧密码 新密码 确认新密码 密码要求：8~64 位，同时包含字母和数字，不能与旧密码相同。修改成功后其他设备上的登录状态会立即失效。 保存新密码",
+    "errors": []
+  },
+  {
+    "name": "n09-deactivate",
+    "route": "/deactivate",
+    "landed": "/deactivate",
+    "text": " 注销账号  注销后账号无法恢复 注销立即生效：账号资料删除或依法封存，手机号立即释放，可以用它重新注册。 注销会怎样 账号资料、头像、昵称、设置全部删除 手机号立即释放，可以马上用同一个号码重新注册 所有设备的登录状态立即失效 订单与",
+    "errors": []
+  },
+  {
+    "name": "n10-account-security",
+    "route": "/account-security",
+    "landed": "/account-security",
+    "text": " 账号与安全 登录与密码 修改登录密码  支付密码 未设置  手机与实名 手机号 138****0777  实名认证 未认证  账号 注销账号  注销立即生效：账号资料删除、手机号立即释放。有余额时不能注销。",
+    "errors": []
+  },
+  {
+    "name": "n11-balance",
+    "route": "/balance",
+    "landed": "/balance",
+    "text": " 账户余额 可用余额 ⁦¥0.00⁩ 余额仅用于平台内消费，不能提现 去充值 全部 充值 消费 退款 全部时间 近 7 天 近 30 天 还没有资金记录 充值、消费、退款都会在这里留下一条记录，并附上变动后的余额。",
+    "errors": []
+  },
+  {
+    "name": "n12-privacy-settings",
+    "route": "/privacy-settings",
+    "landed": "/privacy-settings",
+    "text": " 隐私设置 谁能看到我的信息 手机号对律师可见 关掉后律师不能直接打电话，只能用站内消息联系你 个人资料对律师可见 昵称、地区这类基本信息。律师需要这些判断你所在地区 在线状态 向律师展示在线状态 关掉后律师看不到你在线，你也看不到律师的",
+    "errors": []
+  },
+  {
+    "name": "n13-notify-settings",
+    "route": "/notify-settings",
+    "landed": "/notify-settings",
+    "text": " 消息通知 推送通知 接收推送通知 关闭后不再推到手机通知栏，App 内的消息中心照常收，一条不会少 通知类型 系统通知 订单状态、退款结果、协议更新 律师回复 律师给你发的消息 案件进度 立案、开庭、判决等节点提醒 营销活动 优惠、活动",
+    "errors": []
+  }
+]

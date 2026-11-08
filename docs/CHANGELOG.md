@@ -4,6 +4,1688 @@
 
 ---
 
+## 2026-11-09 · 第 7 段文档口径：APP 页面 **68 → 69**（新增第 69 页「我的投诉」列表）
+
+**做了什么**：负责人 2026-11-09 拍板，APP 页面总数 **68 → 69**，新增第 69 页「我的投诉」列表
+（路由 `/complaint-list`，所属**第 7 段** C 组客服链路）。本批**只改文档、不改任何代码**。
+
+| 项 | 内容 |
+|---|---|
+| 新增页 | **我的投诉**（列表页）：入口 = 「我的」页「常用功能」→ 我的投诉，以及 57 投诉页提交成功后跳转；数据源 `GET /app/complaints`（段 7）；四态齐全 |
+| 来源（必须写清） | **不是设计稿画的页**——`design/ui/` 没有对应屏；是为满足 `7-A1` 第 3 步（处理投诉）与 `7-A5`（App 能看到回复与状态变化）补的**实现页**。**稿面依据只有 57 投诉页的卡片与列表样式，不得声称有设计稿** |
+| 为什么现在补 | 段 7 交付后 `7-A5` 的 APP 界面证据一直缺「用户能看到投诉列表与回复」这一环，`7-A1` 第 3 步也缺 APP 侧界面；本页交付后两条锚点的 APP 证据**才可能补齐**（仍以验收证据文件为准，不等于锚点已通过） |
+| 页数加总 | 段 0=2 + 段 1=18 + 段 2=16 + 段 3=2 + 段 4=6 + 段 5=13 + 段 6=1 + **段 7=11** + 段 8=0 = **69**；模块 10「设置与其他」21 → **22**；PC 后台 28 页**不变**（APP 69 + PC 28 = 97，**两套口径不相加**） |
+
+**改了哪 6 份（全仓「68 页」口径逐处核对）**：
+
+| 文档 | 改了哪些处 |
+|---|---|
+| 《开发计划总纲》 | §3.1 段表段 7「页面数 10 → **11**」与合计 68 → **69**；§4.1 标题与说明 68 → **69**、段 7 归属行页数 10 → **11** 并列入「我的投诉列表页（第 69 页）」、逐模块复核模块 10 段 7「10 → 11 / 合计 21 → 22」、总计 68 → **69**；§5.8 段 7「APP 页（10）→（11）」；§八 `8-A1`「4 语言 × 68 页」→ **69 页**；§11.1 索引「APP 68 页」→ 69 页；§一 的「96 页」误读提示改「97 页」并注明 2026-11-09 起 69 页 |
+| 《APP 页面导航树 v1.4.md》 | 内容版本 **v1.5 → v1.6**（文件名不变）；顶部加 v1.6 变更段（写明新增页与「无设计稿」）；「我的」页「常用功能」组加「我的投诉」入口；模块 10 树内新增「我的投诉列表页」节点（含状态取值与四态、标注「`7-A1`/`7-A5` 的 APP 界面证据依赖本页」）；模块 10 标题 21 → **22 页**；页面数量统计表模块 10 行 21 → **22**、合计 68 → **69** |
+| 《页面清单与信息架构》 | 顶部加口径提示：**本文档 §2 是复刻期 12 页的历史清单，不是现行 69 页清单**，现行以导航树 v1.6 与总纲 §4.1 为准；§2 表加第 13 行「ComplaintListPage（我的投诉）/ `/complaint-list` / 状态：**已完成（段 7）**」+ 来源注 |
+| `docs/README.md` | 平台范围 APP 68 → **69 个页面**（并注明与 PC 28 不相加）；导航树索引 68 → 69 页、内容 v1.5 → **v1.6**；UI 设计顺序索引保留「68 屏」并注明第 69 页无设计稿；「哪一页属于哪一段」68 → 69；「有哪 69 个页面」；目录树三行同步；**段 7 锚点段补「第 69 页交付后 `7-A1` 第 3 步与 `7-A5` 的界面证据才可能补齐」** |
+| `docs/CHANGELOG.md` | 本条目（**按既有约定不登记指纹**） |
+| `docs/design/未完成需备注.md` | 全文无「68 页」表述，**本批未改**（已核对） |
+
+**没改的**：代码 / `docs/BASELINE.md`（Lead 统一算）/ 《第 7 段工作流》（§五 5.3 与 §十一 由 Lead 改）/ PC 侧文档。
+
+**追加补 3 处（Lead 2026-11-09 授权，只这 3 处）**：本批最初扫到但不在写作用域、会与「69 页」自相矛盾的三份，已补：
+- `docs/architecture/法泽FAZE_技术路线_v2.3.md`：头部「内容 v1.5 / 68 个页面」→「**v1.6 / 69 个页面**」并注明第 69 页为实现页、无设计稿；§1.3 标题 `（68 页面）`→`（69 页面）`；表头「以导航树 v1.5 为准」→**v1.6**；模块 10 `21`→**22**（偏差 `+3`→**`+4`**）、合计 `68`→**69**（偏差 `+3`→**`+4`**）；表下加「APP 69 + PC 28 = **97**，两套口径不相加」；§1.3 加 2026-11-09 追加说明。
+- 仓库根 `AGENTS.md` L174：页面导航树索引行「内容实为 **v1.5**，**68 页**」→「**v1.6**，**69 页**；第 69 页为实现页、`design/ui/` 无其设计稿」（**只改这一行，AGENTS 其他字未动**）。
+- `docs/design/README.md`：L11「68 页…内容为 v1.5」→「**69 页**…**v1.6**」；L12「这 68 屏…」→ **保留 68 屏** + 注「第 69 页是实现页、无设计稿」；L21「当前项目是 **68 页** + 真实后端」→「**69 页** + 真实后端」并注明无设计稿。
+
+**未改但仍在写 68 页的文件（已确认不改）**：`docs/design/法泽APP_UI设计顺序_v1.0.md` 全篇 68 屏（**设计稿确实只有 68 屏，改了就是新错**）；`docs/design/法泽PC后台UI设计说明_v1.0.md` L96「APP 的 68 屏」（同上）；`docs/architecture/法泽FAZE_PC后台开发计划_v1.0.md` L11「APP 68 屏的施工记录」（同上）；`docs/architecture/法泽FAZE_第0段工作流_v1.0.md`（段 0 历史计划，「68 页清单」是当时措辞，改风险大收益低）；`docs/acceptance/seg7/` 三份证据（`7-A1-runbook` / `7-A5-ticket` / `挂账`，历史快照，原样保留）；`docs/BASELINE.md`（Lead 统一）；《第 7 段工作流》（Lead 自己改）。
+
+---
+
+## 2026-11-09 · 第 7 段文档回写：§九 的 17 项逐条收口（11 份上游文档）
+
+**做了什么**：把《第 7 段工作流》§九 列的 17 项回写要求，逐条落进 11 份上游文档。
+本批**只改文档**，不改代码、不改工作流本文、不改 `docs/BASELINE.md`（指纹由收口统一种）。
+
+| 文档 | 改了什么 |
+|---|---|
+| 《开发计划总纲》§5.8 + §11.2 | 数据库行 7 张 → **建 11 张**（9 张在册 + 第 54 张 `sensitive_word_appeal` + 第 55 张 `announcement`；`operation_log`/`login_log` 段 1 建本段只读；`share_poster` 不做）；接口行 → **54 个（新增 26 + 已列 28）**；§11.2 第 7 行标「已产出」+ 规模 |
+| 《技术路线》§5.1 / §5.11 / §4.8.4 / §16.4 / §17.3 | 表总数**v1.34 起 53 → 55 张**；§5.11.3 三段 DDL 补字段（`sensitive_word` 11→12、`content_review` 10→12、`service_ticket` 9→13，并补 `V706` 的 `type_id`）；§5.11 补 `sensitive_word_appeal` / `announcement` 两段 DDL（并修好这两段的代码块闭合）；§4.8.4.3 删「口径未定」改「口径已定」+ 接口 3→5；§4.8.4.9~11 补 26 个新接口；§4.8.4.11 加「A-28 归段 3」说明；§4.8.4.12 的「IM 原文待定」改为已定；§16.4 客服时段 21:00 → **20:00**；§17.3 补「审计日志与文件日志两套口径」 |
+| 《接口规范》§7.3.2 | 补段 7 的 **54 个**接口简表（新增 26 + 已列 28，逐条给路径 / 鉴权 / 幂等 / 主要错误码），字段级契约不重复 |
+| 《错误码规范》§2.2 + §3.10 | 补 **12 个**码 `410005`~`410016`（其中 `410008`/`410010`/`410012` = **409**、`410014` = **400**，其余 200）；§2.2 加「**§3.10 的逐码表优先于本节通则**」；§3.2 的封禁码沿用已登记的 `402011 error.auth.account-banned`（段 7 新增，无需另编） |
+| 《审计与日志规范》§3.2 + §5.2 + §6 | 补 **13 个**动作码（`CONTENT_REVIEW_*`×3 / `SENSITIVE_WORD_*`×4 / `APPEAL_HANDLE` / `ANNOUNCEMENT_CREATE` / `ANNOUNCEMENT_PUSH` / `TICKET_ASSIGN` / `TICKET_CLOSE` / `TICKET_REPLY`），并删去 4 行旧的粗粒度占位（`SENSITIVE_WORD_*` 等，重复且 `TICKET_*` 标了「建议」与逐码行矛盾）；`LOG_EXPORT` 注明「§6.3 已定义，只复用不重复登记」；§5.2 补「**任何页面的留存文案不得低于本节期限**」；§6.1 补「工单处理记录」查询维度，§6.2 补 `service_ticket` 四个索引的覆盖说明 |
+| 《数据表规范》附录 A + §一 | 补第 54 张 `sensitive_word_appeal`（10 字段）、第 55 张 `announcement`（**15 字段，按 `V701` 实际 DDL 数**）；`service_ticket` / `sensitive_word` / `content_review` 字段数更新（并注明 `service_ticket` 施工另补 `type_id` 后实际 14 列）；总数 53 → **55**、段 7 = **11 张实建**；§一「唯一表名」行同步；**修正段分布加总算术错误**（原「段 7 = 11」把实建数混进在册分布，导致各段加总 53 与「合计 55」对不上；现写清 54 张在册 + `invoice` 1 张不建 = 55） |
+| 《PC 后台开发计划》§二 + §八 | A-02 / A-20~A-26 **八页**的接口列由「有（第 7 段）」改「**有，N 个**（见《第 7 段工作流》§五 5.4）」；§八 新增「看板指标口径 ✅ 已定」一行，并把「要不要看聊天原文未定」改为已定 |
+| 《未完成需备注》§5.1 + §八 | §5.1 表「数据看板指标定义」标 ✅ 已定；§八 第 4、7 项标已定（原已标，本次核对无改动）；§5.2 确认「只看命中片段 + 前后各 3 条，不看全文」；概览处「仍未解决的部分」②③ 同步标已定 |
+| 《依赖清单》 | 补后端 3 项：`spring-boot-starter-actuator` / `micrometer-registry-prometheus`（版本由 **Spring Boot 4.0.6 父 POM** 管）/ `logstash-logback-encoder`（7.4，须显式写版本）；`echarts` 经 `pc/admin-web/package.json` 核实为 **5.6.0 且框架已带**，改登记为「框架已带，非新增」 |
+| `docs/README.md` | 段 7 索引与验收证据索引已就位（本次核对无缺口）；**修正一处既有错位**：「锚点结论：`5-A1`~`5-A8` 8/8 通过」整块原被错放在段 7 小节末尾，已原样挪回段 5 小节；顺带把三处陈旧数字改为实际值（表总数 51 → 55、错误码 78 → 91） |
+| `docs/CHANGELOG.md` | 本条目。**按既有约定不登记指纹**（指纹统一在 `docs/BASELINE.md`） |
+
+**11 处上游冲突（全部按《第 7 段工作流》§零之二 裁决回写）**：
+
+| # | 冲突 | 本段定 |
+|---|---|---|
+| 1 | 段 7 建几张表 | **实建 11 张**（9 张在册 + 第 54/55 张；`share_poster` 不做；`operation_log`/`login_log` 段 1 建、本段只读） |
+| 2 | `sensitive_word_appeal` 表不存在 | 新建**第 54 张** |
+| 3 | 公告「触达 / 打开率」无表可落 | 新建**第 55 张** `announcement`（批次主表） |
+| 4 | `service_ticket` 缺页面要的 4 字段 | 补 `ticket_no` / `title` / `priority` / `sla_due_at`（施工又补 `type_id`） |
+| 5 | `sensitive_word` 缺「最近命中」 | 补 `last_hit_at` |
+| 6 | `content_review` 缺「命中片段」 | 补 `hit_snippet`（**不是原文全文**）+ `biz_user_id` |
+| 7 | 收藏 / 关注列表接口没登记 | 补登 **4 个** C 端接口 |
+| 8 | 企业认证没有「查状态」接口 | 补登 `GET /app/account/enterprise`（四态） |
+| 9 | A-20 能不能看聊天原文 | **只返回命中片段 + 前后各 3 条上下文摘要**，不提供全量拉取；原文完整性用直接查库证明 |
+| 10 | 客服时段两个数（21:00 / 20:00） | **9:00–20:00**（以 APP 55/56 设计稿为准） |
+| 11 | 日志留存三处打架且设计稿低于合规下限 | 以**审计规范 §5.2** 为准（`operation_log` ≥ 3 年、`login_log` ≥ 180 天）；A-26 稿「90 天」作废 |
+
+**26 项负责人裁决**：完整清单见《第 7 段工作流》§零之二（第 1~4 项为开工前逐条确认的硬缺口，第 5~26 项为负责人授权「按建议处理」后落定）。其中改变总量或口径的有 6 组：表数 **53 → 55**、3 张表补 **7 个**字段、接口清单 **+5**、A-02 接口 **3 → 5**（补 `regions` / `todos` / `export`，`online` 并入 `summary`；裁决 21 说的「4 个」是**数据接口**口径、不含 `export`，两处不矛盾）、看板口径从「未定」变「已定」、客服时段与日志留存两处以**小数为准**。
+
+**本段口径（回写所依据的实际值，与计划不同的地方）**：
+
+| 项 | 计划 | 实际（已按实际回写） |
+|---|---|---|
+| 建表 | 7 张（总纲旧文）/ 10 张（附录 A 旧文） | **11 张**：9 张在册 + 第 54 张 `sensitive_word_appeal` + 第 55 张 `announcement`；`share_poster` **不做**；`operation_log`/`login_log` 段 1 建、本段只读 |
+| 表总数 | 53 张 | **55 张**（要建 54 张 = 55 − `invoice`；段 7 实建 11 = 12 在册 − `share_poster`） |
+| 接口 | 上游清单无段 7 条目 | **54 个**（新增 **26** + 已列 28），其中管理端 40、C 端 14 |
+| `announcement` 字段 | 工作流 §九 写 16 | **15**（`V701` 实际 DDL：id/announcement_no/title/content/target_type/target_value/channels/status/scheduled_at/sent_at/reach_count/open_count/created_by/created_at/updated_at） |
+| `service_ticket` 字段 | 13 | **14 实际列**（13 + `V706` 补的 `type_id`；附录 A 记 13 并注明施工补列） |
+| 封禁状态 | `banned` | **`blocked`**（`app_user.status` 库内只有 `active/blocked/cancelled`；`banned` 只是管理端出参枚举） |
+| `region` 目标人群 | 可用 | 列已由 `V707` 建，但**无采集点、恒为 NULL**：地区分布只返回「其他」，按地区发送必然 0 人（正常返回 `sent`，不报错）；采集入口段 8 补 |
+| 测试发送（A-24） | 发给自己站内信 | **只返回渲染预览文本，不写 `notification`**（操作者是 `faze_admin.sys_user`，不在 `faze.app_user` 里，`notification.user_id` 无处可写；段 8 补「管理员 → 站内信」身份映射） |
+| A-26 操作人列 | 显示名字 | 只返回 `operatorId`，`operatorName` 恒 `null`（跨库读不到 RuoYi 用户表） |
+| `log.operation_retention_days` | 90 | **1095**（3 年，合规下限；与裁决 16 冲突时按合规） |
+| `7-A8` 告警通道 | 钉钉群机器人 | **本段不实现任何发送通道**：`alert.dingtalk_webhook` / `alert.dingtalk_secret` 两键 V703 已建、**值为空串**；`TicketSlaScanTask` 在 webhook 为空时**只打 WARN 日志、不发送**。负责人 2026-11-09 定：邮箱方案留备注、段 8 处理，本段不改任何 `alert.*` 键与发送代码。**因此本段没有任何真实告警出口**，`7-A8` 「告警真的响」没有正面证据，**段 8 必须落地一条通道** |
+
+**关联**：11 处上游冲突见《第 7 段工作流》§零 表、26 项裁决见 §零之二、实际偏差见 §十一（19 条）。
+
+---
+
+## 2026-11-09 · 第 7 段尾巴：C5 APP 客服 4 页 + region / 客服电话补漏 + **一个静默 bug**
+
+**做了什么**：补齐段 7 C5（APP 55/56/57/58 四页），并收掉 A~D 组遗留的两处数据缺口
+（`app_user.region` 缺失、客服电话占位号），过程中**挖出一个「公告发 0 人却不报错」的真缺陷并修掉**。
+
+| 范围 | 内容 |
+|---|---|
+| C5 APP 4 页 | `features/ops/pages/` 下 `SupportPage`（55 客服中心）/ `FaqPage`（56 常见问题）/ `ComplaintPage`（57 投诉）/ `FeedbackPage`（58 反馈）+ 4 个路由壳 + `features/ops/api/*` + `features/ops/types.ts`；「我的」页新增「我的与服务」分组入口 |
+| i18n | `zh-Hans/ops.json` 新写 `ops.support.*` / `ops.faq.*` / `ops.complaint.*` / `ops.feedback.*`（约 60 key）；另 3 语言缺译走既有 `.i18n-pending.json` 登记（段 7 允许的降级） |
+| 后端接口 | 新增 `GET /api/v1/pub/app/config`（免登录，聚合返回客服时段 + 电话，避免逐键读 `/pub/config/{key}`） |
+| 迁移 | `V707__seg7_region_and_service_phone.sql`：`app_user` 加 `region VARCHAR(64)` + `idx_app_user_region`；`sys_config.service.phone` 占位号 `0999-XXXXXXX` → 正式号 `002-00854967`（幂等：information_schema 判断 + PREPARE/EXECUTE） |
+| region 链路 | `AppUser.region` 字段；`AccountQueryService.listUserIdsByRegion`；`DashboardMapper.selectRegions`（前 5 + 合并「其他」，NULL/空串归「其他」）；`AdminDashboardService.regions()` 接通真实查询；`AnnouncementSendService` 的 region 分支从「硬抛错」改为真实查库 |
+| 上传白名单 | `StorageKeyRules.ALLOWED_SCENES` 与 `KEY_PATTERN` 同步新增 `complaint` / `feedback` 两个 scene；前端 `UploadScene` 同步（两边少一个就 400） |
+
+### Fix：公告「全量 / 按角色 / 指定用户」三种目标**全部静默发 0 人**
+
+`AccountQueryServiceImpl.selectUserIds` 用 `status='normal'` 查库，而 `app_user.status` 自
+`V1__baseline.sql` L32 起只有 `active / blocked / cancelled` —— `normal` 恒为 0 行。
+
+后果：公告发送接口返回 200、`status=sent`、`reach_count=0`，**看起来完全正常**，
+实际一个人都没发到。`NORMAL/BANNED/CANCELLED` 只是管理端**出参**枚举，
+由 `AdminUserService.toDbAccountStatus` 翻译回库内取值，不能直接拿去查库。
+
+已修为 `active`。证据：修前 `SELECT COUNT(*) ... WHERE status='normal'` = **0**；
+修后 `estimate(all)` = **6**（= `status='active' AND deleted_at IS NULL` 的实际行数），
+`role=lawyer`=1 / `role=user`=4 / `user_ids=[1,3]`=2。记 §十一 第 18 条。
+
+### 验收
+
+| 项 | 结果 |
+|---|---|
+| 4 页浏览器渲染（CDP 真实 Chrome，390×844） | 全部通过；截图与逐条验收点见 `docs/acceptance/seg7/C5-前端4页.md` |
+| 57 提交 | 真实点击 → 「已提交，单号 **TK20261109000007**」 |
+| 58 提交 | 真实点击 → 「已提交，感谢你的反馈」 |
+| `GET /pub/app/config` | `{"onlineHours":"09:00-20:00","phone":"002-00854967"}` |
+| `GET /admin/dashboard/regions` | `{"list":[{"count":"6","name":"其他"}]}`（region 全 NULL，只有「其他」一项，符合预期） |
+| Flyway V707 | success=1，`app_user` 22→23 列、索引 3→4（未超单表 6 个上限） |
+| 后端测试 | **489 / 489 通过**（原 479 + 本次 10） |
+| 前端门禁 | `tsc --noEmit` / `eslint` / `check:rawtext`（170 tsx 命中 0）/ `check:i18n` 全部通过 |
+
+**未做（仍在段 8）**：E/F/G/H 组（设置页 / A-02 看板页 / A-26 日志中心页 / 监控告警 / 收口）；
+`app_user.region` **无采集点**（恒为 NULL，地区分布只有「其他」、按地区发送必然 0 人，
+采集入口留给段 8）；告警通道按文件口径**维持钉钉**、邮件方案仅留备注。
+偏差见《第 7 段工作流》§十一（第 11/17/18/19 条）。
+
+---
+
+## 2026-11-09 · 第 7 段 A~D 组交付（后端 + PC 6 页）
+
+**做了什么**：按第 7 段工作流的 8 组任务，完成 **A/B/C/D 四组的后端全部**与 **PC 端 6 页**。
+
+| 组 | 交付 |
+|---|---|
+| A（地基） | 11 张表（V700~V702）+ 种子（V703）+ 审核开关（V704）+ 风控阈值（V705）+ 补 	ype_id（V706）；敏感词 Trie 引擎（14 单测）；内容审核三档管道；日志中心 4 接口 + 留存期校验与清理；看板 4 接口 + 指标口径文档；6 枚举 + 12 错误码 + 13 审计动作码 |
+| B（审核风控） | 词库 6 接口 + 导入导出；申诉 3 接口；审核队列 3 接口（三种处置各带审计码）；违规记录 2 接口；账号风控（异常注册 / 新设备提醒） |
+| C（工单客服） | 状态机（4 态 5 迁移 + 10 单测）；投诉/反馈提交 → 同事务生成工单；管理端工单列表/详情/回复/关闭/分配/导出；FAQ 接口 |
+| D（消息公告） | 公告 5 接口 + 发送链路（分批 500、DB 为准的幂等、部分失败不回滚）；模板 5 接口（变量一致性校验）；站内信 3 接口（已读回写公告打开率） |
+| PC 端 | A-25 敏感词 / A-20 审核队列 / A-21 工单列表 / A-22 工单详情 / A-23 公告 / A-24 模板 共 6 页 + ops.js + 菜单种子（2230~2235，已执行进 aze_admin） |
+
+**端到端实测**：block 级投诉 → {code:410006} 且原文不落库；review 级投诉 → 正常提交、content_review 命中「包打赢」「不赢不收费」两词；词库 50 / 模板 6 / FAQ 7 可查；8 个接口全部 200；全量测试 **479 用例通过**。
+
+**未做**：C5 的 APP 4 页、E~H 组（设置页 / 看板页 / 日志中心页 / 监控 / 收口）。偏差 16 条见《第 7 段工作流》§十一。
+
+---
+## 2026-11-08 · 第 6 段补做（二）：B3 限流 / C4 线程级并发 / D1 人工补单
+
+> **本段收口**：三项补齐后 19 个任务 **19/19 完成**；7 条锚点结论不变——
+> **4 条通过**（6-A2 / 6-A3 / 6-A5 / 6-A7 的 Mock 部分）、**2 条挂账**（6-A1 / 6-A6）、
+> **1 条部分挂账**（6-A4 真实账单部分）。三条挂账均为「无支付商户号」的外部条件，
+> 不是本段欠账。见 `docs/acceptance/seg6/挂账.md`。
+
+### 做了什么
+
+| 范围 | 内容 |
+|---|---|
+| B3 用户维度限流 | `RechargeRateLimitGuard`：Redis 固定窗口（INCR + 120s TTL，口径同 `LawSearchRateLimiter`）+ `V603` 配置 `recharge.rate_limit_per_min=3`；插在 `RechargeOrderService#create` 的「金额校验之后、渠道之前」；超限 **HTTP 429 + `Retry-After` + 专用码 `405030`**（不复用 401007）；Redis 故障 fail-open |
+| C4 JVM 内 2 线程 | `RechargeIdempotentTest`：`@SpringBootTest` + 真 MySQL + `CountDownLatch` 双线程各自开事务；串行重放 3 次 + 并发 2 次，均验「成功行=1 / 流水=1 / 余额+1 份额」；证据追加进 `C4-idempotent.txt` 第四节（原 HTTP 进程级证据保留） |
+| D1 人工补单接口 | `POST /api/v1/admin/recharges/{orderNo}/sync` + `AdminRechargeSyncService`（`@OperationLog(RECHARGE_SYNC)`）；`RechargeTaskService` 抽出 `onceQuery` 作为人工/自动两条路径的公共实现；返回 `syncResult` 枚举（`settled` / `marked_failed` / `channel_pending` / `channel_not_found` / `not_pending`），不抛 500 |
+| 错误码 | 新增 `TRADE_RECHARGE_NOT_FOUND(405029)`：本地无此单是入参错误，与「渠道查不到」（200 正常态）区分 |
+| 迁移 | `V603__seg6_recharge_rate_limit.sql`（段 6 迁移 3 → **4** 条，Flyway 已执行） |
+| 单测 | `RechargeRateLimitGuardTest`(5) / `AdminRechargeSyncServiceTest`(5) / `RechargeIdempotentTest`(2)，**+12 个** |
+
+### 三件为什么之前没做（复盘，写在这里防重犯）
+
+三件**都不是负责人裁决不做的**，是施工方自行标注「时间预算不足 / 超出范围 / 边际收益低」：
+D1 首版理由「时间预算不足」；B3「项目无用户维度限流组件，新建限流设施超出范围」——**实际十几行即可**；
+C4「进程级并发证明力已足够」——**但工作流要的是可回归的测试资产，不是一次性手工证据**。
+`AGENTS.md` §1.2 明文「时间不是约束，不因『要快』而砍范围或降低工程标准」，上述理由均不成立。
+同时纠正一个流程错误：把「未做完」登记进工作流 §十一 的**偏差表**（偏差表是给「合理差异」用的，
+不是收容缺口）。
+
+### 证据
+
+`docs/acceptance/seg6/B3-D1-final.txt`（B3：同一用户第 4 次下单 **HTTP 429 + Retry-After + 码 405030** + Redis 计数；
+D1：`callback_lost` 掉单 → 人工 sync → `settled`，含流水与 `operation_log` 三方对照）、
+`C4-idempotent.txt` 第四节（JVM 内 2 线程）。
+
+---
+
+## 2026-11-08 · 第 6 段 D3/D4 补齐：渠道对账单与逐笔比对
+
+> **本段仍未收口**：D1 管理端人工补单接口、B3 用户维度限流、C4 线程级并发用例三项未做
+> （见 `挂账.md` 第二节）。E2 连贯走查与 E3 的 §九 回写、`6-A7-failure.txt`、基线升级**已补**。
+> 补齐后 19 个任务完成 17 个；7 条锚点：**4 条通过**（6-A2 / 6-A3 / 6-A5 / 6-A7 的 Mock 部分）、
+> **2 条挂账**（6-A1 / 6-A6）、**1 条部分挂账**（6-A4：Mock 差异识别已验，真实账单格式挂账）。
+> 详见 `docs/acceptance/seg6/6-A4-reconcile.txt`、`E2-e2e.txt`、`6-A7-failure.txt` 与 `挂账.md`。
+
+### 做了什么
+
+| 范围 | 内容 |
+|---|---|
+| D3 账单下载 | `ReconcileBillParser` 接口 + `MockBillParser`（**真实解析实现**）+ 微信/支付宝骨架（抛 405013）+ `BillCsvSupport`（元↔分走 `BigDecimal`，禁 double）+ `MockBillGenerator`（同构 CSV：表头 + 数据 + 汇总）+ `BillParserFactory` + 账单存 `file_record(biz_type='reconcile_bill')` + `ReconcileDailyScheduler` 每日 02:00 投递 + `ReconcileTaskScanner` 60s 领任务 |
+| D4 逐笔比对 | `ReconcileCompareService`：按 `order_no` 匹配 → 三类差异落 `reconciliation_diff`（`channel_only` / `local_only` / `amount_mismatch`）→ `channel_only` 且本地有单时自动补入账（走 `settleByCallback` 的晚到回调补偿）→ 差异回写 `auto_fixed` → 先查后插去重（同一天重跑不产生重复行） |
+| CSV 导出 | `GET /admin/reconciliation/channel-diffs/export`（`text/csv` + UTF-8 BOM，与列表共用同一份筛选条件） |
+| 配置 | V602 新增 `reconcile.mock.inject`（验收用差异注入，**生产必须为空**）+ `SysConfigKeys` |
+| 错误码 | 新增 `TRADE_RECONCILE_BILL_INVALID(405028)`（段 6 原定号段已用满） |
+| 存储 | `StorageKeyRules` 场景 +`reconcile_bill`、扩展名 +`csv`/`zip`；`FileRecordService` +`BIZ_RECONCILE_BILL` |
+| 单测 | `MockBillParserTest`(10) / `MockBillGeneratorTest`(6) / `ReconcileCompareServiceTest`(6)；全量 452 个测试 **Failures 0 Errors 0** |
+
+### 顺带修掉的 4 个 bug（都只有真实运行才暴露）
+
+1. **`RechargeSettleService#compensate` 补偿单写不进库**：`setExpireAt(null)` 撞 `recharge_record.expire_at` NOT NULL（V600）。D1 掉单补单走 `settle` 不建新单所以从未触发；D4 自动补单第一次走 compensate 就撞上。这是**资金链路 bug**（自动补单会静默失败），段 7/段 8 任何走 compensate 的场景都要回归。
+2. **B4 差异金额列全显示 `+0.00`**：页面读 `diffCents`，而 D4 按工作流字段映射写的是 `amountCents`。改为按 `diffType` 取字段。单测与接口都通过，只有真实截图暴露。
+3. **B4「发现时间」列与 CSV 该列为空**：D4 落库漏写 `found_at`。
+4. **恒等式差异按默认「昨日」筛永远不出现**：日期筛选只按 `bill_date`，而恒等式差异的 `bill_date` 按段 5 `V510` 的设计就是 NULL。改为双口径：渠道差异按 `bill_date`、恒等式差异按 `found_at`。同时纠正一处旧判断——那段写 `reconciliation_diff` 的代码属于**段 5 H1**，不是段 1。
+
+### 负责人裁决（2026-11-08）
+
+- **B4 权限点不做**：与《接口规范》§6.2、《总纲》§5.8、`AdminSession`「只取必要字段」三处已拍板决策冲突，且后台只有一个业务角色。替代动作：停用 RuoYi 演示账号 `ry`（`sys_user.status='1'`，实测登录返回 `code=500 用户已封禁` 且无 token）。
+- **`bill_date` 问题按方案 A 修**（恒等式差异按 `found_at` 筛），不回改段 1/段 5。
+- **D3/D4 优先补齐**（本文档上半部分）。
+
+### E2 / E3 收口（同批次）
+
+| 项 | 内容 |
+|---|---|
+| E2 连贯走查 | `E2-e2e.txt`：发码 → 登录 → 下单 → 幂等下单 → 回调重放 3 次 → 查单 → 查余额 → DB 核对，**一条 8 步链路全 200**；余额 20000 = 流水汇总 20000 |
+| `6-A7` 失败可读 | `6-A7-failure.txt`：Mock 失败模式下单 → D1 查单置 `failed` → 0 流水 → 余额不变 → **额度释放**（usedCount 4→3） |
+| §九 回写 | 《接口规范》§7.3.1 接口 8→10；《错误码规范》补 `405028`；《数据表规范》附录 A `reconciliation_diff` 14→20 字段；《总纲》§5.7 sys_config 21→24 键与接口 8→10 |
+| 基线升级 | `docs/BASELINE.md` v1.55 → **v1.56**（§7.59 登记 5 份内容变更与指纹重算） |
+| README | `docs/README.md` 新增「段 6 验收证据」索引（15 个文件） |
+
+**又修 2 个 Mock 网关 bug**（E2 走查暴露，见 `E2-e2e.txt` 末节）：
+1. `prepay` 的 `paid_at` 用本地时间当 UTC 写 → 对账按日归账会把单算到第二天；
+2. 回调报文未做 URL 编码 → Base64 签名含 `+` 时约 50% 概率验签失败（"偶发"的根因）。
+
+---
+
+## 2026-11-08 · 第 6 段施工（部分完成）：A/B/C 三组 + D1/D2 + E1 验收
+
+> **本段未收口**：19 个任务完成 13 个，D3/D4 与 E2/E3 的剩余部分未做。
+> 7 条锚点：3 条通过（6-A2 / 6-A5 / 6-A7 的 Mock 部分）、3 条挂账（6-A1 / 6-A4 / 6-A6）、
+> 1 条部分通过（6-A3 自动补单已验）。详见 `docs/acceptance/seg6/挂账.md`。
+
+### 提交（6 个）
+
+| 提交 | 范围 | 内容 |
+|---|---|---|
+| `9ca233f` | A 组 | `recharge_record` 表（V600）+ 24 个 `sys_config` 键（V601）+ 3 个枚举 + 状态机 + 支付网关抽象（Mock/微信/支付宝骨架 + 工厂）+ `ConfigCipher` + `ProdMockPayGuard` |
+| `85db25b` | B1 | 充值下单 / 单笔 / 游标列表 3 个接口 + 幂等键 + prepay 参数缓存 + 限额策略 |
+| `69a863e` | B2+B3 | 充值页（36-recharge 实现 + 4 态 + 金额四类校验 + 未实名拦截 + Mock 模拟支付）+ 余额响应加 `recharge` 子对象 + 17 个限额单测 |
+| `31386a6` | B4 | PC A-09 外层包 el-tabs（Tab1 原样）+ Tab2 渠道对账（差异列表 / 处置 / 审计） |
+| `ffd90e3` | C 组 | 三个回调入口 + 统一处理链 + 入账链路（CAS + 流水 + 余额同事务）+ 晚到回调补偿单 + 6 个入账单测 |
+| `ed865d9` | D1/D2 | `recharge_pending_query`（掉单补单）+ `recharge_close`（超时关单，关单前先查渠道）+ 扫描器 |
+
+### 几个值得记住的坑
+
+1. **Form 报文读不到原文**：`@RequestBody String` 与 `getInputStream()` 对
+   `application/x-www-form-urlencoded` 都拿不到原文（Tomcat 先解析成参数、流被读空）。
+   **真实支付宝回调就是表单**，必须走 `getParameterMap()` 重建。
+2. **Mock 回调也是表单编码**（不是 JSON），按 JSON 发会验签失败。
+3. **`callback_lost` 模式下 Mock 的渠道状态必须是 SUCCESS**，否则 `query()` 永远返回 pending，
+   D1 的掉单场景无法复现。
+4. **`i18nKey` 不能拼**：`trade.recharge.status.pending` 是四段点号，违反规范的三段式 camelCase，
+   已改成 `trade.recharge.statusPending`（枚举 switch 写字面量）。
+5. **`GET /app/wallet/balance` 的金额是字符串**（包装类 Long → String），而充值面板里的金额是数字
+   （原生 long）——前端要经 `centsFromServer()` 归一，否则 `MoneyText` 拿 NaN。
+
+### 未完成（不是挂账，是没做完）
+
+D3 渠道账单下载与解析器、D4 逐笔比对落库、E2 连贯 E2E 走查、E3 的 §九 10 行回写 + 基线升级、
+B3 用户维度限流、B4 权限点、D1 管理端人工补单接口、C4 JVM 内 2 线程用例。
+全部列在 `docs/acceptance/seg6/挂账.md` 第二节。
+
+---
+
+## 2026-11-08 · 第 5 段收口补做（二）：提现状态机单测 + 2 个证据文件 + 工作流 §十一 回写 + 基线 v1.55
+
+> 负责人问「第五段做完了吗」，逐条核对《第 5 段工作流》§一.1 的 7 条出口条件，发现 5 项不满足。
+> 本版补齐其中 4 项，剩下 1 项（四语言 + RTL 运行时）已裁决推段 8。
+
+### 1. 补提现状态机与提现申请单测（出口第 2 条）
+
+出口第 2 条要求「案件状态机、提现状态机**全部**合法/非法迁移有单测覆盖」。案件状态机段 5 已有
+（`CaseStateMachineTest`：6 合法 / 14 非法）；**提现状态机此前只有一个 `WithdrawStatus` 枚举 + `isTerminal()`，
+迁移全靠 `casTransit` 的 SQL CAS 兜底，既无独立类也无一条单测**。
+
+- 新增 `modules/trade/rule/WithdrawStateMachine`：4 态 / **3 条合法边**，`canTransit` / `check`（非法抛 `405025`）/ `isTerminal`。
+- `WithdrawService` 的 `approve` / `reject` / `markPaid` 在 `requireRecord` 之后**先判状态再判参数**，
+  避免「单据已是终态却先提示去补一个补了也没用的凭证」。
+- 新增单测 14 个：`WithdrawStateMachineTest` 6 个（12 组合 3 合法 / 9 非法、终态无出边、同态非法、
+  null 拒绝、`check` 错误码、合法边清单）+ `WithdrawServiceTest` 8 个（4 条校验 + 100 元与 10 分手续费 + 幂等命中 + 非律师）。
+
+**顺带查出一处文档数字矛盾**：工作流 F3 原文写「状态机单测（5 条合法 + 4 条非法）」，但 4 态两两组合只有
+12 种、合法边只有 3 条，`5+4=9` 凑不出任何自洽划分。按实际状态数实现，并登记到工作流 §十一（R-4）。
+
+### 2. 修 4 个单测 NPE（段 5 D 组自己打挂的回归）
+
+`mvn test` 从来不是绿的：`e816dc3` 给 `LawyerWorkbenchService` 加了 `SysConfigQueryService` 依赖
+（价格区间改读 `sys_config`），**漏改 `LawyerWorkbenchServiceTest`** → 4 个用例 NPE。
+`PROGRESS-C-D.md` 当时只记了 `tsc` / `eslint` 通过，没人跑后端全量。
+
+- 补 `@Mock SysConfigQueryService` + `@BeforeEach` 固定区间 20~2000 元。
+- 另发现旧用例 `zeroPriceForcesSwitchOff` 与 D4 冲突：它断言段 2 语义「0 价强制下架」，
+  但 D4 规定「20~2000 元、越界 `405006`」，**0 元在 `assertPrice` 就被拒，那条断言永远不可能成立**。
+  改为期望 `405006`，并新增 `zeroStoredPriceForcesSwitchOff` 覆盖「库内现价 0 时即使请求上架也强制下架」这条存活路径。
+
+### 3. 补 2 个缺失的证据文件（工作流 §5.5 要求）
+
+§5.5 列的证据文件里，`A1-schema.txt` 与 `H2-rtl.md` **从未产出**（`E2-backfill.txt` / `E5-no-money-moved.txt`
+早已在偏差 10 声明合并进 `PROGRESS-E-H.md`）。
+
+- `docs/acceptance/seg5/A1-schema.txt`：9 张表（`legal_case` / `case_progress` / `case_delivery` / `case_library` /
+  `case_library_translation` / `withdraw_record` / `lawyer_income_settlement` / `reconciliation_diff` / `lawyer`）
+  的 `SHOW CREATE TABLE` 原样输出，22 KB，flyway 最新 success 记录 `510`。
+- `docs/acceptance/seg5/H2-rtl.md`：静态核验 4 项全过（写死 `left/right` **0 处**、`letterSpacing` **全为 0**、
+  `I18nManager` 19 处无一处手动反转、`start/end` 39 处），但**明确写「RTL 运行时未验」**——
+  三语言各缺 1462 个 key，强制 RTL 后文字仍是中文，这种截图证明不了长词换行与 BiDi 数字，属「弱证据冒充强证据」，
+  所以不做。段 8 收口时必须补真实维吾尔文截图。
+
+### 4. 工作流 §十一 回写（「缺一条不算收口」）
+
+`docs/architecture/法泽FAZE_第5段工作流_v1.0.md` §十一 此前**是一张空表**（原文 1277 行处的
+`| | | | | |` 占位）。本次追加：
+
+- **32 条偏差清单**（编号 `A-1`~`A-6` / `CD-1`~`CD-8` / `EH-1`~`EH-12` / `R-1`~`R-7`），逐条写计划 vs 实际、原因、影响；
+- **出口 7 条逐条结论**：5 条满足、1 条部分满足（第 6 条：mvn 绿但 PC 无 lint、ArchUnit 全仓不存在）、
+  1 条不满足（第 5 条四语言 + RTL，已裁决推段 8）；
+- **6 项遗留挂账**交段 6 / 段 8。
+
+### 5. `docs/README.md` 段 5 索引加 2 行
+
+`A1-schema.txt`、`H2-rtl.md` 补进「段 5 验收证据索引」，并注明 H2 那份是「静态通过、运行时未验」。
+
+### 6. `docs/BASELINE.md` v1.54 → **v1.55**
+
+- 内容变更 **2 份**：第 5 段工作流（§十一 回写）、`docs/README.md`（索引 +2 行）；
+- 重算指纹：第 5 段工作流 `1337 行 / 136816 字节 / fd3d2cfab07cce0f`（原 `1277 / 125257 / 281f55b167210457`，+60 行 §十一 回写）；
+  `docs/README.md` `246 行 / 30767 字节 / ffa15f87125ab708`（原 `245 / 30369 / 0ab3d7652ecae0bf`，+2 行索引）；
+- 新增 §7.58；资产数仍 **45**（`docs/acceptance/**` 不进基线资产）。
+
+**后端门禁**：注入 `deploy/.env` 的 `FAZE_*` 后 `mvn -B -o test` → **382 tests / 0 failures / 0 errors / 0 skipped，BUILD SUCCESS**
+（较上一版 368 增加 14 个新用例）。**注意**：不注入环境变量直接跑会有 5 个 `@SpringBootTest` 报
+`Could not resolve placeholder 'FAZE_DB_URL'`——那是环境缺失，不是代码回归（`deploy/verify-all.ps1` 已修过同一问题）。
+
+---
+
+## 2026-11-08 · 第 5 段收口补做：8 个锚点证据文件 + README 索引 + 基线 v1.54
+
+> 负责人要求把上一条里「没做完的」三件一起补掉：① 8 个独立锚点证据文件 ② `docs/README.md` 索引 ③ `BASELINE.md` 升版。
+
+### 1. 新增 8 个锚点证据文件（`docs/acceptance/seg5/`）
+
+| 文件 | 内容 | 结论 |
+|---|---|---|
+| `5-A1.md` | 在线立案：`CS` 单号 / `form_snapshot` 9 字段 / 审核通过 / 进度 2 条 | 通过（附中文 `????` 数据瑕疵说明） |
+| `5-A2.md` | 进度同步：推进节点 / 操作人 / `accepted → in_progress` / 法院案号 | 通过（**本轮修掉「只写案号不迁状态」缺陷**） |
+| `5-A3.md` | 案件送达：`SD` 回执 / 签收幂等 / 签收设备 / 无三处法院表述 | 通过 |
+| `5-A4.md` | 收入对账：三处数字逐笔一致 / 明细带订单号 / 交叉校验 | 通过 |
+| `5-A5.md` | 提现闭环：四步余额对照 / 四条流水 / 两条恒等式 / 四条边界 | 通过 |
+| `5-A6.md` | 服务设置：改价立即生效 / 区间校验 / 历史订单不受影响 | 通过 |
+| `5-A7.md` | 案例库：录入 → 上线 → APP 可见 / 四块正文 / 法条引用 / 不显示案号法院 | 通过 |
+| `5-A8.md` | 全局搜索：四域分域 JSON / 单域 / 空态 / idle 态 | 通过 |
+
+**`5-A1`~`5-A8` 8/8 通过**。其中本轮补测并修复了一个真缺陷：`CaseServiceImpl#addProgress` 处理 `accepted` 节点时只写 `court_case_no`、**没迁 `accepted → in_progress`**（状态机表里明明有这条边），实测「案号写进去了但 status 还是 accepted」。
+
+### 2. `docs/README.md` 加「段 5 验收证据索引」
+
+8 条锚点 + 3 份施工记录 + 枚举清单共 12 个入口；并写清三条与计划口径不同的地方（`income_unfreeze` / `case_library` 24 字段 / 三语言缺译），指向技术路线 §二十六。
+
+### 3. `docs/BASELINE.md` v1.53 → **v1.54**
+
+- 内容变更 **2 份**：技术路线（§二十六 施工登记）、`docs/README.md`（段 5 索引）；
+- 重算这两份的指纹：`docs/README.md` 245 行 / 30369 字节 / `0ab3d7652ecae0bf`；技术路线 4268 行 / 212690 字节 / `5424428065f83623`；
+- 新增 §7.57 记录；**顺带补记 v1.53 的缺漏**（v1.53 表头写了「见 §7.57」但全文没有这一节）；
+- 资产数仍 **45**（`docs/acceptance/**` 是过程记录，历来不进基线资产）。
+
+---
+
+## 2026-11-08 · 第 5 段 E/F/G/H 组施工（结算引擎 + 提现闭环 + 案例库 + 全局搜索 + 收口）
+
+> 把第 5 段从「A~D 组代码落地」推进到 **E~H 组代码全部落地 + 实测通过**。
+> 本轮真打接口、真查库，四组都留了数字证据（见 `docs/acceptance/seg5/PROGRESS-E-H.md` §二）。
+> **`5-A4` / `5-A5` / `5-A7` / `5-A8` 四条锚点本轮实测通过**；`5-A1/A2/A3/A6` 已在 B~D 组轮通过。
+
+### 1. 后端（faze-api）
+
+| 组 | 内容 |
+|---|---|
+| E1 收入入账 | `SettlementService#creditIncome`：完成订单时写 `income` 流水（`balance_after` 记**总余额**、`frozen_until=完成时间+7天`）+ 更新 `lawyer_balance(frozen,total_income)`；挂进段 2 的 `LawyerOrderService#complete` **同一事务** |
+| E2 回补 | `POST /admin/settlements/backfill` + `GET .../backfill/pending`（只读核对先看数，人工确认再补）+ `scripts/repair-lawyer-income.sql`（两条恒等式 + 待补明细 + 零收入历史单清单） |
+| E3 解冻 | `LawyerUnfreezeTask`（`@Scheduled` 10 分钟 → `task_queue` 的 `lawyer_unfreeze` → `unfreezeDue`），`NOT EXISTS` 判重 + `uk_flow_biz` 兜底 |
+| E4 结算批次 | `generate / list / summary / detail / confirm`：订单侧三个数与流水净额**交叉校验**（`settle == income − fee`，不成立整批回滚抛 405026）；同律师同账期幂等跳过；`JS` 单号 |
+| E5 确认不动钱 | `confirm` 只 CAS 改状态 + 审计 `SETTLEMENT_CONFIRM`；**实测确认前后 `lawyer_balance` 与 `balance_flow` 一个字节都没变** |
+| F1 提现申请 | `POST /app/withdrawals`（`Idempotency-Key` 幂等）+ 四条服务端校验（最低额 / 余额 / 绑卡 / 单日 3 笔）+ 手续费 `floor(金额×0.6%)` + 冻结 |
+| F2 提现审核 | PC `list / summary / audit(通过/驳回) / voucher / voucher 预览`；通过必须带凭证、驳回必须填理由；凭证走服务端落盘登记 `file_record(biz_type='withdraw')` |
+| F3 出款/回滚 | `approved → paid`：`frozen -= amount` + `withdraw` 流水（delta=−amount）；驳回：`frozen→available` + `unfreeze` 流水（delta=0） |
+| F4 收款账户 | Luhn + 长度校验（`BankCardValidator`）、实名一致、审计 `WITHDRAW_ACCOUNT_CHANGE`（detail 只留尾号） |
+| G1 案例库 | PC A-16 的 `list / create / detail / save / publish / offline / 批量下架`：大类由细分推导、法条引用逐条回查法条库、上线门禁（源语言四块 + 至少一条引用） |
+| G2 App 案例 | `GET /app/case-library?type=&cursor=&lang=` + 详情（按语言取正文、缺译回退中文、**不返回案号/法院全名**）+ 收藏（复用 `social_action`） |
+| G3 全局搜索 | `GET /app/search?kw=&type=`：律师/文章/案例/文书模板**四域分域返回**，综合页各前 3 条 + 总数；不引入 ES |
+| H1 差异落表 | A-09 巡检新增落 `reconciliation_diff`（`identity_mismatch`），**只写不处置**、同日同主体不重复插、**A-09 页面外观不变** |
+| 资金口径硬约束 | 新增 `LawyerBalanceLocker`：`SELECT ... FOR UPDATE` + `@Version` 双保险，五个动钱点共用 |
+
+### 2. 数据库
+
+| 文件 | 内容 |
+|---|---|
+| `V510__seg5_case_library_and_recon_fix.sql` | ① `case_library.dispute_focus`；② `case_library.plaintiff_name` / `defendant_name`；③ `case_library_translation.dispute_focus`；④ `reconciliation_diff` 放宽 `bill_date`/`channel` 为可空 + 补 7 个恒等式列 + `status` 默认改 `open` |
+| `database/seed/seg5_admin_menu.sql` | 追加 menu_id **2221 律师结算 / 2222 提现审核 / 2223 案例库**（已执行到 `faze_admin`） |
+
+### 3. PC 前端
+
+| 页面 | 要点 |
+|---|---|
+| A-13 律师结算 `trade/settle/index.vue` | 3 统计卡 / 8 列表格 / 生成弹窗 / 明细抽屉（逐单带订单号 + 一致性提示）/ 确认二次确认（文案写明不动钱）/ CSV 导出 / 收入回补入口 |
+| A-10 提现审核 `trade/withdraw/index.vue` | 4 统计卡 / 8 列表格 / 通过弹窗（凭证上传 base64 + 流水号）/ 驳回弹窗（理由）/ 已出款（二次确认）/ 凭证预览（60 秒签名 URL）/ 补传凭证 |
+| A-16 案例库 `content/caseLibrary/index.vue` | 8 列表格（语言 x/4 warning 色）/ 录入抽屉（四语言 Tab + 基本信息/正文/法条引用）/ 法条远程检索 / 上线门禁 / 批量下架 / 导出置灰 |
+
+### 4. APP 前端
+
+| 页面 | 要点 |
+|---|---|
+| **Tab 4 换成「案例」** | `app/(tabs)/case.tsx` 改接 `CaseListPage`；`common.tab.case` 文案 案件 → 案例（工作流 G2 第 1 条口径） |
+| 04 案例列表 `CaseListPage` | 搜索入口 + 渐变 banner + 三分组（民事/行政/刑事）+ 每组游标分页 + 四态 |
+| 19 案例详情 `CaseDetailPage` | 四块正文 + 相关法条（点开查原文弹层）+ 免责声明 + 底部固定栏（收藏 / 我有类似问题）+ 已下架空态 + 缺译提示 |
+| 40 全局搜索 `SearchPage` | 5 类型 Tab + 四域分组 + idle（历史/热门）+ empty（推荐词）+ error + 400ms 防抖 |
+| 66 提现面板 `WithdrawPanel` | 未绑卡先绑（开户行/姓名/卡号）+ 已绑卡填金额 + 全部提现 + 预计到账/手续费提示 + 幂等键复用 |
+
+### 5. 实测（数字）
+
+- **E2**：回补前 `scanned=2, pendingCents=10200` → 回补后 `frozen=10200, total_income=10200`，两条 `income` 流水 `5100/5100`、`frozen_until=2026-11-13`；再跑 `scanned=0`。
+- **E3**：到期后 `available 0→10200 / frozen 10200→0`，两条 `income_unfreeze`（delta=0，`biz_id` 指向 income 流水），`task_queue` 任务 `done`。
+- **E4**：`JS20261108000001 / 2 单 / 收入 12000 / 服务费 1800 / 应结 10200`；`settle == income − fee`；再生成 `skipped=1`。
+- **E5**：confirm 前后 `lawyer_balance = 0/10200/10200/version2`、flow 2 条 Σ=10200 **完全不变**。
+- **F**：申请 → `available 10200→200 / frozen 0→10000`；驳回 → 回到 `10200/0`；通过 → 不动账；出款 → `200/0`、总余额 −10000、流水 `freeze/unfreeze/freeze/withdraw` 四条；10 分提现 `fee=0`；四条校验码 `405023/405027` 实测命中。
+- **G1**：`CL20261108000001 / contract → civil / published / law_refs 1`。
+- **G2**：民事组列表可见；详情四块齐全、无 `courtName`/`courtCaseNo`；收藏 `favorited false→true`；浏览量 0→1。
+- **G3**：`kw=合同` 返回四个域对象（文书域 2 条）；`type=case` 只回 `cases`。
+- **H1**：人造 +100 分差异 → 巡检落 1 行 `expected=10200/actual=10300/diff=100`；修正后 `diffOwners=0` 且不重复插。
+
+### 6. 偏差与未完成（详见 `PROGRESS-E-H.md` §四）
+
+1. **解冻流水 `biz_type` 改为 `income_unfreeze`**（E0 原写 `unfreeze`）：E3 与 F3 的 `biz_id` 分属两张自增表，同 `biz_type` 必然撞 `uk_flow_biz`，会让「提现驳回成功但某笔收入永远解冻不了」。
+2. **`case_library` 实为 24 字段**（计划 21）：补了 `dispute_focus` / `plaintiff_name` / `defendant_name` —— 工作流 G1 要求四块正文与当事人，技术路线 DDL 漏了。
+3. **`reconciliation_diff` 补 7 个恒等式列**并放宽两列为可空（H1 要求与 V507 的渠道对账形状冲突）。
+4. **F2 凭证改为服务端落盘**（原写走 `/app/upload/token` 直传）：管理员 token 走不通 C 端上传入口。
+5. **接口数超清单**：PC 18 → 24、App 23 → 26（统计卡 / 上线下架 / 凭证预览 / 已出款 / 回补核对 / 提现规则）。
+6. **H2 的 `ug-Arab-CN` 未补**：三语言仍为登记式缺译（每语言 1462 key），与段 4 的既有口径一致，段 8 收口时清空 —— 这是本段唯一未完成的 H 组项。
+
+### 7. 本次追加：《技术路线》§二十六「段 5 施工登记」（备注，不回写正文）
+
+> 负责人裁决：段 5 施工与《技术路线》正文的 6 处出入**不回写正文**（改动会牵动文档基线指纹与 §九 的跨文档回写），
+> 只在文末新增一节登记。**正文数字一个没改**，本节与正文冲突时以本节为准。
+
+登记的 6 项：① 三语言各缺 1462 key → **段 8 统一翻译**、收口时 `.i18n-pending.json` 必须为空；
+② `case_library` 实为 24 字段（+`dispute_focus`/`plaintiff_name`/`defendant_name`）；
+③ `case_library_translation` 实为 12 字段（+`dispute_focus`）；④ 接口数 PC 24 / App 26；
+⑤ `balance_flow.biz_type` 实为五值（+`income_unfreeze`）；⑥ `reconciliation_diff` 放宽两列 + 补 7 个恒等式列。
+
+> 基线指纹**未重算**：`.i18n-pending.json` 与 `BASELINE.md` 的同步留到下次升版一并处理（这次是纯追加一节，不删不改原文）。
+7. `405024`（余额不足）实测被 `405027` 抢先命中（单日额度已满），校验顺序见偏差 12。
+
+---
+
+## 2026-11-08 · 第 5 段 C 组（送达）与 D 组（律师工作台）施工
+
+> 把第 5 段从「A/B 组已完成」推进到 **C 组与 D 组代码全部落地**：送达闭环（发起 → 待签收 → 签收 → 回执）、
+> 律师工作台 5 页 + 宫格 6 入口、收入与设置的真实数据。
+> ⚠️ **本轮只完成到「代码 + 编译 + 迁移 + 401 校验」，功能验收（`5-A3`/`5-A4`/`5-A6`）尚未跑通**，
+> 原因与缺口逐条写在 `docs/acceptance/seg5/PROGRESS-C-D.md` §二/§三 的「未验证」小节。
+
+### 1. 后端（faze-api）
+
+| 内容 | 要点 |
+|---|---|
+| 送达实体与写路径 | 新增 `CaseDelivery` / `CaseDeliveryMapper` / `DeliveryStatus`；`DeliveryServiceImpl` 从「显式拒绝」骨架换成完整实现：发起（`SD` 回执号即时生成）、改造方式（未签收才许改）、签收（CAS，第二次返 407007 且不覆盖首次时间） |
+| 送达读路径 | `GET /admin/cases/{id}/deliveries`、`GET /admin/cases/{id}/documents`（可送达文书，带 `hasPdf`）、`GET /app/case-deliveries`（按 `user_id` 归属 + 状态筛选）、`GET /app/case-deliveries/{id}`（回执） |
+| 送达审计 | 发起送达标 `@OperationLog(action = "DELIVERY_SEND")`，标在 `AdminDeliveryService.send` 上 |
+| 案件抽屉补两块 | `GET /admin/cases/{id}/progress`（进度 Tab）、`AdminCaseDetailVO.evidenceImageUrls`（证据对象键现签成短时地址） |
+| 案件卡红点 | `CaseRowVO.unreadDeliveryCount`（按 `case_delivery` 聚合 PENDING），不新增列 |
+| 跨域只读口 | 新增 `DocumentQueryService`、`ConversationQueryService`、`LawyerIncomeQueryService`；账号侧补 `AccountQueryService.mapBriefs`（昵称/头像/脱敏手机号）与 `LawyerProfileService`（白名单写） |
+| 工作台真实数据 | `WorkbenchServiceImpl` 从全空骨架换成真实实现：D1 未读优先排序 + 已付款标签、D2 按 `lawyer_id` 归属 + 发送文书、D3 三档收入 + 明细带订单号、D4 读设置（含 `sys_config` 上下限）、D5 资料读写 |
+| 发送文书 | `POST /app/workbench/documents/{id}/send`：经 `MessageService.sendDocument`（服务端内部通道，客户端不能伪造 `doc` 类型）写一条 `msg_type=doc` 消息 + 回填 `sent_at` |
+| 迁移 | `V509__alter_document_sent_at.sql`：`document` 加 `sent_at`（幂等：查 `information_schema` 后动态执行）。已实测 `flyway_schema_history 509 = success` |
+| 段 2 收紧 | `PUT /app/workbench/service-settings` 的价格校验从「非负」改为读 `sys_config` 区间（19 元 / 2001 元被拒），并补 `autoAccept` |
+
+### 2. APP（mobile-app）
+
+| 内容 | 要点 |
+|---|---|
+| 案件中心四页（B 组前端收尾） | 在线立案四步、材料已提交、我的案件、案件进度（含律师推进节点弹层）；案件 tab 由占位页换成真实列表，`CasePlaceholderPage` 下线 |
+| 文书送达页 | 待签收 / 已签收两组、每份文书各自选方式（偏差）、签收确认框（标题随文书名）、结构化回执；全页无法院侧表述 |
+| 工作台 5 页 | 63 客户咨询 / 65 代写文书 / 66 收入与提现 / 67 服务设置 / 68 律师资料 |
+| 工作台宫格 | `WorkbenchPage` 补 6 项宫格（我的客户 / 我的订单 / 代写文书 / 收入提现 / 服务设置 / 律师资料） |
+| 文案 | `zh-Hans/case.json` 与 `workbench.json` 从空对象补全；缺译按登记式进 `.i18n-pending.json`；`check-i18n` 三项全绿 |
+
+### 3. PC 后台（admin-web）
+
+| 内容 | 要点 |
+|---|---|
+| A-19 案件列表 | `views/biz/caseflow/case/index.vue`：5 个状态 chips（含「已驳回」）、8 列表格（当事人称谓按类型变）、分页 |
+| A-19 详情抽屉 | `detail-drawer.vue`：立案材料（快照四组只读 + 证据图 + 审核）/ 进度（时间轴 + 纠错）/ 送达（列表 + 发起送达）三个 Tab |
+| B5 服务费 | `trade/order/detail.vue` 删掉「服务费结算见段 5」，改为按 `platform_fee_cents` 计算的说明行；`AdminOrderDetailVO` 补两个金额字段；**不写 `payment_record`** |
+| 菜单种子 | `database/seed/seg5_admin_menu.sql`（menu_id 2220「案件管理」） |
+
+### 4. 实测结果（摸清登录口径后完成）
+
+- **`5-A3` 送达全链通过**：PC 发起 → `SD20261108000001` pending → APP 待签收 → 签收 `code=200` →
+  再签 `code=407007`（首次时间不被覆盖）→ 回执含 `signedAt` / `signDevice=web seg5-ddevice` / `ip=127.0.0.1`。
+- **`5-A6` 改价即生效通过**：改价 7000 → `GET /app/lawyers/2` 立即返回 7000（无缓存）。
+- **D4 区间校验通过**：1900 → `405006`；2000 → `200`；200100 → `405006`；`autoAccept` 写入并回读为 true。
+- **D5 读写通过**：`GET/PUT /app/workbench/profile` 往返一致。
+- **B2 审核通过**：approve → `accepted`，状态筛选命中，进度时间轴新增 `accepted` 节点。
+- **实测中新发现并修掉 3 个缺陷**：
+  1. 审计 `detail` 全为 NULL（`CASE_AUDIT`/`DELIVERY_SEND` 只有动作码，没有 before/after）→ 补 `AuditContext.mark`；
+  2. `GET /app/workbench/conversations` 与段 2 映射冲突，API 启动 `Ambiguous mapping` 失败 → D1 改路径；
+  3. 工作台首页没有设计稿要求的宫格 → 补 6 项。
+
+### 5. 仍未验证（不掩盖）
+
+1. **D2 发送文书**：库里 36 份文书全是用户委托（`lawyer_id` 为空），没有「律师代写」的文书，
+   所以 `POST /workbench/documents/{id}/send` 与「客户侧收到文书消息」**未实测** → `5-A2` 最后一段仍缺。
+2. **`5-A4` 收入逐笔对账**：依赖 E 组（律师收入入账），当前 `balance_flow` 没有律师 income 流水。
+3. `correctProgress` 的审计 detail 尚未补（只补了审核与送达两处）。
+
+### 6. 偏差（新增 8 条，详见 `PROGRESS-C-D.md` §四）
+
+其中两条会影响验收口径：D1 接口路径改用 `/workbench/consultations`（原路径段 2 已占用，重复映射会让 Spring 启动失败）；D2 的「发送」放在列表而非预览页。
+
+---
+
+## 2026-11-08 · 第 4 段（文书中心）施工与收口（基线 v1.53）
+
+> 一天内把第 4 段从「B1/C4 已验」推进到**8 条锚点全通过**：补齐 D 组（签名笔迹）、E 组（APP 六页）、F 组（后处理）、G 组（验收脚本 + 证据）。
+> 同时修掉 5 个只有在真实验收里才暴露的缺陷，并把三件文档欠账补齐（数据表规范附录 E、PC 设计说明 §5.8、段 4 验收证据索引）。
+
+### 1. 后端（faze-api）
+
+| 内容 | 要点 |
+|---|---|
+| D1 签名库 | `GET/POST/DELETE /api/v1/app/signatures`；每用户上限 5、同一对象键幂等、被文书引用的删除返 406006；删除 = 物理删 + `file_record` 置 orphan（该表无 `deleted_at`） |
+| D2 叠章 | `POST /api/v1/app/documents/{id}/sign`；屏幕坐标 → PDF 左下原点换算 + 按 `basePage_*` 等比缩放；产物写新的 `signed_pdf_oss_key`，原件不动；单测 6 例（含 Y 轴翻转的数像素断言） |
+| D3 溯源元数据 | `PdfMetadataWriter` 在**落盘前**写 5 个 `Faze-*` 字段（时间带时区）；**绝不写** `AIGenerated`；单测 3 例 |
+| E4 预览接口 | `GET /documents/{id}/preview`：PDF 每页转 PNG（前 5 页），按「PDF 对象键短哈希」缓存（首次 222ms / 二次 10ms） |
+| F1 导出接口 | `GET /documents/{id}/export?format=pdf`：60 秒现签地址 + 建议文件名；`docx` 返 401001；盖过章导出带签名那份 |
+| 列表缩略图 | `listMine` 批量取 `generated.png` 最新一条（A-18 时挂到 E 组的项） |
+| `generating` 字段 | `DocumentDetailVO` 增 `generating`（按任务队列实时算），解决「从没生成」与「正在生成」不可分 |
+| 状态多值筛选 | `status` 支持逗号多值（`generated,signed`），修「已完成」漏掉已盖章文书 |
+| **缺陷①** | 模板升版后旧行 inactive → 「重新生成」永远 406001。新增 `DocTemplateResolver`（按 code+lang 解析当前 active 行），生成与保存草稿都走它 |
+| **缺陷②** | 死信只写错误码没有具体原因。`DocGenerateTask#describeFailure` 改用 `BusinessException#getDetail()`（截断 120 字） |
+| **缺陷③** | 失败后点「重新生成」被指数退避窗口静默跳过。新增 `TaskQueueService#expeditePending` |
+| **缺陷④** | `services/faze-api/pom.xml` 未声明 UTF-8，JDK17 默认 GBK 导致中文注释编译失败 |
+
+### 2. 前端（apps/mobile-app）
+
+- 新增 `features/document/`：六页（模板列表 / 起诉状表单 / 其它文书表单 / 预览 / 我的文书 / 电子签章）+ `DynamicForm`（schema 驱动）+ `SignaturePad`（react-native-svg，透明底 PNG）+ `api/client.ts`、`api/export.ts`、`api/upload.ts`
+- 路由壳 6 个（`app/doc/*.tsx`）+「我的」页两个入口
+- i18n：`zh-Hans/document.json` 补齐；其余三语言按「登记式缺译」进 `.i18n-pending.json`
+- **缺陷⑤**：`api/client.ts` 初版路径漏 `/api/v1` 前缀（App 全落网络错误），已按全仓惯例补齐 12 条
+- `npm run verify` 全绿（tsc / eslint / check-raw-text 0 命中 / check-i18n 三项）
+
+### 3. 验收与工具
+
+- `deploy/verify-seg4.ps1`：8 条锚点**逐条接实现**，空跑全 FAIL，实跑 **8/8 PASS**
+- 新增验收工具：`deploy/tools/PdfInspect.java`（页尺寸/元数据/字体嵌入/正文包围盒/图片数/**叠章差异包围盒**）、`seg4-probe.mjs`（真接口探针）、`seg4-browser-a7.mjs`（浏览器证据）、`seg4-browser-e.mjs`（六页巡检）
+- 证据：`docs/acceptance/seg4/4-A1.md` ~ `4-A8.md`、`E-group.md`、`D1/D2/D3`、`F2`、`遗留与挂账.md`、`4-A7-browser.json`、截图 9 张
+
+### 4. 文档回写（§九 收口）
+
+- 《数据表规范》**附录 E**：两处偏离登记（`is_enabled` / `updated_at`）+ 两条易误会说明
+- 《PC 后台 UI 设计说明》**§5.8**：A-18 的 4 处不实现 + 2 处口径差异
+- 《第 4 段工作流》**§九 7/9/10 标完成**、**§十一** 回写 12 条「计划 vs 实际」
+- `docs/README.md` 新增「段 4 验收证据索引」；`BASELINE.md` v1.52 → **v1.53**
+
+### 5. 口径变化（都已落到文档）
+
+- `4-A2` 的「四边边距 72±2」改为「左右 90/72±2、上下不小于 70pt」，原因见 `4-A2.md` §4
+- `4-A7` 只验接口层 + 浏览器能做的部分（系统分享面板 / 存相册 / 打印指定 PDF 留段 8）
+- 手写板用 `react-native-svg`（Web），不引入 skia / expo-print / expo-sharing / expo-media-library
+
+### 6. 上线前必须处理
+
+见 `docs/acceptance/seg4/遗留与挂账.md` §C：模板 LAWSUIT-001 被验收升到 v6 且字号被改、30+ 份测试文书、5 条测试签名、若干 dead 任务、本地存储几十 MB。
+
+---
+
+## 2026-11-07 · 第 4 段开工前置（前提复核 + 文档回写 + 2 个代码前置，基线 v1.52）
+
+> 第 4 段（文书中心）开工前审查：19 项前置逐条实测。结论是 **14 项通过、3 项未通过（段 3 带缺口开工）、2 项口径要改**。
+> 负责人当天裁决：①段 3 缺口与段 4 一起挂账；②文件存储继续走本地实现、不接云 OSS；③真机接入全部改浏览器验收，`4-A7` 只验接口层 + 浏览器能做的部分，原生能力（分享面板/存相册/打指定 PDF）留段 8；④手写签名板可以偏离工作流（Web 用 `react-native-svg` 替 skia）；⑤存储白名单按建议扩、`task_queue` 按建议上移、技术路线 §12.3.2 可以改。
+
+### 1. 代码前置（2 个提交）
+
+| 提交 | 改了什么 |
+|---|---|
+| `b3794b5` | 存储场景白名单新增 `signature` / `document` / `doc_template`。改前实测三个场景调 `/app/upload/token` **全返回 401001**；`ALLOWED_SCENES` 与 `KEY_PATTERN` 必须同步扩（只改一处会 build 成功但 PUT 403）。`document`/`doc_template` 不进 `UploadBO`，避免客户端自传公文 |
+| `ab7bf3c` | `task_queue` 三件套从 `modules/trade/` 上移到 `infra/mq/`（含 XML namespace）。段 4 要从 document 域投递 `DOC_GENERATE`，继续挂在 trade 下就是第三个域跨域注入。纯包移动，`mvn compile` 通过 |
+
+### 2. 关键实测（openhtmltopdf 开工前置，§二 第 5 项）
+
+用独立临时工程 `E:\dshcode\faze-probe-pdf` 跑通中文 PDF：
+
+```text
+pages=1  pageSize=595.275 x 841.875   （A4 ✅）
+font=AVCEOC+FangSong  embedded=true   （子集嵌入 ✅）
+textLength=169  hasTitle=true hasParty=true hasAmount=true
+```
+
+`PDFTextStripper` 抽出的中文无乱码、长段落正确折行、字体已嵌入。**这条技术风险排除**，A2 可以按 openhtmltopdf 1.0.10 实现。
+
+### 3. 文档（基线 v1.51 → v1.52，内容变更 4 份）
+
+| 文件 | 改了什么 |
+|---|---|
+| `法泽FAZE_技术路线_v2.3.md` | §12.3.2 加适用范围：5 个隐式标识字段只适用于 AI 生成内容；**文书 PDF 不是 AIGC，不得打 `Faze-Content-Type: AIGenerated`**（虚假标识），只写溯源元数据 |
+| `法泽FAZE_第4段工作流_v1.0.md` | 新增 §零.5 复核节；§二 第 1/6/10/11 项改口径（段 3 挂账、本地存储、浏览器验收）；§三 B1 路径 `pc/ruoyi-ui`→`pc/admin-web`；E6 手写板改 `react-native-svg`；F1 改浏览器降级；§四 `4-A7` 重写为「5 必须 + 2 降级 + 1 挂账」；§五.6 划掉 4 个不装的包；§九 第 11 项标完成 |
+| `法泽FAZE_错误码规范_v1.0.md` | `506003` 从「少数民族文字字体缺失」改为「中文场景指仿宋缺失 / 路径配错」 |
+| `docs/README.md` | 基线号 v1.51 → v1.52 |
+
+### 4. 本轮仍缺（不阻塞 A/B/C 组）
+
+- `apps/mobile-app` 缺 `expo-file-system` / `expo-sharing` / `expo-print` 三个包（E/F 组开工前装）。
+- 段 3 的 `3-A1④` 挂账、`3-A2`/`3-A3` 未通过（豆包 key），按裁决与段 4 一起挂账。
+- `5 份模板的法律文本准确性`仍待人工核对（本机 `web_fetch` 对外网全拦，拿不到官方原文）。
+
+---
+
+## 2026-11-07 · 段 3 收口后补两项（法条库扩到 34 条 / 段 2 菜单补 seed，基线 v1.51）
+
+> 负责人对 F~I 收口上报的 7 个问题的裁决：「豆包后面还是给」「法条库可以扩到 30 题」「换机器没有菜单入库的话现在补上」「安卓真机不急」「不用构造真实数据」。
+
+### 1. 法条库 10 → 34 条（`V305`）
+
+**为什么**：黄金 30 题覆盖 7 部法、预期引用 30+ 条号，而库里只有 10 条——绝大多数题 AI 只能回「库里没有」。这让 30 题的实际可用率极低。
+
+**做了什么**：新增 `V305__import_law_items_golden30.sql`，24 条条文：
+
+| 法 | 条号 | 对应黄金 30 题的题号 |
+|---|---|---|
+| 民法典 | 675 / 511 | 2 |
+| 民法典 | 713 | 5 |
+| 民法典 | 733 | 4（**注意：733 真实内容是「承租人欠租可解除」，与「押金」无关，见下**） |
+| 民法典 | 585 | 6 |
+| 民法典 | 586 / 587 | 7 |
+| 民法典 | 1084 | 14 |
+| 民法典 | 288 | 20 |
+| 民法典 | 1179 | 21 / 22 |
+| 劳动合同法 | 19 / 38 / 46 | 9 / 10 |
+| 劳动法（新增 `labor_law`） | 44 | 11 |
+| 劳动争议调解仲裁法 | 43 / 50 | 12 / 13 |
+| 消保法 | 24 / 25 / 55 | 19 / 17 / 18 |
+| 民诉法 | 22 / 24 / 171 / 246 | 24 / 24 / 25 / 26 |
+| 婚姻家庭编解释（一） | 5 | 16 |
+
+**实测**：`law_item` = 34 条，`flyway_schema_history` 的 305 `success=1`；23 个代表关键词（还款期限/约定不明确/维修义务/欠租/违约金/定金/抚养权/相邻关系/人身损害/试用期/未缴社保/经济补偿/加班费/劳动仲裁期限/不服仲裁裁决/质量要求/七天无理由/欺诈/管辖/合同纠纷管辖/上诉期限/申请执行/彩礼）**全部命中**期望条号。30 题里 **28 题**有库内依据。
+
+**两处故意不迁就题目预期的地方**（不是漏做）：
+- 第 4 题「房东不退押金」的 expectedRefs 写「民法典 733」，但 **733 的真实内容是「承租人无正当理由未付租金，出租人可催告后解除合同」**，与押金退还无关。本迁移录 733 的真实内容，**没有**往 keywords 里塞「押金」去凑命中（那等于让 AI 照着错的依据回答）。建议后续把第 4 题的预期引用改到更贴切的条文。
+- 第 23 题（诉讼费用交纳办法 13）不录：该办法是行政法规、不在 7 部法白名单，且第 13 条是复杂分段费率表，逐字风险高；该题预期走 NO_REF。第 22 题（治安管理处罚法）同理，但该题另有民法典 1179。
+
+**待办（重要）**：24 条条文文本由技术侧按公开通行文本录入，**只有《劳动合同法》19/38/46 与福建人社厅全文逐字核对过**，其余待负责人用 `flk.npc.gov.cn` 逐条核对（清单在迁移头注释，约 20 分钟）。发现错误不要改迁移，走 A-27「修正」接口写新版本（会留 before/after 审计）。
+
+### 2. 段 2 的 4 个 PC 菜单补成 seed
+
+**为什么**：`sys_menu` 里 2109~2112 是「手工插库」的产物，仓库 `database/seed/` 里没有脚本（段 1、段 3 都有）。**换机器或重建库后，订单管理与文章管理没有菜单入口。**
+
+**做了什么**：新增 `database/seed/seg2_admin_menu.sql`（幂等）：4 个菜单 + 4 行角色授权。
+- 菜单：订单管理(2109) / 订单详情(2110, **隐藏页**) / 文章管理(2111) / 文章编辑(2112, **隐藏页**)；
+- 顺带发现这 4 个菜单在 `sys_role_menu` 里**一条授权都没有**（超管靠 `*:*:*` 仍可见，非超管看不到），一并补上；
+- 实测执行两次无报错，菜单 4 行、授权 4 行。
+
+### 3. 文档
+
+- 《法条数据录入规范》§一③ 加第 7 部法 `labor_law`，并写清「《劳动法》与《劳动合同法》是两部法、不许合并」。
+- 第 3 段工作流 §十一 第 37、41 条从「偏差」改为「已修」。
+- 基线 v1.50 → **v1.51**。
+
+### 4. 本轮仍未做（按负责人裁决）
+
+- 安卓真机验证（`3-A5` 的 `nativeID`、RTL 镜像）——「先不急」；
+- 200 条消息的导出截断构造——「不用构造真实数据」；
+- `3-A2`/`3-A3`/`3-A1④` 的判定——等豆包 key。
+
+---
+
+## 2026-11-07 · 段 3 F~I 组施工（APP AI 页 / 历史页 / PC 两页 / 收口，基线 v1.50）
+
+> 负责人指令：「下一步你就一直做，从 F 一直走到 I 全部走完，中间有什么问题的话，留到把 I 做完再告诉我」。
+> 本轮做 **F（APP AI 页 5 任务）/ G（APP 对话历史页 2 任务）/ H（PC 后台两页 3 任务）/ I（收口 3 任务）** 共 13 个任务。
+> **段 3 至此全部施工完毕**（A~I 九组），未结项集中在「豆包 key 未提供」与「无真机」两件事上。
+
+### 1. 8 条锚点的结论（这是本段的验收本体）
+
+| 锚点 | 结论 | 关键证据 |
+|---|---|---|
+| `3-A1` 法条入库与导入通道 | **①②③ 通过、④ 挂账** | `law_item` 10 条与 `V300–V304` 逐条对应；导入 3 条 → `inserted:3`，重复 → `skipped:3`；**V304 新导入的 577/1062/1165/47 立刻能被检索命中**；④要真模型 |
+| `3-A2` 黄金问题集 | **未通过（key 缺失）** | 问题集 30 题 + 批处理脚本已交付，脚本**拒绝在 mock 下执行**（`exit 2`），实测生效 |
+| `3-A3` 编造拦截 | **未通过（key 缺失）** | mock 固定回答，无法触发「编造」场景；`OutputGuardTest` 11/11 通过（机制层证据） |
+| `3-A4` 注入拦截 | **通过** | 三句（含英文）全 `408005`；`ai_message` 原文完整（长度 + HEX 双证）；**拦截不扣配额**（used 14→14） |
+| `3-A5` 显式标识 | **通过** | 3 条 AI 回答各一个 `ai-generated-label`、3 条用户消息全无（交替 `T/F/T/F/T/F`）；tsx 里硬编码 0 处；对比度按负责人选项 A 从 2.85:1 提到 5.74:1 |
+| `3-A6` 后台可追溯 | **通过** | A-28 显示模型 `doubao-seed-1.6-32k`、内容编号、refs 冻结快照、「用户已删除」标签；原文区 **0 个输入框**、全页按钮只有「查询/重置/导出本条记录」 |
+| `3-A7` 开关降级 | **通过** | 关 `ai_enabled` → 「法条检索」+ 搜「借条」命中 679；日志 0 条上游请求；重开 → 恢复 AI 模式 |
+| `3-A8` 断线不重复计费 | **通过** | CDP 断网 4 秒后恢复：回答完整接上、气泡只有 1 user + 1 AI、`used` **16→17 只 +1**、该会话 1 条 assistant 且有 `content_id` |
+
+### 2. 代码
+
+- **移动端**：`app/(tabs)/` 五 tab 壳（home/profile **移动**进 tab、URL 不变）+ `app/ai-history.tsx`；`features/ai/`（`api/ai.ts` 351 行、`useAiStream` 407 行、`useAiQuota`、`useOnlineStatus`、`AiChatPage` 481 行、`AiLawSearchView` 220 行、`AiHistoryPage` 487 行）；`shared/components/`（`MessageBubble` / `LawRefCard` / `OfflineBar` / `TabIcons` / `AiIcons`）；`app/_layout.tsx` 补 `GestureHandlerRootView`。
+- **新依赖 3 个**：`react-native-svg 15.12.1`（tab 图标）、`react-native-gesture-handler ~2.28.0`（左滑）、`expo-clipboard ~8.0.8`（长按复制），已登记 `docs/architecture/依赖清单.md` §一之六 #21–23。
+- **服务端**：`modules/ai/admin/`（A-27 五接口 + A-28 三接口 + 两个 service + 8 个 BO/VO）、`PubSysConfigController`（F4 公开配置白名单）、`AiConversationService`（G1 列表 / G2 软删）；`GlobalExceptionHandler` 加两个 multipart 异常处理；`application.yml` 加 `spring.servlet.multipart` 5MB。
+- **PC 后台**：`src/views/biz/ai/{law-library,ai-retrieval}/`（676 + 904 + 457 行）、`src/api/biz/ai/*.js`；`database/seed/seg3_admin_menu.sql`（10 行菜单 + 10 行授权，**菜单已入库、刷新浏览器即生效**）。
+- **迁移新增 1 个**：`V304__import_law_items_batch2.sql`（民法典 577/1062/1165 + 劳动合同法 47；劳动合同法生效日 `2013-07-01` 是 2012 修正版，写错会插出两个版本行）。
+
+### 3. 验收时打真接口发现并修掉的 4 个后端缺陷（必须留档）
+
+| # | 缺陷 | 怎么发现的 | 修法 |
+|---|---|---|---|
+| 1 | `application/json` 的导入 body **没有 5MB 上限**（8.6MB 被接收并写库） | 验收方用 8.6MB JSON 打导入接口 | 控制器入口读 `Content-Length`，超限回 401001（含当前 MB 数），不进反序列化 |
+| 2 | multipart 超 5MB 报 `501001 服务器内部错误` | 同上，换 `-F file=@` | `GlobalExceptionHandler` 加 `MaxUploadSizeExceededException` + `MultipartException` 两条 → 401001 |
+| 3 | G1 排序依赖的 `ai_conversation.updated_at` **从不随消息刷新**（C 组遗留） | 验收方发现「刚发的会话排不到第一」 | `AiQuestionService` 落库 user 消息后补一次 UPDATE（覆盖每一轮） |
+| 4 | H2 时间参数按 **UTC** 解释，漏掉北京时间凌晨的会话 | 验收方用 `beginTime=2026-11-07` 查，发现当天凌晨的会话被漏 | 无偏移串按 `Asia/Shanghai` 解释、纯日期取当天边界 |
+
+另修 1 个前端问题：tab bar 标签被屏幕底边切掉（`tabBarStyle` 没设 `height`/`paddingBottom`，RN Web 上 safe-area=0）。
+
+### 4. 验收方式（本段的特殊性）
+
+本机**没有 adb 设备、没有模拟器**，「真机截图」做不了。改用：
+
+- **PC 侧**：真实 Chrome 156，1440×900，通过注入 `Admin-Token` cookie 免登录，打真实 faze-api；
+- **APP 侧**：`expo start --web`（RN Web，同一套 React 组件树与 expo-router）+ CDP 按 390×844 手机视口渲染，注入 `localStorage` 登录态；
+- **断网测试**：CDP 的 `Network.emulateNetworkConditions { offline: true }`（浏览器级真实断网，等价于飞行模式对前端 fetch 的效果）；
+- **新增验收工具**：`scripts/cdp-shot.mjs`（直连 CDP，不引 puppeteer/playwright；Node 24 自带全局 WebSocket）。
+
+> **这是替代验证，不是真机验证**：RN Web 与原生在 `I18nManager` 镜像、原生手势、`SecureStore`、`resource-id` 上有差异，相关项已在证据里逐条标注「真机待复测」。
+
+### 5. 未结项（如实）
+
+1. **`FAZE_ARK_API_KEY` 未提供**：`3-A2`（黄金 30 题）与 `3-A3`（编造拦截）**无法判定**，`3-A1④` 挂账。脚本与问题集已就绪，填 key 后跑 `scripts/golden-30.ps1` 即可。
+2. **`3-A5` 的 `nativeID`（Android `resource-id`）在 web 上验证不了**，需真机或 121 平台。
+3. **F5 两项未实测**：「停止生成」、「配额 0 禁用」；另**断网重连后页面配额显示滞后一格**（服务端扣对了，页面没刷新）——已记为待修。
+4. **A-28 的「200 条消息导出截断」缺真实数据**（开发库没有 200+ 条消息的会话）。
+5. **段 2 的 4 个 PC 菜单只手工插了开发库、未进仓库 seed**，换机器会没有菜单入口（既有债务）。
+6. **G1 的空态/错误态/上拉分页、G2 的取消/断网/删到空态/RTL** 共 8 项未实测（数据或环境造不出场景）。
+
+### 6. 文档
+
+- `docs/acceptance/seg3/` 新增 **35 份任务证据 + 8 份锚点证据 + 16 张截图**（39 份 md 齐）。
+- `法泽FAZE_第3段工作流_v1.0.md` §十一 **22 条 → 42 条**（补 F~I 组偏差）。
+- 基线 **v1.49 → v1.50**（资产数仍 45：本段无新规范文档）；`docs/README.md` 基线号同步。
+
+---
+
+## 2026-11-07 · 段 3 A~E 组施工（AI 法律顾问：地基 / 检索 / 流式 / 防护 / 留存，基线 v1.49）
+
+> 负责人指令：「从 A 组、B 组一直做到 E 组结束，中间遇到必须我解答的问题留到 E 组做完之后再问」。
+> 本轮只做 **A（数据与地基）/ B（检索内核）/ C（豆包接入与 SSE）/ D（三层防护）/ E（合规留存）** 五组共 20 个任务，
+> **F（APP AI 页）/ G（历史页）/ H（PC 两页）/ I（收口）四组没做**。
+
+### 1. 五组各自的结论
+
+| 组 | 任务 | 结论 | 关键证据 |
+|---|---|---|---|
+| **A** | A1 三张表 / A2 `law_item` 补字段 / A3 导入通道 / A4 术语表 | **全部通过** | 字段数实测 **7 / 16 / 10**、`law_item` **12→15**、`ft_on_keywords=0`；18 个迁移在临时库 `faze_seg3_replay` **顺序重放全 exit=0**（结果与开发库一致，重放库已删）；`i18n_glossary` **51 条全 `zh-Hans`**、藏/维/哈行数 **0** |
+| **B** | B1 四路径检索 / B2 `pub/law-items` / B3 条号校验 / B4 引用统计 | **全部通过** | `EXPLAIN` 全文走 `type=fulltext key=ft_law_content`；`kw=借条`→total=1、`kw=婚`（单字）→2 条不报错、`pageSize=999→50`、**第 61 次请求 = 401007**；中文数字 1~1260 往返 0 失败；B4 真库 **679:2 / 1042:1** |
+| **C** | C1 豆包客户端 / C2 提交 / C3 SSE 续传 / C4 中断与超时 / C5 配额 | **代码全部落地，判定挂账** | mock 下 SSE 全链路实测通：`start`→55×`delta`→`refs`→`done{finishReason:"stop",promptTokens:128,completeTokens:96}`；配额 Lua 判超+回退原子（redis-cli 实测） |
+| **D** | D1 Prompt 组装 / D2 输入拦截 / D3 输出校验 / D4 `refs` 快照 | **全部通过（机制层）** | 37 个单测；`3-A4` 三句（含英文）→`408005`、`离婚能赔多少钱`→`408004`、`借款能要回来吗`→PASS；真库事务证据：改 `law_item.content` 前后 `MD5(refs)` 完全相同 |
+| **E** | E1 显式标识 / E2 内容编号 / E3 留存策略 | **E1/E2 机制层通过，E3 成文** | `testID="ai-generated-label"` + `accessibilityLabel` + `nativeID` 三套钩子；`content_id` 全匹配 `^AI-[0-9a-f]{32}$`；`AI对话留存策略.md` 五问齐全 |
+
+### 2. 代码
+
+- **迁移 4 个**：`V300__create_ai_tables.sql`（3 张表，无数据）、`V301__alter_law_item.sql`（+3 列 +1 索引，**不加 `ft_law_keywords`**）、`V302__import_law_items.sql`（模板 + 首批 1 条：民法典第 679 条）、`V303__init_i18n_glossary.sql`（51 条中文术语）。开发库 `flyway_schema_history` 四条全 `success=1`。
+- **配置种子 1 个**：`database/seed/seg3_config.sql`（8 个键，**不进 Flyway**，沿用段 1/2 的 seed 口径）：`ai_enabled` / `ai_model` / `ai_daily_quota` / `ai_search_topn` / `ai_timeout_seconds` / `ai_first_byte_timeout_ms` / `ai_message_retention_days` / `law_search_rate_per_min`。
+- **服务端**：`modules/ai/{entity,mapper,dto,service,controller,support,util,config}` 新建；`infra/ai/`（豆包客户端 + Stub，**段 0 的 `infra/probe/DoubaoClient` 一个字没动**）；`infra/law/mapper/LawItemMapper` 追加 6 条查询（`searchByNgram` 段 0 冻结未动）；`ErrorCode` 补 `408001`~`408005` + `508002`；`pom.xml` 加 `spring-boot-starter-webflux`（只为 `WebClient`）。
+- **移动端**：`shared/components/AiGeneratedLabel.tsx` + `zh-Hans/common.json` 一行 + `.i18n-pending.json` 三语缺译登记（**没编造少数民族文字译文**）。
+
+### 3. 两起「应用起不来」的施工事故（已修，必须留档）
+
+| 事故 | 现象 | 根因 | 修法 |
+|---|---|---|---|
+| ① bean 名撞车 | `ConflictingBeanDefinitionException: bean name 'lawSearchService' ... conflicts with ... [com.faze.infra.law.LawSearchService]` | 本段 `modules/ai/service/LawSearchService` 与段 0 探针**简单类名相同**，`@Service` 默认 bean 名一样 | 本段类改 `@Service("aiLawSearchService")`，段 0 的类未动 |
+| ② 调度器污染自动配置 | `APPLICATION FAILED TO START`：`ProbeController` 的 `@Qualifier("applicationTaskExecutor") TaskExecutor` 注入失败 | `AiStreamSchedulerConfig` 的 `@Bean` 直接返回 `ScheduledExecutorService`，命中 Boot `TaskExecutionAutoConfiguration` 的 `@ConditionalOnMissingBean(Executor.class)`（它是 `Executor` 子类型）→ `applicationTaskExecutor` 不再创建 | 新增包装类 `AiStreamScheduler`（持有线程池、**不实现 `Executor`**），配置类返回它 |
+
+> **教训**：`javac` 自检只能验语法，**容器装配错误只有启动才暴露**。两次都是「编译 exit=0、启动 exit=1」。
+
+**另修一处基础设施缺陷（第 3 起，非「起不来」但污染日志）**：
+
+| 缺陷 | 现象 | 根因 | 修法 |
+|---|---|---|---|
+| SSE 断线后的异步分派被拒 | 一次断线重连后日志出现 3 条 `AuthorizationDeniedException` + `Cannot render error page`（数据不受影响，但看起来像 401） | `SseEmitter` 完成/超时后容器做 `DispatcherType.ASYNC` 重新分派，此时 `JwtAuthenticationFilter` 已跳过、`SecurityContext` 已清，而 `authorizeHttpRequests` 只按路径判 → `/api/v1/app/**` 要求 `authenticated()` → 拒绝这次内部分派 | `SecurityConfig` 的授权链最前面加 `.dispatcherTypeMatchers(DispatcherType.ASYNC).permitAll()`（Spring Security 对异步分派的标准做法；**只放行 ASYNC 这一种 dispatcher type**，普通 `REQUEST` 仍走原来的规则） |
+
+修后实测：一次完整 SSE（`start`→`delta`×N→`refs`→`done`）在新增的 102 行日志里该类异常 **0 条**。
+
+### 4. 测试
+
+- **本段单测 70 个全部通过**（`mvn -B -o -Dtest=... test`，surefire 报告在 `target/surefire-reports`）：B 组 33 + D 组 24 + E2 9 + 其他 4。
+- **全量回归**：注入 `deploy/.env` 的 `FAZE_*` 环境变量后 `mvn -B -o test` → **316 tests / 0 failures / 0 errors / 0 skipped，BUILD SUCCESS**。**注意**：不注入环境变量直接跑会有 5 个 `@SpringBootTest` 报 `Could not resolve placeholder 'FAZE_DB_URL'`——那是环境缺失，不是段 3 回归（已实测同一批测试注入后 5/5 全绿）。
+
+### 5. 文档
+
+- **新增 2 份**（基线 v1.49 登记）：`docs/standards/法条数据录入规范.md`、`docs/standards/AI对话留存策略.md`。
+- **验收证据 20 份**：`docs/acceptance/seg3/{A1,A2,A3,A4,B1,B2,B3,B4,C1,C2,C3,C4,C5,D1,D2,D3,D4,E1,E2,E3}.md`（C 组的 mock 挂账、E1 的真机挂账、E3 的 G2/H2 待复核，分别写在各自文件的挂账表里）。
+- 回写：《第 3 段工作流》§十一 写满 22 条偏差 + L925 令牌名改正；《依赖清单》+webflux；`docs/README.md` +2 行索引与基线号；`docs/BASELINE.md` v1.48→**v1.49**（新增 2 + 变更 3）。
+
+### 6. 明确没做的与挂账
+
+- **F/G/H/I 四组未开工**：APP AI 页与历史页、PC A-27/A-28、黄金 30 题与 `3-A1`~`3-A8` 收口。因此**段 3 尚未出口**。
+- **豆包 key 仍未提供**（工作流 §十 第 7 项）：C 组全程 `DoubaoClientStub`，**`3-A2` / `3-A3` / `3-A4` / `3-A8` 四条锚点不判过**。key 到位后只需在 `deploy/.env` 填 `FAZE_ARK_API_KEY` + 把 `FAZE_AI_MOCK` 置 `false`，不用改代码。
+- **`3-A5` 真机判定挂账**：本机 `adb devices` = 0、无模拟器，E1 只交钩子清单与静态证据。
+- **两处需负责人拍板**（已记在《第 3 段工作流》§十一 第 19 条与 E1 验收文档）：①`color.text.muted` 对比度 2.85:1 低于 WCAG AA，AI 标识文案是否升 `text.secondary`（5.74:1）；②`refs` 里 `lawItemId` 因全局 Long→String 规则被序列化成**字符串**，段 4 读 `refs` 时要按字符串解析（`JSON_TABLE ... BIGINT PATH` 实测可正确转换，不影响 B4）。
+
+---
+
+## 2026-11-07 · 段 3 开工前清账（11 份文档，基线 v1.48）
+
+> 负责人指令：段 3 开工前先核查前提，查出问题先报；报完后定「**先清账**」。本轮**未写任何段 3 代码**。
+
+### 1. 核查结论（为什么必须清账）
+
+《第 3 段工作流》§九 明写「**这 20 项不改，施工时必然照错的那份写**」，但实测**几乎一项未做**——该文档写于 2026-11-01（HEAD `d078023`），当时段 0/1/2 都还没施工；等到 11-07 段 1/2 收口（基线 v1.47）再看，上游文档全都没跟。
+
+四项硬阻塞：
+
+| # | 问题 | 后果 |
+|---|---|---|
+| 1 | 《数据表规范》仍写 `ai_session`(7) / `ai_message` B 类 12 字段 / `i18n_glossary`(9) | `V300` 会照错的表名与字段数建表 |
+| 2 | 《技术路线》仍写 `/app/ai/sessions`、`/admin/ai-sessions`、`POST .../review`、「每个 delta 即落库」 | 照旧路径写接口；照「每 token 一次 UPDATE」写成性能灾难 |
+| 3 | 《总纲》`3-A1` 仍要求「≥2000 条」，而负责人已定「占位几条 + 全量自己导」 | 按总纲验收必然失败 |
+| 4 | 《审计与日志规范》`LAW_ITEM_EDIT` 段号写 7、缺 `AI_CONVERSATION_EXPORT` | 段 3 以为不用做审计 |
+
+另外三处**结构与文档假设不符**（已在 §7.52 登记，施工时按实际走）：
+
+- `pc/ruoyi-ui/` 实际是 **`pc/admin-web/`**（RuoYi-Vue3）+ `pc/admin-server/`；
+- **`(tabs)` 不存在**：`app/` 是平铺路由（`home.tsx` / `lawyer-list.tsx` / `profile.tsx`），根布局是 `Stack`。F1 补建 tab 壳的方案是「迁文件进 `(tabs)/`、URL 不变」（expo-router 路由组不参与 URL，`(tabs)/home.tsx` 仍是 `/home`）；
+- `shared/i18n/<lang>/` 实际是 **`shared/i18n/resources/<lang>/`**。
+
+### 2. 改了哪 11 份
+
+| 文件 | 改动 |
+|---|---|
+| 数据表规范 | `ai_session`→`ai_conversation`、`ai_message` B(12)→C(16)、`i18n_glossary` 9→10、`law_item` 12→15；§8.4 法条全量改走 Flyway `V302`；附录 C 补 2 条 |
+| 技术路线 v2.3 | 全文 15 处：AI 路径改名、补 2 个新接口、删 review、`session_id`→`conversation_id`、delta 落库策略、语言段、内容安全三处「段 3 不接」、`V302` |
+| 开发计划总纲 | 段 2→段 3 依赖改「AI 不计费」；§5.4 法条改「首批 5 条 + 导入通道」；`3-A1` 口径收窄为 4 条可验步骤 |
+| 接口规范 | §6.7 `sessionId`→`conversationId`；新增 §7.1.1 段 3 新增 2 个接口 |
+| 审计与日志规范 | `LAW_ITEM_EDIT` 段号 7→3；新增 `AI_CONVERSATION_EXPORT` |
+| 第 0 段工作流 | 全量法条「走 seed」→「走 `V302`」；「5 条条文待确认」→「已确认（2026-11-06）」 |
+| 第 1 段工作流 | 迁移号 `V2~V5`→`V3~V6`（`V2` 被段 0 占用） |
+| 第 2 段工作流 | 追加「段 3 回写」2 条（MessageBubble 遗留、AI 不计费） |
+| 未完成需备注 | §5.2 第 10 项补「用户删除=软删、A-28 仍可查、导出写审计」 |
+| PC 后台 UI 设计说明 | A-27 去「复核状态」列；A-28 去「校验状态」「标记已复核」 |
+| APP 页面导航树 | AI 页 5 处标「段 3 不做」；§多语言改「固定简体中文」 |
+
+### 3. 基线
+
+- `BASELINE.md` **v1.47 → v1.48**，11 份指纹全部重算（行数/字节/SHA256 前 16 位）。
+- `docs/README.md` 基线号 v1.45 → **v1.48**（它此前一直滞后，v1.44 之后没跟上）。
+- 本轮**未改**：`design/ui/`、`design/admin/` 的 HTML 设计稿；`docs/acceptance/**`（按规则不进基线）。
+
+### 4. 仍未清的（施工时做）
+
+1. `ErrorCode.java` 缺 `408001`~`408005` / `508002`（文档《错误码规范》§3.8 已有定义，补 Java 枚举即可）；
+2. `pom.xml` 缺 `spring-boot-starter-webflux`（C1 调豆包用 `WebClient`，加后登记《依赖清单》）；
+3. `docs/standards/法条数据录入规范.md`、`docs/standards/AI对话留存策略.md`（A3 / E3 产出）；
+4. **豆包 API key 仍未提供** → C 组走 mock，`3-A2`/`3-A3`/`3-A4`/`3-A8` 四条锚点**挂账不判过**（负责人 2026-11-07 确认继续 mock）。
+
+---
+
+## 2026-11-06 · 段 2 出口补验与四项挂账补做
+
+> 负责人指令：补第 2 段收口时留下的可补挂账（共 4 项），补完汇报。本轮**未进入段 3**。
+
+### 1. 四项补做
+
+| # | 事项 | 结果 |
+|---|---|---|
+| 1 | `deploy/verify-all.ps1` 后端门禁 | 把 `.env` 注入进程环境（此前只读进局部变量给 preflight，`mvn -B verify` 起 Spring 上下文时缺 `FAZE_DB_URL` 直接报错）；同时改掉旧注释「无变量时整类跳过」——实际行为是**报错**，注释与行为不符。实测该步 `Tests run: 246, Failures: 0, Errors: 0` |
+| 2 | 管理端 Service 单测 | 新增 3 个测试类 **38 用例**：`AdminOrderServiceTest` 9（分页 total/金额分口径/脱敏/状态流水）、`AdminArticleServiceTest` 18（**四语言完成度聚合**、publish 校验与幂等、create/update 分支）、`AdminConversationServiceTest` 11（游标边界、`CONVERSATION_VIEW` + target_id 审计、附件签名） |
+| 3 | 出口条件 2「迁移可重放」 | 临时库 `faze_replay_seg2` 按版本号数字序重放全部 **14 个迁移**，产出的 **26 张表**与主库在表清单/列数/索引数三维度逐表一致；主库只读、临时库用完即删。证据：`docs/acceptance/seg2/G1-tables.md` §六 |
+| 4 | 聊天图片/文件消息客户端 | `ChatPage` 附件按钮 + 上传守卫 + pending 预览；新增 `AttachSheet` / `MessageImage` / `MessageFile` 三组件；四语言 `conversation.json` 各 **32 key 完全同构**；依赖清单登记 `expo-image-picker` / `expo-document-picker` |
+
+### 2. 顺带修掉的真实缺陷
+
+1. **`StorageKeyRules.KEY_PATTERN` 缺 `chat`**：`build()` 按 `ALLOWED_SCENES`（已加 chat）生成 `private/chat/...`，但 `isValid()` 用的正则没有 chat，`LocalFileStorage.presignUpload` 把自己刚生成的 key 判为非法 → 聊天附件 token 接口恒报 `401001`。补上后实测 `token 200 → PUT 204`。
+2. **消息气泡的 `<button>` 嵌套**：`MessageImage` / `MessageFile` 的 `accessibilityRole="button"` 嵌在「长按撤回」的气泡按钮里，Web 上触发 React hydration 错误（`<button> cannot be a descendant of <button>`）。改为 `image` / `link` 语义后复检干净。
+3. `.i18n-pending.json` 被 `check-i18n.ps1` 自动重写（conversation 命名空间补齐翻译后不再登记缺译）——属门禁正常行为，不是手改。
+
+### 3. 测试与门禁（本轮实测）
+
+- `mvn -B test`：**246 项全绿**（208 基线 + 38 新增，0 失败 / 0 错误 / 0 跳过）。
+- `deploy/verify-all.ps1`：preflight / 库名守卫 / 后端门禁全过；前端门禁仍 PENDING（段 0 遗留，按设计计失败）；另外两项**既有失败未修**：密钥粗筛（命中 `deploy/verify-*.js` 里的 `admin/admin123` 本地测试账号）、文档镜像（`docs` 与 `UI设计` 分支内容不一致）。
+- 前端 `npm run verify` 四项全过（`tsc` / `eslint` / `check-raw-text` 105 文件 0 命中 / `check-i18n` 三级检查）。
+- **浏览器端实测**（Chrome CDP + Expo Web 8090，按段 2 §零.5 的浏览器验收口径）：登录 → 进聊天页 → 附件面板 → 选图 → 上传 → 图片消息发出并在列表渲染；截图 `shots/app-03-chat.png`、`app-04-attach-sheet.png`、`app-05-image-sent.png`、`app-06-chat-after-reload.png`。
+
+### 4. 文档回写
+
+- 《第 2 段工作流》§十一 追加第 13 / 14 行（出口条件 2 闭合；`verify-all.ps1` 门禁修正）。
+- 《BASELINE》**v1.46 → v1.47**：`第2段工作流`（1125 行 / `afa25615c3abebc3`）与 `依赖清单`（106 行 / `03a1b98b5ec6964f`）指纹重算 + 新增 §7.51。
+- `docs/acceptance/seg2/G1-tables.md` 追加 §六（重放证据与局限）。
+- 《依赖清单》新增 §一之五（第 18 / 19 项）。
+
+### 5. 段 2 出口状态（本轮之后）
+
+| 出口条件 | 状态 |
+|---|---|
+| 1. `2-A1`~`2-A10` 十条全部二值通过 | ❌ 8 通过 / `2-A10` 近似 / `2-A3` 未通过 → 段 8 |
+| 2. 12 张表 Flyway、无手改库、迁移可重放 | ✅ **本轮闭合** |
+| 3. 接口清单一条不少 + App/PC 实测 | ✅ |
+| 4. 状态机可追溯 + 非法迁移抛异常 + 留痕 | ✅ |
+| 5. 余额恒等式差异 0 | ✅（本轮实跑 `deploy/verify-balance.ps1`：user 0 / lawyer 0 / exit 0） |
+| 6. 推送 2 个厂商 ROM + 杀进程收到 | ❌ 无凭据 → 段 8 |
+
+### 6. 仍未做（如实挂账）
+
+- **原生 Android 的附件上传未验**：`fetch(file://…).blob()` 在 web 实测通过（blob URL），原生侧 RN 对 `file://` 支持不稳，正解需引入 `expo-file-system` 并登记；属段 8 真机验收范围。
+- 服务端附件签名地址 **60 秒**有效期：长停留后打开历史文件/图片可能失败（已 toast `openFailed`），建议段 8 改为点击时重拉签名。
+- bo / ug / kk 译文由 AI 产出（非中文占位），上线前需母语者审校。
+- 附件发送失败（上传成功但 WS 断线）没有重发入口，与既有文本消息行为一致。
+
+---
+
+## 2026-11-06 · 段 2 收口（G2~G9 完成 / 10 条锚点判定 / 文档基线与 §九回写）
+
+### 1. 交付范围
+
+第 2 段 **G2~G9 共 29 个任务全部完成**：12 张表（`V200`）、段 2 自己的 23 个接口、
+16 个 APP 页面（订单 4 + 律师侧 4 + IM 1 + 评价 1 + 首页与文章 3 + 消息中心 2 + 退款 1）、
+4 个 PC 页面（A-11 / A-12 / A-14 / A-15）。提交区间 `c1ea9c5..`（G4 之后本轮 18 个提交）。
+
+### 2. 10 条锚点判定（二值，证据在 `docs/acceptance/seg2/2-A*.md`）
+
+| 锚点 | 判定 | 说明 |
+|---|---|---|
+| `2-A1` 下单扣款 | ✅ 通过（接口级） | 余额 25318→19318、`balance_flow` 消费 1 条；页面截图缺 |
+| `2-A2` 接单与会话 | ✅ 通过 | 接单流转 + IM 双向 **45ms** ≤ 2s |
+| `2-A3` 杀进程推送 | ❌ **未通过** | 通道凭据未提供，挂段 8（B 方案改判） |
+| `2-A4` 结束与评价 | ✅ 通过 | 评分整表重算 4.0→4.5，与 AVG/COUNT 一致 |
+| `2-A5` 支付密码错误 | ✅ 通过 | 密码错实测 + 5 次锁定/锁定期拒绝（单测级） |
+| `2-A6` 退款闭环 | ✅ 通过 | 全额 / 部分 / 驳回三路径 + 对账差异 0 |
+| `2-A7` 首页真实数据 | ✅ 通过（接口级） | PC 录入 → 上架 → APP 可见 → 维语 → 下架不可见；页面截图缺 |
+| `2-A8` 超时与幂等 | ✅ 通过 | 幂等实测 3 连击 1 单；两条超时为单测级 |
+| `2-A9` 断线重连 | ✅ 通过 | 断开 30 秒 + 5 条全到、无重复、顺序正确、离线表清理 |
+| `2-A10` RTL 会话页 | ⚠️ 近似通过 | `left/right` 0 处、业务代码 `isRTL` 0 处、`letterSpacing` 0；真 RTL 挂段 8 |
+
+**结论**：8 条通过、1 条近似（`2-A10`）、1 条未通过（`2-A3`）。未通过与近似项**都如实挂账段 8**，
+不写「通过」。
+
+### 3. 验收证据
+
+`docs/acceptance/seg2/` 共 **19 份**：G1~G9 九份分组证据（含真实 API/SQL/审计输出）+
+`2-A1`~`2-A10` 十份锚点证据（首行给判定）。
+
+### 4. 收口回写（工作流 §九 16 项）
+
+- 《第 2 段工作流》§十一：追加 12 条「计划 vs 实际」偏差 + §九 16 项逐项状态表。
+- 《BASELINE》**v1.45 → v1.46**：接口规范与错误码规范两份指纹重算 + 新增 §7.50 说明本轮内容变更。
+- 《docs/README.md》：新增「段 2 验收证据索引」。
+- 《审计与日志规范》§3.2 的 `CONVERSATION_VIEW` 已在 v1.45 登记；本轮把代码 action 从
+  `CHAT_VIEW` **对齐为 `CONVERSATION_VIEW`**。
+- 顺带修掉两处历史 `letterSpacing`（`SplashPage` 4 / `MyPage` 1）——阿拉伯系连写会被字间距断开。
+
+### 5. 测试与门禁（收口轮实测）
+
+- `mvn test` **208 项全绿**（33 个测试类，0 失败 / 0 错误 / 0 跳过）。
+- 前端 `npm run verify` 四项全过：`tsc --noEmit`、`eslint .`（0 告警）、
+  `check-raw-text`（102 文件 0 命中）、`check-i18n`（四目录同构 + 缺译已登记 + 占位符一致）。
+- PC 前端 `npx vite build` 通过。
+
+### 6. 仍然挂账（段 8 或待拍板）
+
+1. `2-A3` 杀进程推送（G7.1 通道凭据）；
+2. `2-A10` 真 RTL（真机）；
+3. 图片/文件消息的客户端选择器（需新增 `expo-image-picker` / `expo-document-picker`）；
+4. `2-A1`/`2-A4`/`2-A6`/`2-A7` 的页面级截图（接口级证据齐全）；
+5. 管理端三个 Service 的单测；
+6. ~~段 2 占用的错误码 `405008~405011` 与段 5 预留段冲突~~ **已裁决（2026-11-06，负责人）**：
+   不动段 2 已交付的码，段 5 的 5 个码从 `405008`~`405012` **顺延到 `405023`~`405027`**；
+   段 6 的 `405013`~`405020` 与段 2 无交集、保持不动。错误码规范 §3.5 表与 §3.5.1、
+   第 5/6 段工作流、接口规范的相关表述已同步，BASELINE v1.46 的 4 份指纹已重算；
+7. 律师/文章分类参数是否 code 化（待拍板）；
+8. 首页底部 tab 导航（段 3）。
+
+---
+
+## 2026-11-06 · 段 2 G9 PC 后台 4 页（订单列表 / 订单详情 / 文章列表 / 文章编辑）
+
+### 1. G9.1 A-11 订单列表
+
+后端 `GET /api/v1/admin/orders`（RuoYi 口径 rows/total；状态/时间区间/律师/用户筛选；
+用户手机号脱敏；金额整数分）。前端 `views/biz/trade/order/index.vue`：8 状态筛选、时间区间、
+分页、CSV 导出（当前筛选，上限 1000 行，代码注释标明段 7 改异步导出）。
+
+### 2. G9.2 A-12 订单详情
+
+后端 `GET /admin/orders/{id}`（含支付记录、退款单、**关联会话 id**）、
+`GET /admin/orders/{id}/status-log`（来自 `order_status_log`，**不是四个时间戳拼的**）。
+前端 `detail.vue`：信息卡 + 状态流转时间线（实测 9 节点含 refunding/refund_rejected）+
+支付记录（段 2 两条，负数=退款）+ 退款单表与审批弹窗（驳回必填原因，调 G4.2 接口）+
+关联会话与**聊天记录抽屉**（seq 游标分页，已撤回消息给原文）。
+
+### 3. G9.3 A-14 文章列表
+
+后端 `GET /admin/articles`：服务端一次聚合四语言完成度（`languages`，标题与正文都非空才算完整），
+支持状态/语言/关键词筛选。前端 `index.vue`：4/4 徽标 + 上架/下架；**四语言不齐时前端本地预判
+并提示缺失语言**（服务端只回通用 msg，理由见验收文档偏差 3），服务端仍兜底拒绝。
+
+### 4. G9.4 A-15 文章编辑
+
+后端 `POST/PUT/GET /admin/articles[/{id}]`、`publish`、`offline`：保存只接受 draft/archived
+（上架必须走 publish 校验）；`publish` 校验简体 + 藏/维/哈的标题与正文都齐全；
+正文只校验「合法 JSON 数组」，块类型不锁枚举；译文按 `uk_art_trans` upsert。
+前端 `edit.vue`：源内容 + 三个译文 tab + 正文 JSON 块编辑（富文本会丢 law_ref 绑定，
+按工作流允许用 textarea 兜底）+ 保存草稿 / 保存并上架。
+
+### 5. 审计
+
+4 个文章写方法各一个 `@OperationLog`（ARTICLE_CREATE / UPDATE / PUBLISH / OFFLINE）；
+**聊天记录查看破例审计**（拍板第 7 项）：`CHAT_VIEW` + `target_id`=会话 id
+（`AuditContext.mark` 补），每次打开抽屉与翻页都留痕。
+
+### 6. 菜单
+
+`faze_admin.sys_menu` 插入 2109~2112（订单管理 / 订单详情[隐藏] / 文章管理 / 文章编辑[隐藏]），
+admin 角色默认全通过。生产部署要把这段 SQL 纳入部署脚本（段 8）。
+
+### 7. 证据
+
+`docs/acceptance/seg2/G9-admin.md`：11 项接口实测（真实 RuoYi token）、审计留痕 SQL、
+`2-A7` 全链路（PC 录入 → 上架 → APP 可见 → 维语视图 → 下架不可见）、7 条偏差。
+`vite build` 通过。**页面级浏览器截图未做**（菜单与接口已就绪，缺人工/自动化点击），
+在收口清单记为待补；管理端 Service 无单测（同样记入收口缺口）。
+
+---
+
+## 2026-11-06 · 段 2 G8 内容与消息中心（文章四语言 / 首页与文章两页 / 消息中心空态）
+
+### 1. G8.1 文章接口（四语言 + 降级）
+
+`GET /api/v1/pub/articles`、`GET /api/v1/pub/articles/{id}`（同一实现也挂在 `/app/articles`：
+游客读首页「每日学法」用 `/pub`，登录用户走 `/app`）。`ArticleService` + `ArticleBlockConverter`，
+实体 `Article` / `ArticleTranslation`，可见性只看主表 `status='published'`（译文状态只表示质量阶段）。
+语言取 `lang` 参数或 `Accept-Language`；**标题、摘要、正文各自降级**，任一降级即
+`langFallback=true`（运营只录了标题译文时，正文是中文必须标降级，不能冒充译文）。
+法条引用块（`law_ref`）批量补 `law_item` 原文，避免逐块查询。
+
+### 2. G8.2 首页 + 文章列表 + 文章详情
+
+`HomePage`（01-home）：搜索入口、快捷入口、AI 咨询卡（段 3 占位）、**「每日学法」接真实接口**
+（区块自带 loading/error/empty 三态，文章接口挂了不拖垮首页）；`SplashPage` 登录态分流改为进首页。
+`ArticleListPage`（12-articles）：分类 5 档 + 分页 + 四态 + 语言降级角标。
+`ArticleDetailPage`（13-article）：五类正文块渲染（paragraph / heading / law_ref / list / image），
+法条引用块展示法名+条号+原文，未知块类型忽略不崩；底部免责声明。
+
+### 3. G8.3 消息中心两页（空态 + 入口占位）
+
+`MessagesPage`（38-messages）与 `MessageDetailPage`（39-message-detail）：**不建表、不调接口**，
+空态 +「通知功能即将开放」+ 真实出口（找律师/返回首页）；首页「消息中心」入口保留
+（工作流 G8.3 第 3 条：不因没数据就隐藏入口）。
+
+### 4. 证据
+
+`docs/acceptance/seg2/G8-content.md`：接口 6 项实测（游客可读 / 三种语言降级 / 9 个内容块 /
+法条原文补全 / 401004）、页面清单、7 项单测、6 条偏差。
+`mvn test` 新增 `ArticleServiceTest` 7 项；前端四项门禁通过。
+i18n：`content` 23 key + `home` 20 key（两个 namespace 此前都是空文件）。
+
+---
+
+## 2026-11-06 · 段 2 G7 离线推送（任务与重试 / 点击直达逻辑；通道接入挂账）
+
+### 1. G7.1 推送通道接入 —— **挂账，不做假实现**
+
+个推应用 + 四厂商通道凭据未提供（总纲 §九 L855 的承诺未兑现）。冻结 `PushSender` 接口 +
+`PushMessage` 载荷（userId / title / body / payload），实现层是 `DisabledPushSender`：
+**明确抛 `PushUnavailableException`，不静默成功**。工作流 §二 第 11 项禁止「假装通过」，
+所以未接入就让任务失败 → 重试 → 死信，行为可观测。凭据到位后加
+`GetuiPushSender implements PushSender`，调用方零改动。
+
+### 2. G7.2 推送任务与重试（`task_queue` 第二个消费者）
+
+消息落库后由 `MessagePushService` 入队（**只在对方离线时**；`hasActiveTask(push, messageId)` 判重），
+`PushTask` 每 15 秒领一批：解析 messageId → 查消息/会话 → 推导接收方（律师发→用户、用户发→律师账号）
+→ 接收方已在线则跳过（客户端会走补推）→ 调 `PushSender`。
+失败按 `2^retry` 分钟退避，`retry_count >= 5` 进死信（PC A-26 可见，段 2 只落数据）。
+推送正文**不含聊天内容**（技术路线 §7.5：锁屏可见 = 隐私红线）。
+
+`task_queue` 补**按类型领取**（`claimBatch(worker, types)` + XML `task_type IN (...)`）：
+段 2 起有两个消费者，不筛类型会互相抢任务并互标失败。`OrderCloseTask` 显式只领订单两类任务。
+
+### 3. G7.3 点击直达会话（客户端逻辑完成，真机验证挂账）
+
+`features/conversation/push.ts`：payload 解析（只认 conversationId / messageId，非法不跳首页）+
+意图注册表（`emitPushIntent`）+ 未读求和；`_layout.tsx` 注册处理器：未登录先
+`savePendingHref` 再跳登录，**登录成功后 `LoginPage` 消费 pending 直接回该会话**；
+`ChatPage` 新增 `conversationId` 直达入口（`GET /app/conversations/{id}` 取对端 → 拉历史 → 连 WS）。
+**没有推送 SDK，杀进程收到通知这一步无法验**，`2-A3` 判未通过，挂段 8 真机。
+
+### 4. 证据
+
+`docs/acceptance/seg2/G7-push.md`：完成度表（G7.1 挂账 / G7.2 完成 / G7.3 逻辑完成）、
+真实 task_queue 入队记录、5 轮失败到死信的实测、幂等说明、客户端逻辑逐项、6 条偏差。
+`mvn test` **201 项全绿**（新增 `PushTaskTest` 6 项）；前端四项门禁通过。
+
+---
+
+## 2026-11-06 · 段 2 G6 IM 会话（REST / WebSocket / 已读撤回 / 断线重连 / 离线消息）
+
+### 1. G6.1 会话与消息 REST
+
+`GET|POST /app/conversations`（创建或获取，`(user_id,lawyer_id)` 唯一 → 一个律师一个会话）、
+`GET /app/conversations/{id}/messages`（seq 游标，不用 OFFSET）、`POST /app/conversations/{id}/read`、
+`GET /app/workbench/conversations`（律师端独立端点，不给同一接口加 role 参数）。
+`ConversationService#assertMember` 是**全域唯一鉴权入口**：REST 与 WS 都走它，
+非成员一律 404002（HTTP 403），与「会话不存在 404001」区分。
+新增 `CursorResult<T>`（接口规范 §5.2 的游标分页结构，此前只有文档没有实现）。
+
+### 2. G6.2 WebSocket 服务端
+
+`/ws/chat`（Spring 原生 `WebSocketHandler`，不用 `@ServerEndpoint`）；`ChatHandshakeInterceptor`
+在握手阶段验 JWT（token 走 query，Security 对该路径 permitAll —— 握手没有 Authorization 头）。
+`ChatWebSocketHandler` 只管生命周期与按 type 分发，五种 type 各一个处理器（send/read/recall/typing/history）。
+在线表 `OnlineRegistry`：内存 map 是本实例真相 + Redis `faze:im:online:{userId}` 标记（120 秒 TTL）；
+同一账号新连接踢旧连接并推 `chat.kicked`；心跳 90 秒无消息主动关闭（应用层记活跃时间 + 定时扫描，
+因为 `WebSocketSession` 接口没有 setMaxIdleTimeout）。
+
+### 3. G6.3 聊天页（17-chat）
+
+`ChatPage.tsx` + `useChatSocket` hook：文本收发、首屏 20 条、上翻加载更早（seq 游标）、
+对方输入状态、断线橙色提示条、已读小字、长按撤回。订单详情「联系律师」改为跳转
+（按 lawyerId 建/取会话）。`conversation` namespace 21 个 key（该 namespace 此前是空文件）。
+
+### 4. G6.4 已读、撤回、输入状态
+
+已读：`seq <= lastReadSeq` 的**对端**消息批量标 `read_by_*_at`，未读数按消息表重算（不信冗余计数）；
+WS `chat.read` 与 REST 已读兜底调**同一个** `MessageService#markRead`（各写一份必然漂移）。
+撤回：四条校验（成员 / 消息属于该会话 / 发送者本人 / 2 分钟内），只置 `recalled_at`、不改 `msg_type`，
+历史接口对撤回行返回 `recalled=true` 且**不带 content/fileUrl**；双方都会收到 `chat.recall`。
+typing：只转推、不落库，但仍然做成员校验（否则等于开放「给任意会话推假正在输入」）。
+
+### 5. G6.5 断线重连（2-A9）
+
+客户端指数退避（1/2/4/8/16/30s，不死循环猛连）+ 重连后发 `chat.history(afterSeq=已收最大 seq)`
+只补增量；服务端 `incremental` 按 seq 升序返回。`seq` 由 Redis `INCR` 与库内最大值取 max：
+Redis 重启后 INCR 从 1 开始，不取 max 会直接撞 `uk_msg_conversation_seq`。
+`client_msg_id` 去重：重发返回已有消息（`duplicated=true`），不插第二行、不再推对端。
+
+### 6. G6.6 离线消息
+
+`message_offline`：对端离线才入队（先按 `(user_id,message_id)` 查重），连接建立即补推，
+**推一条删一条、每批 50**；`OfflineMessageCleanupTask` 每天 04:30 清理超期（保留期读
+`sys_config.im.offline_retention_days`，默认 7 天）。清理不等同丢消息：正文在 `conversation_message` 里。
+
+### 7. 证据
+
+`docs/acceptance/seg2/G6-im.md`：REST 7 项、WS 双向 45ms（`2-A2` 后半段）、断线 3 条全收（`2-A9`）、
+非成员 403、REST 已读兜底、库内数据、25 项单测、页面清单、7 条偏差。
+`mvn test` **195 项全绿**（新增 `ConversationServiceTest` 8 / `MessageServiceTest` 13 /
+`OfflineMessageServiceTest` 4）；前端 `verify` 四项门禁通过。
+
+---
+
+## 2026-11-06 · 段 2 G5 评价（提交 / 评分回写 / 律师回复）
+
+### 1. G5.1 评价提交
+
+`POST /app/orders/{id}/review`（rating 1-5 必填、tags ≤6 个每个 ≤20 字、content ≤500、isAnonymous 缺省 false）、
+`GET /app/orders/{id}/review`（评价页只读态与订单详情判断用）。
+前置：订单属于当前用户且 `COMPLETED`；**一单一次**用两层保证——应用层先查（给可读的 405022）+
+`uk_review_order` 兜底（`DuplicateKeyException` 也转 405022）。
+`OrderDetailVO.reviewed`：已评价时服务端把 `review` 从 `actions` 去掉，C 端按钮变「查看评价」。
+
+### 2. G5.1 律师回复（段 2 新增接口）
+
+`POST /app/reviews/{id}/reply`：技术路线 §4.8.2 没有这个接口，工作流 §五 第 27 条已登记为新增；
+`ReviewController` + `ReviewReplyBO`。归属校验是「lawyer.user_id 命中**且** lawyer.id == review.lawyer_id」
+——只判「是律师」会让任何律师回别人的评价（401008 已实测）。回复允许覆盖（工作流未规定次数，
+评价不可改而回复可修正错别字），每次覆盖更新 `updated_at`。
+
+### 3. G5.2 评分回写
+
+`ReviewService#recalcLawyerRating`：与插评价**同一事务**，`SELECT AVG(rating), COUNT(*) WHERE lawyer_id=?`
+后 `UPDATE lawyer SET rating, review_count`；**整表重算、不做增量**（增量算法在历史评价被人工改过之后会永久错）。
+`rating` 四舍五入到 1 位小数（`DECIMAL(2,1)`），无缓存——律师详情直接读 `lawyer` 行。
+实测：种子 `5.0 / 0`（不自洽的假数据）→ 4 星评价后 `4.0 / 1` → 再 5 星评价后 `4.5 / 2`，
+与 `SELECT AVG(rating), COUNT(*)` 完全一致。
+
+### 4. 错误码与接口登记
+
+新增 `TRADE_REVIEW_NOT_FOUND(405021)`、`TRADE_REVIEW_DUPLICATE(405022)`。
+**不复用 405012 / 405013**：那两个已被《错误码规范》§三 预留给段 5（提现/渠道）。
+同时补两处登记：① 《错误码规范》§三.5.1「段 2 施工登记」——段 2 已实际占用 405008~405011，
+与 §3.5 的段 5 预留冲突，**段 5 开工前必须裁决**；② 《接口规范》§7.3.0——段 2 施工实际落地
+而技术路线 §4.8.2 未列的 7 个接口（G4 的 4 个 + G5 的 3 个）。
+
+### 5. APP 评价页（34-review）
+
+`ReviewPage.tsx`：星级（初始 0、未打分底部置灰、触控区 45×45）、6 个标签多选、正文 200 字计数、
+匿名开关（整行可点）、「律师可以回复」「发布后不能修改」提示、已评价只读态（星级/标签/正文/匿名标记/律师回复）、四态。
+`OrderDetailPage` 的「评价服务」改为跳转评价页；`app/review.tsx` + `routes.ts` 的 `review` / `reviewHref`。
+i18n：`trade.review.*` 33 个 key + `trade.order.actViewReview` + `error.trade.review-not-found` /
+`error.trade.review-duplicate`；**删除占位 key `trade.order.reviewPending`**（入口已实现）。
+
+### 6. 证据
+
+`docs/acceptance/seg2/G5-review.md`（提交 / 匿名 / 律师回复 / 评分即时回写 / 库内数据 / 页面清单 / 偏差）。
+`mvn test` **170 项**（新增 `ReviewServiceTest` 13 项 + `OrderServiceImplTest#detailDropsReviewActionWhenReviewed`）；
+前端 `verify` 四项门禁通过。`2-A4` 接口级通过，页面级截图证据待段 2 收口统一补。
+
+---
+
+## 2026-11-06 · 段 2 G4 退款（申请 / 审批 / 入账）
+
+### 1. G4.1 退款申请
+
+`POST /app/orders/{id}/refund`（reason 必填、amountCents 空=全额）、`GET /app/orders/{id}/refund`。
+只允许 PAID / IN_SERVICE；同一订单只允许一张 `applying` 退款单（重复申请 405004）；超额 405005。
+前端 `RefundPage.tsx`（33-refund）：金额只读、5 个单选原因（其他必填说明）、已有退款单时展示进度。
+
+### 2. G4.2 PC 审批
+
+`POST /admin/refunds/{id}/audit`（approved + remark）、`GET /admin/refunds?orderId=`。
+通过 → 退款单 refunded + 入账 + 订单 REFUNDED（全额）或回退款前状态（部分）；
+驳回 → 退款单 rejected + REFUNDING→REFUND_REJECTED→退款前状态。
+`RefundAuditExecutor#approve` / `#reject` 各标一个 `@OperationLog`，detail 存 before/after。
+**PC 审批弹窗属 G9.2**（工作流 G9.2 第 6 条把退款审批入口归到订单详情页），本组用真实 admin token 验接口。
+
+### 3. G4.3 入账
+
+复用 `RefundCreditService`；`OrderRefundService` 抽出 `creditRefund`（入账 + 回写流水号 + payment 负数行），
+新增 `settleApprovedRefund` / `rejectRefund`。**退款不动律师余额**（段 2 无结算，代码注释已写明）。
+
+### 4. 状态机补 3 条边（10 → 13）
+
+`REFUND_REJECTED→PAID`（驳回回已付款）、`REFUNDING→PAID` / `REFUNDING→IN_SERVICE`
+（部分退款通过后回退款前状态，不能走 REFUNDED 终态再回退）。
+
+### 5. 修掉一个会吞钱的缺陷：退款入账幂等键
+
+`balance_flow.biz_id` 在 G2.4 记的是**订单 id**、G4 改用**退款单 id**，两套 id 数值区间重叠：
+新退款单 id=6 命中订单 6 的旧流水，被判「幂等命中」→ 审批成功、退款单显示已到账、**用户余额没变**。
+修法：`RefundCreditService` 幂等键改退款单 id + `V201` 迁移把历史退款流水 `biz_id` 改成退款单 id。
+迁移第一版用 `CREATE TEMPORARY TABLE` 直接失败（`faze_migrate` 逐表授权、无 `CREATE TEMPORARY TABLES` 权限，
+Error 1044），改为纯 UPDATE JOIN。
+
+### 6. 证据
+
+`docs/acceptance/seg2/G4-refund.md`（申请 / 审批全额 / 部分 / 驳回 / 边界 / 状态流水 / 审计 / 缺陷）。
+`mvn test` **156 项全绿**（新增 `RefundServiceTest` 11 项）；前端四项门禁通过。
+`2-A6` 接口级通过，PC 页面级证据待 G9.2。
+
+---
+
+## 2026-11-06 · 段 2 G3 律师侧与展示（列表 / 详情 / 订单 / 工作台）
+
+### 1. G3.1 律师列表
+
+`GET /app/lawyers`：分类 4 档 + 关键词 + 排序白名单（`online_rating` / `rating_desc`）+ 分页。
+分类靠 `sys_config.lawyer_specialty_enum`（JSON：tab → 擅长领域值数组）展开成 `JSON_CONTAINS`，
+排序靠 `<choose>` 白名单，XML 内零 `${}`。前端 `LawyerListPage.tsx`。
+
+### 2. G3.2 律师详情 / 评价 / 关注
+
+`GET /app/lawyers/{id}`（资料 + 评分/评价数/接单数 + 三个服务价格与上下架 + `followed`）、
+`GET /app/lawyers/{id}/reviews`（分页，匿名评价不返回任何可反查标识）、
+`POST|DELETE /app/lawyers/{id}/follow`（`social_action` 软删取关，幂等）。前端 `LawyerDetailPage.tsx`。
+
+> 偏差：设计稿 `14-lawyer-detail.html` 无价格区 / 评价区，按工作流 G3.2 补齐；「立即咨询」= 下单，
+> 不是进会话（拍板第 6 项：下单与会话解耦）。
+
+### 3. G3.3 律师侧订单
+
+`GET /app/lawyer/orders`、`POST /app/orders/{id}/accept|reject|complete`。
+律师身份从 token 反查 `lawyer.id`，归属校验进 SQL（405002）；非律师 401008（403）。
+拒单 = `PAID→REFUNDING`（LAWYER）+ `OrderRefundService.settleRefund`（退款单 + 入账 + 支付负行 + 置 REFUNDED），
+与超时自动退共用一份实现。接单用原子 SQL 自增 `order_count`。前端 `LawyerOrdersPage.tsx`（10 秒轮询）。
+
+> 偏差：工作流未给律师侧列表端点（计划缺口），补 `GET /app/lawyer/orders`。
+
+### 4. G3.4 律师工作台
+
+`GET /app/workbench/summary`（今日订单 / 今日与累计预计收入 / 待接单 / 服务中 / 在线状态 / 价格与开关）、
+`PUT /app/workbench/online-status`、`PUT /app/workbench/service-settings`。
+「今日」按东八区切日；收入是 `lawyer_income_cents`（金额 − 15% 平台费），页面注明「预计收入，结算见段 5」。
+前端 `WorkbenchPage.tsx`。
+
+### 5. 本次修掉的 4 个缺陷
+
+1. **`@Scheduled` 静默不执行**（G2.4 遗留）：自定义 `taskScheduler` + `@EnableScheduling` 放在普通配置类里，
+   扫描器一次没跑。改为主类 `@EnableScheduling` + `spring.task.scheduling.*`，`ProbeController` 注入加
+   `@Qualifier`；`OrderCloseTask` 加启动登记日志。实测订单 1/3/4 被自动关闭（`task_queue` 三条 done）。
+2. **服务设置「部分更新」误清字段**：只传图文价格时，电话/文书价格被清 NULL、上架开关被置 0。
+   改为价格条件 `set` + 开关 `resolveSwitch`（null 保持现值），补 6 项单测。
+3. **分类 tab 映射词表错误**：初版把 tab 名（`民事纠纷`/`劳动纠纷`/`合同纠纷`）当成擅长领域值，
+   而入驻页标签真值是 `民商事纠纷`/`劳动争议`/`合同审查`，导致「民事纠纷」tab `total=0`。
+   已改用标签原词（归类口径不变，仍是负责人 2026-11-06 拍板的那套）。
+4. **`OrderListPage` 未使用 `toast`**：G3.1 提交带入的 eslint 红，已删。
+
+> 部署注意：`seg2_config.sql` 是种子且 `ON DUPLICATE KEY UPDATE` **不覆盖 `config_value`**，
+> 已初始化的库必须手工 `UPDATE lawyer_specialty_enum`，否则线上仍是旧映射。
+
+### 6. 证据
+
+`docs/acceptance/seg2/G3-lawyer.md`（列表 / 详情 / 接单完成 / 拒单退款 / 工作台 / 定时任务修复 / 锚点判定）。
+`mvn test` **145 项全绿**（26 个测试类）；前端四项门禁通过；i18n 新增 33 个 key（仅 zh-Hans 有译文，其余登记缺译）。
+`2-A2` 只验了前半段（接单链路），IM 实时部分待 G6，**整条不判通过**。
+
+---
+
+## 2026-11-06 · 段 2 G2 下单与支付（订单两页 / 余额支付 / 支付结果 / 超时关单）
+
+> 补记：本条目在 G3 收口时补写入，当时只出了证据文件、漏了 CHANGELOG（已记一次）。
+
+### 1. G2.1 下单接口 + 订单两页
+
+`POST /app/orders`（金额服务端按律师价格算，客户端传了也忽略；`Idempotency-Key` 幂等）、
+`GET /app/orders`、`GET /app/orders/{id}`，`OrderActionResolver` 按状态推导动作。
+订单列表 5 档 tab（`refunding`/`refund_rejected` 归「进行中」）、订单详情页。
+
+### 2. G2.2 余额支付
+
+`POST /app/orders/{id}/pay`：支付密码校验 → `BalancePayAdapter` → `DeductService.deduct`（唯一扣款入口）
+→ `payment_record` 正行 → `PENDING→PAID`。密码错时不扣款、不迁移状态。
+
+### 3. G2.3 支付页 + 结果页
+
+`31-pay`、`32-pay-result`：只做余额一种支付方式，无渠道选择控件（段 2「四条不许」第 2 条）。
+
+### 4. G2.4 超时关单与自动退款
+
+`task_queue` 任务表 + `TaskQueueService`（CAS 领取 / 租约回收 / 指数退避 / 死信）、
+`OrderTimeoutService`（PENDING 15 分钟关单；PAID 30 分钟无人接自动全额退款）、
+`OrderRefundService.autoRefundFull`、`RefundCreditService`（幂等键 = orderId）、
+`POST /app/orders/{id}/cancel`。
+
+> 已知问题：本组交付时 `@Scheduled` 实际未生效（见 G3 条目第 5.1 条），G3 期间才修复并实测。
+
+### 5. 证据
+
+`docs/acceptance/seg2/G2-order-pay.md`；`mvn test` 122 项全绿（当时）。
+
+---
+
+## 2026-11-06 · 段 2 G1 交易地基（12 表 + 状态机 + 单号 + 扣款适配）
+
+### 1. G1.1 建 12 张表（V200）
+
+按《数据表规范》§8.1 用 V200 区间建段 2 的 10 张既有表 + 2 张新增表。
+orders.status 补 
+efund_rejected（八态）、payment_record.channel 补 alance、
+
+efund_record 补 udit_remark。实测迁移 0.653s，12 张字段数与附录 A 逐个一致，索引均 <=6。
+新表需 sync-db-grants.ps1 同步逐表授权（已执行，27 张表）。
+
+> 偏差：段 1 实际用 V3~V12（占段 0 区间），未按 §8.1 的 V100~V199；已执行的迁移不改，段 2 起按规则用 V200。
+
+### 2. G1.2 状态机
+
+8 态 + 10 条状态对 + 14 个触发分支；OrderStatusMachine 是纯规则类。
+OrderStatusMachineTest 6 例全绿，含 8x8=64 组合穷举。
+
+已知缺口：PAID 阶段退款被驳回缺 REFUND_REJECTED->PAID 一条边（记在类注释）。
+
+### 3. G1.3 单号生成器
+
+OR/RF/RC + yyyyMMdd + 6 位，Redis INCR 按天分桶，东八区取日期。
+单测 3 例全绿：格式 / 100 并发无重复 / 跨天从 000001 重开。
+
+### 4. G1.4 扣款适配层
+
+BalancePayAdapter：先 PayPasswordService.verify 再 DeductService.deduct，不重写扣款。
+4 个 Mockito 用例全绿（密码错时断言 deduct 一次未调用）。
+
+### 5. 证据
+
+docs/acceptance/seg2/G1-tables.md。合计 13 个新单测全绿。
+未完成：清库重放（会清段 1 数据，记为待办）。
+
+---
+
+## 2026-11-06 · 第 2 段开工前复核：3 项拍板 + 6 份文档回写 + WebSocket 依赖
+
+### 1. 三项拍板（负责人 2026-11-06）
+
+- **聊天原文可见性按段 7 口径**：管理员只看「命中片段 + 前后各 3 条」，不做全量、不许导出（推翻段 2 原拍板第 7 项，留推翻注）。
+- **`2-A3`（杀进程收推送）走 B 方案**：浏览器只验「关标签页→重开→离线表补推 + 未读角标」，**不等价于系统推送**，挂账段 8。
+- **`2-A10`（真 RTL）改口径**：代码审查 + 近似布局，真 RTL 挂段 8。
+
+### 2. 六份文档回写（详单见 `BASELINE.md` §7.49）
+
+技术路线（8 处：`orders.status` / `payment_record.channel` / `refund_record.audit_remark` / §9.2.1 / 4 处 MQ / 端口表颠倒 / 旧表名）、数据表规范（`refund_record` 11→12）、审计规范（`CONVERSATION_VIEW`）、总纲（§5.3 数据库清单 13 旧名→12 新名）、第 2 段工作流（§零.5 浏览器口径 + 3 项前置改判）、依赖清单（第 17 项 WebSocket）。
+
+### 3. 代码侧准备
+
+- `pom.xml` 加 `spring-boot-starter-websocket`（`2-A2` / `2-A9` 的载体），`mvn compile` 通过。
+- 补 `modules/trade/README.md`、`modules/ops/README.md`（后端规范 §2.6 要求，段 1 缺这两个）。
+- 测试数据：律师三个价格 5000/8000/20000 分、`online_status=online`；测试用户实名 `approved`。
+
+### 4. 仍未解决（记在此，不假装已过）
+
+- **段 1 全量验收最后一次不是全绿**：11-05 04:19 那次「管理端 23 项复核」FAIL（A-08/A-09 全返 401，token 过期），但同次 1-A1~A10 十条锚点全 PASS、端到端 38/38；11-06 19:19 那次带了 `-SkipE2E`，1-A1~A4 为 SKIP，日志结论「还不可以收口」。已重跑，见当日验证日志。
+- **工程性承接手段缺失**：`pom.xml` 无 ArchUnit / checkstyle / JaCoCo，`gitleaks` 未接入《后端代码规范》§14.2 的 14 条 ✅ 项一条都没进 CI。
+
+---
+
+## 2026-11-05 · 测试数据清库脚本 + 验收「静默跳过」修正
+
+### 1. `deploy/purge-test-data.ps1`：清掉 e2e 造出来的用户
+
+`verify-e2e.js` 每跑一次就造 3~4 个用户（主号 / 未成年号 / 注销后的 cancelled 号），
+加上人工点页面验证留下的，本地库一点点堆起来——**29 个用户里只有 2 个是该留的**。堆着的坏处很具体：
+管理端列表全是「用户0001/用户0002」看不出真假、对账与巡检的统计被噪声盖住、
+想验「新用户第一次进来是什么样」还得先手工筛。
+
+**只删测试号段，且必须同时不在保留清单里**（两个条件都满足才删）：
+
+| 测试号段 | 用途 |
+|---|---|
+| `1380000****` | 端到端主号（取时间戳后 4 位） |
+| `1370000****` | 端到端未成年号 |
+| `1360000****` | 历史手工测试号 |
+| `cancelled_*` | 注销后改写成的占位号 |
+
+保留清单默认 `1,3`，**这两个不是随便挑的**：
+- `id=1 13800000001` 是 seed 测试账号，`Seg0SmokeTest` 的登录用例靠它，删了后端测试直接红；
+- `id=3 13900000009` 是 `verify-admin-api.mjs` 里 `walletUser = '3'` 的**硬编码**目标，
+  管理端 A-07 全组都指向它，删了验收就断。
+
+既不匹配测试号段、又不在保留清单的用户**一律跳过并告警**——将来接入真实用户时这条保证脚本不会碰他们。
+要连他们也删得显式 `-ForceAll`。
+
+安全设计：默认 dry-run（不加 `-Execute` 只打印计划）、真删前 `mysqldump` 整库备份、
+删完自检（保留账号完好 / 测试号段清空 / 对账恒等式 / 无悬挂行 / `operation_log` 原样保留）。
+**不动** `operation_log`（审计只追加）、`sys_config`、`law_item`。
+
+实测执行（2026-11-05 20:30）：29 → 2 个用户，连带清理 `login_log` 55 条、`user_device` 12 条、
+`realname_auth` 9 条、`lawyer` 9 条、`lawyer_application` 13 条、`lawyer_application_log` 19 条、
+`user_balance` 9 条、`balance_flow` 16 条；另清掉 **30 条悬挂行**（`login_log` 里 user_id 指向
+已被历史清理掉的用户，孤儿行会污染一切按全库统计的检查）。`operation_log` 155 条原样保留。
+
+**三个踩坑**（都是「第一次执行就撞上」，也都说明这些守卫不是多余的）：
+
+1. **`mysqldump --events` 需要 EVENT 权限**，运维账号 `faze_migrate` 没有 →
+   `show events` 报 1044、mysqldump 退出码 2。「备份失败不删数据」的守卫当场拦住了，一行没删。
+   去掉 `--routines --events`（本库没有存储过程与事件）后解决。
+2. **`CREATE TEMPORARY TABLE` 需要额外权限**，同样没有 → 1044。为了少给一个账号权限，
+   改成重复子查询传条件（代价是条件写 11 遍）。
+3. **对账口径漏了冻结金额**：自检里拿 `SUM(balance_cents)` 比 `SUM(delta_cents)`，报差 2000 分，
+   白查一轮才发现 `id=3` 有 2000 分 `frozen_cents`。`verify-balance.ps1` 第 11-13 行**专门警告过**
+   「只比 balance_cents 是口径错不是账错」——我正好犯了它警告的错。改成 `balance_cents + frozen_cents` 后 diff=0。
+
+### 2. 管理端复核的跳过项不再静默消失
+
+清库后跑验收发现管理端从 23 项变成 **22 项**，而汇总照样显示「22/22 通过」。
+原因：`verify-admin-api.mjs` 里写的是
+
+```js
+if (firstApp) { check('A-05-2', '四步详情 + 审核流水', ...); }
+```
+
+待审队列为空时这一项**直接不存在了**——分母缩水、没有 FAIL、没有提示，看着还是全绿。
+这和之前在 CI 里抓到的「一个文件都没扫到也报命中 0」是同一类假绿。
+
+改成显式 `skip()`：记进结果、单独计数、汇总显示「22 通过 / 0 失败 / 1 跳过（共 23）」、
+退出码用 **2**（不是失败，但也不是通过）。`verify-seg1.ps1` 相应识别退出码 2：
+显示 `[SKIP]` 并置 `hasSkip`，让「本段能否收口」停下来。
+
+顺带修了一处措辞：`$adminOk` 的语义是「没有失败」，退出码 2 也算没失败；
+一开始把 2 当失败，汇总会报「可自动判定的检查：有失败项」——会让人去找不存在的失败。
+
+**清库后验收结果**：环境 5/5、`mvn test` 54/54、对账差异 0、管理端 22 通过 + 1 跳过、
+错误态 7/7、数据库权限 7/7。判定「还不可以收口」——因为这次 `-SkipE2E`（避免刚清完又造数据）
+且待审队列为空，**两处 SKIP 都如实标出来了**。
+
+---
+
+## 2026-11-05 · 补上 CI（首个 GitHub Actions workflow）
+
+**动因**：段 1 收口后仍然没有 CI —— 54 个后端用例 + 6 个验收脚本全靠人手跑。
+今天已经因为「没人跑」埋过一次假失败（管理端 23 项全 401，实际是浏览器 Cookie 里的 RuoYi token
+过了 30 分钟有效期），可见靠自觉不够。
+
+`.github/workflows/ci.yml` 三个 job：
+
+| job | 内容 |
+|---|---|
+| `backend` | MySQL 8.0 + Redis 7 service，建 `faze_migrate`（DDL）与 `faze_app`（仅 DML）两个账号 → 触发 Flyway 建表 → 导 seed → `mvn -B test`（54 用例）→ 断言运行时账号拿不到 DDL |
+| `mobile` | `tsc --noEmit` + `eslint .` + `check-raw-text.ps1`（禁裸 `<Text>`）+ `check-i18n.ps1`（四语言同构） |
+| `admin-web` | `pnpm install --frozen-lockfile` + `vite build`（RuoYi 前端没有 lint script，构建通过即门槛） |
+
+**为什么不按「服务跑起来再测」的常规写法**：`sys_config` 的 12 条数据与测试账号在
+`database/seed/`（负责人决策**不进 Flyway**），所以要先有表才能导 seed，而「只建表不跑业务」
+没有独立入口。workflow 里用「先跑一次 `Seg0SmokeTest` 且允许失败」触发 Flyway 建表——这一步不是
+质量门禁，只是拿表的副作用，注释里写清了原因，免得后人误以为它该失败。
+
+**CI 里为什么不做「operation_log 只追加」的验证**：那条要求需要逐表 GRANT，而 CI 的表是 Flyway
+现建的，建完再动态生成 GRANT 会让脚本复杂且难排查。它由本地 `sync-db-grants.ps1 -Verify` 覆盖，
+并已接进 `verify-seg1.ps1` 第 7 步作为一票否决项。CI 只做轻量断言（运行时账号不能建表）。
+
+**首跑结果（2026-11-05 20:01，run `42023685805`）**：
+
+| job | 结果 | 说明 |
+|---|---|---|
+| 后端测试 | ✅ success | **54 个用例 0 跳过**（ubuntu + MySQL 8.0 + Redis 7）；Flyway 从空库建到 v12；「`faze_app` 无法建表」断言通过。日志里第一个 `mvn test` 是「触发建表」那步，如预期失败（此时还没有 seed 数据） |
+| PC 后台构建 | ✅ success | `pnpm install --frozen-lockfile` + `vite build` 一次过 |
+| APP 静态检查 | ❌ failure | `check-raw-text.ps1` 在 Linux 上误报 3 处裸 `<Text>`（全都来自 `LocalizedText.tsx` 自己），根因见下 |
+
+**首跑暴露的脚本缺陷（已修）**：`scripts/check-raw-text.ps1` 与 `check-i18n.ps1` 都把路径写成了反斜杠字面量
+（`Join-Path $root 'apps\mobile-app'`）。Windows 上没事，Linux 上拼出一个不存在的路径；更糟的是
+**路径不对时脚本「一个文件都没扫到」仍然报「命中 0」/「全部通过」**——假绿比失败更危险。
+修法：路径一律走 `[System.IO.Path]::Combine`、比较前把分隔符规范成 `/`、并新增「扫到 0 个文件就退出 2」的守卫。
+本地复验：`check-raw-text` 扫 68 个文件命中 0；`check-i18n` 14 个 namespace、缺译 517 条已登记、通过。
+
+**四轮下来才全绿**（每一轮修的都是上一轮暴露的问题，不是重跑碰运气）：
+
+| 轮次 | run | 结果 | 这一轮暴露的问题 |
+|---|---|---|---|
+| 1 | `42023685805` | 2/3 | 两个 `.ps1` 的路径写成反斜杠字面量，Linux 上排除名单失效 → 误报 |
+| 2 | `42024181817` | 3/3 | 通过；顺带确认 Linux 上 `已扫描 68 个文件`、与本地一致，不是被新守卫放行 |
+| 3 | `42024520533` | 2/3 | **新加的「`.i18n-pending.json` 防漂移」检查当场抓到真问题**：`ConvertTo-Json` 在 PS 5.1（畸形累积缩进、CRLF）与 PS 7（正常缩进、LF）输出不同，同一文件两个平台两份内容，1560 行全变 |
+| 4 | `42025052761` | 3/3 | 改手工固定格式序列化后全绿；`OK：.i18n-pending.json 与 scripts/check-i18n.ps1 的输出一致` 确认防漂移检查真的在跑 |
+
+**第 3 轮那条检查是这轮里最值得留的东西**：`check-i18n.ps1` 的判定是「缺译已登记就通过」，
+而它自己会重写 `.i18n-pending.json`——脚本写、脚本读、脚本判，等于自证。加上「跑完工作树必须干净」之后，
+仓库里登记的内容必须与脚本真实输出逐字节一致，才可能绿。它第一次跑就抓出了跨平台格式差异。
+副产品：`.i18n-pending.json` 从 **190992 字节降到 46772 字节**——原来 3/4 的体积是 PowerShell 5.1 的畸形缩进。
+
+---
+
+## 2026-11-05 · 第 1 段收口后补漏：审计表可篡改 / 注销余额口径 / 法务正文存不进去（基线 v1.44）
+
+**这一节记录的不是新功能，是「验收全 PASS 之后仍然不合规」的三件事。**
+段 1 的十条锚点验的是**功能**，下面三项都在锚点清单之外，属于工程与合规缺口。
+三项都是**实测发现**——写文档时都以为做了，实际没做。
+
+### 1. 审计表可以被应用连接直接改删（合规缺口，最严重）
+
+《审计与日志规范》对 `operation_log` 写了两条落地手段：Mapper 只读 + **DB 账号无 UPDATE/DELETE 权限**。
+§八 第 1 条甚至指定了「在 `deploy/start-services.ps1` 里做」。实测：
+
+```text
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, REFERENCES, INDEX, ALTER,
+      EXECUTE, CREATE VIEW, SHOW VIEW, TRIGGER ON `faze`.* TO `faze_app`@`localhost`
+GRANT ALL PRIVILEGES ON `faze_test`.* TO `faze_app`@`localhost`
+```
+
+两个问题叠在一起：①审计表对运行时账号开放了 `UPDATE`/`DELETE`；②**迁移与应用共用同一个账号**，
+所以应用连接同时持有整套 DDL。`OperationLogMapper` 的注释里其实写着「faze_app 有 DELETE 权限是段 0 的历史授权，
+收口时应收回」——识别到了，没做。
+
+**MySQL 权限是并集，库级 GRANT 无法用表级 REVOKE 减掉**，所以「既能在库里建表、又不能改审计表」
+只有一个合法解：迁移与运行分离。
+
+| 落地 | 说明 |
+|---|---|
+| `database/grants/01-accounts.sql` | 建 `faze_migrate`（持 `faze.*` DDL+DML），只做增量授权 |
+| `database/grants/README.md` | 为什么必须拆两个账号、生产怎么初始化、已知边界 |
+| `deploy/sync-db-grants.ps1` | 幂等收敛：跑 SQL → 撤 `faze_app` 库级授权 → 按 `information_schema` 逐表授权；`-Verify` 只核对不改 |
+| `application.yml` | Flyway 改用 `spring.flyway.user/password`（`FAZE_DB_MIGRATE_*`），不再回落到 datasource 账号 |
+| `deploy/start-api.ps1` | `FAZE_DB_MIGRATE_USER` / `FAZE_DB_MIGRATE_PASSWORD` 进必需变量校验，缺了直接退出 3 |
+| `deploy/verify-seg1.ps1` | **新增第 7 步**跑 `sync-db-grants.ps1 -Verify`，并作为一票否决项计入「能否收口」 |
+
+`faze_app` 现在的权限形态：逐表 `SELECT/INSERT/UPDATE/DELETE`；`operation_log` **只有 `SELECT, INSERT`**；
+`flyway_schema_history` 只有 `SELECT`；无任何库级授权、无 DDL。
+
+`-Verify` 跑 6 项探针，其中 3 项是**真发一条语句**而不是读 `information_schema`（权限表说没有、实际能改的情况是存在的）：
+
+```
+[OK] 库级授权已清空
+[OK] 表级授权覆盖全部 15 张表
+[OK] operation_log 对 faze_app 只开放：INSERT, SELECT
+[OK] faze_app 实测 UPDATE operation_log 被拒（1142 command denied）
+[OK] faze_app 实测 UPDATE app_user 通过（业务表可写）
+[OK] faze_app 实测 CREATE TABLE 被拒（运行时账号无 DDL）
+```
+
+**踩坑记录**：PowerShell 5.1 把含引号的参数交给原生 exe 时会二次转义，
+`grantee = "'faze_app'@'localhost'"` 这类语句直接被拆坏（`ERROR 1064 near @'localhost''`）——
+SQL 一律走 stdin 而不是 `-e`。另外 `ERROR 1142` 写 stderr 在 `ErrorActionPreference='Stop'` 下
+会被包成 `NativeCommandError` 直接中断脚本，探针位置必须局部放开。
+
+### 2. 注销前判余额用缓存口径 → 资金悬空（G-9）
+
+`AccountSecurityService.cancelAccount` 只读 `user_balance`（缓存）。而缓存是派生值：
+某笔流水写了但缓存更新失败时缓存会偏小，于是**用户能带着余额注销，钱再也退不出去**。
+`BalanceQueryService` 的接口注释当时还在为这个做法辩护（「缓存只用于注销前置校验」），
+等于把风险写成了设计。
+
+改为：账本（`SUM(balance_flow.delta_cents)`）与缓存**取较大值**做保守判定，任一口径 > 0 就拒绝；
+两个口径不一致时打 WARN 留给巡检。接口注释同步改成「决策点一律以账本为准，且必须与缓存交叉校验」。
+
+新增 `CancelAccountBalanceTest`（3 个用例，全部是「制造缓存 ≠ 流水」才有意义的场景）：
+缓存 0 / 流水 100 元 → 必须拒；流水 0 / 缓存 100 元 → 必须拒；两边都 0 → 注销成功且副作用完整。
+
+### 3. PC A-08 根本改不了法务正文（G-3，比原记录更严重）
+
+原记录是「表格里用单行 `el-input`，600~900 字正文看不全」。实测发现还有更硬的一层：
+
+**`AdminSysConfigUpdateBO.Item.configValue` 上有 `@Size(max = 500)`**，而
+`user_agreement_content` 是 619 字、`privacy_policy_content` 是 633 字。
+也就是说 **PC 后台永远存不进去这两条**，返回 `{"code":401001,"msg":"items[0].configValue: 配置值过长"}`。
+之所以一直没暴露：seed 是 SQL 直插绕过 BO 校验，开发阶段全部用脚本灌数据，只有运营真去后台改一次才会撞上。
+
+修两层：
+
+| 层 | 改动 |
+|---|---|
+| 后端 | `@Size(max = 500)` → `@Size(max = 20000)`，与 V12 把列改成 `TEXT`（65535 字节）后 UTF-8 的容量匹配；错误信息写明上限 |
+| 前端 | 长文本（`valueType=string` 且超 80 字）在表格里只放 60 字摘要 + 「编辑正文（N 字）」按钮，点开是 `rows=18` 的多行 textarea 弹窗，带实时字数；判定用「原值与当前值的较大者」，避免编辑中删短就掉回单行控件 |
+
+新增 `AdminSysConfigLongTextTest`（3 个用例）：用**库里那条真实 619 字正文**做样本原样写回
+（用构造的短串测的话，500 的上限也能过，测试等于没写）+ 20000 字边界通过 + 20001 字被拒且提示上限。
+
+`verify-g3-longtext.js` 用真实 Chrome 跑完整交互 **14/14 通过**：
+摘要渲染 → 弹窗 `rows=18` → 输入 252 字含 9 个换行且**换行真的保留** → 「确定」进待保存 →
+「保存修改」+ 二次确认落库 → 列表摘要变成新正文 → 最后走 API 恢复原值（`operation_log` 里改动与恢复成对）。
+
+**踩坑记录（CDP 验收）**：Chrome 会把后台标签页的 `requestAnimationFrame` 节流，
+RuoYi layout 用 `<transition>` 包 `router-view`，一被节流就永远停在 `fade-transform-leave-active`，
+**路由匹配对了、面包屑都变了，内容区还是上一页**。三处修复：Chrome 启动加
+`--disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-renderer-backgrounding`；
+脚本里 `Page.bringToFront`；切路由用 `router.push` 而不是给 `location.hash` 赋值
+（hash 已是目标值时不会触发 `hashchange`）。
+
+### 4. `docs/README.md` 基线号补齐 + 落款纠正
+
+v1.43 收口时这份索引没同步（§7.47 已登记），基线号停在 v1.42。另外发现它的**落款写错了**：
+§1.1 规定落款是「该文档第一次纳入基线的版本」并专门举例「根 README 落款仍是 v1.0」，
+但 v1.36 起被改成当前基线号后一路跟着升。本次改回 `v1.0` 并在 §1.1 补历史说明。
+
+### 收口
+
+| 项 | 结果 |
+|---|---|
+| 后端用例 | 48 → **54**（G-9 三条 + G-3 三条），全绿 |
+| 审计权限 | 6 项探针全过；已接入 `verify-seg1.ps1` 第 7 步作一票否决项 |
+| G-3 浏览器实测 | 14/14 通过（`deploy/verify-g3-longtext.js`，已入库） |
+| 段 1 完整验收 | `verify-seg1.ps1` 全绿：54/54 用例 → 对账差异 0 → 管理端 23/23 → 端到端 38/38 → 错误态 7/7 → **数据库权限 7 项**；**十条锚点全 PASS**，判定「可以收口」。证据 `docs/acceptance/seg1/verify-seg1-20261105-195014.log` |
+| 基线 | v1.43 → **v1.44**，资产数仍 **43**，内容变更 **1 份**（`docs/README.md`） |
+
+**本次没做的事**：`faze_app` 仍能 `SELECT` 全部业务表（含 `app_user.password_hash`、`realname_auth` 密文列），
+列级授权会让 MyBatis 的 `SELECT *` 直接报错，段 1 不动；`operation_log` 的超期清理仍然没有脚本
+（规范要求人工审批 + 先归档，属于运维流程而不是代码）。
+
+---
+
+## 2026-11-05 · 第 1 段收口：APP 18 页 + 端到端验收，十条锚点全 PASS（基线 v1.43）
+
+**范围**：G 组（APP 18 页）/ H1（锚点验收）/ H2（收口五件套）。**真机口径全部改为浏览器验收**（负责人 2026-11-05 决定），
+所以 `0-A3` 与 `1-A9` 的真 RTL 那一半在浏览器里做不了，已明确挂账而不是假装通过。
+
+**APP 18 页全部交付**：G1 启动与认证 5 页、G2 律师入驻与我的 3 页、G3 设置 8 页、G4 余额与支付密码 2 页。
+公共层新增 11 个组件（ActionBar/CheckRow/CodeTimerButton/ConfirmDialog/FormField/MoneyText/PinField/SettingRow/StatusHero/ToggleRow/WebFileButton）、
+2 个 hook（useAsyncResource / useErrorMessage）、3 个工具（prefStore/serverTime/money）、10 个 api 文件。
+`tsc` 0 error、`eslint` 0 告警、`check-raw-text` 命中 0、`check-i18n` 通过（bo/ug/kk 各缺 517 条已登记）。
+
+**验收分两层，两层都过才算接通**：
+- **页面层**（CDP 驱动真实 Chrome，390×844@2x）：老账号 20 路由 + 新账号 13 页表单形态 + 滚到底不被底栏压住 + `dir=rtl` 镜像，**全部零白屏零 console error**；
+- **接口层**（`deploy/verify-e2e.js`，真实 HTTP + 真实库）：38 项端到端——注册→登录→忘记密码→改密→实名提交→PC 审→入驻提交→PC 审→充值→有余额拒注销→清余额注销→同号重注册，**38/38 通过**；
+- **错误态**（`deploy/verify-error-states.js`）：用 CDP 只拦 `api/v1` 请求制造接口失败，7 页逐个验「有可读文案 + 有重试按钮 + 点了真能恢复」，**7/7 通过**。
+
+**修掉的 7 个真缺陷**（都是验收逼出来的，只看代码发现不了）：
+1. `ProfileVO.lawyerStatus` 恒 `NONE` —— 已入驻用户「我的」页显示「未入驻」；
+2. `ProfileVO.balanceCents` 恒 `0` —— 余额为零与「接口没接」在页面上无法区分；
+3. `ProfileVO.payPasswordSet` 恒 `false` —— 「账号与安全」永远显示「未设置」，用户会去走「重置」多花一次验证码；
+4. 协议/隐私正文**没有匿名可读接口**，且 `sys_config.config_value` 只有 `varchar(500)`（实测导入就 `Data too long`）——
+   补 `GET /pub/config/{configKey}`（白名单 2 键，白名单外一律 401004）+ V12 扩到 TEXT + 两条种子正文 + 4 个集成测试；
+5. **注册时验证码被过早消费**：漏填监护人被正确拒绝后验证码已作废，改好重试得 402005 还要再等 60 秒；
+6. `verify-seg1.ps1` 用 `$out = & mvn` 捕获数万行输出，跑一次从 3 分钟变 10 分钟（改重定向到文件后 32 秒）；
+7. `.gitignore` 的 `*.log` 把所有验收证据挡在仓库外（加 `!docs/acceptance/**/*.log` 例外）。
+
+**两条数字纠错**：接口数原文「C 端 20 / PC 端 20」与实测不符，实际 **C 端 27 / PC 端 21**（逐条差异见接口规范 §7.2 修正说明）；
+管理端鉴权「`LoginUser` 是标准 JSON」**不成立**（Fastjson2 写的是带 `L`/`Set[...]` 标注的非标准文本），实现改为定点抽取 + fail closed，已回写 §1.3.1 第 5 条。
+
+**收口结论**：`deploy/verify-seg1.ps1` 一条命令跑完（环境自检 → 48 个后端用例 → 对账恒等式 → 管理端 23/23 → 端到端 38/38 → 错误态 7/7），
+**1-A1~1-A10 十条锚点全部 PASS**，脚本判定「本段能否收口：可以」。证据：`docs/acceptance/seg1/verify-seg1-20261105-041320.log`。
+
+**本次没做的事**：真 RTL（浏览器无解）、换绑手机未进端到端自动化、三语译文为空 —— 与另外 7 项一起写进《第 1 段工作流》§十.1 遗留挂账（G-1~G-10）。
+
+**基线**：v1.42 → **v1.43**。新增资产 **0 份**（`docs/acceptance/**` 不在基线登记范围），
+内容变更 **3 份**（《接口规范》《开发计划总纲》《第 1 段工作流》），资产数仍 **43**。
+
+---
+
 ## 2026-11-04 · 段 0 D3 完成：SSE + ngram 命中依据（基线 v1.42）
 
 **范围**：D3 的服务端与前端代码**全部完成**，并用真实 Chrome（CDP）点验通过。**真机项仍待设备。**

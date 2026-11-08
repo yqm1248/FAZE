@@ -67,10 +67,14 @@
 | 2 | **同一个 Redis 库，但 key 前缀隔离** | RuoYi 用 `login_tokens:`；faze-api 的业务缓存放 `faze:` 前缀。否则清业务缓存会误伤登录态 |
 | 3 | **复刻 `JwtAuthenticationTokenFilter` 的校验链** | 解 JWT → 取 `login_user_key`（UUID）→ 查 `login_tokens:<uuid>` → 反序列化出 userId / username / permissions → 放进 SecurityContext |
 | 4 | **只取必要字段** | faze-api 不需要完整的 `SysUser`。解析时**只读 userId、username、permissions**，其余忽略——降低对 RuoYi 版本的耦合 |
-| 5 | **✅ 已实测（2026-11-01）：`LoginUser` 用 JSON 序列化，跨服务可读** | RuoYi-Vue 3.9.2 的 `ruoyi-framework/.../config/RedisConfig.java` L29–33：value 用 `FastJson2JsonRedisSerializer`，**不是 JDK 序列化**；`TokenService` L155 `redisCache.setCacheObject(loginUser)` 直写 `login_tokens:<uuid>`。faze-api 用任意 JSON 库都能读。**但 `serialize()` 带 `JSONWriter.Feature.WriteClassName`，JSON 里会出现 `@type` 字段**——faze-api 用 Jackson 解析必须设 `FAIL_ON_UNKNOWN_PROPERTIES=false`，否则报错 |
+| 5 | **⚠️ 原写「✅ 已实测：`LoginUser` 用 JSON 序列化，跨服务可读」——2026-11-05 施工后修正：不完全成立** | RuoYi 侧确实用 Fastjson2 写了 Redis（原判据没错），但**写出来的不是标准 JSON**：实测 `login_tokens:<uuid>` 的值里出现 `103L`（Long 后缀）、`permissions:Set["*:*:*"]`（Fastjson 的类型标注），Jackson 按标准 JSON 解析会直接失败，改 `FAIL_ON_UNKNOWN_PROPERTIES=false` 也救不了（那是语法层不是字段层）。<br>**实际实现**（`core/AdminSessionStore`）：不整段解析，按 `"userId":<数字>L?,"username":"..."` 的**相邻对定点抽取**；抽不到就 fail closed（当作未登录）。<br>**影响**：RuoYi 升级若改了 `LoginUser` 的字段顺序，抽取会失配 → 管理端全 401，所以这条已登记进 `docs/analysis/ruoyi-patches.md` 必须回归。<br>另：`token.secret` 的派生也不是标准 Base64（jjwt 0.9.1 的 `DatatypeConverter.parseBase64Binary` 只解完整 4 字符组），26 字符密钥实测派生 **18 字节**，`AdminTokenVerifier.deriveKey()` 按同一规则实现才验得过 |
 | 6 | **登记耦合点** | 在 `docs/analysis/ruoyi-patches.md` 记一条：faze-api 依赖 RuoYi 的 `login_tokens:<uuid>` 结构与 `LoginUser` 字段。RuoYi 升级时要回归 |
 
-**退路口径变更（2026-11-01）**：方案 A **不再因「序列化不兼容」降级**——第 5 条已实测通过（JSON 可读）。方案 B 只作为「faze-api 无法兼容 `LoginUser` 结构」时的备选。
+**退路口径（2026-11-05 施工后修正）**：方案 A 可用，但**不是因为「JSON 可读」**——第 5 条说的
+标准 JSON 解析实际不成立（Fastjson 写出来的是带 `L`/`Set[...]` 标注的非标准文本）。
+仍不需要退到方案 B：`AdminSessionStore` 用定点抽取绕过了语法不兼容，已实测通过管理端全链路
+（`verify-admin-api.mjs` 23/23）。**真正的风险是 RuoYi 升级改字段顺序会静默失配**，
+所以回归项写在 `docs/analysis/ruoyi-patches.md`。方案 B 仍然只是备选。
 
 ---
 
@@ -728,7 +732,7 @@ if (o == null) throw new BusinessException(TRADE_ORDER_NOT_FOUND);
 
 | 项 | 规则 |
 |---|---|
-| 路径 | `GET /api/v1/app/ai/stream?sessionId=&fromSeq=` |
+| 路径 | `GET /api/v1/app/ai/stream?conversationId=&fromSeq=`（2026-11-01 改名：`sessionId` → `conversationId`，与 `ai_conversation` 表名一致） |
 | 鉴权 | **RN 用 `fetch` 读流，不用 `EventSource`**——`EventSource` 不能带自定义头，token 只能进 URL。RN 的 `fetch` 支持 `response.body.getReader()`，可以带 `Authorization` 头。**这是本项目的硬裁决**，不接受 `EventSource` |
 | 断线续传 | 客户端记录 `fromSeq`，重连带 `fromSeq` 从断点续；服务端按 `seq` 重放 |
 | 首字节 | 服务端必须在 5 秒内出首字节（锚点 `0-A5`），否则返回 `508001 ai.service-down` |
@@ -762,11 +766,33 @@ if (o == null) throw new BusinessException(TRADE_ORDER_NOT_FOUND);
 | 5 | `POST /api/v1/pub/probe/ai` | 触发豆包 SSE 探针，验首字节 | 无（`@Profile("!prod")`） | SSE 流 | `0-A5` |
 | 6 | `GET /api/v1/pub/probe/law?kw=` | 用 ngram 检索 `law_item`，验命中 | 无（`@Profile("!prod")`） | `{hits: [{id, lawCode, articleNo, snippet, score}]}` | `0-A5` |
 
+### 7.1.1 段 3 新增（2 个，2026-11-06 登记）
+
+| # | 方法与路径 | 用途 | 鉴权 | 响应 |
+|---|---|---|---|---|
+| 1 | `GET /api/v1/app/ai/quota` | 今日剩余 AI 轮次（F5 在输入框上方显示「今日还剩 N 次」） | access token | `{used, limit, resetAt}` |
+| 2 | `GET /api/v1/pub/sys-config?keys=ai_enabled,ai_daily_quota` | 公开白名单配置，供 `3-A7` 降级判断与配额显示 | 无 | `{ai_enabled: true, ai_daily_quota: 50}`；**只允许白名单键**，非白名单键返回空且不报 500 |
+
+> 这两个接口技术路线原文没有，是《第 3 段工作流》C5（`/app/ai/quota`）与 F4（`/pub/sys-config`）定下的。`/pub/sys-config` **必须白名单**——否则 `sys_config` 里的敏感配置会泄漏。
+> 段 3 的完整接口清单（16 个）见《第 3 段工作流》§五.2；本表只登记「上游文档没有、由段 3 新增」的两条。
+
 **2026-10-31 修正（本节原写「3 个」，是漏项，不是契约变更）**：原文只列了 3 个 `pub` 探针接口，并写「除上述 3 个 + RuoYi 自带登录外不实现任何业务接口」。这与本文件 §2.2 第 1 组「登录组 **落段 = 0**、覆盖锚点 `0-A2`」直接矛盾；也不满足 `0-A2` 的判据——它要求「token 失效后请求**任一需鉴权接口**，自动清 token 回登录页」，而原 3 个接口**全部是 `pub`（无鉴权）**，物理上无法验出 401。`POST /pub/auth/login/sms` **段 0 不做**（短信通道未定，段 1 才允许固定码）。结论：**以 §2.2 为准补回登录组，并补一个受保护资源作为 401 的验证载体**。
 
 **段 0 明确不做的接口**：除上述 6 个外，**不实现任何业务接口**（`sms/code`、注册、忘记密码、实名、入驻、余额流水等全部属段 1）。段 0 的出口是「能装、能连、能出字」，不是「有接口」。
 
-## 7.2 段 1（C 端 20 个 + PC 端 20 个）
+## 7.2 段 1（C 端 27 个 + PC 端 21 个）
+
+> **2026-11-05 施工后回写（段 1 收口）**：原标题写「C 端 20 + PC 端 20」，两处都数与实不符。
+> 下面这张表以**实测的后端路由扫描**为准（排除段 0 的 `pub/ping`、`pub/probe/*`、
+> `pub/file/*` 三个基础设施接口）。
+> - C 端：表内相加 **27 个**。相对原表（相加 23）多出 4 个，各有理由：
+>   `POST /app/account/pay-password/verify`（`1-A5` 要验连错锁定，没有校验接口无从验）、
+>   `POST /app/account/change-phone`（工作流 §5.2 补的清单漏项）、
+>   `PUT /app/account/password`（改登录密码，「修改密码页」必须有）、
+>   `GET /pub/config/{configKey}`（G1 要求协议/隐私正文「来自配置不是写死」，原清单没有读配置的接口）。
+> - PC 端：实测管理端路由 **21 个**（明细见下）。`verify-admin-api.mjs` 复核的 23 项里含
+>   2 条鉴权对照（无 token → 401、带 RuoYi token → 200），那 2 条不是业务接口。
+> 依据：`docs/acceptance/seg1/verify-seg1-20261105-041320.log`（十条锚点全 PASS 那次）。
 
 **C 端（`app`/`pub`）**：
 
@@ -781,18 +807,69 @@ if (o == null) throw new BusinessException(TRADE_ORDER_NOT_FOUND);
 | 余额与流水（2） | `GET /app/wallet/balance`、`GET /app/wallet/flows` | §4.8.2 trade |
 | 上传（2） | `POST /app/upload/token`、`GET /app/upload/url?key=` | §4.8.2 infra |
 | 支付密码（3） | `POST /app/account/pay-password`、`PUT /app/account/pay-password`、`POST /app/account/pay-password/reset` | **§4.8.2 缺，本规范补** |
+| **支付密码校验（1）** | `POST /app/account/pay-password/verify` | **2026-11-05 补**：`1-A5` 要验「连错 5 次锁定 + 剩余时间」，没有校验接口这条锚点无从验 |
+| **换绑手机（1）** | `POST /app/account/change-phone` | **§4.8.2 缺，段 1 工作流补**（见 §5.2） |
+| **修改登录密码（1）** | `PUT /app/account/password` | **2026-11-05 补**：G3 有「修改密码页」，原清单漏了这条 |
+| **公开配置（1）** | `GET /pub/config/{configKey}` | **2026-11-05 补**：G1 的协议/隐私正文要求「来自配置」，白名单只放 `user_agreement_content` / `privacy_policy_content` 两个键 |
 
 > **支付密码 3 个接口在技术路线里没有**，但总纲 §5.1 的「必须做」写了「支付密码（设置/校验/锁定/重置）」，锚点 `1-A5` 直接验它。**这是清单漏项**，本规范补上（见 §八 D-3）。
 
-**PC 端（`admin`）**：A-03~A-09 共 20 个，见 §4.8.4.4 与 §4.8.4.5，其中 4 组升 L1（见 §2.2）。
+**PC 端（`admin`）**：A-03~A-09 实测共 **21 个**（原文写 20），见 §4.8.4.4 与 §4.8.4.5，其中 4 组升 L1（见 §2.2）。
+实测路由清单（`faze-api` 全量扫描所得）：
+
+```text
+GET  /admin/users                          GET  /admin/users/{id}
+POST /admin/users/{id}/ban                 POST /admin/users/{id}/unban
+GET  /admin/verifications                  GET  /admin/verifications/{id}
+POST /admin/verifications/{id}/audit
+GET  /admin/lawyer-applications            GET  /admin/lawyer-applications/{id}
+POST /admin/lawyer-applications/{id}/audit
+GET  /admin/lawyers                        GET  /admin/lawyers/{id}
+GET  /admin/wallets/{userId}               POST /admin/wallets/{userId}/recharge
+POST /admin/wallets/{userId}/adjust        GET  /admin/balance-flows
+GET  /admin/reconciliation/summary         GET  /admin/reconciliation/diffs
+POST /admin/reconciliation/run
+GET  /admin/sys-configs                    PUT  /admin/sys-configs
+GET  /admin/dashboard/ping
+```
 
 ## 7.3 段 2~8
 
 接口数量与归属见技术路线 §4.8.2 / §4.8.4，**不由本规范重复列**。本规范只规定「长什么样」，不管「有哪些」。
 
-### 7.3.1 段 6 的 8 个接口（v1.32 新增，2026-11-02）
+### 7.3.0 段 2 施工新增的接口（2026-11-06 施工登记）
+
+> 下面这些是段 2 施工时**实际落地**、而技术路线 §4.8.2 的清单里没有的接口（工作流 §五 只列了其中一部分）。
+> 只做登记，不重定义契约；字段级定义见对应工作流任务与 `docs/acceptance/seg2/*.md`。
+
+| # | 方法 + 路径 | 用途 | 鉴权 | 幂等 | 主要错误码 | 来源 |
+|---|---|---|---|---|---|---|
+| 1 | `POST /app/orders/{id}/refund` | 用户申请退款 | App JWT + 归属 | 同一订单只允许一张 `applying` | `405002` / `405003` / `405004` / `405005` | 段 2 G4.1 |
+| 2 | `GET /app/orders/{id}/refund` | 查订单最新退款单 | App JWT + 归属 | 只读 | `405002` | 段 2 G4.1 |
+| 3 | `POST /admin/refunds/{id}/audit` | 退款审批（通过 / 驳回） | PC token + `@OperationLog` | 状态 CAS | `405011` | 段 2 G4.2 |
+| 4 | `GET /admin/refunds?orderId=` | 按订单查退款单 | PC token | 只读 | — | 段 2 G4.2 |
+| 5 | `GET /app/orders/{id}/review` | 查本订单评价（评价页只读态 + 订单详情判断是否已评价） | App JWT + 归属 | 只读 | `405002` | 段 2 G5.1 |
+| 6 | `POST /app/orders/{id}/review` | 提交评价（**工作流 §五 第 24 条已列**） | App JWT + 归属 | `uk_review_order` + 应用层先查 | `405003` / `405022` | 段 2 G5.1 |
+| 7 | `POST /app/reviews/{id}/reply` | 律师回复评价（**工作流 §五 第 27 条已列**，技术路线未列） | App JWT + 必须是该评价的被评价律师 | 覆盖式更新 | `405021` / `401008` | 段 2 G5.1 |
+| 8 | `GET /app/conversations` | C 端会话列表 | App JWT | 只读 | — | 段 2 G6.1 |
+| 9 | `POST /app/conversations` | 创建或获取会话（`(user_id,lawyer_id)` 唯一） | App JWT | 唯一键冲突即返回已有会话 | `401004` | 段 2 G6.1 |
+| 10 | `GET /app/conversations/{id}/messages` | 历史消息（`seq` 游标） | App JWT + 成员校验 | 只读 | `404001` / `404002` | 段 2 G6.1 |
+| 11 | `POST /app/conversations/{id}/read` | 标记已读（WS 断线兜底） | App JWT + 成员校验 | 按 `lastReadSeq` 幂等 | `404001` / `404002` | 段 2 G6.4 |
+| 12 | `GET /app/workbench/conversations` | 律师端会话列表 | App JWT | 只读（非律师返回空页） | — | 段 2 G6.1 |
+| 13 | **`WS /ws/chat`** | IM 长连接（握手 JWT，type 见技术路线 §7.2） | 握手 query token | `clientMsgId` 去重 | `404002`（`chat.error`） | 段 2 G6.2 |
+| 14 | `GET /app/conversations/{id}` | 查单个会话（推送点击直达用） | App JWT + 成员校验 | 只读 | `404001` / `404002` | 段 2 G7.3 |
+| 15 | `GET /pub/articles`、`GET /pub/articles/{id}` | 文章列表 / 详情（四语言 + 降级；同实现亦挂 `/app/articles`） | 无（公开内容） | 只读 | `401004` | 段 2 G8.1 |
+
+> **错误码说明**：第 6、7 项用 `405021` / `405022`，不复用段 5 / 段 6 的预留号 ——
+> 《错误码规范》§三：**段 6 预留 `405013`~`405020`**；**段 5 的 5 个码已由负责人 2026-11-06 裁决顺延到
+> `405023`~`405027`**（原 `405008`~`405012` 被段 2 实际占用）。两个评价码 `405021`/`405022` 登记在 §3.5.1。
+> 第 8~13 项的会话码 `404001` / `404002` 是《错误码规范》§3.4 已冻结的码，此处只是登记使用。
+
+
+### 7.3.1 段 6 的 10 个接口（v1.32 初版 8 个；2026-11-08 施工后补齐为 10 个）
 
 > 字段级契约写在《[法泽FAZE_第6段工作流_v1.0.md](法泽FAZE_第6段工作流_v1.0.md)》§三 B1 / C1 / C2 / D4 与 §五 5.2；本表只管「有哪些、怎么鉴权、怎么幂等」。
+> **2026-11-08 施工后变更**：初版第 6~8 项写的是 `/admin/reconciliation/diffs`，该路径段 5 已被「恒等式巡检内存态差异」占用（Tab1 依赖且已验收），本段实际落地为 `/channel-diffs`；另新增 Mock 回调入口与 CSV 导出，合计 10 个。
 
 | # | 方法 + 路径 | 用途 | 鉴权 | 幂等 | 主要错误码 |
 |---|---|---|---|---|---|
@@ -801,10 +878,14 @@ if (o == null) throw new BusinessException(TRADE_ORDER_NOT_FOUND);
 | 3 | `GET /app/wallet/recharges` | 充值记录（cursor 分页） | App JWT | 只读 | — |
 | 4 | `POST /pub/pay/callback/wechat` | 微信异步回调 | **无 JWT，只靠验签** | DB 唯一键 + 状态 CAS | 渠道要求格式（非 `R<T>`） |
 | 5 | `POST /pub/pay/callback/alipay` | 支付宝异步回调 | **无 JWT，只靠验签** | 同上 | 同上 |
-| 6 | `POST /admin/recharges/{orderNo}/sync` | 人工触发补单 | PC token + `finance:recharge:sync` | 状态 CAS | `405015` |
-| 7 | `PUT /admin/reconciliation/diffs/{id}` | 差异工单处理 | PC token + `finance:reconcile:handle` | 状态 CAS | `405018` |
-| 8 | `GET /admin/reconciliation/diffs` | 差异列表（复用） | PC token + `finance:reconcile:list` | 只读 | — |
+| 6 | `POST /pub/pay/callback/mock` | Mock 通道回调（仅 dev/验收；生产由 `ProdMockPayGuard` 拦住） | **无 JWT，只靠 HMAC 验签** | 同上 | 同上 |
+| 7 | `POST /admin/recharges/{orderNo}/sync` | 人工触发补单（**✅ 已实现，2026-11-08**）；返回 `syncResult` 枚举而非抛错，仅「本地无此单」返回 `405029` | PC token（`ROLE_ADMIN`） | 状态 CAS | `405029`（单不存在） |
+| 8 | `GET /admin/reconciliation/channel-diffs` | 渠道差异列表（4 筛选 + 分页） | PC token（`ROLE_ADMIN`） | 只读 | — |
+| 9 | `GET /admin/reconciliation/channel-diffs/export` | 渠道差异 CSV 导出（同筛选，不分页；返回 `text/csv` 流，**非 `R<T>`**） | PC token（`ROLE_ADMIN`） | 只读 | — |
+| 10 | `PUT /admin/reconciliation/channel-diffs/{id}` | 差异工单标记已处理（备注必填 ≤500 字） | PC token（`ROLE_ADMIN`） | 已处理的不覆盖备注 | `401002` / `401003` / `405018` |
 
+> **鉴权口径说明（2026-11-08 负责人裁决）**：初版写的 `finance:reconcile:list` / `finance:reconcile:handle` **未落地**——与 §6.2「不做数据级权限细分」及《总纲》§5.8「不做多角色权限细分」冲突，裁决不做，实际仍为 `/api/v1/admin/**` + `ROLE_ADMIN`；差异处置有审计（`operation_log` 记 `handler_id` + before/after）。
+>
 > **第 1 项的路径变化**：技术路线原来写的是 `POST /app/wallet/recharge`（单数、动词式），且 `recharge` 不在 §3.3 的动词白名单里——v1.32 改为资源复数 `recharges`。
 
 ### 7.3.2 段 7 的 54 个接口（v1.34 新增，2026-11-02）
@@ -844,6 +925,41 @@ if (o == null) throw new BusinessException(TRADE_ORDER_NOT_FOUND);
 | 26 | `GET /pub/app/config` | 客服时段 / 电话 / 最低版本 | 公开 | 只读 | — |
 
 > **路径命名说明**：第 17 项 `/admin/exports/{taskId}/download` 用的是「任务」资源而非文件资源；若后续统一到 `/admin/files/**`，只需改这一处（段 7 工作流 §附 已知局限 第 4 条已登记待复核）。
+
+**已列、本段实现的 28 个**（技术路线 §4.8.2 / §4.8.4 已有路径，本段落地；管理端 23 + C 端 5）：
+
+| # | 方法 + 路径 | 用途 | 鉴权 | 幂等 | 主要错误码 |
+|---|---|---|---|---|---|
+| 1 | `GET /admin/dashboard/summary` | 4 个核心指标 + `onlineCount` + 环比 | PC token | 只读（10 分钟缓存） | — |
+| 2 | `GET /admin/dashboard/trends` | 趋势序列（缺日补 0） | PC token | 只读 | — |
+| 3 | `GET /admin/sensitive-words` | 词库列表 | PC token | 只读 | — |
+| 4 | `POST /admin/sensitive-words` | 新增词条 | PC token | `uk_word_lang` 唯一键兜底 | `410005` |
+| 5 | `PUT /admin/sensitive-words/{id}` | 修改词条 | PC token | 全量覆盖 | `410005` / `401004` |
+| 6 | `DELETE /admin/sensitive-words/{id}` | 删除词条（词库可删） | PC token | 已删再删按不存在处理 | `401004` |
+| 7 | `GET /admin/sensitive-word-appeals` | 申诉复核队列 | PC token | 只读 | — |
+| 8 | `POST /admin/sensitive-word-appeals/{id}/audit` | 申诉处置（accepted / rejected） | PC token | 状态 CAS | `410010` |
+| 9 | `GET /admin/content-reviews` | 命中记录列表 | PC token | 只读 | — |
+| 10 | `POST /admin/content-reviews/{id}/audit` | 审核处置（ignore / warn / ban） | PC token | 状态 CAS | `410008` |
+| 11 | `GET /admin/tickets` | 工单列表（处理 / 查看两 Tab） | PC token | 只读 | — |
+| 12 | `GET /admin/tickets/{id}` | 工单详情（join 原表取正文） | PC token | 只读 | `410011` |
+| 13 | `POST /admin/tickets/{id}/assign` | 分配 / 批量分配（置 `agent_id`） | PC token | 覆盖式（同一人重复分配结果一致） | `410011` / `410012` |
+| 14 | `POST /admin/tickets/{id}/reply` | 回复（写 `notification` + 个推） | PC token | 非幂等（每次一条回复），`closed` 后拒绝 | `410012` |
+| 15 | `POST /admin/tickets/{id}/close` | 关闭（`close_reason` 必填） | PC token | 状态 CAS（`closed` 不可回退） | `410012` |
+| 16 | `GET /admin/announcements` | 公告列表（含触达 / 打开率） | PC token | 只读 | — |
+| 17 | `POST /admin/announcements` | 新建公告（人群 / 渠道 / 定时） | PC token | 唯一单号，重放不重复建 | — |
+| 18 | `POST /admin/announcements/{id}/push` | 立即推送 / 取消定时 | PC token | 状态 CAS；`sent` 不可撤回 | `410013` |
+| 19 | `GET /admin/notify-templates` | 模板列表 | PC token | 只读 | — |
+| 20 | `POST /admin/notify-templates` | 新建模板 | PC token | `uk_notify_tpl` 唯一键兜底 | `410005` |
+| 21 | `PUT /admin/notify-templates/{id}` | 修改模板（变量占位符校验） | PC token | 全量覆盖 | `401004` |
+| 22 | `GET /admin/operation-logs` | 操作日志查询 | PC token | 只读 | — |
+| 23 | `GET /admin/login-logs` | 登录日志查询 | PC token | 只读 | — |
+| 24 | `POST /app/complaints` | 提交投诉（同事务生成工单） | App JWT | 非幂等（每次一张单，`uk` 不设） | `410006` |
+| 25 | `POST /app/feedback` | 提交反馈（同事务生成工单） | App JWT | 非幂等（每次一张单） | `410006` |
+| 26 | `GET /pub/faq` | 常见问题（按分类 + 排序） | 公开 | 只读 | — |
+| 27 | `GET /pub/app/version` | 版本检查 | 公开 | 只读 | — |
+| 28 | `POST /app/notifications/{id}/read` | 标记已读（**公告打开率只在 0→1 时 +1**） | App JWT | 幂等（已读再读不重复计数） | `401004` / `401008` |
+
+> 已列 28 个的字段级契约同样以《第 7 段工作流》§三 各任务为准：看板 F1、词库 A2、申诉 B2、审核 B3、工单 C1~C4、公告 D1、模板 D2、日志 A4、投诉反馈 C2、FAQ D5、版本 E5。**本规范不重复字段。**
 
 ---
 

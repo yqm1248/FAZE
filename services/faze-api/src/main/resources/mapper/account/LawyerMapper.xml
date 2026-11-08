@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  职责：lawyer 表的浏览类查询（G3.1 律师列表 / G3.2 详情辅助）。
+  调用方：com.faze.modules.account.mapper.LawyerMapper。
+  数据来源：faze.lawyer。
+  注意：
+    1. **不含任何 ${}**（规范 §7.3）：分类值是 `JSON_CONTAINS(..., JSON_QUOTE(#{v}))` 参数化；
+       排序只允许 `sortKey` 命中下面 `<choose>` 的白名单分支，**不做字符串拼接**。
+    2. `specialties` 是 JSON 数组，筛选用 `JSON_CONTAINS` 而不是 `LIKE`：
+       LIKE '%婚姻家事%' 会误命中「婚姻家事与继承」这类别的值吗？——不会误命中这个例子，
+       但会命中任意包含该子串的自由文本（如「非婚姻家事」），且无法利用索引。
+    3. 只有 `audit_status='approved' AND deleted_at IS NULL` 的律师会被列出：
+       未通过审核 / 已清退的律师不在 C 端可见。
+    4. 排序规则由 `sys_config.lawyer_list_sort` 决定（默认 `online_rating`），
+       值不合法时由 Service 回退到默认值，SQL 只认这两个分支。
+-->
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.faze.modules.account.mapper.LawyerMapper">
+
+    <!--
+      律师分页列表。
+      参数：keyword（可空） / specialtyValues（可空，空列表表示不按分类筛） / sortKey（online_rating | rating_desc）
+    -->
+    <select id="selectBrowsePage" resultType="com.faze.modules.account.entity.Lawyer">
+        SELECT id, user_id, real_name, law_firm, practice_years, region, specialties, bio,
+               avatar_url, consult_price_cents, phone_price_cents, document_price_cents,
+               service_text_on, service_phone_on, service_doc_on, auto_accept,
+               rating, review_count, order_count, online_status, audit_status,
+               created_at, updated_at
+        FROM lawyer
+        WHERE audit_status = 'approved'
+          AND deleted_at IS NULL
+        <if test="keyword != null and keyword != ''">
+            AND (real_name LIKE CONCAT('%', #{keyword}, '%')
+                 OR region LIKE CONCAT('%', #{keyword}, '%')
+                 OR law_firm LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="specialtyValues != null and specialtyValues.size() > 0">
+            AND
+            <foreach collection="specialtyValues" item="value" open="(" separator=" OR " close=")">
+                JSON_CONTAINS(specialties, JSON_QUOTE(#{value}))
+            </foreach>
+        </if>
+        <choose>
+            <when test="sortKey == 'rating_desc'">
+                ORDER BY rating DESC, order_count DESC, id ASC
+            </when>
+            <otherwise>
+                ORDER BY (online_status = 'online') DESC, rating DESC, order_count DESC, id ASC
+            </otherwise>
+        </choose>
+    </select>
+
+</mapper>

@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  法泽 FAZE 日志配置
+  职责：console（人看）+ 全量文本文件（运维 grep）+ 错误文件 + JSON 结构化文件（机器查/采集）。
+        pattern 必须含 %X{traceId} 与审计字段。
+  调用方：Spring Boot 启动时由 logback-spring.xml 自动加载
+  数据来源：SLF4J → MDC（traceId / auditOp / auditAction，由 filter/TraceIdFilter 与
+            common/audit/AuditContext 写入）
+  注意事项：
+    1. 规范 §10.5 要求三个 appender（console + file 全量 + error 单独）且文件走 AsyncAppender、
+       discardingThreshold=0（不丢 WARN/ERROR）。
+    2. 日志里禁写 L4/L5 敏感字段（身份证、密码哈希、聊天原文、完整 ossKey），见《审计与日志规范》。
+    3. logs/ 已在 .gitignore，日志不进仓库。
+    4. 滚动策略：按天 + 单文件 100MB + 保留 30 天。
+    5. **G4 新增 JSON 文件**：`faze-api.json.log`，字段 timestamp/level/logger/message/traceId/spanId/thread/env，
+       供「结构化日志」验收与将来的采集。**console 与 faze-api.log 保留原 pattern 不变**：
+       deploy/verify-*.ps1 与运维习惯都按文本格式 grep，改掉等于把这些脚本一起改坏。
+       两份文件内容重复但用途不同（人看 vs 机器查），这是工作流 G4 允许的退化出口。
+    6. `spanId` 目前恒为空串：项目未接 OpenTelemetry/tracing（本段不做 ELK/Zipkin），
+       字段先占位，段 8 接入 tracing 后由 MDC 提供真实值。**不要删掉这个字段**——
+       采集端按固定字段名解析，少一个字段会让解析器报错。
+    7. JSON appender 也走 AsyncAppender（queueSize 512、discardingThreshold=0）：
+       日志编码成 JSON 比 pattern 贵，同步写会拖慢请求线程。
+-->
+<configuration>
+
+  <!-- 日志目录：默认工作目录下的 logs/，可用环境变量 LOG_HOME 覆盖 -->
+  <property name="LOG_HOME" value="${LOG_HOME:-logs}"/>
+  <!-- 环境名：给 JSON 的 env 字段用（本机 dev / 生产由 FAZE_ENV 注入） -->
+  <property name="APP_ENV" value="${FAZE_ENV:-dev}"/>
+  <property name="PATTERN"
+            value="%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%X{traceId:-no-trace}] [%X{auditOp:-anon}] [%X{auditAction:-}] %logger{36} - %msg%n"/>
+
+  <!-- 控制台：本地开发看实时输出（保留 pattern，人看） -->
+  <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder>
+      <pattern>${PATTERN}</pattern>
+      <charset>UTF-8</charset>
+    </encoder>
+  </appender>
+
+  <!-- 全量文件：给运维按时间 grep（保留 pattern；deploy 脚本依赖它） -->
+  <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <file>${LOG_HOME}/faze-api.log</file>
+    <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+      <fileNamePattern>${LOG_HOME}/faze-api.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+      <maxFileSize>100MB</maxFileSize>
+      <maxHistory>30</maxHistory>
+    </rollingPolicy>
+    <encoder>
+      <pattern>${PATTERN}</pattern>
+      <charset>UTF-8</charset>
+    </encoder>
+  </appender>
+
+  <!-- 错误单独一份：线上先看这个文件，不必在全量日志里翻 -->
+  <appender name="ERROR" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <file>${LOG_HOME}/faze-api-error.log</file>
+    <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+      <level>ERROR</level>
+    </filter>
+    <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+      <fileNamePattern>${LOG_HOME}/faze-api-error.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+      <maxFileSize>100MB</maxFileSize>
+      <maxHistory>30</maxHistory>
+    </rollingPolicy>
+    <encoder>
+      <pattern>${PATTERN}</pattern>
+      <charset>UTF-8</charset>
+    </encoder>
+  </appender>
+
+  <!-- JSON 结构化文件（G4）：一台机器一份，按天 + 100MB 轮转 -->
+  <appender name="JSON_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <file>${LOG_HOME}/faze-api.json.log</file>
+    <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+      <fileNamePattern>${LOG_HOME}/faze-api.json.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+      <maxFileSize>100MB</maxFileSize>
+      <maxHistory>30</maxHistory>
+    </rollingPolicy>
+    <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+      <!-- MDC 里的 traceId / spanId 作为顶层字段输出（spanId 当前为空，见文件头注释第 6 条） -->
+      <includeMdcKeyName>traceId</includeMdcKeyName>
+      <includeMdcKeyName>spanId</includeMdcKeyName>
+      <!-- 审计字段也带上，排查「谁做的」不用再去看文本日志 -->
+      <includeMdcKeyName>auditOp</includeMdcKeyName>
+      <includeMdcKeyName>auditAction</includeMdcKeyName>
+      <customFields>{"env":"${APP_ENV}","application":"faze-api","spanId":""}</customFields>
+      <fieldNames>
+        <timestamp>timestamp</timestamp>
+        <level>level</level>
+        <logger>logger</logger>
+        <message>message</message>
+        <thread>thread</thread>
+      </fieldNames>
+      <charset>UTF-8</charset>
+    </encoder>
+  </appender>
+
+  <!-- 全量文件走异步；discardingThreshold=0 表示队列满时也不丢 WARN/ERROR，只丢 DEBUG/INFO -->
+  <appender name="ASYNC_FILE" class="ch.qos.logback.classic.AsyncAppender">
+    <queueSize>512</queueSize>
+    <discardingThreshold>0</discardingThreshold>
+    <neverBlock>false</neverBlock>
+    <appender-ref ref="FILE"/>
+  </appender>
+
+  <!-- JSON 文件同样走异步 -->
+  <appender name="ASYNC_JSON" class="ch.qos.logback.classic.AsyncAppender">
+    <queueSize>512</queueSize>
+    <discardingThreshold>0</discardingThreshold>
+    <neverBlock>false</neverBlock>
+    <appender-ref ref="JSON_FILE"/>
+  </appender>
+
+  <!--
+    MyBatis-Plus 已知噪音：当 XML 的 namespace 与 @MapperScan 同时注册同一个接口时，
+    MybatisConfiguration 会打一条 ERROR「mapper[...] is ignored, because it exists, maybe from xml file」。
+    这不是故障（Mapper 实际已注册、查询正常，实测 searchByNgram 有命中），
+    但它是 ERROR 级别，会把 faze-api-error.log 占满。
+
+    这里用 OFF 而不是 WARN——**日志级别是「该级别及以上」**，设 WARN 只挡 DEBUG/INFO，
+    ERROR 仍会通过（2026-11-03 实测：设 WARN 后该 ERROR 照旧输出）。该 logger 只打这一条
+    已知提示、没有需要保留的低级别日志，关掉没有信息损失。
+  -->
+  <logger name="com.baomidou.mybatisplus.core.MybatisConfiguration" level="OFF"/>
+
+  <root level="INFO">
+    <appender-ref ref="CONSOLE"/>
+    <appender-ref ref="ASYNC_FILE"/>
+    <appender-ref ref="ERROR"/>
+    <appender-ref ref="ASYNC_JSON"/>
+  </root>
+
+</configuration>

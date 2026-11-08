@@ -1,0 +1,89 @@
+{
+  "runAt": "2026-11-04T20:12:30.337Z",
+  "rows": [
+    {
+      "name": "profile",
+      "route": "/profile",
+      "blockedRequests": 3,
+      "hasReadable": true,
+      "hasRetry": true,
+      "retryText": "重试",
+      "recovered": true,
+      "clicked": "clicked",
+      "errText": "法泽万物 法护民生  网络连接失败，请检查网络后重试 重试",
+      "okText": "法泽万物 法护民生   测试用户 律师 已实名 138****0001 账户余额 ⁦¥0.00⁩ 查看余额明细 去充值 账号与身份 实名认证 已实名  入驻审核状态 已入驻  个人资料编辑  支付密码 未设置 "
+    },
+    {
+      "name": "balance",
+      "route": "/balance",
+      "blockedRequests": 2,
+      "hasReadable": true,
+      "hasRetry": true,
+      "retryText": "重试",
+      "recovered": true,
+      "clicked": "clicked",
+      "errText": " 账户余额 网络连接失败，请检查网络后重试 重试 全部 充值 消费 退款 全部时间 近 7 天 近 30 天 网络连接失败，请检查网络后重试 重试",
+      "okText": " 账户余额 可用余额 ⁦¥0.00⁩ 余额仅用于平台内消费，不能提现 去充值 全部 充值 消费 退款 全部时间 近 7 天 近 30 天 网络连接失败，请检查网络后重试 重试"
+    },
+    {
+      "name": "account-security",
+      "route": "/account-security",
+      "blockedRequests": 1,
+      "hasReadable": true,
+      "hasRetry": true,
+      "retryText": "重试",
+      "recovered": true,
+      "clicked": "clicked",
+      "errText": " 账号与安全 网络连接失败，请检查网络后重试 重试",
+      "okText": " 账号与安全 登录与密码 修改登录密码  支付密码 未设置  手机与实名 手机号 138****0001  实名认证 已实名  账号 注销账号  注销立即生效：账号资料删除、手机号立即释放。有余额时不能注销。"
+    },
+    {
+      "name": "verify-realname",
+      "route": "/verify-realname",
+      "blockedRequests": 1,
+      "hasReadable": true,
+      "hasRetry": true,
+      "retryText": "重试",
+      "recovered": true,
+      "clicked": "clicked",
+      "errText": " 实名认证 网络连接失败，请检查网络后重试 重试",
+      "okText": " 实名认证  已完成实名认证 现在可以使用在线提交材料、文书签署等需要真实身份的功能。 身份证号 6501**********1234 提交时间 2026-11-05 01:59 审核时间 2026-11-05 02"
+    },
+    {
+      "name": "pay-password",
+      "route": "/pay-password",
+      "blockedRequests": 1,
+      "hasReadable": true,
+      "hasRetry": true,
+      "retryText": "重试",
+      "recovered": true,
+      "clicked": "clicked",
+      "errText": " 支付密码 网络连接失败，请检查网络后重试 重试",
+      "okText": " 支付密码 设置 6 位数字支付密码 输满 6 位会自动进入下一步 下一步 关于支付密码 付款时会让你输一次，输入时不显示数字。 连续输错 5 次，支付密码会被锁定 30 分钟。 锁定期间不能付款，浏览、看订单、找律师"
+    },
+    {
+      "name": "agreement",
+      "route": "/agreement",
+      "blockedRequests": 1,
+      "hasReadable": true,
+      "hasRetry": true,
+      "retryText": "重试",
+      "recovered": true,
+      "clicked": "clicked",
+      "errText": " 用户服务协议 用户服务协议 网络连接失败，请检查网络后重试 重试",
+      "okText": " 用户服务协议 用户服务协议 更新日期：2026-11-05 【占位文本 · 上线前须由法务定稿替换】 法泽 FAZE 用户服务协议 一、服务主体 本平台由伊犁师范大学法学专业实验基地提供法律知识与法律服务对接能力，运"
+    },
+    {
+      "name": "lawyer-join-status",
+      "route": "/lawyer-join-status",
+      "blockedRequests": 1,
+      "hasReadable": true,
+      "hasRetry": true,
+      "retryText": "重试",
+      "recovered": true,
+      "clicked": "clicked",
+      "errText": " 入驻审核状态 网络连接失败，请检查网络后重试 重试",
+      "okText": " 入驻审核状态  审核通过，已开通接单 你的信息已展示在律师列表中，当事人下单时会收到通知。 真实姓名 验收律师甲 执业证号 TEST-LIC-20261105-02 执业律所 验收律师事务所 擅长领域 劳动争议、合"
+    }
+  ]
+}

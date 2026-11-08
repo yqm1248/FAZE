@@ -19,13 +19,13 @@
 |---|---|---|
 | 文档声称 | 51 张 | 技术路线 §5.1 标题、`docs/README.md`、V1 基线表结构头部 |
 | `CREATE TABLE` 语句数 | **51 条** | 技术路线全文（实测） |
-| **唯一表名** | **49 张**（2026-10-30 实测口径；**v1.27 补正为 51 张**，见下注） | `login_log`、`operation_log` 各被定义两遍 |
+| **唯一表名** | **55 张**（2026-10-30 实测 49 张；**v1.27 补正为 51 张**；**v1.30 起 53 张**；**v1.34 起 55 张**，见附录 A） | 51 条 `CREATE TABLE` 里 `login_log`、`operation_log` 各被定义两遍 |
 | §5.1 表清单行数 | **30 行** | 技术路线 L986–L1015 |
 | V2.3 增量说法 | 17 张 / 15 张 / 15 张 | §5.1 正文、§5.11 标题、V2.3 变更记录 —— **三处不同** |
 
 **裁决**：**以本文件附录 A 为准**（v1.27 起为 51 张；v1.30 起为 53 张——段 5 补 `lawyer_income_settlement` / `case_delivery`；**v1.34 起为 55 张**——段 7 补 `sensitive_word_appeal` / `announcement`，见附录 A 末注）。§5.1 的 30 行清单作废（它里面还有 3 个已改名或已合并的表名：`case` → `legal_case`、`favorite` / `follow` → `social_action`；另有 31 张表从未进过清单）。
 
-**要建的是 54 张**：`invoice`（发票）按总纲「V1 明确不做」不建表；`share_poster` 段 7 不做、暂不建；若要建，按本规范补建，编号顺延不插号。
+**要建的是 54 张**（55 − `invoice` 1 张）：`invoice`（发票）按总纲「V1 明确不做」**永不建表**；`share_poster` 计入段 7 账面但段 7 **不建**（留待段 8 之后），故段 7 实建 **11 张**。若要建 `share_poster`，按本规范补建，编号顺延不插号。
 
 > **v1.27 补正（2026-11-01）**：段 2 新增了 `order_status_log`（第 50 张）与 `task_queue`（第 51 张），当时本附录漏登记，导致「49 张」与段 2 的产物对不上——段 2 工作流 §九 第 1 项已把「补两行」列为**开工前**必办。本次补上：总数 **49 → 51**，要建 **48 → 50**，段 2 的 **10 → 12**，类别 B 追加型 **12 → 14**。
 
@@ -281,7 +281,7 @@ is_minor TINYINT NOT NULL DEFAULT 0 COMMENT '是否未成年：0 否 1 是'
 3. 这张表的生命周期由 `status` 表达，且**不允许用户物理删除**吗？→ 是 → **C 状态机**
 4. 以上都不是 → **A 业务实体**
 
-> 53 张表的分类结果见附录 A，不必每次重判。
+> 55 张表的分类结果见附录 A，不必每次重判。
 
 ## 4.3 软删与唯一键的冲突（必须提前想清楚）
 
@@ -443,13 +443,15 @@ COMMENT='订单主表；状态枚举：created/paid/accepted/completed/cancelled
 | 类型 | 放哪 | 进 Flyway 吗 | 可重复执行 |
 |---|---|---|---|
 | **最小必要数据**（法条 5 条、系统参数默认值） | `V2__init_law_items.sql` | **进**（不可变） | 否（迁移只跑一次） |
-| **全量基础数据**（法条 2000–3000 条） | `database/seed/law_items_full.sql` | **不进** | 是 |
+| **全量基础数据**（法条 2000–3000 条） | `V302__import_law_items.sql`（段 3） | **进**（可重复执行） | 是（`ON DUPLICATE KEY UPDATE`） |
 | **开发/演示数据** | `database/seed/dev.sql` / `demo.sql` | 不进 | 是 |
 | **测试数据** | `database/seed/test.sql` | 不进 | 是 |
 
-**裁决**：`V2__init_law_items.sql` 只放 **5 条**（够段 0 探针用）。全量 2000–3000 条走 `database/seed/law_items_full.sql`。
+**裁决（2026-11-06 段 3 反转，原裁决作废）**：`V2__init_law_items.sql` 只放 **5 条**（够段 0 探针用）；**全量 2000–3000 条改走 Flyway `V302__import_law_items.sql`（段 3）**，不再走 `database/seed/law_items_full.sql`。
 
-理由：迁移不可变，把 2000 条塞进 `V2` 以后就没法改（法条修订、错字纠正都会变成补丁地狱）；而种子数据天然要迭代。
+理由（反转的原因）：法条是**版本资产**，不是可随手改的种子——它被 AI 回答引用、被 `refs` 快照冻结、被 `3-A1` 校验，改一条就要能追溯到版本。走迁移的好处是「版本发布即带入、环境可重放、改动进 git 历史」；代价是每次加数据要发版本，所以**运营期新增法条不走迁移，走后台 A-27 批量导入接口或直接 SQL**。两条路的边界见 `docs/standards/法条数据录入规范.md`。
+
+迁移必须可重复执行（`ON DUPLICATE KEY UPDATE`），这一点与 §8.3 一致。
 
 ---
 
@@ -508,7 +510,7 @@ COMMENT='订单主表；状态枚举：created/paid/accepted/completed/cancelled
 
 ---
 
-# 附录 A：表清单（**53 张**，v1.27 补正：原 49 张 + 段 2 的 `order_status_log` / `task_queue`；v1.30 补：段 5 的 `lawyer_income_settlement` / `case_delivery`）
+# 附录 A：表清单（**55 张**，v1.27 补正：原 49 张 + 段 2 的 `order_status_log` / `task_queue`；v1.30 补：段 5 的 `lawyer_income_settlement` / `case_delivery`；v1.34 补：段 7 的 `sensitive_word_appeal` / `announcement`）
 
 > 「建表段」是这张表在哪一段交付（与《开发计划总纲》§五 的段边界一致）。`invoice` 按总纲「V1 明确不做」不建表。
 > 类别：A 业务实体 / B 追加型 / C 状态机 / D 基础数据。
@@ -525,7 +527,7 @@ COMMENT='订单主表；状态枚举：created/paid/accepted/completed/cancelled
 | 8 | `message_offline` | B | 6 | conversation | 段 2 | 离线消息队列；推送成功后清理 |
 | 9 | `orders` | A | 17 | trade | 段 2 | 订单主表（复数名，唯一例外） |
 | 10 | `payment_record` | B | 9 | trade | 段 2 | 支付记录 |
-| 11 | `refund_record` | C | 11 | trade | 段 2 | 退款单 |
+| 11 | `refund_record` | C | **12** | trade | 段 2 | 退款单（**v1.45 补 `audit_remark`**：退款审批意见 / 驳回原因；段 2 拍板「驳回必须留原因」） |
 | 12 | `review` | A | 11 | trade | 段 2 | 评价 |
 | 13 | `withdraw_record` | C | 21 | trade | 段 5 | 律师提现申请（**v1.30 补 6 字段**：`withdraw_no` / `fee_cents` / `actual_cents` / `voucher_file_id` / `bank_name` / `bank_account_tail`） |
 | 14 | `user_balance` | A | 7 | trade | 段 1 | 用户余额缓存（balance_flow 为真相） |
@@ -541,7 +543,7 @@ COMMENT='订单主表；状态枚举：created/paid/accepted/completed/cancelled
 | 24 | `article_translation` | A | 12 | content | 段 2 | 非中文译文 |
 | 25 | `case_library` | A | 21 | content | 段 5 | 案例库主表（**v1.30 补 2 字段**：`category` 细分分类、`court_case_no` 法院案号；`case_no` 存平台编号 `CL`） |
 | 26 | `case_library_translation` | A | 13 | content | 段 5 | 案例译文 |
-| 27 | `law_item` | D | 12 | content | 段 0 | 法条库；AI 只能引用本表条文 |
+| 27 | `law_item` | D | **15** | content | 段 0 | 法条库；AI 只能引用本表条文（**v1.48 段 3 补 3 字段**：`is_enabled` / `created_by` / `created_by_type`，由 `V301__alter_law_item.sql` 追加；段 0 的 12 字段原样不动） |
 | 28 | `social_action` | A | 8 | content | 段 2 | 收藏/关注（合并表） |
 | 29 | `notification` | A | 12 | content | 段 7 | 站内通知 |
 | 30 | `complaint` | C | 12 | ops | 段 7 | 投诉 |
@@ -549,8 +551,8 @@ COMMENT='订单主表；状态枚举：created/paid/accepted/completed/cancelled
 | 32 | `faq` | D | 9 | content | 段 7 | 常见问题 |
 | 33 | `login_log` | B | 10 | account | 段 1 | 登录日志；留存 ≥6 个月 |
 | 34 | `operation_log` | B | 11 | ops | 段 1 | 敏感操作审计 |
-| 35 | `ai_session` | A | 7 | ai | 段 3 | AI 会话 |
-| 36 | `ai_message` | B | 12 | ai | 段 3 | AI 消息，含 refs 快照 |
+| 35 | `ai_conversation` | A | 7 | ai | 段 3 | AI 会话（**v1.48 更名**：原 `ai_session`；第 3 段 §零.3 第 7 项定名 `ai_conversation`，外键字段 `conversation_id`，索引 `idx_ai_conversation_user`） |
+| 36 | `ai_message` | **C** | **16** | ai | 段 3 | AI 消息，含 refs 快照（**v1.48 类别 B→C、12→16**：导出回写 `is_exported` / `export_urls` 需要 UPDATE，B 类「只插入不修改」承载不了，故补 `updated_at` 并改 C 类） |
 | 37 | `user_device` | A | 12 | account | 段 1 | 设备与推送标识 |
 | 38 | `user_violation` | A | 14 | ops | 段 7 | 违规与处罚 |
 | 39 | `lawyer_application_log` | B | 10 | lawyer | 段 1 | 入驻审核流水 |
@@ -558,12 +560,12 @@ COMMENT='订单主表；状态枚举：created/paid/accepted/completed/cancelled
 | 41 | `notify_template` | D | 9 | ops | 段 7 | 通知模板，按语言分条 |
 | 42 | `sensitive_word` | D | **12** | ops | 段 7 | 敏感词库（**v1.34 补 `last_hit_at`**，A-25「最近命中」列用） |
 | 43 | `content_review` | B | **12** | ops | 段 7 | 审核命中记录，原文不改（**v1.34 补 `hit_snippet` 命中片段 / `biz_user_id` 内容作者**） |
-| 44 | `service_ticket` | C | **13** | ops | 段 7 | 客服工单（**v1.34 补 4 字段**：`ticket_no` 工单号前缀 `TK` / `title` / `priority` / `sla_due_at` 落库的 24h 受理时限） |
-| 45 | `reconciliation_diff` | B | 14 | trade | 段 5 | 对账差错 |
+| 44 | `service_ticket` | C | **13** | ops | 段 7 | 客服工单（**v1.34 补 4 字段**：`ticket_no` 工单号前缀 `TK` / `title` / `priority` / `sla_due_at` 落库的 24h 受理时限；**施工另补 1 列** `type_id`（`V706`，裁决 23：指向 `complaint` / `feedback` 原表 id，A-22 详情取正文用），**实际 14 列**） |
+| 45 | `reconciliation_diff` | B | **20** | trade | 段 5 | 对账差错（**v1.5x 实测更正**：`V507` 建 14 字段，`V510` 补 6 个恒等式巡检字段 `check_type` / `biz_type` / `biz_id` / `expected_cents` / `actual_cents` / `diff_cents` / `found_at` 并把 `bill_date`/`channel` 放宽为可空，实际 20 字段。本表被段 5 回写时漏改，段 6 D3/D4 施工时按 `SHOW CREATE TABLE` 更正） |
 | 46 | `invoice` | C | 15 | trade | **不建** | 发票；V1 明确不做 |
 | 47 | `file_record` | A | 14 | infra | 段 4 | 上传文件登记 |
 | 48 | `share_poster` | A | 8 | content | 段 7 | 分享海报与短链 |
-| 49 | `i18n_glossary` | D | 9 | content | 段 3 | 法律术语对照表 |
+| 49 | `i18n_glossary` | D | **10** | content | 段 3 | 法律术语对照表（**v1.48 9→10**：D 类表必须有 `is_enabled`，停用而非删除） |
 | 50 | `order_status_log` | B | 8 | trade | 段 2 | 订单状态迁移流水，只追加（段 2 新增，此前漏登记） |
 | 51 | `task_queue` | B | 12 | infra | 段 2 | 异步任务表：CAS 领取 + 租约回收 + 指数退避（段 2 新增，此前漏登记） |
 | 52 | `lawyer_income_settlement` | C | 14 | trade | **段 5** | 结算批次：一位律师 × 一个账期一条；**只是状态记录，不是资金真相**（真相永远是 `balance_flow`）；确认结算不改余额、不写流水 |
@@ -571,8 +573,8 @@ COMMENT='订单主表；状态枚举：created/paid/accepted/completed/cancelled
 | 54 | `sensitive_word_appeal` | C | 10 | ops | **段 7** | 敏感词误判申诉：`user_id` / `content_review_id`（唯一键，一条命中只能申诉一次）/ `appeal_reason` / `status`（pending/accepted/rejected）/ `handler_id` / `handle_reason` / `handled_at` / 时间戳（**v1.34 新建**） |
 | 55 | `announcement` | C | 15 | ops | **段 7** | 公告批次主表：`announcement_no` 前缀 `AN` / `title` / `content` / `target_type` + `target_value`（JSON 人群）/ `channels`（JSON 渠道）/ `status`（draft/scheduled/sending/sent/failed）/ `scheduled_at` / `sent_at` / `reach_count` / `open_count` / `created_by` / 时间戳（**v1.34 新建**；A-23「触达/打开率」的唯一落点） |
 
-**合计 55 张，要建 54 张。** 段分布：段 0 = 2、段 1 = 12、段 2 = 12、段 3 = 3、段 4 = 4、**段 5 = 8**、段 6 = 1、**段 7 = 11**（10 张在册 − `share_poster` 1 张 + 新增 2 张）、段 8 = 0。
-类别分布：A 业务实体 21、B 追加型 14、**C 状态机 13**、D 基础数据 7。
+**合计 55 张，要建 54 张。** 段分布（按「在册」计）：段 0 = 2、段 1 = 12、段 2 = 12、段 3 = 3、段 4 = 4、**段 5 = 8**、段 6 = 1、**段 7 = 12**（9 张在册 + `share_poster` 1 张 + 新增第 54/55 张）、段 8 = 0；合计 **54 张在册**（2+12+12+3+4+8+1+12 = 54）＋ `invoice` 1 张（不建）= **55 张**。**段 7 实建 11 张**（12 张在册 − `share_poster` 1 张）。
+类别分布：A 业务实体 21、B 追加型 **13**、**C 状态机 14**、D 基础数据 7（v1.48：`ai_message` 由 B 改 C，总数 55 不变）。
 
 > **v1.34 补登记（2026-11-02，段 7 定稿）**：新增第 54 张 `sensitive_word_appeal`（上游有 2 个申诉接口 + A-25 设计稿画了申诉复核，但表从未登记）、第 55 张 `announcement`（A-23 要「触达/打开率」，而 `notification` 是每人一行的通知，没有公告批次概念）。同时 `share_poster` **段 7 不做**（总纲 §5.8 未列、无对应页面、无验收锚点）。详见《[法泽FAZE_第7段工作流_v1.0.md](法泽FAZE_第7段工作流_v1.0.md)》§零之二 第 3~5 项、第 11 项。
 
@@ -620,6 +622,8 @@ COMMENT='订单主表；状态枚举：created/paid/accepted/completed/cancelled
 | 10 | 外键不建约束 | 现状已符合（`FOREIGN KEY` 0 次） | 保持，补「注释写明引用表」与孤儿检查 |
 | 11 | IP 长度标准 | 统一 `VARCHAR(50)` | 规范为 45，旧表不必改（偏差可接受） |
 | 12 | 文件登记与业务表的 oss_key 一致性 | `file_record` 用 `oss_key`，其余表用 URL | 统一为 `oss_key` |
+| 13 | D 类表必须有 `is_enabled` / `created_by` / `created_by_type` | 段 0 的 `law_item` DDL 只有 12 字段，缺这三个 | 段 3 用 `V301__alter_law_item.sql` 追加，**不改段 0 的 `V1`**（迁移不可变） |
+| 14 | B 类表不得有 `updated_at`、不得回写 | `ai_message` 原标 B 类（12 字段），但导出要回写 `is_exported` / `export_urls` | 改 **C 类（16 字段，含 `updated_at`）**，由段 3 的 `V300` 建 |
 
 ---
 
@@ -636,6 +640,23 @@ COMMENT='订单主表；状态枚举：created/paid/accepted/completed/cancelled
 | 5 | `operation_log` | **授权变更**：应用账号只有 `INSERT` / `SELECT`，无 `UPDATE` / `DELETE` | 《审计与日志规范》§3.4：不可篡改的工程保证 |
 
 > 第 5 条不是表结构变更而是**数据库授权变更**，登记在这里是因为它和数据表一起在段 0 的 `deploy/start-services.ps1` 里做。
+
+---
+
+# 附录 E：第 4 段（文书中心）登记的两处偏离（2026-11-08 新增）
+
+段 4 的四张表按《第 4 段工作流》§三 A1 的字段清单逐字落地（`V400__create_document_tables.sql`），
+其中两处与本文档的通用条款不一致，**是负责人/工作流明确裁决过的偏离，不是漏做**：
+
+| # | 表 | 偏离本文档哪一条 | 为什么这么定 | 后果 / 何时回补 |
+|---|---|---|---|---|
+| 1 | `doc_template` | §4.1 要求 D 类基础数据表必须有 `is_enabled` | 本表用 `status` 三态（`draft` / `active` / `inactive`）表达启停；两个字段并存会出现「`status='active'` 但 `is_enabled=0`」的矛盾状态，而模板的启停必须与「是否出现在 App 列表」严格一致 | 无回补计划。查询启停一律用 `status` |
+| 2 | `file_record` | §4.1 要求 D/A 类表要有 `updated_at` | 本表是**不可变行**：`oss_key` / `bucket` / `size_bytes` / `md5` / `created_at` 一旦写入不会再变，`status` 的「孤儿」标记只是一次性状态翻转，没有「更新时间」语义；加字段要新开迁移（V400 已定稿），收益不成比例 | 若段 7 的清理任务需要「orphan 时间」，再评估加 `orphaned_at`（那是新语义，不是 `updated_at`） |
+
+> 另外两条段 4 的「不是偏离但容易误会」的说明：
+> ①`signature` 没有 `deleted_at`（15 字段是技术路线 §5.6 原文照抄），所以签名库的删除是**物理删 + `file_record` 置 `orphan`**；
+> ②`doc_template` 存的是 HTML 全文（`MEDIUMTEXT`），没有 `template_url` / `oss_key`——模板不是文件、是库里的文本（§3.10 的 OSS 字段规则不适用）。
+
 
 ---
 

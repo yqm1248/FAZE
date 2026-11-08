@@ -995,10 +995,11 @@ ALTER TABLE law_item DROP INDEX ft_law_content,
 
 **(9) `V2__init_law_items.sql`：只放 5 条**
 
-- 依据《数据表规范》§8.4 的裁决：`V2` 只放 **5 条**（够 `probe/law` 命中即可），全量 2000~3000 条走 `database/seed/law_items_full.sql`（**不进 Flyway**，段 3 导入）。
+- 依据《数据表规范》§8.4 的裁决：`V2` 只放 **5 条**（够 `probe/law` 命中即可）。
+  **2026-11-06 段 3 反转**：全量 2000~3000 条**改走 Flyway `V302__import_law_items.sql`（段 3）**，不再走 `database/seed/law_items_full.sql`；运营期新增法条走 A-27 批量导入或直接 SQL（`law_item` 是版本资产，不是种子）。`V2` 的 5 条保持不变。
 - `effective_date NOT NULL` 是唯一键的组成部分，5 条都必须给生效日期（《V1 基线表结构》§4.1 第 3 点）。
 - 写法用 `INSERT ... ON DUPLICATE KEY UPDATE`：§8.3 要求「灌数据的迁移必须可重复执行」，§8.4 表格里写的「可重复执行：否」指的是「Flyway 不会重复执行同一个迁移文件」，不是「SQL 不许可重复」。两者不冲突，按 §8.3 的写法执行——本地 `flyway clean` 后重跑同一条 SQL 不会撞唯一键。
-- **5 条条文的具体内容：待确认**（需法务或负责人提供，或从权威文本抄；不许自己编法条原文）。
+- **5 条条文的具体内容：已确认**（2026-11-06 负责人核对通过）。完整条文与可直接用的 `V2` SQL 见《[法泽FAZE_第3段工作流_v1.0.md](法泽FAZE_第3段工作流_v1.0.md)》§五.8；迁移为 `V2__init_law_items.sql`，`ON DUPLICATE KEY UPDATE` 可重跑。
 
 **产出**
 

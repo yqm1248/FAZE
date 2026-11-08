@@ -1,25 +1,39 @@
-import { useRouter } from 'expo-router';
-import { StyleSheet, Text, View } from 'react-native';
-
-import { PrimaryButton } from '@/shared/components/PrimaryButton';
-import { Screen } from '@/shared/components/Screen';
-import { color, spacing, typography } from '@/shared/theme';
-
 /**
  * 404 兜底页。
  *
- * 原项目没有这个页面（uni-app 会显示原生"页面不存在"提示）。
- * 这里给一个可操作的落地页，避免用户点进死链后无处可去。
+ * 职责：路由不存在时的落地页——给一个可操作的出口，避免用户点进死链后无处可去。
+ * 数据：文案走 `t()`（`common.notFound.*`），不硬编码。
+ * 注意：`Screen` 的 `edges` 用安全区上下左右，与 RTL 无关（安全区是物理屏幕区域）。
+ */
+
+import { useRouter } from 'expo-router';
+import { StyleSheet, View } from 'react-native';
+
+import { LocalizedText } from '@/shared/components/LocalizedText';
+import { PrimaryButton } from '@/shared/components/PrimaryButton';
+import { Screen } from '@/shared/components/Screen';
+import { useI18n } from '@/shared/i18n';
+import { color, spacing, typography } from '@/shared/theme';
+
+/**
+ * 404 页。
+ *
+ * @returns 兜底界面（标题 + 说明 + 回首页按钮）
  */
 export default function NotFoundPage() {
   const router = useRouter();
+  const { t } = useI18n();
 
   return (
     <Screen style={styles.screen} edges={['top', 'left', 'right', 'bottom']}>
       <View style={styles.body}>
-        <Text style={styles.title}>页面不存在</Text>
-        <Text style={styles.description}>该页面可能已调整，请返回首页继续使用。</Text>
-        <PrimaryButton label="回到首页" onPress={() => router.replace('/')} />
+        <LocalizedText numberOfLines={2} style={styles.title}>
+          {t('common.notFound.title')}
+        </LocalizedText>
+        <LocalizedText numberOfLines={3} style={styles.description}>
+          {t('common.notFound.description')}
+        </LocalizedText>
+        <PrimaryButton label={t('common.notFound.backHome')} onPress={() => router.replace('/')} />
       </View>
     </Screen>
   );

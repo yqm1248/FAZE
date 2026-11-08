@@ -1,0 +1,196 @@
+# ══════════════════════════════════════════════════════════════════
+# 法泽 FAZE 持续集成
+#
+# 这个文件补的是「段 1 收口后仍然存在的结构性缺口」：54 个后端用例 + 6 个验收脚本
+# 全靠人手跑。今天已经因为「没人跑」埋过一次假失败（管理端 23 项全 401，其实是
+# 浏览器 Cookie 里的 RuoYi token 过期了 30 分钟），可见靠自觉不够。
+#
+# 首次真跑记录（2026-11-05 20:01，run 42023685805）：
+#   backend   ✅ 54 用例 0 跳过；Flyway 从空库建到 v12；运行时账号建表被拒
+#   admin-web ✅ pnpm install --frozen-lockfile + vite build
+#   mobile    ❌ → 已修：check-raw-text.ps1 / check-i18n.ps1 原来把路径写成反斜杠字面量，
+#              Linux 上拼出不存在的路径；而且「一个文件都没扫到」时仍报通过（假绿）。
+#              现改为 [System.IO.Path]::Combine + 分隔符规范化 + 「扫到 0 个文件退出 2」守卫。
+#
+# 为什么不在这里验证「operation_log 只追加」：
+#   那条验证需要**表级**授权（逐表 GRANT），而 CI 里的表是 Flyway 现建的，
+#   建完再动态生成 GRANT 会让脚本变复杂且更难排查。它由本地
+#   `deploy/sync-db-grants.ps1 -Verify` 覆盖，并已接进 `deploy/verify-seg1.ps1` 第 7 步
+#   作为一票否决项。CI 这里只做一个轻量断言：运行时账号不该有 DDL。
+# ══════════════════════════════════════════════════════════════════
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - 'UI设计'
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # ── 后端：54 个用例（含 G-3 / G-9 的 6 个新用例） ──────────────────
+  backend:
+    name: 后端测试
+    runs-on: ubuntu-latest
+    env:
+      SPRING_PROFILES_ACTIVE: dev
+      FAZE_DB_URL: "jdbc:mysql://127.0.0.1:3306/faze?useUnicode=true&characterEncoding=UTF-8&serverTimezone=UTC"
+      FAZE_DB_USER: faze_app
+      FAZE_DB_PASSWORD: ci_app_pw_not_a_secret
+      FAZE_DB_MIGRATE_USER: faze_migrate
+      FAZE_DB_MIGRATE_PASSWORD: ci_migrate_pw_not_a_secret
+      # 本地存储目录在 Linux 上不存在，指到临时目录（上传相关用例不写真实路径）
+      FAZE_FILE_BASE_DIR: /tmp/faze-files
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: faze
+        ports:
+          - '3306:3306'
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=12
+      redis:
+        image: redis:7-alpine
+        ports:
+          - '6379:6379'
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=12
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      # 建两个账号，把「迁移有 DDL / 运行没 DDL」这个约束在 CI 里也立起来。
+      # 注意这里给 faze_app 的是**库级** SELECT/INSERT/UPDATE/DELETE（不是逐表）：
+      # 表还没建，无法逐表授权；逐表形态由本地 sync-db-grants.ps1 负责。
+      - name: 建数据库账号
+        run: |
+          mysql -h127.0.0.1 -uroot -proot <<'SQL'
+          CREATE USER 'faze_migrate'@'%' IDENTIFIED BY 'ci_migrate_pw_not_a_secret';
+          GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, ALTER, INDEX, REFERENCES
+            ON `faze`.* TO 'faze_migrate'@'%';
+          CREATE USER 'faze_app'@'%' IDENTIFIED BY 'ci_app_pw_not_a_secret';
+          GRANT SELECT, INSERT, UPDATE, DELETE ON `faze`.* TO 'faze_app'@'%';
+          FLUSH PRIVILEGES;
+          SQL
+
+      # 为什么先跑一次 Seg0SmokeTest 并允许它失败：
+      #   Flyway 迁移是 Spring Boot 启动时跑的，而 `sys_config` 的 12 条数据与测试账号都在
+      #   `database/seed/` 里（按负责人决策**不进 Flyway**）。所以要先把表建出来才能导 seed，
+      #   而「只建表不跑业务」没有独立入口 —— 借用任意一个 @SpringBootTest 启动即可。
+      #   Seg0SmokeTest 需要 app_user 里有测试账号，此时必然失败，失败没关系，表已经建好了。
+      - name: 触发 Flyway 建表（允许失败）
+        working-directory: services/faze-api
+        continue-on-error: true
+        run: mvn -B test -Dtest=Seg0SmokeTest -DfailIfNoTests=false
+
+      - name: 导入种子数据
+        run: |
+          mysql -h127.0.0.1 -uroot -proot --default-character-set=utf8mb4 faze < database/seed/seg1_config.sql
+          mysql -h127.0.0.1 -uroot -proot --default-character-set=utf8mb4 faze < database/seed/test.sql
+
+      - name: mvn test
+        working-directory: services/faze-api
+        run: mvn -B test
+
+      # 轻量断言：迁移确实只用了 faze_migrate，运行时账号拿不到 DDL
+      - name: 断言运行时账号没有 DDL
+        run: |
+          if mysql -h127.0.0.1 -ufaze_app -p"$FAZE_DB_PASSWORD" faze \
+            -e "CREATE TABLE _ddl_probe (id INT);" 2>/dev/null; then
+            echo "::error::faze_app 仍然可以 CREATE TABLE —— 运行时账号不该有 DDL"
+            exit 1
+          fi
+          echo "OK：faze_app 无法建表（迁移只走 faze_migrate）"
+
+  # ── APP：tsc + eslint + 无裸 <Text> + i18n 完整性 ──────────────────
+  mobile:
+    name: APP 静态检查
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/mobile-app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/mobile-app/package-lock.json
+
+      - run: npm ci
+
+      - name: tsc --noEmit
+        run: npx tsc --noEmit
+
+      - name: eslint
+        run: npx eslint .
+
+      # 这两个脚本是仓库级的 .ps1，ubuntu runner 用 pwsh 调
+      - name: 禁止裸 <Text>（必须走 LocalizedText）
+        working-directory: .
+        run: pwsh -NoProfile -File scripts/check-raw-text.ps1
+
+      - name: i18n 四语言目录同构 + 缺译登记
+        working-directory: .
+        run: pwsh -NoProfile -File scripts/check-i18n.ps1
+
+      # check-i18n.ps1 会重写 resources/.i18n-pending.json。如果仓库里那份与脚本输出不一致
+      # （有人手改过、或改了文案却忘了跑脚本），这一步会把工作树变脏——那就是漂移，必须拦住。
+      # 没有这一步的话，「缺译已登记」永远是自证：脚本自己写、自己读、自己判通过。
+      - name: 确认 .i18n-pending.json 没有漂移
+        working-directory: .
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "::error::脚本运行后工作树被改动，说明仓库里的 .i18n-pending.json 已漂移"
+            git status --porcelain
+            git --no-pager diff --stat
+            exit 1
+          fi
+          echo "OK：.i18n-pending.json 与 scripts/check-i18n.ps1 的输出一致"
+
+  # ── PC 后台：能构建即可（RuoYi 前端没有 lint script） ──────────────
+  admin-web:
+    name: PC 后台构建
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: pc/admin-web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+          cache-dependency-path: pc/admin-web/pnpm-lock.yaml
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: vite build
+        run: pnpm build:prod

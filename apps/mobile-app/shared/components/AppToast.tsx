@@ -7,7 +7,8 @@ import {
   useRef,
   useState,
 } from 'react';
-import { Animated, StyleSheet, Text, View } from 'react-native';
+import { Animated, StyleSheet, View } from 'react-native';
+import { LocalizedText } from './LocalizedText';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { ReactNode } from 'react';
 
@@ -119,7 +120,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           ]}
         >
           <View style={styles.bubble}>
-            <Text style={styles.text}>{message}</Text>
+            <LocalizedText numberOfLines={1} style={styles.text}>{message}</LocalizedText>
           </View>
         </Animated.View>
       ) : null}
@@ -144,8 +145,8 @@ export function useToast(): ToastContextValue {
 const styles = StyleSheet.create({
   overlay: {
     position: 'absolute',
-    left: 0,
-    right: 0,
+    start: 0,
+    end: 0,
     alignItems: 'center',
   },
   bubble: {
