@@ -64,3 +64,36 @@ RC20261108000007 | success | 2026-11-08 19:29:30 | MOCKTXNRC20261108000007 | 964
    工作流 C4 第 3 条要求的「JVM 内 2 线程同打」用例**本轮未写**（已写的是 6 个分支单测，
    不覆盖线程竞争）；由于 CAS 是数据库层的行级条件更新，进程级并发已能证明「只有一个能迁移」，
    跨线程用例边际收益低，记入 §十一 待补。
+
+──── 四、补充：JVM 内 2 线程并发（2026-11-08 22:55 补齐，C4 第 4 条）─────────
+
+第三节的「并发 2 次」是**进程级**（两个独立后台 job 打 HTTP），证明的是端到端行为；
+C4 第 4 条要求的是「JVM 内两个线程同时打同一回调」，验证 CAS 在真实行锁竞争下的表现。
+两者不互相替代：进程级证明链路能跑通，JVM 内证明**同一事务边界的竞争**不会双写。
+
+实现：`services/faze-api/src/test/java/com/faze/modules/trade/service/RechargeIdempotentTest.java`
+  · @SpringBootTest + 真 MySQL（隔离用户 id=9997，跑完按 `ITC4-` 前缀清理）
+  · CountDownLatch 发令枪：两个线程同时起跑、各自开事务，不是「先后调两次」
+  · 断言口径按 C4「算做完」原文：recharge_record 成功行=1、balance_flow=1、余额增量=1 份额
+
+一、串行重放 3 次（同一 channelTxnId，每次 Outcome 单独记）：
+[C4] 串行重放前 | orderNo=ITC4-S1794149749702 status=pending | channel_txn_id 行数=0 | balance_flow 行数=0 | SUM(delta_cents)=0 | user_balance.balance_cents=0
+[C4] 串行重放后 | orderNo=ITC4-S1794149749702 status=success | channel_txn_id 行数=1 | balance_flow 行数=1 | SUM(delta_cents)=10000 | user_balance.balance_cents=10000
+[C4] 断言通过 orderNo=ITC4-S1794149749702 successRows=1 flowRows=1 flowSum=10000 balance=10000
+  Outcome 序列 = [SETTLED, ALREADY_SETTLED, ALREADY_SETTLED]
+
+二、JVM 内 2 线程并发（同一 channelTxnId）：
+[C4] 并发双打前 | orderNo=ITC4-C1794149749863 status=pending | channel_txn_id 行数=0 | balance_flow 行数=0 | SUM(delta_cents)=0 | user_balance.balance_cents=0
+[C4] 并发双打后 | orderNo=ITC4-C1794149749863 status=success | channel_txn_id 行数=1 | balance_flow 行数=1 | SUM(delta_cents)=10000 | user_balance.balance_cents=10000
+[C4] 断言通过 orderNo=ITC4-C1794149749863 successRows=1 flowRows=1 flowSum=10000 balance=10000
+  Outcome 分布 = 恰好 1 个 SETTLED + 1 个 ALREADY_SETTLED（另一个线程幂等返回，不报错）
+
+三、测试结果：
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 12.44 s -- in com.faze.modules.trade.service.RechargeIdempotentTest
+
+命令（需先注入 deploy/.env 的 FAZE_DB_URL 等变量，否则整类 Etc 跳过）：
+  mvn -o -B test "-Dtest=RechargeIdempotentTest"
+
+结论：串行重放 3 次与 JVM 内 2 线程并发，两种情况下均满足
+  recharge_record 成功行 = 1、balance_flow recharge 行 = 1、余额增量 = 1 份额（10000 分）。
+
