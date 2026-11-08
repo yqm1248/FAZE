@@ -32,6 +32,17 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class AccountQueryServiceImpl implements AccountQueryService {
 
+    /**
+     * 库内 `app_user.status` 的「正常」取值。
+     *
+     * <p>**是 `active` 不是 `normal`**：定义见 `V1__baseline.sql` L32
+     * （`DEFAULT 'active' COMMENT 'active / blocked / cancelled'`）。
+     * `NORMAL / BANNED / CANCELLED` 是管理端出参的大写枚举，只在
+     * `AdminUserService.toDbAccountStatus` 里翻译，**不能直接拿去查库**。
+     * 2026-11-09 之前这里两处用 `normal`，导致公告目标人群恒为空，见 {@link #selectUserIds} 注释。</p>
+     */
+    private static final String STATUS_ACTIVE = "active";
+
     private final AccountMapper accountMapper;
     private final UserDeviceMapper userDeviceMapper;
 
@@ -188,10 +199,66 @@ public class AccountQueryServiceImpl implements AccountQueryService {
     }
 
     /**
+     * 按地区取启用中的用户 id（第 7 段 D5 公告「按地区」目标用）。
+     *
+     * <p>地区名先做清洗再进 SQL：去 null、trim、丢空白、去重。不清洗的话
+     * `{"regions":["伊宁市"," 伊宁市 "]}` 会被当成两个不同地区，虽然 `IN` 仍然命中，
+     * 但脏值进了 SQL 参数是没有意义的。</p>
+     *
+     * <p>状态口径与 {@link #selectUserIds} 完全一致：`status='active' AND deleted_at IS NULL`
+     * （常量 {@link #STATUS_ACTIVE}）。不另立口径——公告只发给能正常收消息的账号。</p>
+     *
+     * <p><b>`app_user.region` 当前恒为 NULL（V707 新建、无采集点），
+     * 所以本方法现在必然返回空列表。</b>这是数据现状，不是实现缺陷。</p>
+     *
+     * @param regions 地区名集合
+     * @param limit   上限
+     * @return 用户 id 列表
+     */
+    @Override
+    public java.util.List<Long> listUserIdsByRegion(java.util.Collection<String> regions, int limit) {
+        if (regions == null || regions.isEmpty()) {
+            return java.util.List.of();
+        }
+        java.util.List<String> names = regions.stream()
+                .filter(Objects::nonNull)
+                .map(String::trim)
+                .filter(name -> !name.isEmpty())
+                .distinct()
+                .toList();
+        if (names.isEmpty()) {
+            return java.util.List.of();
+        }
+        int capped = Math.max(1, Math.min(limit, 10000));
+        com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<AppUser> wrapper =
+                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<AppUser>()
+                        .select(AppUser::getId)
+                        .eq(AppUser::getStatus, STATUS_ACTIVE)
+                        .isNull(AppUser::getDeletedAt)
+                        .in(AppUser::getRegion, names)
+                        .orderByAsc(AppUser::getId);
+        wrapper.last("LIMIT " + capped);
+        java.util.List<Long> result = new java.util.ArrayList<>();
+        for (AppUser user : accountMapper.selectList(wrapper)) {
+            result.add(user.getId());
+        }
+        return result;
+    }
+
+    /**
      * 统一的用户 id 查询。
      *
-     * <p>状态口径固定：`status='normal' AND deleted_at IS NULL`——
+     * <p>状态口径固定：`status='active' AND deleted_at IS NULL`——
      * 公告只发给能正常收消息的账号，封禁/注销的不发（发了用户也看不到）。</p>
+     *
+     * <p><b>2026-11-09 修正（第 7 段尾巴）：这里原写 `status='normal'`，是错的。</b>
+     * 库里的取值自 `V1__baseline.sql` L32 起就是
+     * `active / blocked / cancelled`（`DEFAULT 'active'`），从来不存在 `normal`；
+     * `NORMAL / BANNED / CANCELLED` 只是**管理端出参**的大写枚举，由
+     * `AdminUserService.toDbAccountStatus` 翻译回 `active / blocked / cancelled`。
+     * 用 `normal` 查的结果是**恒为空**，于是公告的「全量 / 按角色 / 指定用户」
+     * 三种目标全部发 0 人——接口返回 200、状态 sent、触达 0，看起来一切正常。
+     * 是本段接通 `region` 时发现 `estimate(all)` 也返回 0 才挖出来的。</p>
      *
      * @param role  角色（null 不限）
      * @param ids   id 白名单（null 不限）
@@ -203,7 +270,7 @@ public class AccountQueryServiceImpl implements AccountQueryService {
         com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<AppUser> wrapper =
                 new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<AppUser>()
                         .select(AppUser::getId)
-                        .eq(AppUser::getStatus, "normal")
+                        .eq(AppUser::getStatus, STATUS_ACTIVE)
                         .isNull(AppUser::getDeletedAt)
                         .eq(role != null, AppUser::getRole, role)
                         .in(ids != null && !ids.isEmpty(), AppUser::getId, ids)

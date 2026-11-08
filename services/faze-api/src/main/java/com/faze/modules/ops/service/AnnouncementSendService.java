@@ -150,6 +150,21 @@ public class AnnouncementSendService {
     /**
      * 解析目标人群为 userId 列表。
      *
+     * <p>四种 targetType 的目标值形状见工作流 §零之二 第 5 项与 L1013：
+     * `all`（无值）/ `role={"role":"lawyer"}` / `region={"regions":["伊宁市","奎屯市"]}`
+     * / `user_ids={"userIds":[1,2]}`。</p>
+     *
+     * <p><b>region 分支的错误边界</b>（这一条容易被后来的改动抹掉，特意写在这里）：
+     * <ul>
+     *   <li>`target_value` 里**没有 `regions` 字段或数组为空** → 抛 401001。
+     *       这是**配置错误**，静默发 0 人会让人以为「发了但没人收到」。</li>
+     *   <li>`regions` 合法但**查出来 0 人** → 正常返回空列表，公告照常走完
+     *       「目标 0 人 / 触达 0 / 状态 sent」。这是**正常业务结果**，不是错误：
+     *       `app_user.region` 是 V707 才补的列且当前无采集点（恒为 NULL），
+     *       所以按地区发送现在必然是 0 人。段 8 补采集后自然有人。</li>
+     * </ul>
+     * 换句话说：**「配置错」抛错，「没人」不抛错**。</p>
+     *
      * @param announcement 公告
      * @return userId 列表
      */
@@ -168,9 +183,13 @@ public class AnnouncementSendService {
             return ids.isEmpty() ? List.of() : accountQueryService.listUserIdsByIds(ids, MAX_TARGET);
         }
         if ("region".equals(targetType)) {
-            // app_user 无 region 列，当前不可用；抛错比静默发 0 人好
-            throw new BusinessException(ErrorCode.COMMON_PARAM_INVALID,
-                    "按地区发送当前不可用：app_user 未建 region 列");
+            List<String> regions = jsonStringArray(value, "regions");
+            if (regions.isEmpty()) {
+                // 配置错，不是「地区下暂时没人」——后者会正常返回空列表走完发送流程。
+                throw new BusinessException(ErrorCode.COMMON_PARAM_INVALID,
+                        "按地区发送的 targetValue 缺少 regions 或 regions 为空数组");
+            }
+            return accountQueryService.listUserIdsByRegion(regions, MAX_TARGET);
         }
         return List.of();
     }
@@ -214,6 +233,42 @@ public class AnnouncementSendService {
             List<Long> out = new ArrayList<>(node.size());
             for (JsonNode item : node) {
                 out.add(item.asLong());
+            }
+            return out;
+        } catch (Exception e) {
+            log.warn("公告目标 JSON 解析失败 json={}", json, e);
+            return List.of();
+        }
+    }
+
+    /**
+     * 从 JSON 取字符串数组（第 7 段尾巴：region 目标用）。
+     *
+     * <p>逐项去掉 null 与空白、并 trim：目标值是人手填的 JSON，
+     * `["伊宁市", " 奎屯市 "]` 这种写法很常见，不清洗会让下游的 `IN` 参数带着空格。</p>
+     *
+     * @param json JSON
+     * @param key  字段
+     * @return 字符串列表；解析失败或字段不是数组时返回空
+     */
+    private List<String> jsonStringArray(String json, String key) {
+        if (!StringUtils.hasText(json)) {
+            return List.of();
+        }
+        try {
+            JsonNode node = jsonMapper.readTree(json).get(key);
+            if (node == null || !node.isArray()) {
+                return List.of();
+            }
+            List<String> out = new ArrayList<>(node.size());
+            for (JsonNode item : node) {
+                if (item == null || item.isNull()) {
+                    continue;
+                }
+                String text = item.asString();
+                if (StringUtils.hasText(text)) {
+                    out.add(text.trim());
+                }
             }
             return out;
         } catch (Exception e) {

@@ -53,6 +53,18 @@ public class AdminDashboardService {
     /** 趋势固定 14 天。 */
     private static final int TREND_DAYS = 14;
 
+    /** 地区分布取前几名（工作流 §三 F1：前 5 + 其他）。 */
+    private static final int TOP_REGION = 5;
+
+    /**
+     * 「其他」分组的展示名。
+     *
+     * <p>必须与 {@code DashboardMapper#selectRegions} 里 SQL 归一化用的字面量一致——
+     * 那里把 NULL 与空串折成「其他」，这里靠同一个字面量做「并入已有项」的判断。
+     * 两处不一致就会出现两个「其他」，改一边必须改另一边。</p>
+     */
+    private static final String OTHER_REGION = "其他";
+
     /** 日期格式。 */
     private static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
@@ -174,17 +186,88 @@ public class AdminDashboardService {
     }
 
     /**
-     * 用户地区分布。
+     * 用户地区分布（前 5 名 + 「其他」）。
      *
-     * <p>本段无数据源：`app_user` 没有 `region` 列（见 {@link DashboardRegionVO} 注释）。</p>
+     * <p>口径见工作流 §零之二 第 14 条与 §三 F1：**按 `app_user.region`（注册地）**，
+     * 不按 IP 归属地（IP 地理库不在本段范围）；`GROUP BY region` 取前 5 名，
+     * 其余合并为「其他」，`region` 为空也归「其他」。
+     * 缓存 10 分钟（工作流 L494 明确把 regions 与 summary / trends 并列缓存）。</p>
      *
-     * @return 空列表 + 说明
+     * <p><b>数据现状：`region` 是 V707 才补的列，当前无任何采集入口，恒为 NULL</b>
+     * ——所以真实返回只有一项「其他」，合计等于未注销用户数。这不是 bug，
+     * 是「列有了、数据还没有」的如实体现（见 `AppUser.region` 注释与 §十一）。
+     * 段 8 补采集入口后才会出现真实地区。</p>
+     *
+     * @return 地区分布
      */
     public DashboardRegionVO regions() {
+        String key = CACHE_PREFIX + "regions";
+        DashboardRegionVO cached = readCache(key, DashboardRegionVO.class);
+        if (cached != null) {
+            return cached;
+        }
+
+        List<DashboardMapper.RegionRow> rows = dashboardMapper.selectRegions();
+
+        // 前 5 名直接照搬（SQL 已按 count 降序、已把 NULL/空串归一化为「其他」）
+        List<DashboardRegionVO.RegionItem> list = new ArrayList<>(TOP_REGION + 1);
+        int head = Math.min(rows.size(), TOP_REGION);
+        for (int i = 0; i < head; i++) {
+            DashboardMapper.RegionRow row = rows.get(i);
+            list.add(DashboardRegionVO.RegionItem.of(row.getName(), row.getC() == null ? 0L : row.getC()));
+        }
+
+        // 第 6 名起合并进「其他」。
+        // 注意：当前恒 NULL 的情况下，「其他」本来就在前 5 名里（它就是唯一的一项），
+        // 所以这里必须「并入已有项」而不是「再 append 一项」，否则会出现两个「其他」。
+        if (rows.size() > TOP_REGION) {
+            long rest = 0L;
+            for (int i = TOP_REGION; i < rows.size(); i++) {
+                rest += rows.get(i).getC() == null ? 0L : rows.get(i).getC();
+            }
+            if (rest > 0L) {
+                mergeIntoOther(list, rest);
+            }
+        }
+
         DashboardRegionVO vo = new DashboardRegionVO();
-        vo.setList(List.of());
-        vo.setNote("当前无法统计：app_user 未建 region 列（段 1 未交付此字段），需段 1 补列并采集后再接");
+        vo.setList(list);
+        vo.setNote(isAllOther(list)
+                ? "口径：注册地区前 5 名 + 其余合并为「其他」。app_user.region 为 V707 新建列，"
+                  + "当前无采集点（注册流程未采集地区），数据全部落在「其他」；"
+                  + "段 8 补采集入口后才会出现真实地区"
+                : "口径：注册地区前 5 名 + 其余合并为「其他」；统计范围 = 未注销用户（deleted_at IS NULL）");
+        writeCache(key, vo);
         return vo;
+    }
+
+    /**
+     * 把「其余地区」的人数并入「其他」项。
+     *
+     * @param list 已组装的前 5 名
+     * @param rest 其余地区合计人数（&gt; 0）
+     */
+    private void mergeIntoOther(List<DashboardRegionVO.RegionItem> list, long rest) {
+        for (DashboardRegionVO.RegionItem item : list) {
+            if (OTHER_REGION.equals(item.getName())) {
+                long base = item.getCount() == null ? 0L : item.getCount();
+                item.setCount(base + rest);
+                return;
+            }
+        }
+        list.add(DashboardRegionVO.RegionItem.of(OTHER_REGION, rest));
+    }
+
+    /**
+     * 判断结果是否「全部落在其他」——即地区数据尚未采集。
+     *
+     * <p>用来决定 `note` 的措辞：没采集时要说清原因，有采集时只报口径。</p>
+     *
+     * @param list 地区分布
+     * @return 只有一项且名为「其他」时返回 true
+     */
+    private boolean isAllOther(List<DashboardRegionVO.RegionItem> list) {
+        return list.size() == 1 && OTHER_REGION.equals(list.get(0).getName());
     }
 
     /**

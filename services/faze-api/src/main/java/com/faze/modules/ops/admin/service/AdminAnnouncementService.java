@@ -7,8 +7,11 @@
  *      对 sent 再点发送返回 410013，不静默忽略。
  *   2. **预估触达在服务端算**（稿面「预计触达 1,284 人」）：口径只有一份，
  *      不让前端拿目标条件自己估——估错了运营会以为发给了更多人。
- *   3. `region` 目标**当前不可用**：`app_user` 没有 region 列（段 1 未建），
- *      预估返回 0 并在 targetDesc 里说明。不伪造数据。
+ *   3. **`region` 目标自第 7 段尾巴（V707）起已接通**：`app_user.region` 是 V707 才建的列
+ *      （段 1 没建），且**注册流程没有任何采集点**，所以该列**恒为 NULL**。
+ *      预估与发送都走真实查询（`AccountQueryService.listUserIdsByRegion`），
+ *      因此当前预估必然是 0、发送触达 0——这是「**数据还没采到**」，不是「功能不可用」，
+ *      `targetDesc` 也如实写「已建列、暂无采集点」。**不许再写成「未建 region 列」**。
  *   4. 发送本身在 AnnouncementSendService（D5），本类只做「能不能发」的判断与转发。
  */
 package com.faze.modules.ops.admin.service;
@@ -185,7 +188,16 @@ public class AdminAnnouncementService {
             List<Long> ids = jsonLongArray(targetValue, "userIds");
             return ids.isEmpty() ? 0L : accountQueryService.listUserIdsByIds(ids, MAX_TARGET).size();
         }
-        // region：app_user 无 region 列，当前不可用
+        if ("region".equals(targetType)) {
+            // 与 AnnouncementSendService 的 region 分支同口径：真查库，不再直接 return 0。
+            // 之前这里硬编码 0，而发送是真查库——段 8 采到地区数据后会出现
+            // 「预估 0 人 / 实际发 N 人」，运营看到会以为系统坏了。
+            // 注意差异：**预估**对「缺 regions 字段」返回 0（编辑中的页面不该报错），
+            // **发送**对同一情况抛 401001（真发之前必须拦住配置错误）。
+            List<String> regions = jsonStringArray(targetValue, "regions");
+            return regions.isEmpty() ? 0L
+                    : accountQueryService.listUserIdsByRegion(regions, MAX_TARGET).size();
+        }
         return 0L;
     }
 
@@ -230,10 +242,27 @@ public class AdminAnnouncementService {
         return switch (entity.getTargetType() == null ? "" : entity.getTargetType()) {
             case "all" -> "全体用户";
             case "role" -> "按角色：" + jsonString(entity.getTargetValue(), "role");
-            case "region" -> "按地区（当前不可用：app_user 未建 region 列）";
+            case "region" -> regionDesc(entity.getTargetValue());
             case "user_ids" -> "指定用户 " + jsonLongArray(entity.getTargetValue(), "userIds").size() + " 人";
             default -> entity.getTargetType();
         };
+    }
+
+    /**
+     * `region` 目标的描述文案。
+     *
+     * <p>如实描述，不写「不可用」：列已经建了（V707），只是**还没有采集点**
+     * （注册流程不收集地区，该列恒为 NULL）。写「不可用」会让运营以为功能坏了并来找开发。</p>
+     *
+     * @param targetValue 目标 JSON
+     * @return 描述文案
+     */
+    private String regionDesc(String targetValue) {
+        List<String> regions = jsonStringArray(targetValue, "regions");
+        if (regions.isEmpty()) {
+            return "按地区（未指定地区）";
+        }
+        return "按地区：" + String.join("、", regions) + "（已建列，暂无采集点）";
     }
 
     /**
@@ -304,6 +333,43 @@ public class AdminAnnouncementService {
             List<Long> out = new ArrayList<>(node.size());
             for (JsonNode item : node) {
                 out.add(item.asLong());
+            }
+            return out;
+        } catch (Exception e) {
+            log.warn("公告目标 JSON 解析失败 json={}", json, e);
+            return List.of();
+        }
+    }
+
+    /**
+     * 从 JSON 里取字符串数组（第 7 段尾巴：`region` 目标用）。
+     *
+     * <p>与 {@code AnnouncementSendService.jsonStringArray} 同样的口径：
+     * 丢 null、丢空白、trim。两处都解析同一个 `target_value`，
+     * **预估与发送必须用同一套清洗规则**，否则会出现「预估 N 人、实发 M 人」。</p>
+     *
+     * @param json JSON 文本
+     * @param key  字段名
+     * @return 字符串列表；解析失败或字段不是数组时返回空
+     */
+    private List<String> jsonStringArray(String json, String key) {
+        if (!StringUtils.hasText(json)) {
+            return List.of();
+        }
+        try {
+            JsonNode node = jsonMapper.readTree(json).get(key);
+            if (node == null || !node.isArray()) {
+                return List.of();
+            }
+            List<String> out = new ArrayList<>(node.size());
+            for (JsonNode item : node) {
+                if (item == null || item.isNull()) {
+                    continue;
+                }
+                String text = item.asString();
+                if (StringUtils.hasText(text)) {
+                    out.add(text.trim());
+                }
             }
             return out;
         } catch (Exception e) {

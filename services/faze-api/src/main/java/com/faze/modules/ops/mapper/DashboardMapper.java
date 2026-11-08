@@ -10,8 +10,10 @@
  *      这些查询**不写任何业务表**，是纯只读聚合，不构成「A 域改 B 域的表」。
  *   2. **参数化边界**：时间范围一律由 Service 算好 UTC 边界传入（`begin`/`end`），
  *      SQL 里不做时区函数——MySQL 的 `CURDATE()` 跟着服务器时区走，会与「库内 UTC」口径打架。
- *   3. **表名以实际库为准**：工作流 A5 写的 `legal_order` 实际不存在，真实表是 `orders`；
- *      `app_user.region` 也不存在（段 1 没建这一列），地区分布接口因此返回空并挂账。
+ *   3. **表名/列名以实际库为准**：工作流 A5 写的 `legal_order` 实际不存在，真实表是 `orders`；
+ *      `app_user.region` 段 1 没建，是 **V707（第 7 段尾巴）** 才补的，所以
+ *      `selectRegions` 属于**后补能力**，且该列当前**无采集点、恒为 NULL**
+ *      （见 `AppUser.region` 注释）。查得到结构不等于查得到数据。
  *   4. 这里用注解式 SQL 而不是 XML：全是**无动态条件的单条聚合**，没有 if/foreach，
  *      放 XML 只会把一条 SQL 拆成两个文件。多表 join 的场景仍按规范用 XML
  *      （见 `mapper/LawItemMapper.xml`）。这是对 §3.4 的一处有意偏离，已记 §十一。
@@ -147,6 +149,30 @@ public interface DashboardMapper {
     long countPendingContentReviews();
 
     /**
+     * 按注册地区分组统计用户数（V707 补列后接通）。
+     *
+     * <p>两个口径决定写在 SQL 里而不是 Service 里：</p>
+     * <ul>
+     *   <li><b>NULL 与空串归「其他」</b>：用 `COALESCE(NULLIF(region, ''), '其他')` 归一化，
+     *       这样 `GROUP BY` 会把两类未采集的用户合并成同一组；放在 Java 里合并的话，
+     *       排序就得在合并之后重算，反而多一层。当前该列恒为 NULL，
+     *       所以本查询**只会返回「其他」一行**。</li>
+     *   <li><b>排除软删用户</b>：`deleted_at IS NULL`。注销用户不该出现在运营看板上，
+     *       与 `countNewUsers` 的口径保持一致。</li>
+     * </ul>
+     *
+     * <p>「其他」是**展示名**：本接口只服务 PC 管理后台（中文单语），不存在多语言问题。
+     * 若将来要支持管理端多语言，这个常量应改由调用方传入。</p>
+     *
+     * @return 地区名 → 用户数，按用户数降序
+     */
+    @Select("SELECT COALESCE(NULLIF(region, ''), '其他') AS name, COUNT(*) AS c FROM app_user "
+            + "WHERE deleted_at IS NULL "
+            + "GROUP BY COALESCE(NULLIF(region, ''), '其他') "
+            + "ORDER BY c DESC")
+    List<RegionRow> selectRegions();
+
+    /**
      * 趋势查询的行结构（日期 + 数值）。
      */
     class TrendRow {
@@ -188,6 +214,57 @@ public interface DashboardMapper {
          * 设置数值。
          *
          * @param c 数值
+         */
+        public void setC(Long c) {
+            this.c = c;
+        }
+    }
+
+    /**
+     * 地区分组查询的行结构（地区名 + 用户数）。
+     *
+     * <p>与 {@link TrendRow} 同一种写法：用行类接聚合结果，不回传 Map——
+     * Map 的键名在编译期查不出来，改名改错了要等运行时才炸。</p>
+     */
+    class RegionRow {
+
+        /** 地区名；SQL 已把 NULL 与空串归一化为「其他」。 */
+        private String name;
+
+        /** 该地区的用户数。 */
+        private Long c;
+
+        /**
+         * 取地区名。
+         *
+         * @return 地区名
+         */
+        public String getName() {
+            return name;
+        }
+
+        /**
+         * 设置地区名。
+         *
+         * @param name 地区名
+         */
+        public void setName(String name) {
+            this.name = name;
+        }
+
+        /**
+         * 取用户数。
+         *
+         * @return 用户数
+         */
+        public Long getC() {
+            return c;
+        }
+
+        /**
+         * 设置用户数。
+         *
+         * @param c 用户数
          */
         public void setC(Long c) {
             this.c = c;

@@ -92,4 +92,21 @@ public interface AccountQueryService {
      * @return 可用用户 id
      */
     java.util.List<Long> listUserIdsByIds(java.util.Collection<Long> ids, int limit);
+
+    /**
+     * 按地区取启用中的用户 id（第 7 段 D5 公告「按地区」目标用）。
+     *
+     * <p>目标值形状见工作流 L1013：`target_value = {"regions":["伊宁市","奎屯市"]}`，
+     * 语义是 **`region IN (...)` 的并集**，不是交集——名单里任一地区命中即发给该用户。</p>
+     *
+     * <p><b>数据现状提醒：`app_user.region` 是 V707 才补的列，当前没有任何采集入口
+     * （注册流程不收集地区），因此该列恒为 NULL。</b>所以本方法现在**必然返回空列表**
+     * ——这是「数据还没采到」而不是「查询写错了」。调用方（公告发送）会正常走完
+     * 「目标 0 人 → 发送完成、触达 0」的路径，不会报错。段 8 补采集入口后自然可用。</p>
+     *
+     * @param regions 地区名集合（null / 空集合 / 全空白 → 空结果）
+     * @param limit   上限
+     * @return 用户 id 列表
+     */
+    java.util.List<Long> listUserIdsByRegion(java.util.Collection<String> regions, int limit);
 }
