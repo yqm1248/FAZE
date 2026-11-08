@@ -258,7 +258,46 @@ public enum ErrorCode {
     /** 案例语言版本不齐（门禁口径见《第 5 段工作流》§三 G4）。HTTP 200。 */
     CONTENT_CASE_LANG_INCOMPLETE(409006, 200, "error.content.case-lang-incomplete", "案例语言版本不齐"),
     /** 案例已上线，不能直接删除（须先下架）。HTTP 200。 */
-    CONTENT_CASE_PUBLISHED(409007, 200, "error.content.case-published", "案例已上线，须先下架再删除");
+    CONTENT_CASE_PUBLISHED(409007, 200, "error.content.case-published", "案例已上线，须先下架再删除"),
+
+    // ── 运营与后台域 10（段 7，《错误码规范》§3.10） ─────────────────────────
+    /*
+     * 段 7 施工登记（2026-11-08）：410005~410016，编号与 msgKey 逐字照 §3.10 表。
+     * **410001~410004 不在这里**：它们在本段没有用例（410001 投诉不存在由工单详情承接、
+     * 410003 FAQ 不存在时接口返回空数组、410004 非管理员由鉴权层处理），
+     * 按「不登记没用的码」原则留空号，需要时再补。
+     *
+     * ⚠️ HTTP 状态的口径冲突（必须让后人知道）：
+     *   《错误码规范》§2.2 定「只有鉴权 401 / 无权限 403 破例，其余业务失败恒为 200」；
+     *   但同文件 §3.10 的具体码表给 410008 / 410010 / 410012 标 409、410014 标 400。
+     *   本文件按 **§3.10 的逐码表**落地（它是该码的唯一登记处，且工作流 A6 与之一致），
+     *   并把冲突记进第 7 段 §十一 待回写项——不是默默选一个。
+     */
+
+    /** 词条已存在（同词同语言，uk_word_lang 兜底）。HTTP 200。 */
+    OPS_SENSITIVE_WORD_EXISTS(410005, 200, "error.ops.sensitive-word-exists", "该词条已存在"),
+    /** 内容命中 block 级敏感词，未发送/未提交。HTTP 200。 */
+    OPS_CONTENT_BLOCKED(410006, 200, "error.ops.content-blocked", "内容含违规信息，未发送"),
+    /** 审核记录不存在。HTTP 200。 */
+    OPS_REVIEW_NOT_FOUND(410007, 200, "error.ops.review-not-found", "审核记录不存在"),
+    /** 该条审核记录已处置过（终态不可再改）。HTTP **409**（按 §3.10 逐码表）。 */
+    OPS_REVIEW_ALREADY_HANDLED(410008, 409, "error.ops.review-already-handled", "该条已处置过"),
+    /** 该条命中已申诉过（uk_appeal_review 兜底）。HTTP 200。 */
+    OPS_APPEAL_EXISTS(410009, 200, "error.ops.appeal-exists", "该条已申诉过，请勿重复提交"),
+    /** 申诉已处置。HTTP **409**（按 §3.10 逐码表）。 */
+    OPS_APPEAL_HANDLED(410010, 409, "error.ops.appeal-handled", "该申诉已处置"),
+    /** 工单不存在。HTTP 200。 */
+    OPS_TICKET_NOT_FOUND(410011, 200, "error.ops.ticket-not-found", "工单不存在"),
+    /** 工单状态不允许该操作（含 closed 回退）。HTTP **409**（按 §3.10 逐码表）。 */
+    OPS_TICKET_STATUS_INVALID(410012, 409, "error.ops.ticket-status-invalid", "工单状态不允许该操作"),
+    /** 公告已发出，不可撤回/不可再发。HTTP 200。 */
+    OPS_ANNOUNCEMENT_SENT(410013, 200, "error.ops.announcement-sent", "公告已发出，不可撤回"),
+    /** 导入文件格式错误（表头/列数/枚举值非法）。HTTP **400**（按 §3.10 逐码表）。 */
+    OPS_IMPORT_FORMAT(410014, 400, "error.ops.import-format", "导入文件格式错误"),
+    /** 导出行数超限，已转后台任务。HTTP 200。 */
+    OPS_EXPORT_TOO_LARGE(410015, 200, "error.ops.export-too-large", "导出行数超限，已转后台任务"),
+    /** 归档失败，已停止清理（保留期清理任务用）。HTTP 200。 */
+    OPS_RETENTION_ARCHIVE_FAILED(410016, 200, "error.ops.retention-archive-failed", "归档失败，已停止清理");
 
     /** 6 位业务码（前 3 位是 HTTP 语义家族，第 4~5 位是业务域）。 */
     private final int code;

@@ -12,22 +12,34 @@
 package com.faze.modules.ops.controller;
 
 import com.faze.common.R;
+import com.faze.modules.ops.admin.service.AdminDashboardService;
+import com.faze.modules.ops.admin.vo.DashboardRegionVO;
+import com.faze.modules.ops.admin.vo.DashboardSummaryVO;
+import com.faze.modules.ops.admin.vo.DashboardTodoVO;
+import com.faze.modules.ops.admin.vo.DashboardTrendVO;
 import com.faze.security.AdminLoginUser;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 管理端自检接口。
+ * 管理端自检接口 + A-02 看板接口。
  */
 @RestController
 @RequestMapping("/api/v1/admin/dashboard")
+@RequiredArgsConstructor
 public class AdminDashboardController {
+
+    /** 看板服务。 */
+    private final AdminDashboardService dashboardService;
 
     /** 项目时区：所有面向人的时间按 Asia/Shanghai 展示（数据仍存 UTC）。 */
     private static final ZoneId ZONE = ZoneId.of("Asia/Shanghai");
@@ -48,6 +60,52 @@ public class AdminDashboardController {
         vo.setAdminId(admin == null ? null : admin.adminId());
         vo.setAdminName(admin == null ? null : admin.username());
         return R.ok(vo);
+    }
+
+    /**
+     * A-02 核心指标（4 卡 + 环比）。
+     *
+     * <p>口径见 `docs/acceptance/seg7/A-02-指标口径.md` §2~§5。</p>
+     *
+     * @param range today / 7d / 30d，默认 today
+     * @return 指标
+     */
+    @GetMapping("/summary")
+    public R<DashboardSummaryVO> summary(@RequestParam(required = false, defaultValue = "today") String range) {
+        return R.ok(dashboardService.summary(range));
+    }
+
+    /**
+     * A-02 近 14 天趋势（按日聚合、缺日补 0）。
+     *
+     * @param metric orders / revenue，默认 orders
+     * @return 趋势点位
+     */
+    @GetMapping("/trends")
+    public R<DashboardTrendVO> trends(@RequestParam(required = false, defaultValue = "orders") String metric) {
+        return R.ok(dashboardService.trends(metric));
+    }
+
+    /**
+     * A-02 用户地区分布。
+     *
+     * <p>本段无数据源（app_user 无 region 列），返回空列表 + 说明。</p>
+     *
+     * @return 地区分布
+     */
+    @GetMapping("/regions")
+    public R<DashboardRegionVO> regions() {
+        return R.ok(dashboardService.regions());
+    }
+
+    /**
+     * A-02 待我处理（5 类计数，实时）。
+     *
+     * @return 5 项
+     */
+    @GetMapping("/todos")
+    public R<List<DashboardTodoVO>> todos() {
+        return R.ok(dashboardService.todos());
     }
 
     /**
