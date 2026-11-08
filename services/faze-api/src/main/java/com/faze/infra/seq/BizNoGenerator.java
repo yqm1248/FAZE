@@ -223,6 +223,42 @@ public class BizNoGenerator {
     }
 
     /**
+     * 生成工单号（第 7 段 C1）。
+     *
+     * @return 形如 {@code TK20261108000001}
+     */
+    public String nextTicketNo() {
+        return next(BizPrefix.TICKET);
+    }
+
+    /**
+     * 生成投诉编号（第 7 段 C2）。
+     *
+     * @return 形如 {@code CP20261108000001}
+     */
+    public String nextComplaintNo() {
+        return next(BizPrefix.COMPLAINT);
+    }
+
+    /**
+     * 生成反馈编号（第 7 段 C2）。
+     *
+     * @return 形如 {@code FB20261108000001}
+     */
+    public String nextFeedbackNo() {
+        return next(BizPrefix.FEEDBACK);
+    }
+
+    /**
+     * 生成公告编号（第 7 段 D1）。
+     *
+     * @return 形如 {@code AN20261108000001}
+     */
+    public String nextAnnouncementNo() {
+        return next(BizPrefix.ANNOUNCEMENT);
+    }
+
+    /**
      * 业务前缀。与《数据表规范》§3.11 的单号前缀表一一对应。
      */
     private enum BizPrefix {
@@ -237,7 +273,15 @@ public class BizNoGenerator {
         /** 案例。 */
         CASE_LIBRARY("CL"),
         /** 充值单（第 6 段）。 */
-        RECHARGE("RC");
+        RECHARGE("RC"),
+        /** 客服工单（第 7 段）。 */
+        TICKET("TK"),
+        /** 投诉（第 7 段）。 */
+        COMPLAINT("CP"),
+        /** 意见反馈（第 7 段）。 */
+        FEEDBACK("FB"),
+        /** 公告（第 7 段）。 */
+        ANNOUNCEMENT("AN");
 
         private final String code;
 
