@@ -47,6 +47,7 @@ import com.faze.modules.trade.entity.WithdrawRecord;
 import com.faze.modules.trade.enums.WithdrawStatus;
 import com.faze.modules.trade.mapper.BalanceFlowMapper;
 import com.faze.modules.trade.mapper.WithdrawRecordMapper;
+import com.faze.modules.trade.rule.WithdrawStateMachine;
 import com.faze.modules.trade.vo.WithdrawVO;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -250,6 +251,9 @@ public class WithdrawService {
     @Transactional(rollbackFor = Exception.class)
     public void approve(Long id, WithdrawAuditBO bo) {
         WithdrawRecord record = requireRecord(id);
+        // 先判状态再判参数：单据已经是终态时应报 405025（状态非法），
+        // 而不是把用户引去补一个补了也没用的凭证。
+        WithdrawStateMachine.check(WithdrawStatus.of(record.getStatus()), WithdrawStatus.APPROVED);
         if (bo.getVoucherFileId() == null) {
             // 通过 = 已经在银行完成转账，没有凭证的通过等于无凭据出款（F2 第 5 条）
             throw new BusinessException(ErrorCode.COMMON_PARAM_INVALID, "通过审核必须上传出款凭证");
@@ -292,6 +296,7 @@ public class WithdrawService {
     @Transactional(rollbackFor = Exception.class)
     public void reject(Long id, WithdrawAuditBO bo) {
         WithdrawRecord record = requireRecord(id);
+        WithdrawStateMachine.check(WithdrawStatus.of(record.getStatus()), WithdrawStatus.REJECTED);
         if (bo.getReason() == null || bo.getReason().isBlank()) {
             throw new BusinessException(ErrorCode.COMMON_PARAM_INVALID, "驳回必须填写理由");
         }
@@ -336,6 +341,7 @@ public class WithdrawService {
     @Transactional(rollbackFor = Exception.class)
     public void markPaid(Long id) {
         WithdrawRecord record = requireRecord(id);
+        WithdrawStateMachine.check(WithdrawStatus.of(record.getStatus()), WithdrawStatus.PAID);
         long amount = nz(record.getAmountCents());
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
         int rows = withdrawRecordMapper.casTransit(id, WithdrawStatus.APPROVED.getCode(),
