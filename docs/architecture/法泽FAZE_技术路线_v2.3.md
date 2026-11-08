@@ -4236,6 +4236,28 @@ volumes:
 
 ---
 
+# 二十六、段 5 施工登记（2026-11-08，**备注，不替代正文**）
+
+> **本节的用途**：段 5 施工完成后，实际落地的结构与本文档正文有 6 处出入。负责人 2026-11-08 裁决：
+> **不回写正文**（正文数字牵动文档基线指纹与 §九 的跨文档回写，成本远大于收益），
+> **只在这里登记**，下次本文档升版时统一回写。
+> 本节与正文冲突时——**施工以本节为准，正文保留原口径**。
+
+| # | 正文口径 | 施工实际 | 处置 |
+|---|---|---|---|
+| 1 | 四语言（`zh-Hans` / `bo` / `ug-Arab-CN` / `kk-Arab-CN`）文案全量 | 段 5 结束时 `zh-Hans` 齐全，**`bo` / `ug-Arab-CN` / `kk-Arab-CN` 各缺 1462 个 key**，已由 `scripts/check-i18n.ps1` 全部登记进 `apps/mobile-app/shared/i18n/resources/.i18n-pending.json` | **段 8 统一翻译**。段 8 收口时 `.i18n-pending.json` 必须为空，否则不能上线；段 5 只交付 `zh-Hans` |
+| 2 | `case_library` **21 字段** | 实为 **24 字段**：`V510` 补 `dispute_focus`（详情页四个正文块之一）、`plaintiff_name` / `defendant_name`（A-16 列表要显示「标题 + 当事人」） | 附录 A 与 §5.8 的字段数下次改版统一改；本次不动正文 |
+| 3 | `case_library_translation` 11 字段 | 实为 **12 字段**：`V510` 补 `dispute_focus`（四个正文块要随语言一起切） | 同上 |
+| 4 | §4.8.4 接口清单：PC **18** 个 / App **23** 个 | 实际 **PC 24 / App 26**。多出的是页面必需动作：A-13 统计卡、A-16 上线/下架/批量下架、提现凭证预览与已出款、回补只读核对、`GET /app/withdrawals/config`（提现面板要显示手续费率）、案例收藏两个 | 下次改版补进 §4.8.4；本次只登记 |
+| 5 | `balance_flow.biz_type` **四个值**（`income` / `freeze` / `unfreeze` / `withdraw`） | 实为 **五个值**：新增 `income_unfreeze`（E3 收入到期解冻专用，`biz_id` 指向原 `income` 流水 id）。`unfreeze` 只留给 F3 提现驳回（`biz_id` 指向 `withdraw_record.id`） | **不许再合并回四个值**：两者 `biz_id` 分属 `balance_flow` 与 `withdraw_record` 两张自增表，必然重叠，同 `biz_type` 会撞 `uk_flow_biz`，表现为「提现驳回成功但某笔收入永远解冻不了」。段 6 加 `recharge` 时按五值口径 |
+| 6 | `reconciliation_diff` 按渠道对账建（`bill_date` / `channel` NOT NULL） | `V510` 把这两列**放宽为可空** + 补 7 个恒等式列（`check_type` / `biz_type` / `biz_id` / `expected_cents` / `actual_cents` / `diff_cents` / `found_at`）+ `status` 默认值 `pending → open`；两种用法靠 `diff_type` 区分（`identity_mismatch` = 恒等式巡检，段 6 的渠道差异用别的值） | 段 6 的渠道对账仍按原语义写（两列有值时），不需要再改表 |
+
+> **为什么第 1 项（翻译）不在段 5 做**：没有母语翻译人员，机翻 1462 条会污染资源文件、且段 8 本来就要
+> 全量重做一次；段 4 收口时已是同一口径（当时各语言缺 1074 key）。段 5 只保证 `zh-Hans` 文案完整、
+> 缺译全部登记，**不出现中文硬编码**（`scripts/check-raw-text.ps1` 兜底）。
+
+---
+
 > 文档结束。V2.1 与页面导航树 v1.3 配套，后续变更同步更新。
 
 
