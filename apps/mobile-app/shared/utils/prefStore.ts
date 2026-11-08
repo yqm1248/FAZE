@@ -63,3 +63,39 @@ export function writeBoolPref(key: string, value: boolean): void {
     // 存储不可用（无痕模式 / 配额满）时静默失败：偏好只影响展示，不该让页面崩。
   }
 }
+
+/**
+ * 读一个字符串数组偏好（全局搜索的「搜索历史」用）。
+ *
+ * @param key 偏好键
+ * @returns 字符串数组；不存在或 JSON 损坏时返回空数组
+ */
+export function readStringListPref(key: string): string[] {
+  try {
+    const raw = store().getItem(key);
+    if (raw === null) {
+      return [];
+    }
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+    return parsed.filter((item): item is string => typeof item === 'string');
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * 写一个字符串数组偏好。
+ *
+ * @param key 偏好键
+ * @param values 值（调用方负责截断长度）
+ */
+export function writeStringListPref(key: string, values: string[]): void {
+  try {
+    store().setItem(key, JSON.stringify(values));
+  } catch {
+    // 同上：搜索历史丢了不影响使用
+  }
+}

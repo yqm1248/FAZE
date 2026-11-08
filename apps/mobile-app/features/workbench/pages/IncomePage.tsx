@@ -24,13 +24,15 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 
-import { fetchIncomeFlows, fetchIncomeOverview } from '@/features/workbench/api/client';
-import type { IncomeFlowRow, IncomeOverview } from '@/features/workbench/api/client';
+import { fetchIncomeFlows, fetchIncomeOverview, fetchWithdrawals } from '@/features/workbench/api/client';
+import type { IncomeFlowRow, IncomeOverview, WithdrawRow } from '@/features/workbench/api/client';
+import { WithdrawPanel } from '@/features/workbench/components/WithdrawPanel';
 import { AppHeader } from '@/shared/components/AppHeader';
 import { EmptyState } from '@/shared/components/EmptyState';
 import { ErrorState } from '@/shared/components/ErrorState';
 import { LoadingState } from '@/shared/components/LoadingState';
 import { LocalizedText } from '@/shared/components/LocalizedText';
+import { PrimaryButton } from '@/shared/components/PrimaryButton';
 import { Screen } from '@/shared/components/Screen';
 import { useI18n } from '@/shared/i18n';
 import type { MessageKey } from '@/shared/i18n';
@@ -51,6 +53,14 @@ const RULE_KEYS: MessageKey[] = [
   'workbench.income.rule3',
   'workbench.income.rule4',
 ];
+
+/** 提现单状态 → i18n key（静态映射，禁拼 key）。 */
+const WITHDRAW_STATUS_KEY: Record<WithdrawRow['status'], MessageKey> = {
+  applying: 'workbench.income.withdrawStatusApplying',
+  approved: 'workbench.income.withdrawStatusApproved',
+  rejected: 'workbench.income.withdrawStatusRejected',
+  paid: 'workbench.income.withdrawStatusPaid',
+};
 
 /**
  * 分（字符串）→ 元（两位小数）。
@@ -107,15 +117,18 @@ export function IncomePage() {
   const [error, setError] = useState<AppError | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [panelVisible, setPanelVisible] = useState(false);
+  const [withdrawals, setWithdrawals] = useState<WithdrawRow[]>([]);
 
-  /** 拉概览 + 首屏明细。 */
+  /** 拉概览 + 首屏明细 + 提现记录。 */
   const load = useCallback(async (next: 'week' | 'month' | 'total', isRefresh = false): Promise<void> => {
     if (!isRefresh) {
       setPhase('loading');
     }
-    const [overviewRes, flowsRes] = await Promise.all([
+    const [overviewRes, flowsRes, withdrawalsRes] = await Promise.all([
       fetchIncomeOverview(next),
       fetchIncomeFlows(next, null),
+      fetchWithdrawals(1, 10),
     ]);
     if (!overviewRes.ok) {
       setError(overviewRes.error);
@@ -134,6 +147,8 @@ export function IncomePage() {
     setFlows(flowsRes.data.list);
     setCursor(flowsRes.data.nextCursor);
     setHasMore(flowsRes.data.hasMore);
+    // 提现记录失败不阻断收入页主体：区块自己走空态
+    setWithdrawals(withdrawalsRes.ok ? withdrawalsRes.data.list : []);
     setPhase(flowsRes.data.list.length === 0 ? 'empty' : 'success');
     setRefreshing(false);
   }, []);
@@ -297,11 +312,54 @@ export function IncomePage() {
           </View>
 
           <View style={styles.withdrawWrap} testID="income-withdraw">
-            <LocalizedText numberOfLines={2} style={styles.withdrawHint}>
-              {t('workbench.income.withdrawHint')}
+            <PrimaryButton
+              testID="income-withdraw-btn"
+              label={t('workbench.income.withdrawBtn')}
+              onPress={() => setPanelVisible(true)}
+            />
+          </View>
+
+          <View style={styles.withdrawRecords} testID="income-withdraw-records">
+            <LocalizedText numberOfLines={1} style={styles.rulesTitle}>
+              {t('workbench.income.withdrawRecords')}
             </LocalizedText>
+            {withdrawals.length === 0 ? (
+              <LocalizedText numberOfLines={1} style={styles.ruleText}>
+                {t('workbench.income.withdrawEmpty')}
+              </LocalizedText>
+            ) : (
+              withdrawals.map((row) => (
+                <View key={row.id} style={styles.withdrawRow} testID={`withdraw-row-${row.id}`}>
+                  <View style={styles.rowBody}>
+                    <LocalizedText numberOfLines={1} style={styles.rowTitle}>
+                      {`¥ ${yuan(row.amountCents)}`}
+                    </LocalizedText>
+                    <LocalizedText numberOfLines={1} style={styles.rowMeta} testID={`withdraw-status-${row.id}`}>
+                      {t(WITHDRAW_STATUS_KEY[row.status])}
+                    </LocalizedText>
+                    {row.status === 'rejected' && row.rejectReason !== null ? (
+                      <LocalizedText numberOfLines={2} style={styles.rowMeta}>
+                        {t('workbench.income.withdrawRejectReason', { reason: row.rejectReason })}
+                      </LocalizedText>
+                    ) : null}
+                  </View>
+                  <LocalizedText numberOfLines={1} style={styles.rowMeta}>
+                    {`¥ ${yuan(row.actualCents)} 到账`}
+                  </LocalizedText>
+                </View>
+              ))
+            )}
           </View>
         </ScrollView>
+
+        <WithdrawPanel
+          visible={panelVisible}
+          availableCents={overview?.availableCents ?? '0'}
+          onClose={() => setPanelVisible(false)}
+          onDone={() => {
+            void load(range, true);
+          }}
+        />
       </View>
     </Screen>
   );
@@ -370,5 +428,21 @@ const styles = StyleSheet.create({
   rulesTitle: { ...typography.bodySmall, color: color.text.primary },
   ruleText: { ...typography.micro, color: color.text.muted },
   withdrawWrap: { marginTop: spacing.md },
+  withdrawRecords: {
+    marginTop: spacing.xl,
+    backgroundColor: color.background.surface,
+    borderRadius: radius.md,
+    padding: spacing.lg,
+    gap: spacing.xs,
+  },
+  withdrawRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+    paddingVertical: spacing.xs,
+    borderTopWidth: size.hairline,
+    borderTopColor: color.border.divider,
+  },
   withdrawHint: { ...typography.micro, color: color.text.muted, textAlign: 'center' },
 });

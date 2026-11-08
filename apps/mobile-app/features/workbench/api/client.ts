@@ -239,3 +239,91 @@ export function fetchWorkbenchProfile(): Promise<ApiResult<WorkbenchProfile>> {
 export function fetchWithdrawAccount(): Promise<ApiResult<WithdrawAccount>> {
   return get<WithdrawAccount>('/api/v1/app/workbench/withdraw-account');
 }
+
+/** 提现单状态（与后端 WithdrawStatus 一一对应）。 */
+export type WithdrawStatus = 'applying' | 'approved' | 'rejected' | 'paid';
+
+/** 提现记录行（后端 WithdrawVO）。 */
+export type WithdrawRow = {
+  id: string;
+  withdrawNo: string;
+  amountCents: string;
+  feeCents: string;
+  actualCents: string;
+  status: WithdrawStatus;
+  bankName: string | null;
+  bankAccountTail: string | null;
+  rejectReason: string | null;
+  createdAt: string;
+  paidAt: string | null;
+};
+
+/**
+ * 申请提现（段 5 F1）。
+ *
+ * <p>**幂等键必须由调用方生成并在同一次「确认提现」操作内复用**：
+ * 服务端按 `(lawyerId, key)` 判重，重复提交返回同一张单、不冻第二次。
+ * 换一次新的 key 就等于告诉服务端「这是另一笔申请」。</p>
+ *
+ * @param amountCents    申请金额（分，字符串形式的 Long）
+ * @param idempotencyKey 客户端幂等键（`[A-Za-z0-9_-]{1,64}`）
+ * @returns 新建（或幂等命中）的提现单
+ */
+export function applyWithdraw(
+  amountCents: string,
+  idempotencyKey: string,
+): Promise<ApiResult<WithdrawRow>> {
+  return post<WithdrawRow>(
+    '/api/v1/app/withdrawals',
+    { amountCents },
+    { headers: { 'Idempotency-Key': idempotencyKey } },
+  );
+}
+
+/**
+ * 拉我的提现记录（C 端分页）。
+ *
+ * @param pageNum  页码（从 1 开始）
+ * @param pageSize 每页条数（≤100）
+ * @returns 提现记录页
+ */
+export function fetchWithdrawals(
+  pageNum = 1,
+  pageSize = 10,
+): Promise<ApiResult<WorkbenchPage<WithdrawRow>>> {
+  return get<WorkbenchPage<WithdrawRow>>(
+    `/api/v1/app/withdrawals?pageNum=${pageNum}&pageSize=${pageSize}`,
+  );
+}
+
+/** 提现规则（后端 WithdrawConfigVO）。 */
+export type WithdrawConfig = {
+  minAmountCents: string;
+  feeRate: string;
+};
+
+/**
+ * 拉提现规则（最低额 + 手续费率）。
+ *
+ * @returns 提现规则
+ */
+export function fetchWithdrawConfig(): Promise<ApiResult<WithdrawConfig>> {
+  return get<WithdrawConfig>('/api/v1/app/withdrawals/config');
+}
+
+/**
+ * 绑定 / 更换收款账户（段 5 F4）。
+ *
+ * @param payload 开户行 + 收款人姓名 + 完整卡号
+ * @returns 成功时空数据
+ */
+export function updateWithdrawAccount(payload: {
+  bankName: string;
+  accountName: string;
+  bankAccount: string;
+}): Promise<ApiResult<null>> {
+  return request<null>('/api/v1/app/workbench/withdraw-account', {
+    method: 'PUT',
+    body: payload,
+  });
+}
