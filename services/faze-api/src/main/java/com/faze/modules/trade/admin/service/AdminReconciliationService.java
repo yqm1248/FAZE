@@ -16,15 +16,24 @@ package com.faze.modules.trade.admin.service;
 
 import com.faze.common.audit.AuditContext;
 import com.faze.common.audit.OperationLog;
+import com.faze.common.exception.BusinessException;
+import com.faze.common.exception.ErrorCode;
+import com.faze.common.pojo.PageResult;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.faze.modules.trade.admin.bo.ChannelDiffQueryBO;
+import com.faze.modules.trade.admin.vo.ChannelDiffRowVO;
 import com.faze.modules.trade.admin.vo.ReconciliationDiffVO;
 import com.faze.modules.trade.admin.vo.ReconciliationSummaryVO;
 import com.faze.modules.trade.entity.LawyerBalance;
+import com.faze.modules.trade.entity.RechargeRecord;
 import com.faze.modules.trade.entity.ReconciliationDiff;
 import com.faze.modules.trade.entity.UserBalance;
 import com.faze.modules.trade.mapper.BalanceFlowMapper;
 import com.faze.modules.trade.mapper.LawyerBalanceMapper;
 import com.faze.modules.trade.mapper.OwnerFlowSum;
+import com.faze.modules.trade.mapper.RechargeRecordMapper;
 import com.faze.modules.trade.mapper.ReconciliationDiffMapper;
 import com.faze.modules.trade.mapper.UserBalanceMapper;
 import com.faze.modules.trade.service.BalanceService;
@@ -38,6 +47,8 @@ import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
@@ -60,10 +71,20 @@ public class AdminReconciliationService {
     /** 差异状态：待处理（V1 只写这一个值）。 */
     private static final String STATUS_OPEN = "open";
 
+    /** 差异状态：待处理（段 6 的渠道差异用这个值，与 open 同义，见 pageChannelDiffs 注释）。 */
+    private static final String STATUS_PENDING = "pending";
+
+    /** 差异状态：已处理。 */
+    private static final String STATUS_HANDLED = "handled";
+
+    /** 处理备注长度上限（B4 第 6 条）。 */
+    private static final int HANDLE_NOTE_MAX_LENGTH = 500;
+
     private final BalanceFlowMapper balanceFlowMapper;
     private final UserBalanceMapper userBalanceMapper;
     private final LawyerBalanceMapper lawyerBalanceMapper;
     private final ReconciliationDiffMapper reconciliationDiffMapper;
+    private final RechargeRecordMapper rechargeRecordMapper;
     private final JsonMapper jsonMapper;
 
     /**
@@ -276,5 +297,140 @@ public class AdminReconciliationService {
      * @param diffs   差异行
      */
     private record Result(ReconciliationSummaryVO summary, List<ReconciliationDiffVO> diffs) {
+    }
+
+    // ── 第 6 段 B4：reconciliation_diff 差异工单（渠道对账 Tab） ─────────────
+
+    /**
+     * 分页查询差异工单（只读，不写审计）。
+     *
+     * <p>与上面的 `diffs()` **不是一回事**：`diffs()` 是恒等式巡检的内存态现算结果（Tab1），
+     * 本方法是 `reconciliation_diff` 表的落库记录（Tab2，段 5 建表、段 6 起有数据）。</p>
+     *
+     * @param query 筛选条件（账单日期区间 / 渠道 / 差异类型 / 状态 / 页码）
+     * @return 分页结果
+     */
+    public PageResult<ChannelDiffRowVO> pageChannelDiffs(ChannelDiffQueryBO query) {
+        int pageNum = query.getPageNum() == null || query.getPageNum() < 1 ? 1 : query.getPageNum();
+        int pageSize = query.getPageSize() == null ? 20 : Math.min(Math.max(query.getPageSize(), 1), 100);
+        LambdaQueryWrapper<ReconciliationDiff> wrapper = Wrappers.<ReconciliationDiff>lambdaQuery()
+                .ge(query.getBeginDate() != null, ReconciliationDiff::getBillDate, query.getBeginDate())
+                .le(query.getEndDate() != null, ReconciliationDiff::getBillDate, query.getEndDate())
+                .eq(StringUtils.hasText(query.getChannel()), ReconciliationDiff::getChannel, query.getChannel())
+                .eq(StringUtils.hasText(query.getDiffType()), ReconciliationDiff::getDiffType, query.getDiffType());
+        // 「待处理」在库里有两个值：段 5 的巡检写 open，段 6 的渠道差异写 pending。
+        // 页面上是一个「待处理」选项，所以这里要 IN，而不是 eq——漏了 open 就永远查不到段 5 的差异。
+        if (STATUS_PENDING.equals(query.getStatus())) {
+            wrapper.in(ReconciliationDiff::getStatus, STATUS_OPEN, STATUS_PENDING);
+        } else if (StringUtils.hasText(query.getStatus())) {
+            wrapper.eq(ReconciliationDiff::getStatus, query.getStatus());
+        }
+        wrapper.orderByDesc(ReconciliationDiff::getId);
+        Page<ReconciliationDiff> page = new Page<>(pageNum, pageSize);
+        Page<ReconciliationDiff> result = reconciliationDiffMapper.selectPage(page, wrapper);
+
+        List<ReconciliationDiff> rows = result.getRecords();
+        Map<Long, String> orderNoById = loadOrderNos(rows);
+        List<ChannelDiffRowVO> list = new ArrayList<>(rows.size());
+        for (ReconciliationDiff row : rows) {
+            ChannelDiffRowVO vo = new ChannelDiffRowVO();
+            vo.setId(row.getId());
+            vo.setBillDate(row.getBillDate());
+            vo.setChannel(row.getChannel());
+            vo.setDiffType(row.getDiffType());
+            vo.setChannelTxnId(row.getChannelTxnId());
+            vo.setRechargeId(row.getRechargeId());
+            vo.setOrderNo(orderNoById.get(row.getRechargeId()));
+            vo.setAmountCents(nonNull(row.getAmountCents()));
+            vo.setDiffCents(nonNull(row.getDiffCents()));
+            vo.setStatus(row.getStatus());
+            vo.setFoundAt(row.getFoundAt());
+            vo.setHandledAt(row.getHandledAt());
+            list.add(vo);
+        }
+        PageResult<ChannelDiffRowVO> pageResult = new PageResult<>();
+        pageResult.setList(list);
+        pageResult.setTotal(result.getTotal());
+        pageResult.setPageNum(pageNum);
+        pageResult.setPageSize(pageSize);
+        pageResult.setHasMore((long) pageNum * pageSize < result.getTotal());
+        return pageResult;
+    }
+
+    /**
+     * 标记差异已处理（写审计）。
+     *
+     * <p>副作用：把 `status` 改为 `handled`，写 `handler_id` / `handle_note` / `handled_at`，
+     * 并落一条 operation_log（action=RECONCILE_HANDLE）。</p>
+     *
+     * @param id         差异工单主键
+     * @param handleNote 处理备注（必填，≤500 字）
+     * @throws BusinessException 405018 差异不存在或已处理 / 401002 备注缺失 / 401003 备注超长
+     */
+    @Transactional(rollbackFor = Exception.class)
+    @OperationLog(module = MODULE, action = "RECONCILE_HANDLE", targetType = "RECONCILIATION_DIFF")
+    public void handleChannelDiff(Long id, String handleNote) {
+        if (!StringUtils.hasText(handleNote)) {
+            throw new BusinessException(ErrorCode.COMMON_PARAM_MISSING, "处理备注必填");
+        }
+        String note = handleNote.trim();
+        if (note.length() > HANDLE_NOTE_MAX_LENGTH) {
+            throw new BusinessException(ErrorCode.COMMON_PARAM_FORMAT, "处理备注超过 500 字");
+        }
+        ReconciliationDiff diff = reconciliationDiffMapper.selectById(id);
+        if (diff == null) {
+            throw new BusinessException(ErrorCode.TRADE_RECONCILE_DIFF_PENDING, "差异工单不存在");
+        }
+        if (STATUS_HANDLED.equals(diff.getStatus())) {
+            // 幂等：已经处理过的不再改，避免覆盖前一个运营写的备注
+            log.info("差异工单已处理，忽略重复提交 id={}", id);
+            return;
+        }
+        AuditContext.AuditInfo audit = AuditContext.current();
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+        ReconciliationDiff patch = new ReconciliationDiff();
+        patch.setId(id);
+        patch.setStatus(STATUS_HANDLED);
+        patch.setHandlerId(audit == null ? null : audit.getOperatorId());
+        patch.setHandleNote(note);
+        patch.setHandledAt(now);
+        patch.setUpdatedAt(now);
+        reconciliationDiffMapper.updateById(patch);
+        AuditContext.mark(MODULE, "RECONCILE_HANDLE", "RECONCILIATION_DIFF", String.valueOf(id),
+                "{\"before\":{\"status\":\"" + diff.getStatus() + "\"},"
+                        + "\"after\":{\"status\":\"" + STATUS_HANDLED + "\"},"
+                        + "\"handleNote\":\"" + escape(note) + "\"}");
+        log.info("差异工单已标记处理 id={} 原状态={}", id, diff.getStatus());
+    }
+
+    /**
+     * 批量取充值单号（避免逐行查库造成 N+1）。
+     *
+     * @param rows 差异行
+     * @return rechargeId → orderNo
+     */
+    private Map<Long, String> loadOrderNos(List<ReconciliationDiff> rows) {
+        java.util.Set<Long> ids = rows.stream()
+                .map(ReconciliationDiff::getRechargeId)
+                .filter(java.util.Objects::nonNull)
+                .collect(java.util.stream.Collectors.toSet());
+        if (ids.isEmpty()) {
+            return Map.of();
+        }
+        Map<Long, String> map = new HashMap<>();
+        for (RechargeRecord record : rechargeRecordMapper.selectBatchIds(ids)) {
+            map.put(record.getId(), record.getOrderNo());
+        }
+        return map;
+    }
+
+    /**
+     * 转义 JSON 字符串里的引号与反斜杠（detail 是 JSON 列，写坏会插入失败）。
+     *
+     * @param raw 原文
+     * @return 转义结果
+     */
+    private String escape(String raw) {
+        return raw == null ? "" : raw.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 }

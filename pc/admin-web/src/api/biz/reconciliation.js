@@ -48,3 +48,42 @@ export function runReconciliation() {
     method: 'post'
   })
 }
+
+/**
+ * 渠道对账差异列表（第 6 段 B4，`reconciliation_diff` 落库记录）。
+ *
+ * 与上面的 `getReconciliationDiffs()` **不是同一份数据**：那个是恒等式巡检的内存态现算结果，
+ * 这个是差异工单表。两条路由分开是刻意的（见后端 Controller 注释）。
+ *
+ * @param {object} params 筛选条件
+ * @param {string} [params.beginDate] 账单日期起（yyyy-MM-dd）
+ * @param {string} [params.endDate]   账单日期止（yyyy-MM-dd）
+ * @param {string} [params.channel]   wechat / alipay / mock
+ * @param {string} [params.diffType]  channel_only / local_only / amount_mismatch / identity_mismatch
+ * @param {string} [params.status]    pending（含 open）/ auto_fixed / handled
+ * @param {number} [params.pageNum]   页码
+ * @param {number} [params.pageSize]  每页条数
+ * @returns {Promise<{code:number,msg:string,data:{list:Array, total:number, pageNum:number, pageSize:number, hasMore:boolean}}>} 分页结果
+ */
+export function listChannelDiffs(params) {
+  return request({
+    url: '/api/v1/admin/reconciliation/channel-diffs',
+    method: 'get',
+    params
+  })
+}
+
+/**
+ * 标记一条渠道差异已处理。
+ *
+ * @param {string|number} id         差异工单主键
+ * @param {string}        handleNote 处理备注（必填，≤500 字）
+ * @returns {Promise<{code:number,msg:string,data:null}>} 结果
+ */
+export function handleChannelDiff(id, handleNote) {
+  return request({
+    url: `/api/v1/admin/reconciliation/channel-diffs/${id}`,
+    method: 'put',
+    data: { handleNote }
+  })
+}

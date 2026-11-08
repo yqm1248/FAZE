@@ -33,6 +33,10 @@
       </div>
     </div>
 
+    <!-- 第 6 段 B4：外包 el-tabs。Tab1 内容原样保留（段 1 已验收），Tab2 是渠道对账差异工单。 -->
+    <el-tabs v-model="activeTab" class="reconcile-tabs">
+      <el-tab-pane label="恒等式巡检" name="identity">
+
     <!-- ==================== 恒等式说明 ==================== -->
     <el-alert class="block-gap" type="info" :closable="false" show-icon>
       <template #title>巡检口径</template>
@@ -192,12 +196,18 @@
         差异 = 缓存余额 − 流水汇总。修复账面差异属于运营决策，本页只做只读展示，不提供自动调整入口。
       </div>
     </el-card>
+      </el-tab-pane>
+      <el-tab-pane label="渠道对账" name="channel">
+        <ChannelDiffPanel />
+      </el-tab-pane>
+    </el-tabs>
   </div>
 </template>
 
 <script setup name="BizReconciliation">
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
+import ChannelDiffPanel from './ChannelDiffPanel.vue'
 import {
   getReconciliationDiffs,
   getReconciliationSummary,
@@ -220,6 +230,13 @@ const OWNER_TYPE_TEXT = {
 
 /** 巡检摘要。 */
 const summary = ref(null)
+
+/**
+ * 当前 Tab：`identity` = 段 1 的恒等式巡检（默认），`channel` = 段 6 的渠道对账。
+ *
+ * 默认停在 Tab1，保证从菜单进来看到的仍是段 1 交付的画面（少一次点击、也不改变旧习惯）。
+ */
+const activeTab = ref('identity')
 
 /** 摘要加载中。 */
 const summaryLoading = ref(false)
