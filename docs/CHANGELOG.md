@@ -4,6 +4,40 @@
 
 ---
 
+## 2026-11-08 · 第 6 段 D3/D4 补齐：渠道对账单与逐笔比对
+
+> **本段仍未收口**：E2 的连贯走查、E3 的 §九 回写与 `6-A7-failure.txt` 未做。
+> 补齐后 19 个任务完成 17 个；7 条锚点：**4 条通过**（6-A2 / 6-A3 / 6-A5 / 6-A7 的 Mock 部分）、
+> **2 条挂账**（6-A1 / 6-A6）、**1 条部分挂账**（6-A4：Mock 差异识别已验，真实账单格式挂账）。
+> 详见 `docs/acceptance/seg6/6-A4-reconcile.txt` 与 `挂账.md`。
+
+### 做了什么
+
+| 范围 | 内容 |
+|---|---|
+| D3 账单下载 | `ReconcileBillParser` 接口 + `MockBillParser`（**真实解析实现**）+ 微信/支付宝骨架（抛 405013）+ `BillCsvSupport`（元↔分走 `BigDecimal`，禁 double）+ `MockBillGenerator`（同构 CSV：表头 + 数据 + 汇总）+ `BillParserFactory` + 账单存 `file_record(biz_type='reconcile_bill')` + `ReconcileDailyScheduler` 每日 02:00 投递 + `ReconcileTaskScanner` 60s 领任务 |
+| D4 逐笔比对 | `ReconcileCompareService`：按 `order_no` 匹配 → 三类差异落 `reconciliation_diff`（`channel_only` / `local_only` / `amount_mismatch`）→ `channel_only` 且本地有单时自动补入账（走 `settleByCallback` 的晚到回调补偿）→ 差异回写 `auto_fixed` → 先查后插去重（同一天重跑不产生重复行） |
+| CSV 导出 | `GET /admin/reconciliation/channel-diffs/export`（`text/csv` + UTF-8 BOM，与列表共用同一份筛选条件） |
+| 配置 | V602 新增 `reconcile.mock.inject`（验收用差异注入，**生产必须为空**）+ `SysConfigKeys` |
+| 错误码 | 新增 `TRADE_RECONCILE_BILL_INVALID(405028)`（段 6 原定号段已用满） |
+| 存储 | `StorageKeyRules` 场景 +`reconcile_bill`、扩展名 +`csv`/`zip`；`FileRecordService` +`BIZ_RECONCILE_BILL` |
+| 单测 | `MockBillParserTest`(10) / `MockBillGeneratorTest`(6) / `ReconcileCompareServiceTest`(6)；全量 452 个测试 **Failures 0 Errors 0** |
+
+### 顺带修掉的 4 个 bug（都只有真实运行才暴露）
+
+1. **`RechargeSettleService#compensate` 补偿单写不进库**：`setExpireAt(null)` 撞 `recharge_record.expire_at` NOT NULL（V600）。D1 掉单补单走 `settle` 不建新单所以从未触发；D4 自动补单第一次走 compensate 就撞上。这是**资金链路 bug**（自动补单会静默失败），段 7/段 8 任何走 compensate 的场景都要回归。
+2. **B4 差异金额列全显示 `+0.00`**：页面读 `diffCents`，而 D4 按工作流字段映射写的是 `amountCents`。改为按 `diffType` 取字段。单测与接口都通过，只有真实截图暴露。
+3. **B4「发现时间」列与 CSV 该列为空**：D4 落库漏写 `found_at`。
+4. **恒等式差异按默认「昨日」筛永远不出现**：日期筛选只按 `bill_date`，而恒等式差异的 `bill_date` 按段 5 `V510` 的设计就是 NULL。改为双口径：渠道差异按 `bill_date`、恒等式差异按 `found_at`。同时纠正一处旧判断——那段写 `reconciliation_diff` 的代码属于**段 5 H1**，不是段 1。
+
+### 负责人裁决（2026-11-08）
+
+- **B4 权限点不做**：与《接口规范》§6.2、《总纲》§5.8、`AdminSession`「只取必要字段」三处已拍板决策冲突，且后台只有一个业务角色。替代动作：停用 RuoYi 演示账号 `ry`（`sys_user.status='1'`，实测登录返回 `code=500 用户已封禁` 且无 token）。
+- **`bill_date` 问题按方案 A 修**（恒等式差异按 `found_at` 筛），不回改段 1/段 5。
+- **D3/D4 优先补齐**（本文档上半部分）。
+
+---
+
 ## 2026-11-08 · 第 6 段施工（部分完成）：A/B/C 三组 + D1/D2 + E1 验收
 
 > **本段未收口**：19 个任务完成 13 个，D3/D4 与 E2/E3 的剩余部分未做。

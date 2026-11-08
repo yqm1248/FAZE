@@ -1,0 +1,217 @@
+段 6 D3/D4 · 渠道对账单下载与逐笔比对 验收证据
+生成时间：2026-11-08 22:15（东八区）
+环境：faze-api 8081（Spring Boot 4.0.6）· MySQL 8.0.44 库 faze · Redis 7
+      RuoYi 8080（faze_admin）· PC 前端 vite 80 · 真实 Chrome（CDP 1440×900）
+通道：Mock（pay.mock.enabled=true；真实渠道缺商户号，见 §六 挂账）
+
+═══════════════════════════════════════════════════════════════════════════
+一、实现文件（本段新增，D3 + D4）
+═══════════════════════════════════════════════════════════════════════════
+
+infra/pay/reconcile/
+  BillRow.java                 账单行 DTO（渠道交易号/商户单号/金额分/UTC 时间/状态）
+  ReconcileBillParser.java     解析器接口（channel + parse → List<BillRow>）
+  BillCsvSupport.java          元↔分（BigDecimal，禁 double）· 东八区↔UTC · 行切分
+  MockBillParser.java          Mock 账单解析器（**真实实现**，D4 用的就是它）
+  WechatBillParser.java        微信账单解析器（骨架 + TODO，抛 405013）
+  AlipayBillParser.java        支付宝账单解析器（骨架 + TODO，抛 405013）
+  BillParserFactory.java       按渠道取解析器（无实现即 405013，不静默返回空）
+  BillInjection.java           Mock 账单差异注入规格（验收专用，生产为空）
+  MockBillGenerator.java       从 recharge_record 生成同构 CSV（表头+数据+汇总）
+
+modules/trade/service/
+  ReconcileBillService.java    D3：下载/生成 → file_record 留档 → 解析校验 → 投递 D4
+  ReconcileCompareService.java D4：逐笔比对 → 三类差异落库 → channel_only 自动补单
+  ReconcileTaskService.java    D3/D4 任务入口（D3 末尾投递 D4）
+
+modules/trade/task/
+  ReconcileTaskScanner.java    @Scheduled 60s 领两类对账任务
+  ReconcileDailyScheduler.java @Scheduled cron 0 0 2 * * *（Asia/Shanghai）投递昨日下载
+
+改动：
+  config/SysConfigKeys.java         +reconcile.mock.inject
+  db/migration/V602__seg6_reconcile_config.sql   新增配置键（默认空串）
+  common/exception/ErrorCode.java   +TRADE_RECONCILE_BILL_INVALID(405028)
+  infra/storage/FileRecordService.java       +BIZ_RECONCILE_BILL
+  infra/storage/StorageKeyRules.java         场景 +reconcile_bill；扩展名 +csv/+zip
+  modules/trade/admin/.../AdminReconciliationService.java   日期筛选改双口径 + CSV 导出
+  modules/trade/admin/.../AdminReconciliationController.java +GET /channel-diffs/export
+  modules/trade/service/RechargeSettleService.java          compensate 补 expire_at（修 bug）
+  pc/admin-web/.../ChannelDiffPanel.vue                     差异金额按 diffType 取字段
+
+单测：MockBillParserTest(10) · MockBillGeneratorTest(6) · ReconcileCompareServiceTest(6)
+      全量 452 个测试：Failures 0 · Errors 0
+
+═══════════════════════════════════════════════════════════════════════════
+二、D3 实测：账单下载与留档
+═══════════════════════════════════════════════════════════════════════════
+
+投递方式（手工补跑历史日期；生产由 ReconcileDailyScheduler 每日 02:00 自动投昨日）：
+  INSERT INTO task_queue (task_type,biz_no,status,retry_count,next_retry_at,created_at,updated_at)
+  VALUES ('recharge_reconcile_download','20261107','pending',0,UTC_TIMESTAMP(),UTC_TIMESTAMP(),UTC_TIMESTAMP());
+
+任务表（两日均 done，retry_count=0）：
+  174  recharge_reconcile_download   20261108   done   0
+  175  recharge_reconcile_compare    mock:20261108 done  0
+  179  recharge_reconcile_download   20261107   done   0
+  180  recharge_reconcile_compare    mock:20261107 done  0
+
+账单留档（file_record，biz_type=reconcile_bill，owner_user=0）：
+  192  20261108  mock-20261108.csv  430 bytes  active
+  193  20261107  mock-20261107.csv  372 bytes  active
+  oss_key 例：private/reconcile_bill/202611/0/4098f1b7-64ae-4f05-a9db-e432ccf11350.csv
+
+2026-11-07 账单文件原文（UTF-8）：
+  #法泽FAZE Mock 渠道对账单
+  #账单日期,2026-11-07
+  #渠道,mock
+  渠道交易号,商户单号,金额,交易时间,状态
+  MOCKTXNRC20261107990001,RC20261107990001,100.00,2026-11-07 10:00:00,SUCCESS
+  MOCKTXNRC20261107990002,RC20261107990002,99.00,2026-11-07 11:00:00,SUCCESS
+  MOCKTXNC07,RC20261107990003,200.00,2026-11-07 09:30:00,SUCCESS
+  #汇总,笔数,3,金额,399.00
+
+D3「算做完」三条核对：
+  ① Mock 通道跑一次 → OSS（本地实现）里有账单文件、file_record 有记录          ✅
+  ② BillRow 条数 = 账单数据行数（不含表头与汇总行）：3 行数据 → 解析 3 条      ✅
+     （单测另有 5 行用例：表头+5 数据+汇总 → hasSize(5)）
+  ③ 金额转分无精度丢失：0.10 元 → 10 分；1.15 元 → 115 分；99.00 元 → 9900 分 ✅
+     （单测 yuanToCents 用 BigDecimal.movePointRight(2).longValueExact，三位小数直接抛错）
+
+═══════════════════════════════════════════════════════════════════════════
+三、D4 实测：三类差异落库
+═══════════════════════════════════════════════════════════════════════════
+
+造数方式：先插 4 条 recharge_record，再写 sys_config 的 reconcile.mock.inject
+（extraRows 造 channel_only、dropOrderNos 造 local_only、amountShifts 造 amount_mismatch），
+然后投 D3 → 生成含差异的账单 → D3 末尾自动投 D4 → D4 比对落库。
+
+2026-11-07 注入规格：
+  {"extraRows":[{"channelTxnId":"MOCKTXNC07","orderNo":"RC20261107990003",
+    "amountCents":20000,"paidAt":"2026-11-07T01:30:00","status":"SUCCESS"}],
+   "dropOrderNos":["RC20261107990004"],
+   "amountShifts":{"RC20261107990002":-100}}
+
+本地 4 条单（东八区账单日 2026-11-07）：
+  id=24 RC20261107990001 success 10000 分 paid_at 02:00Z（账单一致 → 无差异）
+  id=25 RC20261107990002 success 10000 分 paid_at 03:00Z（账单 9900 → amount_mismatch）
+  id=26 RC20261107990003 closed  20000 分（账单有、本地非 success → channel_only 自动补单）
+  id=27 RC20261107990004 success 30000 分（账单被 drop → local_only）
+
+reconciliation_diff 结果（bill_date=2026-11-07）：
+  id  diff_type        channel_txn_id               recharge_id  amount_cents  status
+  17  amount_mismatch  MOCKTXNRC20261107990002      25           -100          pending
+  18  channel_only     MOCKTXNC07                  26           20000         auto_fixed
+  19  local_only       MOCKTXNRC20261107990004      27           -30000        pending
+
+字段核对：
+  bill_date / channel / diff_type / channel_txn_id / recharge_id / amount_cents 均按
+  《第 6 段工作流》§三 D4 第 3 条的字段映射落库；detail 存账单行原文+本地行快照+原因；
+  found_at 记录发现时间（B4 表格第 8 列读它）。
+
+2026-11-08 另一批（4 条，含 channel_only 的两个分支）：
+  id=13 amount_mismatch -100 pending
+  id=14 channel_only    +20000 auto_fixed   （本地有 closed 单 → 补单）
+  id=15 channel_only    +5000  pending        （本地完全无单 → 缺 user_id，不补单，转人工）
+  id=16 local_only      -30000 pending
+
+三类差异齐全 ✅；channel_only 的两个分支都被覆盖 ✅
+
+═══════════════════════════════════════════════════════════════════════════
+四、channel_only 自动补单：钱真的到账了
+═══════════════════════════════════════════════════════════════════════════
+
+链路：D4 判 channel_only（本地有单但状态非 success）→
+      RechargeSettleService.settleByCallback → 单非 PENDING → compensate →
+      建 `原单号-C` 补偿单（status=success）→ 写 balance_flow → 回写 user_balance
+
+补偿单（两张，各 20000 分）：
+  recharge_record id=23  order_no=RC20261108990003-C  success  20000  channel_txn_id=MOCKTXNC
+  recharge_record id=28  order_no=RC20261107990003-C  success  20000  channel_txn_id=MOCKTXNC07
+
+对应流水：
+  balance_flow id=985  owner=user:3  biz_type=recharge  biz_id=23  delta=+20000  balance_after=83318
+  balance_flow id=986  owner=user:3  biz_type=recharge  biz_id=28  delta=+20000  balance_after=103318
+
+余额核对（恒等式）：
+  user_balance: user_id=3  balance_cents=101318  frozen_cents=2000  → 总余额 103318
+  balance_flow 最后一条 balance_after = 103318                              ✅ 一致
+
+═══════════════════════════════════════════════════════════════════════════
+五、幂等重跑：同一天重跑不产生重复差异行
+═══════════════════════════════════════════════════════════════════════════
+
+对 bill_date=2026-11-08 再投一条 recharge_reconcile_compare（biz_no=mock:20261108）：
+  重跑前 reconciliation_diff WHERE bill_date='2026-11-08' → 4 行
+  重跑后 reconciliation_diff WHERE bill_date='2026-11-08' → 4 行（无新增）
+  两条 compare 任务均 done、retry_count=0
+
+去重口径：先查后插，键为 bill_date + channel + channel_txn_id + diff_type；
+channel_txn_id 为 NULL 时改用 recharge_id（唯一键对 NULL 不拦重复，必须自己查）。
+
+═══════════════════════════════════════════════════════════════════════════
+六、6-A4 五项证据逐条对照（《第 6 段工作流》§四 6-A4）
+═══════════════════════════════════════════════════════════════════════════
+
+① GET /admin/reconciliation/diffs?date= 的响应体 → **本段改用 /channel-diffs**
+   （偏差，见 §七 第 1 条）。实测响应：
+   GET /api/v1/admin/reconciliation/channel-diffs?beginDate=2026-11-08&endDate=2026-11-08
+   → code=200 total=6（4 条渠道差异 + 2 条恒等式差异，后者按 found_at 落进区间）
+
+② SELECT * FROM reconciliation_diff WHERE bill_date=? → 见 §三（两日共 7 行）
+
+③ PC A-09 截图 → docs/acceptance/seg6/B4-tab1-identity.png（Tab1 未改）
+                    docs/acceptance/seg6/B4-tab2-channel.png（Tab2 三类差异）
+
+④ 导出的 CSV → docs/acceptance/seg6/6-A4-diffs-export.csv（内容与接口逐行一致）：
+   账单日期,渠道,差异类型,渠道交易号,本地单号,差异金额(元),状态,发现时间
+   2026-11-07,Mock 通道,本地有、渠道无,MOCKTXNRC20261107990004,RC20261107990004,-300.00,待处理,2026-11-08 22:07:20
+   2026-11-07,Mock 通道,渠道有、本地无,MOCKTXNC07,RC20261107990003,200.00,已自动修复,2026-11-08 22:07:20
+   2026-11-07,Mock 通道,金额不一致,MOCKTXNRC20261107990002,RC20261107990002,-1.00,待处理,2026-11-08 22:07:20
+
+⑤ 本文件
+
+「算做完」四条：
+  ① 造 3 类差异各 1 条 → 落库 3 行且 diff_type 正确                    ✅
+  ② channel_only 那条自动补单且余额正确（103318 = 流水 balance_after）   ✅
+  ③ 同一天重跑比对不产生重复差异行                                      ✅
+  ④ A-09 页面截图与段 1 交付时一致                                      ⚠️ 见 §七 第 2 条
+
+═══════════════════════════════════════════════════════════════════════════
+七、偏差（已回写《第 6 段工作流》§十一）
+═══════════════════════════════════════════════════════════════════════════
+
+1. 差异列表复用 vs 拆分：工作流 §四 6-A4 写 `GET /admin/reconciliation/diffs?date=`，
+   该路径段 5 已被「恒等式巡检内存态差异」占用（Tab1 依赖且已验收），本段新增
+   `/channel-diffs` 与 `/channel-diffs/export`，不改旧路径。
+2. Tab1 与段 1 截图不是逐像素一致：上方多了 el-tabs 的 Tab 条（B4 第 1 条要求外层包
+   el-tabs 的必然结果），Tab1 内容区未改一行。
+3. **channel_only 自动补单不建新单**（与 D4 原文「建新 recharge_record」的偏差）：
+   账单里没有 user_id，「本地完全无单」时不知道该给谁入账。实际做法：
+   · 本地有单（pending/closed/failed）→ 走 settleByCallback → compensate 建 `原单号-C`
+     success 单 + 入账（**这就是 D4 说的「建新 recharge_record + 走 C3 入账」**，且用户已知）；
+   · 本地完全无单 → 只落差异 pending，detail 写明缺 user_id，转人工。
+4. **补偿单不参与 local_only 判定**：补偿单号是 `原单号-C`，账单里永远没有它；
+   不排除的话每次对账都会误报一条 local_only。索引建法是「补偿单覆盖原单」，
+   账单行命中原单号时拿补偿单比金额。
+5. **Mock 差异注入**（新增能力，工作流未要求）：`reconcile.mock.inject` 一份 JSON，
+   三项分别造三类差异。理由：Mock 账单默认与平台数据完全一致，「造差异」必须可复现；
+   否则只能手工改库，验收不可重复、也无法写单测。**生产必须为空串**。
+6. **ReconcileSettleService.compensate 修 bug**：原来 `setExpireAt(null)`，而
+   `recharge_record.expire_at` 是 NOT NULL（V600）→ 补偿单一直插不进去。
+   D1 的掉单补单走的是 settle（不建新单）所以从未触发；本段 D4 自动补单第一次走
+   compensate 就撞上。改为 `setExpireAt(now)`。
+7. **ErrorCode 新增 405028**：段 6 原定 405013~405020 已用满，405021/405022 段 2 评价、
+   405023~405027 段 5 提现结算，按顺序取 405028（不复用任何已有码）。
+8. **B4 差异金额列修字段**：页面原读 `diffCents`，而 D4 按字段映射写的是 `amountCents`
+   → 渠道差异全显示 +0.00。改为按 diffType 取字段（恒等式用 diffCents、渠道差异用
+   amountCents）。**这个错单测和接口都发现不了，只有真实截图才暴露**。
+
+═══════════════════════════════════════════════════════════════════════════
+八、仍未完成 / 挂账
+═══════════════════════════════════════════════════════════════════════════
+
+· 微信/支付宝账单**下载与解析**：骨架 + TODO，调 parse 抛 405013。
+  挂账条件：商户号下发 + 真实商户后台能下载账单。最晚段 8 上架前。
+· 真实账单驱动下的 6-A4：拿不到真实账单格式，只能验 Mock 通道。同上挂账。
+· `6-A6` 三方一致：需渠道后台查询权限，同上挂账。
