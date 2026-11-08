@@ -1,0 +1,118 @@
+段 6 E2 · Mock 通道端到端走查（一条连贯链路）
+生成时间：2026-11-08 23:05（东八区）
+环境：faze-api 8081（profile=dev）· MySQL 8.0.44 库 faze · Redis 库 1
+通道：Mock（pay.mock.enabled=true）
+账号：13800000001（app_user.id=1，realname_status=approved）
+目的：把 B1/B2/C4/D1/D2/D3/D4/E1 各自的散点证据串成**一条从头到尾的链路**，
+      证明「下单 → 模拟支付 → 入账 → 查余额 → 对账」在同一次运行里是通的。
+
+═══════════════════════════════════════════════════════════════════════════
+链路（8 步，每步都是真实 HTTP 调用）
+═══════════════════════════════════════════════════════════════════════════
+
+S1 发送短信验证码
+   POST /api/v1/pub/sms/code  {"phone":"13800000001","scene":"login"}
+   → code=200
+   （前置：清掉 Redis 的 `faze:sms:daily:<phone>:<date>` 与 `faze:sms:interval:<phone>`。
+     不清的话今天已发 12 次、超过 sms_daily_limit=10，会一直 401007 请求过于频繁——
+     这是**测试环境**的计数清理，不是绕过限流代码。）
+
+S2 短信登录
+   POST /api/v1/pub/auth/login/sms  {"phone":"13800000001","smsCode":"123456","deviceId":"e2e-device"}
+   → code=200，userId=1，accessToken 长度 237
+   （`deviceId` 是 `@NotBlank` 必填；dev 固定码 `sms_fixed_code=123456`）
+
+S3 充值下单
+   POST /api/v1/app/wallet/recharges
+   Headers: Authorization: Bearer <token> · Idempotency-Key: seg6-e2e-final2
+            X-Client: ios · X-App-Version: 1.0.0 · X-Device-Id: e2e-device
+   Body: {"amountCents":10000,"channel":"mock"}
+   → code=200，orderNo=RC20261108000012，expireAt=2026-11-08T14:50:47（UTC）
+   payParams.callbackBody（预生成的回调报文，**已 URL 编码**）：
+     amountCents=10000&channelTxnId=MOCKTXNRC20261108000012&orderNo=RC20261108000012
+     &paidAt=2026-11-08T14%3A20%3A47.104442700&success=true
+     &sign=dfZuauTbX6poyimLpyOW5AgBzlXSzTCwYjAdGiwQgmE%3D
+
+S4 同一幂等键再下一次单
+   → code=200，orderNo=RC20261108000012（**相同**，没有产生第二张单）
+
+S5 记前置余额
+   GET /api/v1/app/wallet/balance  → code=200，availableCents=10000
+
+S6 模拟支付回调，**重放 3 次**
+   POST /api/v1/pub/pay/callback/mock
+   Content-Type: application/x-www-form-urlencoded
+   Body: 上面那条 callbackBody
+   → [1] {"code":"SUCCESS"}   [2] {"code":"SUCCESS"}   [3] {"code":"SUCCESS"}
+   （三次都回 SUCCESS 是契约要求：渠道重放不能被判失败，但**只能入账一次**）
+
+S7 查单详情
+   GET /api/v1/app/wallet/recharges/RC20261108000012
+   → code=200，status=success，paidAt=2026-11-08T14:20:47，
+     balanceAfterCents=20000
+
+S8 查余额
+   GET /api/v1/app/wallet/balance
+   → code=200，availableCents=20000，totalCents=20000
+     recharge 面板：usedDailyCents=20000 / dailyLimitCents=500000 /
+                    usedDailyCount=2 / realnameStatus=approved / realnameRequired=false
+
+═══════════════════════════════════════════════════════════════════════════
+数据库核对（S6 之后）
+═══════════════════════════════════════════════════════════════════════════
+
+recharge_record（id=31）：
+  order_no=RC20261108000012  user_id=1  status=success  amount_cents=10000
+  channel_txn_id=MOCKTXNRC20261108000012  paid_at=2026-11-08 14:20:47（**UTC**）
+
+balance_flow（**只有 1 条**，回调重放 3 次也没多写）：
+  id=988  owner=user:1  biz_type=recharge  biz_id=31  delta_cents=+10000
+  balance_after=20000  remark=充值 RC20261108000012
+
+余额恒等式：
+  user_balance(user_id=1)  balance_cents+frozen_cents = **20000**
+  balance_flow 该 owner 的 SUM(delta_cents)            = **20000**     ✅ 相等
+
+幂等核对：
+  balance_flow WHERE biz_id=31 的行数 = **1**（3 次回调只入账 1 次）
+
+═══════════════════════════════════════════════════════════════════════════
+与对账链路的衔接
+═══════════════════════════════════════════════════════════════════════════
+
+这单的 `paid_at = 2026-11-08 14:20:47 UTC` 落在**东八区 2026-11-08**（22:20:47），
+所以会被当天 02:00 的 `recharge_reconcile_download` 归进 2026-11-08 的 Mock 账单。
+D3/D4 的证据见 `6-A4-reconcile.txt`——那条链路用的是独立造的数据（避免污染本走查），
+这里只证明**本走查的单在时间口径上能正常进入对账**。
+
+═══════════════════════════════════════════════════════════════════════════
+本次走查暴露并修掉的 2 个 bug（都很隐蔽，单测与接口单点测试都发现不了）
+═══════════════════════════════════════════════════════════════════════════
+
+1. **Mock 回调报文没做 URL 编码 → 约 50% 概率验签失败**
+   `MockPaymentGateway#buildCallbackBody` 原先把 `canonical(form) + "&sign=" + hmac(...)`
+   直接拼成表单串。签名是 Base64，含 `+` 时对方按 `application/x-www-form-urlencoded`
+   解码会把 `+` 变成空格 → 验签必然失败。
+   实测：本轮第一次跑（orderNo=RC20261108000011）三次回调全返回
+   `{"code":"FAIL","message":"验签失败"}`；换成另一个单号（签名里恰好没 `+`）就通过。
+   **这就是"偶发验签失败"的根因**。修复：对每个 key/value 和 sign 做 `URLEncoder.encode`。
+   （`PayCallbackController#readRawBody` 的重建逻辑本来就有 `URLEncoder`，所以只改发送端即可。）
+
+2. **Mock 的 `paid_at` 把本地时间当 UTC 写**
+   `prepay()` 里 `LocalDateTime.now()` 在东八区机器上比真实 UTC 早 8 小时。
+   后果：22:20 支付被存成 `22:20 UTC` = 东八区**次日** 06:20，对账按日归账时这笔单
+   会被算到第二天，凭空多出一条 `local_only`。
+   修复：改 `LocalDateTime.now(ZoneOffset.UTC)`。修复后本走查的 S7 显示
+   `paidAt=2026-11-08T14:20:47`（东八区 22:20:47）——正确。
+
+═══════════════════════════════════════════════════════════════════════════
+结论
+═══════════════════════════════════════════════════════════════════════════
+
+E2「一条连贯的 Mock 端到端走查」：**通过**。
+8 步全 200；幂等下单同单号；回调重放 3 次只入账 1 次；
+余额缓存与流水汇总一致（20000 = 20000）；单状态 success 且 `balance_after` 正确。
+
+未覆盖（属其它锚点）：
+  · 真实渠道到账（6-A1，挂账）
+  · App 页面上的人眼操作（B2 已有 4 张充值页截图，本次是接口层走查）

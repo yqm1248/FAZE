@@ -30,8 +30,10 @@ import com.faze.modules.ops.service.SysConfigQueryService;
 import com.faze.modules.trade.enums.PayChannel;
 import com.faze.modules.trade.enums.RechargeStatus;
 import java.net.URLDecoder;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -81,7 +83,11 @@ public class MockPaymentGateway implements PaymentGateway {
         String orderNo = order.getOrderNo();
         String txnId = "MOCKTXN" + orderNo;
         long callbackAmount = order.getAmountCents() + offsetCents;
-        LocalDateTime paidAt = LocalDateTime.now();
+        // `paid_at` 必须按 **UTC** 生成（与 `recharge_record.paid_at` 的口径一致）：
+        // 原来写的是 `LocalDateTime.now()`，在东八区机器上会比真实 UTC 早 8 小时，
+        // 后果是「22:17 支付」被存成「22:17 UTC」= 东八区次日 06:17，**对账按日归账时
+        // 会把这笔单算到第二天**，凭空多出一条 local_only。段 6 E2 走查实测发现。
+        LocalDateTime paidAt = LocalDateTime.now(ZoneOffset.UTC);
         MockState state = new MockState();
         state.orderNo = orderNo;
         state.channelTxnId = txnId;
@@ -208,8 +214,20 @@ public class MockPaymentGateway implements PaymentGateway {
         form.put("amountCents", String.valueOf(amountCents));
         form.put("success", "true");
         form.put("paidAt", paidAt.toString());
-        String body = canonical(form) + "&sign=" + hmac(canonical(form));
-        return body;
+        String sign = hmac(canonical(form));
+        // **必须对每个值做 URL 编码**：签名是 Base64，出现 `+` 时，对方按表单解码会得到
+        // 空格（`application/x-www-form-urlencoded` 里 `+` 就是空格），验签必然失败。
+        // 概率约 50%（Base64 有 1/64 的字符是 `+`），不修就是「偶发验签失败」——
+        // 段 6 E2 走查第二次跑就撞上了。真实渠道的报文也都是 URL 编码的。
+        StringBuilder body = new StringBuilder();
+        form.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .forEach(e -> body.append(URLEncoder.encode(e.getKey(), StandardCharsets.UTF_8))
+                        .append('=')
+                        .append(URLEncoder.encode(e.getValue(), StandardCharsets.UTF_8))
+                        .append('&'));
+        body.append("sign=").append(URLEncoder.encode(sign, StandardCharsets.UTF_8));
+        return body.toString();
     }
 
     /**
