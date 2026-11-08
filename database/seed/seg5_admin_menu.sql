@@ -50,3 +50,66 @@ ON DUPLICATE KEY UPDATE menu_name = VALUES(menu_name), parent_id = VALUES(parent
 INSERT INTO sys_role_menu (role_id, menu_id)
 VALUES (1, 2220)
 ON DUPLICATE KEY UPDATE role_id = VALUES(role_id);
+
+-- ---------------------------------------------------------------------------
+-- 3. 页面菜单（A-13 律师结算，段 5 E5）
+-- ---------------------------------------------------------------------------
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query,
+                      route_name, is_frame, is_cache, menu_type, visible, status, perms, icon,
+                      create_by, create_time, remark)
+VALUES
+  (2221, '律师结算', 2100, 11, 'trade/settle', 'biz/trade/settle/index', NULL,
+   'LawyerSettle', 1, 0, 'C', '0', '0', 'trade:settlement:list', 'money',
+   'admin', NOW(), '第 5 段 E5：A-13 律师结算（列表 + 生成 + 明细 + 确认，确认不动钱）')
+ON DUPLICATE KEY UPDATE menu_name = VALUES(menu_name), parent_id = VALUES(parent_id),
+                        order_num = VALUES(order_num), path = VALUES(path),
+                        component = VALUES(component), icon = VALUES(icon),
+                        is_frame = VALUES(is_frame), is_cache = VALUES(is_cache),
+                        menu_type = VALUES(menu_type), visible = VALUES(visible),
+                        status = VALUES(status), perms = VALUES(perms), remark = VALUES(remark);
+
+INSERT INTO sys_role_menu (role_id, menu_id)
+VALUES (1, 2221)
+ON DUPLICATE KEY UPDATE role_id = VALUES(role_id);
+
+-- ---------------------------------------------------------------------------
+-- 4. 页面菜单（A-10 提现审核，段 5 F2）
+-- ---------------------------------------------------------------------------
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query,
+                      route_name, is_frame, is_cache, menu_type, visible, status, perms, icon,
+                      create_by, create_time, remark)
+VALUES
+  (2222, '提现审核', 2100, 12, 'trade/withdraw', 'biz/trade/withdraw/index', NULL,
+   'WithdrawAudit', 1, 0, 'C', '0', '0', 'trade:withdraw:list', 'money',
+   'admin', NOW(), '第 5 段 F2：A-10 提现审核（通过需凭证 + 已出款分两步）')
+ON DUPLICATE KEY UPDATE menu_name = VALUES(menu_name), parent_id = VALUES(parent_id),
+                        order_num = VALUES(order_num), path = VALUES(path),
+                        component = VALUES(component), icon = VALUES(icon),
+                        is_frame = VALUES(is_frame), is_cache = VALUES(is_cache),
+                        menu_type = VALUES(menu_type), visible = VALUES(visible),
+                        status = VALUES(status), perms = VALUES(perms), remark = VALUES(remark);
+
+INSERT INTO sys_role_menu (role_id, menu_id)
+VALUES (1, 2222)
+ON DUPLICATE KEY UPDATE role_id = VALUES(role_id);
+
+-- ---------------------------------------------------------------------------
+-- 5. 页面菜单（A-16 案例库，段 5 G1）
+-- ---------------------------------------------------------------------------
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query,
+                      route_name, is_frame, is_cache, menu_type, visible, status, perms, icon,
+                      create_by, create_time, remark)
+VALUES
+  (2223, '案例库', 2100, 13, 'content/caseLibrary', 'biz/content/caseLibrary/index', NULL,
+   'CaseLibrary', 1, 0, 'C', '0', '0', 'content:caseLibrary:list', 'documentation',
+   'admin', NOW(), '第 5 段 G1：A-16 案例库（四语言 Tab + 法条引用 + 上线门禁）')
+ON DUPLICATE KEY UPDATE menu_name = VALUES(menu_name), parent_id = VALUES(parent_id),
+                        order_num = VALUES(order_num), path = VALUES(path),
+                        component = VALUES(component), icon = VALUES(icon),
+                        is_frame = VALUES(is_frame), is_cache = VALUES(is_cache),
+                        menu_type = VALUES(menu_type), visible = VALUES(visible),
+                        status = VALUES(status), perms = VALUES(perms), remark = VALUES(remark);
+
+INSERT INTO sys_role_menu (role_id, menu_id)
+VALUES (1, 2223)
+ON DUPLICATE KEY UPDATE role_id = VALUES(role_id);

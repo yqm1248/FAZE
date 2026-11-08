@@ -4,6 +4,80 @@
 
 ---
 
+## 2026-11-08 · 第 5 段 E/F/G/H 组施工（结算引擎 + 提现闭环 + 案例库 + 全局搜索 + 收口）
+
+> 把第 5 段从「A~D 组代码落地」推进到 **E~H 组代码全部落地 + 实测通过**。
+> 本轮真打接口、真查库，四组都留了数字证据（见 `docs/acceptance/seg5/PROGRESS-E-H.md` §二）。
+> **`5-A4` / `5-A5` / `5-A7` / `5-A8` 四条锚点本轮实测通过**；`5-A1/A2/A3/A6` 已在 B~D 组轮通过。
+
+### 1. 后端（faze-api）
+
+| 组 | 内容 |
+|---|---|
+| E1 收入入账 | `SettlementService#creditIncome`：完成订单时写 `income` 流水（`balance_after` 记**总余额**、`frozen_until=完成时间+7天`）+ 更新 `lawyer_balance(frozen,total_income)`；挂进段 2 的 `LawyerOrderService#complete` **同一事务** |
+| E2 回补 | `POST /admin/settlements/backfill` + `GET .../backfill/pending`（只读核对先看数，人工确认再补）+ `scripts/repair-lawyer-income.sql`（两条恒等式 + 待补明细 + 零收入历史单清单） |
+| E3 解冻 | `LawyerUnfreezeTask`（`@Scheduled` 10 分钟 → `task_queue` 的 `lawyer_unfreeze` → `unfreezeDue`），`NOT EXISTS` 判重 + `uk_flow_biz` 兜底 |
+| E4 结算批次 | `generate / list / summary / detail / confirm`：订单侧三个数与流水净额**交叉校验**（`settle == income − fee`，不成立整批回滚抛 405026）；同律师同账期幂等跳过；`JS` 单号 |
+| E5 确认不动钱 | `confirm` 只 CAS 改状态 + 审计 `SETTLEMENT_CONFIRM`；**实测确认前后 `lawyer_balance` 与 `balance_flow` 一个字节都没变** |
+| F1 提现申请 | `POST /app/withdrawals`（`Idempotency-Key` 幂等）+ 四条服务端校验（最低额 / 余额 / 绑卡 / 单日 3 笔）+ 手续费 `floor(金额×0.6%)` + 冻结 |
+| F2 提现审核 | PC `list / summary / audit(通过/驳回) / voucher / voucher 预览`；通过必须带凭证、驳回必须填理由；凭证走服务端落盘登记 `file_record(biz_type='withdraw')` |
+| F3 出款/回滚 | `approved → paid`：`frozen -= amount` + `withdraw` 流水（delta=−amount）；驳回：`frozen→available` + `unfreeze` 流水（delta=0） |
+| F4 收款账户 | Luhn + 长度校验（`BankCardValidator`）、实名一致、审计 `WITHDRAW_ACCOUNT_CHANGE`（detail 只留尾号） |
+| G1 案例库 | PC A-16 的 `list / create / detail / save / publish / offline / 批量下架`：大类由细分推导、法条引用逐条回查法条库、上线门禁（源语言四块 + 至少一条引用） |
+| G2 App 案例 | `GET /app/case-library?type=&cursor=&lang=` + 详情（按语言取正文、缺译回退中文、**不返回案号/法院全名**）+ 收藏（复用 `social_action`） |
+| G3 全局搜索 | `GET /app/search?kw=&type=`：律师/文章/案例/文书模板**四域分域返回**，综合页各前 3 条 + 总数；不引入 ES |
+| H1 差异落表 | A-09 巡检新增落 `reconciliation_diff`（`identity_mismatch`），**只写不处置**、同日同主体不重复插、**A-09 页面外观不变** |
+| 资金口径硬约束 | 新增 `LawyerBalanceLocker`：`SELECT ... FOR UPDATE` + `@Version` 双保险，五个动钱点共用 |
+
+### 2. 数据库
+
+| 文件 | 内容 |
+|---|---|
+| `V510__seg5_case_library_and_recon_fix.sql` | ① `case_library.dispute_focus`；② `case_library.plaintiff_name` / `defendant_name`；③ `case_library_translation.dispute_focus`；④ `reconciliation_diff` 放宽 `bill_date`/`channel` 为可空 + 补 7 个恒等式列 + `status` 默认改 `open` |
+| `database/seed/seg5_admin_menu.sql` | 追加 menu_id **2221 律师结算 / 2222 提现审核 / 2223 案例库**（已执行到 `faze_admin`） |
+
+### 3. PC 前端
+
+| 页面 | 要点 |
+|---|---|
+| A-13 律师结算 `trade/settle/index.vue` | 3 统计卡 / 8 列表格 / 生成弹窗 / 明细抽屉（逐单带订单号 + 一致性提示）/ 确认二次确认（文案写明不动钱）/ CSV 导出 / 收入回补入口 |
+| A-10 提现审核 `trade/withdraw/index.vue` | 4 统计卡 / 8 列表格 / 通过弹窗（凭证上传 base64 + 流水号）/ 驳回弹窗（理由）/ 已出款（二次确认）/ 凭证预览（60 秒签名 URL）/ 补传凭证 |
+| A-16 案例库 `content/caseLibrary/index.vue` | 8 列表格（语言 x/4 warning 色）/ 录入抽屉（四语言 Tab + 基本信息/正文/法条引用）/ 法条远程检索 / 上线门禁 / 批量下架 / 导出置灰 |
+
+### 4. APP 前端
+
+| 页面 | 要点 |
+|---|---|
+| **Tab 4 换成「案例」** | `app/(tabs)/case.tsx` 改接 `CaseListPage`；`common.tab.case` 文案 案件 → 案例（工作流 G2 第 1 条口径） |
+| 04 案例列表 `CaseListPage` | 搜索入口 + 渐变 banner + 三分组（民事/行政/刑事）+ 每组游标分页 + 四态 |
+| 19 案例详情 `CaseDetailPage` | 四块正文 + 相关法条（点开查原文弹层）+ 免责声明 + 底部固定栏（收藏 / 我有类似问题）+ 已下架空态 + 缺译提示 |
+| 40 全局搜索 `SearchPage` | 5 类型 Tab + 四域分组 + idle（历史/热门）+ empty（推荐词）+ error + 400ms 防抖 |
+| 66 提现面板 `WithdrawPanel` | 未绑卡先绑（开户行/姓名/卡号）+ 已绑卡填金额 + 全部提现 + 预计到账/手续费提示 + 幂等键复用 |
+
+### 5. 实测（数字）
+
+- **E2**：回补前 `scanned=2, pendingCents=10200` → 回补后 `frozen=10200, total_income=10200`，两条 `income` 流水 `5100/5100`、`frozen_until=2026-11-13`；再跑 `scanned=0`。
+- **E3**：到期后 `available 0→10200 / frozen 10200→0`，两条 `income_unfreeze`（delta=0，`biz_id` 指向 income 流水），`task_queue` 任务 `done`。
+- **E4**：`JS20261108000001 / 2 单 / 收入 12000 / 服务费 1800 / 应结 10200`；`settle == income − fee`；再生成 `skipped=1`。
+- **E5**：confirm 前后 `lawyer_balance = 0/10200/10200/version2`、flow 2 条 Σ=10200 **完全不变**。
+- **F**：申请 → `available 10200→200 / frozen 0→10000`；驳回 → 回到 `10200/0`；通过 → 不动账；出款 → `200/0`、总余额 −10000、流水 `freeze/unfreeze/freeze/withdraw` 四条；10 分提现 `fee=0`；四条校验码 `405023/405027` 实测命中。
+- **G1**：`CL20261108000001 / contract → civil / published / law_refs 1`。
+- **G2**：民事组列表可见；详情四块齐全、无 `courtName`/`courtCaseNo`；收藏 `favorited false→true`；浏览量 0→1。
+- **G3**：`kw=合同` 返回四个域对象（文书域 2 条）；`type=case` 只回 `cases`。
+- **H1**：人造 +100 分差异 → 巡检落 1 行 `expected=10200/actual=10300/diff=100`；修正后 `diffOwners=0` 且不重复插。
+
+### 6. 偏差与未完成（详见 `PROGRESS-E-H.md` §四）
+
+1. **解冻流水 `biz_type` 改为 `income_unfreeze`**（E0 原写 `unfreeze`）：E3 与 F3 的 `biz_id` 分属两张自增表，同 `biz_type` 必然撞 `uk_flow_biz`，会让「提现驳回成功但某笔收入永远解冻不了」。
+2. **`case_library` 实为 24 字段**（计划 21）：补了 `dispute_focus` / `plaintiff_name` / `defendant_name` —— 工作流 G1 要求四块正文与当事人，技术路线 DDL 漏了。
+3. **`reconciliation_diff` 补 7 个恒等式列**并放宽两列为可空（H1 要求与 V507 的渠道对账形状冲突）。
+4. **F2 凭证改为服务端落盘**（原写走 `/app/upload/token` 直传）：管理员 token 走不通 C 端上传入口。
+5. **接口数超清单**：PC 18 → 24、App 23 → 26（统计卡 / 上线下架 / 凭证预览 / 已出款 / 回补核对 / 提现规则）。
+6. **H2 的 `ug-Arab-CN` 未补**：三语言仍为登记式缺译（每语言 1462 key），与段 4 的既有口径一致，段 8 收口时清空 —— 这是本段唯一未完成的 H 组项。
+7. `405024`（余额不足）实测被 `405027` 抢先命中（单日额度已满），校验顺序见偏差 12。
+
+---
+
 ## 2026-11-08 · 第 5 段 C 组（送达）与 D 组（律师工作台）施工
 
 > 把第 5 段从「A/B 组已完成」推进到 **C 组与 D 组代码全部落地**：送达闭环（发起 → 待签收 → 签收 → 回执）、
