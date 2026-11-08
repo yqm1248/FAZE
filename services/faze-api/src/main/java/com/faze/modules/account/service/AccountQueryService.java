@@ -61,4 +61,35 @@ public interface AccountQueryService {
      */
     java.util.Map<Long, com.faze.modules.account.vo.UserBriefVO> mapBriefs(
             java.util.Collection<Long> userIds);
+
+    /**
+     * 取启用中（status=normal 且未软删）的用户 id，按 id 升序，最多 limit 条。
+     *
+     * <p>公告「全量」目标用。limit 由调用方分批（D5：每批 ≤500），
+     * 这里不再分页——分页状态留在调用方，查询层只负责一次取一批。</p>
+     *
+     * @param limit 上限
+     * @return 用户 id 列表
+     */
+    java.util.List<Long> listActiveUserIds(int limit);
+
+    /**
+     * 按角色取启用中的用户 id。
+     *
+     * @param role  角色：user / lawyer / admin
+     * @param limit 上限
+     * @return 用户 id 列表
+     */
+    java.util.List<Long> listUserIdsByRole(String role, int limit);
+
+    /**
+     * 按给定 id 列表取**仍可用**的用户 id（过滤已软删与非 normal）。
+     *
+     * <p>公告「指定用户」目标用：配置里可能写了已注销的 id，发送时要跳过。</p>
+     *
+     * @param ids   候选 id
+     * @param limit 上限
+     * @return 可用用户 id
+     */
+    java.util.List<Long> listUserIdsByIds(java.util.Collection<Long> ids, int limit);
 }

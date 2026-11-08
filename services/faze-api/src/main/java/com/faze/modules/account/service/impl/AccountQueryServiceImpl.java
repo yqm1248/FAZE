@@ -150,6 +150,73 @@ public class AccountQueryServiceImpl implements AccountQueryService {
     }
 
     /**
+     * 取启用中的用户 id。
+     *
+     * @param limit 上限
+     * @return 用户 id 列表
+     */
+    @Override
+    public java.util.List<Long> listActiveUserIds(int limit) {
+        return selectUserIds(null, null, limit);
+    }
+
+    /**
+     * 按角色取启用中的用户 id。
+     *
+     * @param role  角色
+     * @param limit 上限
+     * @return 用户 id 列表
+     */
+    @Override
+    public java.util.List<Long> listUserIdsByRole(String role, int limit) {
+        return selectUserIds(role, null, limit);
+    }
+
+    /**
+     * 按给定 id 取仍可用的用户 id。
+     *
+     * @param ids   候选 id
+     * @param limit 上限
+     * @return 可用用户 id
+     */
+    @Override
+    public java.util.List<Long> listUserIdsByIds(java.util.Collection<Long> ids, int limit) {
+        if (ids == null || ids.isEmpty()) {
+            return java.util.List.of();
+        }
+        return selectUserIds(null, new java.util.ArrayList<>(ids), limit);
+    }
+
+    /**
+     * 统一的用户 id 查询。
+     *
+     * <p>状态口径固定：`status='normal' AND deleted_at IS NULL`——
+     * 公告只发给能正常收消息的账号，封禁/注销的不发（发了用户也看不到）。</p>
+     *
+     * @param role  角色（null 不限）
+     * @param ids   id 白名单（null 不限）
+     * @param limit 上限
+     * @return id 列表
+     */
+    private java.util.List<Long> selectUserIds(String role, java.util.List<Long> ids, int limit) {
+        int capped = Math.max(1, Math.min(limit, 10000));
+        com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<AppUser> wrapper =
+                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<AppUser>()
+                        .select(AppUser::getId)
+                        .eq(AppUser::getStatus, "normal")
+                        .isNull(AppUser::getDeletedAt)
+                        .eq(role != null, AppUser::getRole, role)
+                        .in(ids != null && !ids.isEmpty(), AppUser::getId, ids)
+                        .orderByAsc(AppUser::getId);
+        wrapper.last("LIMIT " + capped);
+        java.util.List<Long> result = new java.util.ArrayList<>();
+        for (AppUser user : accountMapper.selectList(wrapper)) {
+            result.add(user.getId());
+        }
+        return result;
+    }
+
+    /**
      * 手机号脱敏（留前 3 后 4）。
      *
      * @param phone 手机号明文
