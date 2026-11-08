@@ -7,6 +7,9 @@
  *      ConstraintValidator），放在 AuthService 里做——那里的错误码更准确（402009）。
  *   2. `agreementAccepted` 必须是 true：协议勾选是合规要求，不能默认通过。
  *   3. 密码只校验「非空 + 长度」，强度规则在 PasswordPolicy（纯函数，可脱离 Spring 单测）。
+ *   4. **`region` 只校验非空**（第 7 段尾巴）：白名单校验在 `RegionOptionsService`，
+ *      因为它读 `sys_config.user.region_options`——运行时数据，写成注解参数就把
+ *      「加一个县只改配置」的设计废掉了。
  */
 package com.faze.modules.account.bo;
 
@@ -36,6 +39,20 @@ public class RegisterBO {
     @NotBlank(message = "密码不能为空")
     @Size(min = 8, max = 64, message = "密码长度需在 8~64 之间")
     private String password;
+
+    /**
+     * 用户所在地区（第 7 段尾巴新增，**必填**）。
+     *
+     * <p>负责人 2026-11-09 拍板「注册页采集」——不选资料页选填，理由是选填覆盖率太低，
+     * 会让 A-02 看板「地区分布」与「按地区发公告」形同虚设。</p>
+     *
+     * <p>**这里只校验非空**；「是否命中白名单」由 `AuthService` 交给
+     * `RegionOptionsService.assertValid` 做——白名单来自 `sys_config`，是运行时数据，
+     * 不能写成注解参数（那样加一个县就得改代码发版，等于把可配置设计废掉）。</p>
+     */
+    @NotBlank(message = "请选择所在地区")
+    @Size(max = 64, message = "地区名称过长")
+    private String region;
 
     /** 是否未成年人：由用户手动勾选（负责人 2026-11-01 裁决 #10）。 */
     @NotNull(message = "请选择是否未成年")
