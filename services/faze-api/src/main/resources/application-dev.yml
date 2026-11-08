@@ -24,6 +24,10 @@ faze:
   crypto:
     # 身份证号 AES-256-GCM 密钥，必须正好 32 字节；生产由 FAZE_IDCARD_SECRET 提供
     id-card-key: ${FAZE_IDCARD_SECRET:faze-local-idcard-key-32-bytes!!}
+    # 第 6 段：支付渠道密钥（sys_config 里的 ENC(...)）专用密钥，必须正好 32 字节。
+    # **不能与 id-card-key 共用**：一个进审计日志、一个进渠道报文，泄漏面不同。
+    # 生产由 FAZE_CONFIG_SECRET 提供。
+    config-key: ${FAZE_CONFIG_SECRET:faze-local-config-key-32-bytes!!}
   redis:
     # 业务 key 统一前缀；不同环境共用同一 Redis 时靠它隔离
     key-prefix: "faze:"

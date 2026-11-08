@@ -1,0 +1,41 @@
+﻿段 6 A1 验收证据：recharge_record 表结构
+生成时间：2026-11-08（Asia/Shanghai）
+生成命令：mysql --host=127.0.0.1 -uroot faze < 本文件上方 SQL
+库：faze / MySQL 8.0.44
+
+== SHOW CREATE TABLE recharge_record ==
+*************************** 1. row ***************************
+recharge_record
+CREATE TABLE `recharge_record` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `user_id` bigint NOT NULL COMMENT '充值用户 app_user.id',
+  `order_no` varchar(32) NOT NULL COMMENT '平台充值单号，RC + yyyyMMdd + 6 位序号',
+  `channel` varchar(20) NOT NULL COMMENT '支付渠道：wechat / alipay / mock',
+  `channel_txn_id` varchar(64) DEFAULT NULL COMMENT '渠道交易号；回调验签通过后才回填，pending 时为 NULL',
+  `channel_prepay_id` varchar(64) DEFAULT NULL COMMENT '渠道预支付单号：微信 prepay_id / 支付宝 trade_no；回调对不上时反查用',
+  `amount_cents` bigint NOT NULL COMMENT '充值金额（分），整数，禁止浮点',
+  `status` varchar(20) NOT NULL DEFAULT 'pending' COMMENT '状态机：pending 待支付 / success 成功 / failed 渠道失败 / closed 超时关闭；三个终态不可再迁',
+  `paid_at` datetime DEFAULT NULL COMMENT '渠道支付成功时间（UTC）；未成功为 NULL',
+  `expire_at` datetime NOT NULL COMMENT '充值单过期时间（UTC）= 创建时间 + recharge.expire_minutes；超时关单任务按 (status, expire_at) 扫描',
+  `raw_payload` text COMMENT '渠道原始报文（已脱敏：去掉 openid / 卡号尾号等 L4/L5 字段）；只落库，禁止进日志',
+  `created_at` datetime NOT NULL COMMENT '创建时间（UTC，应用层填）',
+  `updated_at` datetime NOT NULL COMMENT '更新时间（UTC，应用层填）',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_recharge_order_no` (`order_no`),
+  UNIQUE KEY `uk_recharge_channel_txn` (`channel`,`channel_txn_id`),
+  KEY `idx_recharge_user` (`user_id`,`created_at`),
+  KEY `idx_recharge_status_expire` (`status`,`expire_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='充值记录（段 6）。财务凭证，只追加状态机、不软删、不物理删；渠道信息全部落本表，不写 payment_record'
+== 字段数 ==
+13
+== 索引 ==
+idx_recharge_status_expire	status,expire_at
+idx_recharge_user	user_id,created_at
+PRIMARY	id
+uk_recharge_channel_txn	channel,channel_txn_id
+uk_recharge_order_no	order_no
+== 迁移记录 ==
+600	recharge record	1
+601	seg6 pay config	1
+== V601 配置键数 ==
+24

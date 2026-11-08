@@ -199,6 +199,31 @@ public enum ErrorCode {
     /** 提现过于频繁（单日笔数超限）。HTTP 200。 */
     TRADE_WITHDRAW_TOO_FREQUENT(405027, 200, "error.trade.withdraw-too-frequent", "提现过于频繁"),
 
+    // ── 交易域 05 段 6 补登（充值 / 支付渠道，《第 6 段工作流》§五 5.5） ─────────
+    /*
+     * 段 6 施工登记（2026-11-08）：405013~405020。
+     * 405012 保持空号：段 2 占 405008~405011、段 5 占 405023~405027，中间的 405012 无用例，
+     * 不复用（复用会让「码 → 文档章节」的追溯断掉）。
+     * ⚠️ 405020 的 msgKey 按《错误码规范》§3.5 原文是 `error.trade.recharge-realbame-required`，
+     *    `realbame` 是拼写错误，这里按 `realname` 落地并与 i18n 文件对齐；已记入 §十一 回写项。
+     */
+    /** 渠道未启用（sys_config 里该渠道 enabled=false，不许静默回退 Mock）。HTTP 200。 */
+    TRADE_CHANNEL_DISABLED(405013, 200, "error.trade.channel-disabled", "该支付渠道未启用"),
+    /** 充值金额超出单笔区间（recharge.min_cents ~ recharge.max_amount_cents）。HTTP 200。 */
+    TRADE_RECHARGE_AMOUNT_INVALID(405014, 200, "error.trade.recharge-amount-invalid", "充值金额超出允许区间"),
+    /** 充值单状态非法，当前操作不允许（非法迁移一律 200 + 本码）。HTTP 200。 */
+    TRADE_RECHARGE_STATE_INVALID(405015, 200, "error.trade.recharge-state-invalid", "充值单状态非法，当前操作不允许"),
+    /** 超出单日充值限额或笔数（不区分维度，避免被试探）。HTTP 200。 */
+    TRADE_RECHARGE_DAILY_LIMIT(405016, 200, "error.trade.recharge-daily-limit", "超出单日充值限额"),
+    /** 支付回调验签失败（安全事件，必须写审计）。HTTP 200。 */
+    TRADE_CALLBACK_SIGN_INVALID(405017, 200, "error.trade.callback-sign-invalid", "支付回调验签失败"),
+    /** 对账存在未处理差异，相关操作需先处理差异。HTTP 200。 */
+    TRADE_RECONCILE_DIFF_PENDING(405018, 200, "error.trade.reconcile-diff-pending", "对账存在未处理差异"),
+    /** 渠道下单失败（prepay 调用失败）。HTTP 200。 */
+    TRADE_CHANNEL_PREPAY_FAILED(405019, 200, "error.trade.channel-prepay-failed", "渠道下单失败"),
+    /** 未实名用户不可充值（是拦截不是限额，App 引导实名）。HTTP 200。 */
+    TRADE_RECHARGE_REALNAME_REQUIRED(405020, 200, "error.trade.recharge-realname-required", "未实名认证，不能充值"),
+
     // ── 内容域 09 段 5 补登（案例库，《错误码规范》§3.9） ────────────────────
     /*
      * 段 5 施工登记（2026-11-08）：409001~409004 已被段 6/段 4 占用，

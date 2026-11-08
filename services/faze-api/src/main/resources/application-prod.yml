@@ -6,6 +6,13 @@
 faze:
   jwt:
     secret: ${FAZE_TOKEN_SECRET}
+  crypto:
+    # 两把密钥都必须由环境变量提供，**不提供默认值**（默认拒绝）。
+    # id-card-key 从段 1 起就是 CryptoService 的必需项，但 prod 此前缺这一段 →
+    # 生产 profile 下 CryptoService 会因占位符解析失败而起不来；段 6 一并补上，
+    # 同时新增 config-key（支付渠道密钥专用，见 infra/crypto/ConfigCipher）。
+    id-card-key: ${FAZE_IDCARD_SECRET}
+    config-key: ${FAZE_CONFIG_SECRET}
   ai:
     # 第 3 段 C1：生产**一律走真实豆包**（mock 只用于本地开发自测）。
     # 显式 false 而不是省略：万一有人把 FAZE_AI_MOCK=true 带进生产环境变量，
