@@ -2425,12 +2425,44 @@ A-25 敏感词  →  A-20 内容审核  →  A-21/A-22 工单  →  A-23/A-24 �
 | 8 | B5：风控（异常注册 + 新设备） | 放 **account 域** `RiskControlService`，违规写入经 ops 的 `UserViolationWriteService` | 若放 ops 会形成 account↔ops 循环依赖（规范 §2.3 第 3 条禁止） | 无（依赖方向单向） |
 | 9 | C2：投诉/反馈生成工单 | 已完成（同事务），并补 `OrderQueryService` 校验「律师投诉必须关联本用户已完成订单」 | trade 域原先没有订单只读接口 | 无 |
 | 10 | D2 测试发送：发给自己站内信 | **改为只返回渲染预览文本**，不写 notification | 操作者是 RuoYi 管理员（`faze_admin.sys_user`），**不在 `faze.app_user` 里**，notification.user_id 无处可写 | 段 8 需补「管理员 → 站内信」身份映射 |
-| 11 | D1 `region` 目标人群 | 接口与发送均**明确不可用**（返回 0 / 抛 401001），不静默发 0 人 | `app_user` 没有 `region` 列（A5 假设「段 1 已有」是错的） | 需段 1 补列后才能启用 |
+| 11 | D1 `region` 目标人群 | **原为「接口与发送均明确不可用（返回 0 / 抛 401001），不静默发 0 人」**；**尾巴已解除（2026-11-09，V707）**：建 `app_user.region`（`VARCHAR(64) NULL`）+ `idx_app_user_region`；`AnnouncementSendService` 的 `region` 分支与 `AdminDashboardService.regions()` **均已接通真实查询**。但该列**无采集点、恒为 NULL** | `app_user` 段 1 没建 `region`（A5 假设「段 1 已有」是错的）；补列只给查询一个列名，**注册流程不收集地区**，资料页也没有该字段 | **当前仍无真实数据**：地区分布只返回一项「其他」（合计 = 未注销用户数）、按地区发送必然 0 人（正常走完 `sent`，不报错）。采集入口（注册页 / 资料页的地区选择器）**段 8 补**，补完才真正可用 |
 | 12 | A4 A-26 操作人列显示名字 | 只返回 `operatorId`，`operatorName` 恒为 null | `operation_log.operator_id` 是 `faze_admin.sys_user.id`（跨库），faze 库无权读 RuoYi 用户表 | 段 8 补「管理员 id → 名字」查询通道 |
 | 13 | A4 清理任务：先归档再删 operation_log | **只归档、不删除**（DELETE 被数据库拒绝时打 WARN） | `faze_app` 对 `operation_log` **刻意只有 SELECT + INSERT**（B 类追加表不可改删），这是安全设计不是缺陷 | 超期清理需人工审批 + 高权限账号执行 |
 | 14 | 段 7 建表后 DB 授权 | **启动失败一次**：`faze_app` 对 11 张新表无权限 → 已手动 GRANT 补上 | `deploy/sync-db-grants.ps1` 是**表级授权**，新建表不会自动继承 | **后续每段建表都要补授权**；建议改成扫 `information_schema` 自动补齐 |
 | 15 | A-26 列表分页形状 | 用 `R<PageResult>`（`list/total/pageNum/pageSize/hasMore`） | 工作流 A4 明确写这个形状；与接口规范「PC 用 TableDataInfo」不一致 | PC 页面按 `res.data.list` 读（ops.js 已注明） |
 | 16 | 本批交付范围 | **A/B/C/D 的后端全部完成 + PC 端 6 页**（A-25/A-20/A-21/A-22/A-23/A-24）+ 菜单种子；**C5 的 APP 4 页、E/F/G/H 组未做** | 按负责人「先做到 D 组」的指令，APP 页面（C5）与段 7 的 E~H 组顺延 | C5 未做则 `7-A5`「App 能看到回复」只有服务端证据，无界面证据 |
+| 17 | 段 7 告警通道（原计划：钉钉群机器人；`alert.dingtalk_webhook` / `alert.dingtalk_secret` 两键 V703 已建、值为空串） | **本段不实现任何发送通道**：按**文件口径维持钉钉**（两键值为空串），`TicketSlaScanTask` 在 webhook 为空时**只打 WARN 日志、不发送**。**负责人 2026-11-09 明确：邮箱方案留备注、段 8 处理；本段不改任何 `alert.*` 键与发送代码。**（邮件评估要点见下方「备选方案记录」） | 通道选型本段不做决定：按既有文档口径**维持钉钉**，邮件方案仅作备选记录备查 | **本段没有任何真实告警出口**——超时工单只在服务端打 WARN 日志，运营侧完全看不到。**段 8 必须落地一条通道**，否则 `7-A8`「告警真的响」永远没有证据 |
+| 18 | **D1 公告目标人群状态口径笔误（已修）** | `AccountQueryServiceImpl.selectUserIds` 的 `status='normal'` → `'active'`（2026-11-09，常量 `STATUS_ACTIVE`）；新增的 `listUserIdsByRegion` 同口径 | 库内 `app_user.status` 自 `V1__baseline.sql` L32 起只有 `active / blocked / cancelled`（`DEFAULT 'active'`），**`normal` 恒 0 行**；`NORMAL/BANNED/CANCELLED` 只是管理端出参枚举（`AdminUserService.toDbAccountStatus` 才翻回小写）。导致公告「全量 / 按角色 / 指定用户」三种目标**全部静默发 0 人**（接口 200、状态 `sent`、触达 0，看起来一切正常） | 无（已修）。实测：修前 `estimate?targetType=all` = `0`，修后 = `6`；`role=lawyer`=1、`role=user`=4、`user_ids=[1,3]`=2。**这条要写进 CHANGELOG 的 Fix 段** |
+| 19 | **看板「地区分布」与公告「按地区」的口径差** | 看板 `DashboardMapper.selectRegions` 只过滤 `deleted_at IS NULL`（不过滤 `status`）；公告可发人群过滤 `status='active'` | 看板沿用 `countNewUsers` 的口径（是否注销看 `deleted_at`）；于是 `cancelled` 但未软删的用户**会计入看板、却收不到公告**。当前库内差 1 人（`app_user` 共 7 行，`active` 6 + `cancelled` 1） | 段 8 决定是否把看板也加上 `status` 过滤；两种口径都能自圆其说，但**不能一直并存而不写** |
+
+### 备选方案记录：邮件告警（仅供段 8 参考，不改口径）
+
+> **本文档的既定口径仍是钉钉**；以下邮件评估仅作为段 8 的参考记录，**不改口径**。
+> **本节只是备注，不含任何实现**：`alert.*` 配置键、`TicketSlaScanTask`、任何发送代码本段都**未改动**。
+> 负责人 2026-11-09 明确：**邮箱方案留备注、段 8 处理**（参考实现见监控系统 `wgcloud` 的邮件告警）。
+
+**评估对象**：以 **QQ 邮箱 SMTP** 作为告警出口（**备选，非拟采用**）。评估结论：**技术上可行**——
+零第三方 SDK、不依赖企业主体、不依赖建群与加签；代价是**必须自己补齐可靠性兜底**（见下表 8 条）。
+
+**技术栈硬约束**：SB4 + `spring-boot-starter-mail`（Jakarta Mail 2.x）。
+`commons-email` 1.5 与 `javax.mail` 在 Jakarta EE 10 下**包名已不存在，直接编译不过**——
+参考实现只能抄设计（配置入库、测试发送、连续 N 次、静默窗口、恢复通知），**不能抄代码**。
+
+段 8 落地时必须包含以下 8 条，**少一条就会出现「告警发了但没人看到」**：
+
+| # | 要点 | 为什么必须有 |
+|---|---|---|
+| 1 | **QQ 邮箱 SMTP**（`smtp.qq.com`，465/SSL 或 587/STARTTLS；凭据是**授权码**，不是登录密码） | 授权码属密钥，**必须走环境变量，不许进仓库、不许入库**（《后端代码规范》§九） |
+| 2 | **`spring-boot-starter-mail`**（Jakarta Mail 2.x） | SB4 配套；`commons-email` / `javax.mail` 在 Jakarta EE 10 下编译不过。新增依赖要登记《依赖清单》 |
+| 3 | **连续 N 次才告警** | 单次抖动就发信会刷满邮箱；与「静默窗口」是**两层**过滤，不能互相替代 |
+| 4 | **恢复通知** | 只发「出事了」不发「好了」，运维无法判断是否已恢复 |
+| 5 | **暂停开关** | 出问题时的临时止血手段，不能靠改代码发版 |
+| 6 | **异步 + 三项超时 + 重试** | 同步发送且不设 `connectiontimeout` / `timeout` / `writetimeout` 会**永久挂死**告警线程（JavaMail 这三项默认无限） |
+| 7 | **发送结果落库**（如 `alert_record`） | SMTP 只保证「交付到对方服务器」，**不保证进收件箱**。不落库就无法回答「这条告警到底发出去没有」 |
+| 8 | **每日自检 + 本地降级** | 邮件可能进垃圾箱、可能被 QQ 限流（约 50 封/时、200 封/天，经验值）；且**失败是静默的**。必须每日发一封自检信，失败时降级写 `logs/alerts/` |
+
+**段 8 同时要收的尾**：`alert.dingtalk_webhook` / `alert.dingtalk_secret` 两键若最终确定不用，
+应新增一个迁移把它们删除或标记废弃——**本段不许改**（V703 已执行，且选型未定）。
 
 ---
 

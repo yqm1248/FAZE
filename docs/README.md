@@ -260,15 +260,17 @@ docs/
 | [acceptance/seg6/E2-e2e.txt](acceptance/seg6/E2-e2e.txt) | **E2**：下单 → 模拟支付 → 入账 → 查余额 → 对账 一条连贯 8 步走查 |
 | [acceptance/seg6/挂账.md](acceptance/seg6/挂账.md) | 三张挂账锚点 + 未完成任务 + 负责人三项裁决 + **本次暴露的 4 个真 bug** |
 
-## 段 7 验收证据（运营与治理收口 · A~D 组）
+## 段 7 验收证据（运营与治理收口 · A~D 组 + C5 + 尾巴补漏）
 
-> **本段 A~D 组已交付**（后端 + PC 端 6 页）；E~H 组（APP 设置页 / 看板页面 / 监控告警 / 收口）顺延，
-> 逐条偏差见《[第 7 段工作流](architecture/法泽FAZE_第7段工作流_v1.0.md)》§十一 的 16 条记录。
+> **本段 A~D 组 + C5（APP 客服 4 页）+ 尾巴补漏均已交付**（后端 + PC 端 6 页 + APP 4 页）；
+> E~H 组（APP 设置页 / 看板页面 / 监控告警 / 收口）顺延，
+> 逐条偏差见《[第 7 段工作流](architecture/法泽FAZE_第7段工作流_v1.0.md)》§十一 的 **19 条**记录。
 
 | 证据 | 说明 |
 | --- | --- |
 | [acceptance/seg7/A1-schema.txt](acceptance/seg7/A1-schema.txt) | A1：11 张表 `SHOW CREATE` 全量 + 字段数/索引清单 + 种子计数 + **V703 跑 3 遍仍 50/7/6**（幂等） |
 | [acceptance/seg7/A-02-指标口径.md](acceptance/seg7/A-02-指标口径.md) | A5：10 个指标逐条给「定义 / 算法 SQL / 数据来源 / 边界 / 已知局限」（`7-A10` 的正面证据） |
+| [acceptance/seg7/C5-前端4页.md](acceptance/seg7/C5-前端4页.md) | C5：APP 55/56/57/58 四页的 CDP 真实浏览器验收（390×844）+ 逐条验收点 + 真实点击提交证据 + 6 条偏离 |
 
 **A~D 组端到端实测结果（2026-11-09）**：
 
@@ -280,6 +282,20 @@ docs/
 - **A4/A5** 看板 4 接口与日志中心 2 接口均 200（`summary` 含环比，`trends` 缺日补 0）。
 - **D1/D5** 公告 / 模板接口 200；发送链路按「解析目标 → 排除已发 → 分批 500 → 原子计数」实现。
 - **PC 端** 6 页 + `seg7_admin_menu.sql`（2230~2235）已执行进 `faze_admin`，菜单可见。
+
+**C5 + 尾巴补漏实测结果（2026-11-09，第二轮）**：
+
+- **C5 四页**（APP 55/56/57/58）在真实 Chrome 390×844 下逐页验收：FAQ 7 条全部来自库、
+  折叠答案按 `\n` 分行、客服电话从 `sys_config` 读且可点拨号、非服务时段自动切「已下班/留言」；
+  57 真实点击提交 → 「已提交，单号 **TK20261109000007**」，58 → 「已提交，感谢你的反馈」。
+- **V707**：`app_user` 22→23 列（`region VARCHAR(64)` + `idx_app_user_region`），
+  `sys_config.service.phone` 占位号 → **正式号 `002-00854967`**。
+- **`GET /pub/app/config`**：`{"onlineHours":"09:00-20:00","phone":"002-00854967"}`。
+- **`GET /admin/dashboard/regions`**：返回一项「其他」（region 全 NULL，符合预期，不是空态）。
+- ⚠️ **修掉一个静默 bug**：`AccountQueryServiceImpl.selectUserIds` 用 `status='normal'` 查库
+  （库内只有 `active/blocked/cancelled`），导致公告「全量 / 按角色 / 指定用户」三种目标
+  **一直发 0 人而接口照样 200**。修为 `active` 后 `estimate(all)` 由 `0` 变 `6`。见 §十一 第 18 条。
+- 后端测试 **489/489**；前端 `tsc` / `eslint` / `check:rawtext` / `check:i18n` 全绿。
 
 锚点结论：`5-A1`~`5-A8` **8/8 通过**。三条与计划口径不同的地方必须一起看：
 ① 解冻流水 `biz_type` 是 `income_unfreeze`（不是 `unfreeze`）、`balance_flow.biz_type` 共 **5 值**；

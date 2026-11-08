@@ -4,6 +4,53 @@
 
 ---
 
+## 2026-11-09 · 第 7 段尾巴：C5 APP 客服 4 页 + region / 客服电话补漏 + **一个静默 bug**
+
+**做了什么**：补齐段 7 C5（APP 55/56/57/58 四页），并收掉 A~D 组遗留的两处数据缺口
+（`app_user.region` 缺失、客服电话占位号），过程中**挖出一个「公告发 0 人却不报错」的真缺陷并修掉**。
+
+| 范围 | 内容 |
+|---|---|
+| C5 APP 4 页 | `features/ops/pages/` 下 `SupportPage`（55 客服中心）/ `FaqPage`（56 常见问题）/ `ComplaintPage`（57 投诉）/ `FeedbackPage`（58 反馈）+ 4 个路由壳 + `features/ops/api/*` + `features/ops/types.ts`；「我的」页新增「我的与服务」分组入口 |
+| i18n | `zh-Hans/ops.json` 新写 `ops.support.*` / `ops.faq.*` / `ops.complaint.*` / `ops.feedback.*`（约 60 key）；另 3 语言缺译走既有 `.i18n-pending.json` 登记（段 7 允许的降级） |
+| 后端接口 | 新增 `GET /api/v1/pub/app/config`（免登录，聚合返回客服时段 + 电话，避免逐键读 `/pub/config/{key}`） |
+| 迁移 | `V707__seg7_region_and_service_phone.sql`：`app_user` 加 `region VARCHAR(64)` + `idx_app_user_region`；`sys_config.service.phone` 占位号 `0999-XXXXXXX` → 正式号 `002-00854967`（幂等：information_schema 判断 + PREPARE/EXECUTE） |
+| region 链路 | `AppUser.region` 字段；`AccountQueryService.listUserIdsByRegion`；`DashboardMapper.selectRegions`（前 5 + 合并「其他」，NULL/空串归「其他」）；`AdminDashboardService.regions()` 接通真实查询；`AnnouncementSendService` 的 region 分支从「硬抛错」改为真实查库 |
+| 上传白名单 | `StorageKeyRules.ALLOWED_SCENES` 与 `KEY_PATTERN` 同步新增 `complaint` / `feedback` 两个 scene；前端 `UploadScene` 同步（两边少一个就 400） |
+
+### Fix：公告「全量 / 按角色 / 指定用户」三种目标**全部静默发 0 人**
+
+`AccountQueryServiceImpl.selectUserIds` 用 `status='normal'` 查库，而 `app_user.status` 自
+`V1__baseline.sql` L32 起只有 `active / blocked / cancelled` —— `normal` 恒为 0 行。
+
+后果：公告发送接口返回 200、`status=sent`、`reach_count=0`，**看起来完全正常**，
+实际一个人都没发到。`NORMAL/BANNED/CANCELLED` 只是管理端**出参**枚举，
+由 `AdminUserService.toDbAccountStatus` 翻译回库内取值，不能直接拿去查库。
+
+已修为 `active`。证据：修前 `SELECT COUNT(*) ... WHERE status='normal'` = **0**；
+修后 `estimate(all)` = **6**（= `status='active' AND deleted_at IS NULL` 的实际行数），
+`role=lawyer`=1 / `role=user`=4 / `user_ids=[1,3]`=2。记 §十一 第 18 条。
+
+### 验收
+
+| 项 | 结果 |
+|---|---|
+| 4 页浏览器渲染（CDP 真实 Chrome，390×844） | 全部通过；截图与逐条验收点见 `docs/acceptance/seg7/C5-前端4页.md` |
+| 57 提交 | 真实点击 → 「已提交，单号 **TK20261109000007**」 |
+| 58 提交 | 真实点击 → 「已提交，感谢你的反馈」 |
+| `GET /pub/app/config` | `{"onlineHours":"09:00-20:00","phone":"002-00854967"}` |
+| `GET /admin/dashboard/regions` | `{"list":[{"count":"6","name":"其他"}]}`（region 全 NULL，只有「其他」一项，符合预期） |
+| Flyway V707 | success=1，`app_user` 22→23 列、索引 3→4（未超单表 6 个上限） |
+| 后端测试 | **489 / 489 通过**（原 479 + 本次 10） |
+| 前端门禁 | `tsc --noEmit` / `eslint` / `check:rawtext`（170 tsx 命中 0）/ `check:i18n` 全部通过 |
+
+**未做（仍在段 8）**：E/F/G/H 组（设置页 / A-02 看板页 / A-26 日志中心页 / 监控告警 / 收口）；
+`app_user.region` **无采集点**（恒为 NULL，地区分布只有「其他」、按地区发送必然 0 人，
+采集入口留给段 8）；告警通道按文件口径**维持钉钉**、邮件方案仅留备注。
+偏差见《第 7 段工作流》§十一（第 11/17/18/19 条）。
+
+---
+
 ## 2026-11-09 · 第 7 段 A~D 组交付（后端 + PC 6 页）
 
 **做了什么**：按第 7 段工作流的 8 组任务，完成 **A/B/C/D 四组的后端全部**与 **PC 端 6 页**。
