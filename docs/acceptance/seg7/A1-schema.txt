@@ -1,0 +1,322 @@
+段 7 A1 验收证据 · 11 张表结构（SHOW CREATE 全量）
+生成时间：2026-11-08（UTC 2026-11-08 23:26:45 本地）
+生成方式：mysqldump --no-data --skip-comments（11 张表）
+依据：第 7 段工作流 §三 A1 算做完第 5 条
+============================================================================
+
+
+/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
+/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
+/*!50503 SET NAMES utf8mb4 */;
+/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
+/*!40103 SET TIME_ZONE='+00:00' */;
+/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
+/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
+/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
+/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
+DROP TABLE IF EXISTS `notification`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `notification` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `user_id` bigint NOT NULL COMMENT '接收用户 app_user.id',
+  `type` varchar(30) NOT NULL COMMENT '通知类型：system / order / im / case / promotion',
+  `title` varchar(100) NOT NULL COMMENT '标题（已渲染，不再含模板变量）',
+  `content` varchar(500) DEFAULT NULL COMMENT '正文（已渲染；VARCHAR 500 是上限，超长由发送方截断）',
+  `biz_type` varchar(30) DEFAULT NULL COMMENT '业务类型：announcement / ticket / order / review，用于列表筛选与打开率回写',
+  `biz_id` bigint DEFAULT NULL COMMENT '业务主键：公告 id / 工单 id / 订单 id；biz_type + biz_id 联合定位',
+  `is_read` tinyint NOT NULL DEFAULT '0' COMMENT '是否已读：0 未读 / 1 已读',
+  `read_at` datetime DEFAULT NULL COMMENT '首次已读时间（UTC）；公告打开率只在 0→1 时 +1',
+  `created_at` datetime NOT NULL COMMENT '创建时间（UTC，应用层填）',
+  `updated_at` datetime NOT NULL COMMENT '更新时间（UTC，应用层填）',
+  `deleted_at` datetime DEFAULT NULL COMMENT '软删时间（UTC）；NULL 为未删',
+  PRIMARY KEY (`id`),
+  KEY `idx_notification_user` (`user_id`,`is_read`,`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='站内通知；每人一行，公告批次统计在 announcement 上累计';
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `complaint`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `complaint` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `user_id` bigint NOT NULL COMMENT '投诉人 app_user.id',
+  `target_type` varchar(20) DEFAULT NULL COMMENT '投诉对象类型：lawyer / order / platform',
+  `target_id` bigint DEFAULT NULL COMMENT '投诉对象主键；target_type=lawyer 时必须是已完成订单 id（工作流 C2 校验）',
+  `reason` varchar(500) NOT NULL COMMENT '投诉原因与诉求（≤500 字，原文不改）',
+  `images` json DEFAULT NULL COMMENT '截图 oss_key 数组（≤3 张）',
+  `status` varchar(20) NOT NULL DEFAULT 'pending' COMMENT '处理状态：pending / processing / resolved / rejected',
+  `handler_id` bigint DEFAULT NULL COMMENT '处理人（管理员 app_user.id）',
+  `result` varchar(500) DEFAULT NULL COMMENT '处理结果说明（给用户看）',
+  `created_at` datetime NOT NULL COMMENT '创建时间（UTC，应用层填）',
+  `updated_at` datetime NOT NULL COMMENT '更新时间（UTC，应用层填）',
+  `deleted_at` datetime DEFAULT NULL COMMENT '软删时间（UTC）；NULL 为未删',
+  PRIMARY KEY (`id`),
+  KEY `idx_complaint_user` (`user_id`,`created_at`),
+  KEY `idx_complaint_status` (`status`,`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='用户投诉；提交时同事务生成 service_ticket（裁决 23）';
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `feedback`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `feedback` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `user_id` bigint NOT NULL COMMENT '反馈人 app_user.id',
+  `type` varchar(30) DEFAULT NULL COMMENT '反馈类型：feature / bug / experience / other',
+  `content` varchar(500) NOT NULL COMMENT '具体情况（稿面「选填」，但表上 NOT NULL——空时由服务端填类型中文标签，保证 title 有值）',
+  `images` json DEFAULT NULL COMMENT '截图 oss_key 数组（≤3 张，选填）',
+  `contact` varchar(50) DEFAULT NULL COMMENT '联系方式（手机号，选填；落库前不脱敏，出参脱敏）',
+  `status` varchar(20) NOT NULL DEFAULT 'pending' COMMENT '处理状态：pending / processing / resolved / rejected',
+  `created_at` datetime NOT NULL COMMENT '创建时间（UTC，应用层填）',
+  `updated_at` datetime NOT NULL COMMENT '更新时间（UTC，应用层填）',
+  `deleted_at` datetime DEFAULT NULL COMMENT '软删时间（UTC）；NULL 为未删',
+  PRIMARY KEY (`id`),
+  KEY `idx_feedback_status` (`status`,`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='意见反馈；提交时同事务生成 service_ticket（裁决 23）';
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `faq`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `faq` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `category` varchar(30) DEFAULT NULL COMMENT '分类：account / pay / lawyer / case（账号/支付/律师/立案）',
+  `question` varchar(200) NOT NULL COMMENT '问题标题',
+  `answer` text NOT NULL COMMENT '答案正文（支持 \n 换行，前端按行渲染）',
+  `lang` varchar(20) DEFAULT 'zh-Hans' COMMENT '语种：zh-Hans / bo / ug-Arab-CN / kk-Arab-CN',
+  `sort_order` int DEFAULT '0' COMMENT '同分类内排序，升序',
+  `status` varchar(20) DEFAULT 'active' COMMENT '状态：active 启用 / disabled 停用',
+  `created_at` datetime NOT NULL COMMENT '创建时间（UTC，应用层填）',
+  `updated_at` datetime NOT NULL COMMENT '更新时间（UTC，应用层填）',
+  PRIMARY KEY (`id`),
+  KEY `idx_faq_category` (`category`,`status`,`sort_order`)
+) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='常见问题；APP 55/56 两页的数据源，改库即生效';
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `user_violation`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `user_violation` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `user_id` bigint NOT NULL COMMENT '被处罚主体 app_user.id',
+  `user_type` varchar(10) NOT NULL DEFAULT 'user' COMMENT '主体类型：user 普通用户 / lawyer 律师',
+  `violation_type` varchar(30) NOT NULL COMMENT '违规类型（业务码，与审计动作码分开）',
+  `level` varchar(20) NOT NULL COMMENT '处罚级别：warning 警告 / restrict 限流 / suspend 暂停接单 / ban 封禁',
+  `reason` varchar(500) NOT NULL COMMENT '处罚原因（给用户看的摘要，登录被拒时回显）',
+  `evidence` json DEFAULT NULL COMMENT '证据快照：content_review_id / 工单号 / 命中词等',
+  `start_at` datetime NOT NULL COMMENT '生效时间（UTC）',
+  `end_at` datetime DEFAULT NULL COMMENT '失效时间（UTC）；NULL = 永久',
+  `operator_id` bigint NOT NULL COMMENT '操作管理员 app_user.id（审计四要素之「谁」）',
+  `revoked_at` datetime DEFAULT NULL COMMENT '撤销时间（UTC）；解封时置位',
+  `revoke_reason` varchar(500) DEFAULT NULL COMMENT '撤销原因',
+  `created_at` datetime NOT NULL COMMENT '创建时间（UTC，应用层填）',
+  `updated_at` datetime NOT NULL COMMENT '更新时间（UTC，应用层填）',
+  PRIMARY KEY (`id`),
+  KEY `idx_violation_user` (`user_id`,`start_at`),
+  KEY `idx_violation_active` (`user_type`,`level`,`end_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='违规与处罚记录；只追加，撤销置 revoked_at 不删行';
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `notify_template`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `notify_template` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `template_code` varchar(50) NOT NULL COMMENT '模板编码（业务方按码取模板，如 order_paid / ticket_replied）',
+  `lang` varchar(20) NOT NULL COMMENT '语种：zh-Hans / bo / ug-Arab-CN / kk-Arab-CN',
+  `title` varchar(200) NOT NULL COMMENT '标题模板，变量形如 {{userName}}（禁位置参数）',
+  `content` varchar(1000) NOT NULL COMMENT '正文模板，变量形如 {{orderNo}}',
+  `channel` varchar(50) NOT NULL DEFAULT 'inapp' COMMENT '渠道：inapp / push / sms',
+  `status` varchar(20) NOT NULL DEFAULT 'active' COMMENT '状态：active 启用 / disabled 停用（删除即停用，不物理删）',
+  `created_at` datetime NOT NULL COMMENT '创建时间（UTC，应用层填）',
+  `updated_at` datetime NOT NULL COMMENT '更新时间（UTC，应用层填）',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_notify_tpl` (`template_code`,`lang`),
+  KEY `idx_notify_tpl_code` (`template_code`,`status`)
+) ENGINE=InnoDB AUTO_INCREMENT=19 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='通知模板，按语言分条；删除为软停用，避免已发通知断链';
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `sensitive_word`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `sensitive_word` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `word` varchar(100) NOT NULL COMMENT '词条原文（子串匹配，不分词）',
+  `category` varchar(30) NOT NULL COMMENT '分类：POLITICS / VIOLENCE / PORN / FRAUD / ILLEGAL',
+  `level` varchar(20) NOT NULL COMMENT '级别：block 拦截 / review 送审 / warn 仅记录',
+  `lang` varchar(20) NOT NULL DEFAULT 'zh-Hans' COMMENT '语种：zh-Hans / bo / ug-Arab-CN / kk-Arab-CN',
+  `source` varchar(50) DEFAULT NULL COMMENT '来源：manual 手工 / import 导入 / legal 法律行业禁语',
+  `enabled` tinyint NOT NULL DEFAULT '1' COMMENT '是否启用：1 启用 / 0 停用（删除为物理删，停用走本字段）',
+  `hit_count` bigint NOT NULL DEFAULT '0' COMMENT '累计命中次数（异步批量 +1，不阻塞主流程）',
+  `last_hit_at` datetime DEFAULT NULL COMMENT '最近一次命中时间（UTC）；A-25「最近命中」列',
+  `created_by` bigint DEFAULT NULL COMMENT '创建管理员 app_user.id',
+  `created_at` datetime NOT NULL COMMENT '创建时间（UTC，应用层填）',
+  `updated_at` datetime NOT NULL COMMENT '更新时间（UTC，应用层填）',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_word_lang` (`word`,`lang`),
+  KEY `idx_word_category` (`category`,`level`,`enabled`),
+  KEY `idx_word_level_lang` (`level`,`lang`,`enabled`)
+) ENGINE=InnoDB AUTO_INCREMENT=151 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='本地敏感词库；Trie 引擎启动时全量加载 enabled=1 的词';
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `content_review`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `content_review` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `biz_type` varchar(30) NOT NULL COMMENT '业务类型：im_message / review / article_comment / ai_message / complaint / feedback',
+  `biz_id` bigint NOT NULL COMMENT '业务主键（指向原表行 id）',
+  `hit_words` json DEFAULT NULL COMMENT '命中词数组：[{word, level, category, start, end}]',
+  `hit_snippet` varchar(500) DEFAULT NULL COMMENT '命中词前后各 40 字的片段（已脱敏，非全文）',
+  `level` varchar(20) NOT NULL COMMENT '本次命中的最高级别：block / review / warn',
+  `engine` varchar(30) DEFAULT NULL COMMENT '判定引擎：local_trie（本段唯一实现）',
+  `biz_user_id` bigint DEFAULT NULL COMMENT '被审核内容的作者 app_user.id（A-20 按用户筛选）',
+  `reviewer_id` bigint DEFAULT NULL COMMENT '处置管理员 app_user.id',
+  `review_result` varchar(20) DEFAULT 'pending' COMMENT '处置结果：pending / ignored / warned / banned',
+  `reviewed_at` datetime DEFAULT NULL COMMENT '处置时间（UTC）',
+  `created_at` datetime NOT NULL COMMENT '创建时间（UTC，应用层填）',
+  PRIMARY KEY (`id`),
+  KEY `idx_review_biz` (`biz_type`,`biz_id`),
+  KEY `idx_review_pending` (`review_result`,`created_at`),
+  KEY `idx_review_user` (`biz_user_id`,`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='内容审核命中记录；原文不修改，只做标注';
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `service_ticket`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `service_ticket` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `ticket_no` varchar(32) NOT NULL COMMENT '对外工单号：TK + yyyyMMdd + 6 位序号',
+  `user_id` bigint NOT NULL COMMENT '提交人 app_user.id',
+  `agent_id` bigint DEFAULT NULL COMMENT '受理管理员 app_user.id；NULL = 未分配',
+  `conversation_id` bigint DEFAULT NULL COMMENT '关联会话 id（客服留言场景，可为空）',
+  `category` varchar(30) DEFAULT NULL COMMENT '工单类型：complaint / feedback / service',
+  `title` varchar(200) NOT NULL COMMENT '标题：投诉取 reason 前 50 字 / 反馈取 content 前 50 字 / 留言取用户填',
+  `priority` varchar(10) NOT NULL DEFAULT 'normal' COMMENT '优先级：low / normal / high / urgent',
+  `status` varchar(20) NOT NULL DEFAULT 'waiting' COMMENT '状态机：waiting / processing / replied / closed；closed 不可回退',
+  `sla_due_at` datetime NOT NULL COMMENT 'SLA 到期时间（UTC）= created_at + ticket.sla_hours（默认 24h）；落库便于索引与超时扫描',
+  `closed_at` datetime DEFAULT NULL COMMENT '关闭时间（UTC）',
+  `created_at` datetime NOT NULL COMMENT '创建时间（UTC，应用层填）',
+  `updated_at` datetime NOT NULL COMMENT '更新时间（UTC，应用层填）',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_ticket_no` (`ticket_no`),
+  KEY `idx_ticket_status` (`status`,`created_at`),
+  KEY `idx_ticket_agent` (`agent_id`,`status`),
+  KEY `idx_ticket_sla` (`status`,`sla_due_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='客服工单；投诉/反馈提交时同事务生成';
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `announcement`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `announcement` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `announcement_no` varchar(32) NOT NULL COMMENT '公告编号：AN + yyyyMMdd + 6 位序号',
+  `title` varchar(200) NOT NULL COMMENT '公告标题',
+  `content` text NOT NULL COMMENT '公告正文（纯文本，换行保留；不做富文本）',
+  `target_type` varchar(20) NOT NULL DEFAULT 'all' COMMENT '目标人群类型：all 全量 / role 按角色 / region 按地区 / user_ids 指定用户',
+  `target_value` json DEFAULT NULL COMMENT '目标人群参数：role={"role":"lawyer"}；region={"regions":["伊宁市"]}；user_ids={"userIds":[1,2]}；all 为 NULL',
+  `channels` json NOT NULL COMMENT '发送渠道数组：["inapp"] 必选，可选 "push" / "sms"，如 ["inapp","push"]',
+  `status` varchar(20) NOT NULL DEFAULT 'draft' COMMENT '状态机：draft 草稿 / scheduled 定时待发 / sending 发送中 / sent 已发送（不可回退） / failed 部分失败可重试',
+  `scheduled_at` datetime DEFAULT NULL COMMENT '定时发送时间（UTC）；立即发送为 NULL',
+  `sent_at` datetime DEFAULT NULL COMMENT '实际发送完成时间（UTC）',
+  `reach_count` int NOT NULL DEFAULT '0' COMMENT '触达数：实际写入 notification 的条数（分批累加）',
+  `open_count` int NOT NULL DEFAULT '0' COMMENT '打开数：用户首次点开时 +1（D3 的 read 接口回写）',
+  `created_by` bigint NOT NULL COMMENT '创建管理员 app_user.id',
+  `created_at` datetime NOT NULL COMMENT '创建时间（UTC，应用层填）',
+  `updated_at` datetime NOT NULL COMMENT '更新时间（UTC，应用层填）',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_announcement_no` (`announcement_no`),
+  KEY `idx_announcement_status` (`status`,`scheduled_at`),
+  KEY `idx_announcement_sent` (`sent_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='公告批次主表；一条公告一行，触达/打开数在此累计';
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `sensitive_word_appeal`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `sensitive_word_appeal` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `user_id` bigint NOT NULL COMMENT '申诉人 app_user.id（必须 = content_review.biz_user_id，IDOR 防护）',
+  `content_review_id` bigint NOT NULL COMMENT '被误判的命中记录 content_review.id',
+  `appeal_reason` varchar(500) NOT NULL COMMENT '申诉理由（用户填写，≤500 字）',
+  `status` varchar(20) NOT NULL DEFAULT 'pending' COMMENT '状态机：pending 待复核 / accepted 通过申诉 / rejected 维持原判',
+  `handler_id` bigint DEFAULT NULL COMMENT '复核管理员 app_user.id',
+  `handle_reason` varchar(500) DEFAULT NULL COMMENT '复核说明（给用户看）',
+  `handled_at` datetime DEFAULT NULL COMMENT '复核时间（UTC）',
+  `created_at` datetime NOT NULL COMMENT '创建时间（UTC，应用层填）',
+  `updated_at` datetime NOT NULL COMMENT '更新时间（UTC，应用层填）',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_appeal_review` (`content_review_id`),
+  KEY `idx_appeal_status` (`status`,`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='敏感词误判申诉；一条命中记录只能申诉一次';
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
+
+/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
+/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
+/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
+/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
+/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
+/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
+/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
+
+
+============================================================================
+一、字段数 / 索引数核对（期望值见工作流 A1）
+============================================================================
+announcement	15
+complaint	12
+content_review	12
+faq	9
+feedback	10
+notification	12
+notify_template	9
+sensitive_word	12
+sensitive_word_appeal	10
+service_ticket	13
+user_violation	14
+
+二、索引清单
+============================================================================
+announcement	idx_announcement_sent	sent_at
+announcement	idx_announcement_status	status,scheduled_at
+announcement	PRIMARY	id
+announcement	uk_announcement_no	announcement_no
+complaint	idx_complaint_status	status,created_at
+complaint	idx_complaint_user	user_id,created_at
+complaint	PRIMARY	id
+content_review	idx_review_biz	biz_type,biz_id
+content_review	idx_review_pending	review_result,created_at
+content_review	idx_review_user	biz_user_id,created_at
+content_review	PRIMARY	id
+faq	idx_faq_category	category,status,sort_order
+faq	PRIMARY	id
+feedback	idx_feedback_status	status,created_at
+feedback	PRIMARY	id
+notification	idx_notification_user	user_id,is_read,created_at
+notification	PRIMARY	id
+notify_template	idx_notify_tpl_code	template_code,status
+notify_template	PRIMARY	id
+notify_template	uk_notify_tpl	template_code,lang
+sensitive_word	idx_word_category	category,level,enabled
+sensitive_word	idx_word_level_lang	level,lang,enabled
+sensitive_word	PRIMARY	id
+sensitive_word	uk_word_lang	word,lang
+sensitive_word_appeal	idx_appeal_status	status,created_at
+sensitive_word_appeal	PRIMARY	id
+sensitive_word_appeal	uk_appeal_review	content_review_id
+service_ticket	idx_ticket_agent	agent_id,status
+service_ticket	idx_ticket_sla	status,sla_due_at
+service_ticket	idx_ticket_status	status,created_at
+service_ticket	PRIMARY	id
+service_ticket	uk_ticket_no	ticket_no
+user_violation	idx_violation_active	user_type,level,end_at
+user_violation	idx_violation_user	user_id,start_at
+user_violation	PRIMARY	id
+
+三、种子数据条数（跑 3 遍 V703 后的值，验证幂等）
+============================================================================
+sensitive_word	50
+faq	7
+notify_template	6
+sys_config(本段新增12)	12
+
+四、表数口径
+============================================================================
+附录 A 登记 55 张 = 库内 53 张 + invoice（V1 不做）+ share_poster（裁决 11 不做）
+库内业务表 53 张 = 段 0~6 存量 42 张 + 本段新建 11 张
+实测：业务表 53
