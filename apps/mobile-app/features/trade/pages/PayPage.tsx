@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 支付页。
  *
  * 职责：G2.3 的余额支付——应付金额 + 订单信息 + 支付方式（**只有账户余额**）+
@@ -31,7 +31,6 @@ import type { AppError } from '@/shared/api/types';
 import { ActionBar, useActionBarSpace } from '@/shared/components/ActionBar';
 import { AppCard } from '@/shared/components/AppCard';
 import { AppHeader } from '@/shared/components/AppHeader';
-import { useToast } from '@/shared/components/AppToast';
 import { AsyncBoundary } from '@/shared/components/AsyncBoundary';
 import { LocalizedText } from '@/shared/components/LocalizedText';
 import { LtrText } from '@/shared/components/LtrText';
@@ -223,7 +222,6 @@ function PayBody({
  */
 export function PayPage() {
   const { t } = useI18n();
-  const toast = useToast();
   const router = useRouter();
   const params = useLocalSearchParams<{ id?: string }>();
   const orderId = typeof params.id === 'string' ? params.id : '';
@@ -301,7 +299,7 @@ export function PayPage() {
           <PayBody
             ctx={ctx}
             onConfirm={openSheet}
-            onRecharge={() => toast.show(t('trade.pay.rechargePending'))}
+            onRecharge={() => router.push(PAGE_ROUTES.recharge)}
             barSpace={barSpace}
           />
         )}

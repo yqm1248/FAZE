@@ -17,6 +17,7 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
@@ -38,6 +39,7 @@ import { useI18n } from '@/shared/i18n';
 import type { MessageKey } from '@/shared/i18n';
 import { formatAmount } from '@/shared/i18n/datetime';
 import { useAsyncResource } from '@/shared/hooks/useAsyncResource';
+import { PAGE_ROUTES } from '@/shared/navigation/routes';
 import { color, gradient, radius, size, spacing, typography } from '@/shared/theme';
 import { centsFromServer } from '@/shared/utils/money';
 import { formatServerDateTime } from '@/shared/utils/serverTime';
@@ -108,6 +110,7 @@ function beginTimeOf(range: TimeRange): string | undefined {
 export function BalancePage() {
   const { t } = useI18n();
   const toast = useToast();
+  const router = useRouter();
   const balanceResource = useAsyncResource<BalanceData>(getBalance);
   const [bizType, setBizType] = useState<FlowBizType | 'all'>('all');
   const [timeRange, setTimeRange] = useState<TimeRange>('all');
@@ -198,7 +201,7 @@ export function BalancePage() {
                       {t('trade.balance.note')}
                     </LocalizedText>
                     <Pressable
-                      onPress={() => toast.show(t('trade.balance.rechargePending'))}
+                      onPress={() => router.push(PAGE_ROUTES.recharge)}
                       accessibilityRole="button"
                       accessibilityLabel={t('trade.balance.recharge')}
                       style={({ pressed }) => [styles.rechargeBtn, pressed ? styles.pressed : null]}

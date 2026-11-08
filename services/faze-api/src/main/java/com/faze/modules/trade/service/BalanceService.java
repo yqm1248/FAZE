@@ -50,6 +50,7 @@ public class BalanceService {
 
     private final BalanceFlowMapper balanceFlowMapper;
     private final UserBalanceMapper userBalanceMapper;
+    private final RechargeQuotaPolicy rechargeQuotaPolicy;
 
     /**
      * 查询余额（以流水汇总为准）。
@@ -75,6 +76,22 @@ public class BalanceService {
         vo.setTotalCents(total);
         vo.setFrozenCents(frozen);
         vo.setAvailableCents(available);
+        return vo;
+    }
+
+    /**
+     * 查询余额并附带充值页参数（第 6 段 B2）。
+     *
+     * <p>只有 `GET /app/wallet/balance` 用这个重载：它在普通余额之上多查一次
+     * `recharge_record` 当日占用、一次实名状态、一次渠道开关，供充值页一次渲染完整。
+     * 下单/支付/退款这些不需要档位的调用方走 {@link #getBalance(Long)}，不加这份开销。</p>
+     *
+     * @param userId 用户主键
+     * @return 可用 / 冻结 / 总额（分）+ 充值页参数
+     */
+    public BalanceVO getBalanceWithRechargePanel(Long userId) {
+        BalanceVO vo = getBalance(userId);
+        vo.setRecharge(rechargeQuotaPolicy.buildPanel(userId));
         return vo;
     }
 

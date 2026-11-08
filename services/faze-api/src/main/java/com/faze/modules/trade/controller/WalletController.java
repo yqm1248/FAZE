@@ -38,15 +38,18 @@ public class WalletController {
     /**
      * 查询当前用户余额。
      *
+     * <p>第 6 段起响应多一个 `recharge` 子对象（单笔区间 / 剩余额度 / 档位 / 可用渠道 /
+     * 实名门槛），供充值页一次渲染完整；原有三个字段语义未变，锚点 1-A6 不受影响。</p>
+     *
      * @param loginUser 当前认证主体
-     * @return 可用 / 冻结 / 总额（分）
+     * @return 可用 / 冻结 / 总额（分）+ 充值页参数
      */
     @GetMapping("/balance")
     public R<BalanceVO> balance(@AuthenticationPrincipal LoginUser loginUser) {
         if (loginUser == null) {
             throw new BusinessException(ErrorCode.AUTH_TOKEN_INVALID);
         }
-        return R.ok(balanceService.getBalance(loginUser.getUserId()));
+        return R.ok(balanceService.getBalanceWithRechargePanel(loginUser.getUserId()));
     }
 
     /**

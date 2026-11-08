@@ -25,4 +25,13 @@ public class BalanceVO {
 
     /** 总余额（分）= SUM(balance_flow.delta_cents)。 */
     private Long totalCents;
+
+    /**
+     * 充值页参数快照（单笔区间 / 剩余额度 / 档位 / 可用渠道 / 实名门槛）。
+     *
+     * <p>**只在 `GET /app/wallet/balance` 这个入口填充**，`BalanceService#getBalance` 的其它
+     * 调用方（下单、支付、退款等）拿到的是 null —— 那些场景不需要档位与渠道，
+     * 多查三次库换不来任何东西。前端读之前先判空。</p>
+     */
+    private RechargePanelVO recharge;
 }

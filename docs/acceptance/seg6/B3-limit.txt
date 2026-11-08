@@ -1,0 +1,62 @@
+段 6 B3 · 单日限额与风控 验收证据
+生成时间：2026-11-08 19:22（东八区）
+环境：faze-api @ 8081（dev），单测 mvn test
+
+实现位置：
+  services/faze-api/src/main/java/com/faze/modules/trade/service/RechargeQuotaPolicy.java
+  （下单校验：ensureAmountAllowed / ensureRealnameAndGetDailyLimit / ensureDailyQuota；
+    页面参数：buildPanel）
+  services/faze-api/src/test/java/com/faze/modules/trade/service/RechargeQuotaPolicyTest.java
+
+──── 一、单测（17 个用例，全过）────────────────────────────────────────
+mvn '-Dtest=RechargeQuotaPolicyTest' test
+  Tests run: 17, Failures: 0, Errors: 0, Skipped: 0 —— BUILD SUCCESS
+
+覆盖清单：
+  [金额]  0.09 元被拒 405014（B3「算做完」第 3 条）
+          0.10 元通过（恰好等于下限）
+          5000.00 元通过 / 5000.01 元被拒
+          0 元与负数被拒
+  [实名]  未实名 + 额度 0 → 抛 405020（拦截，不是限额）
+          pending（审核中）同样拦截
+          未实名但额度 > 0 → 返回该额度，不抛
+          已实名 → 返回 null，走常规单日上限
+  [限额]  已用 4990 元 + 本笔 20 元 > 5000 元 → 405016
+          正好等于上限通过（差一分才拒）
+          第 11 笔被拒（单日 10 笔）
+          统计窗口 = 东八区当日 0 点换算成 UTC（2026-11-08 00:00+08 = 2026-11-07T16:00Z）
+          未实名额度作为上限参与判断（额度 10 元，本笔 11 元被拒）
+  [面板]  已实名：上限 500000、已用 120000、剩余 380000、档位 5 个、渠道只含 mock
+          未实名 + 额度 0：realnameRequired=true、剩余额度 0（不显示负数）
+          档位配置是坏 JSON → 回退默认档位（不把页面打挂）
+          超时时间 = 30 分钟后
+
+──── 二、口径（本段定，后续段不许改）──────────────────────────────────
+1. **单日统计口径 = pending + success**（不含 failed / closed）。
+   只算 success 的话，用户可以连开多张未支付单占满额度后只付一张，限额形同虚设；
+   closed/failed 的钱没进来，占配额就是白占，所以 D2 关单后额度必须自动恢复。
+2. **「单日」按东八区自然日**（0 点换日），不是 UTC 0 点。
+3. **未实名是拦截不是限额**：unverified_daily_cents <= 0 时直接 405020，
+   页面据 realnameRequired 禁用 CTA 并提供实名入口，不显示「今日还可充值 ¥0.00」。
+4. 金额与笔数超限**共用一个错误码 405016**（不给攻击者区分维度）。
+
+──── 三、运行时确认（接口层）─────────────────────────────────────────
+GET /api/v1/app/wallet/balance（用户 3，已实名）返回 recharge 子对象：
+  minCents=10, maxCents=500000, dailyLimitCents=500000,
+  usedDailyCents=40000（4 张 pending 单：10000×4）, remainingDailyCents=460000,
+  dailyCountLimit=10, usedDailyCount=4,
+  amountOptions=[10000,20000,50000,100000,200000],
+  channels=[{code:"mock", i18nKey:"trade.pay.channelMock"}],
+  realnameStatus="approved", realnameRequired=false
+未实名用户（13900009999）下单被拒 405020（B1 证据 C 段已验）。
+
+──── 四、未验项（留到后续任务）────────────────────────────────────────
+1. **「连开 11 张单，第 11 张被拒」的实机串联**：单测覆盖了「已用 10 笔再下一笔」的分支，
+   但真连开 11 张单要在 C/D 组（回调与关单）就绪后跑，避免 11 张 pending 单占满当天额度
+   影响后续 E2E。E2 端到端演练时补做。
+2. **「同一用户 1 分钟内第 4 次下单被限流」**：B3 第 3 条要求用户维度限流（1 分钟 3 次）。
+   本段**未实现**——项目现有基础设施里没有通用用户维度限流组件（段 1 的限流只做在
+   短信验证码与登录），为一条规则新建一套限流设施超出段 6 范围。
+   风险评估：单日 10 笔 + 单日 5000 元 + 幂等键已能挡住「刷单」的主要危害
+   （重复入账、额度绕过），1 分钟 3 次防的是「连点」，而连点由幂等键与前端按钮禁用处理。
+   记入 §十一 与 §十，请负责人决定是否单列为后续任务。

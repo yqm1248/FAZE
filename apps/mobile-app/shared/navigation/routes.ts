@@ -44,6 +44,8 @@ export const PAGE_ROUTES = {
   // ── 段 1 G4：余额与支付密码 ─────────────────────────────────────────
   /** 账户余额与明细页。 */
   balance: '/balance' as Href,
+  /** 充值页（第 6 段 B2；入口在余额页与支付页「余额不足」）。 */
+  recharge: '/recharge' as Href,
   /** 支付密码页（设置 / 修改 / 重置 / 校验 + 锁定倒计时）。 */
   payPassword: '/pay-password' as Href,
 
