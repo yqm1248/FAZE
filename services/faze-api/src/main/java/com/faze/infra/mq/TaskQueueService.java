@@ -58,6 +58,17 @@ public class TaskQueueService {
      */
     public static final String TYPE_DOC_GENERATE = "doc_generate";
 
+    /**
+     * 任务类型：律师收入到期解冻（段 5 E3，`biz_no` 存本次 tick 的标记）。
+     *
+     * <p>与 `doc_generate` 不同，本类型不是「用户触发的单条业务」，而是**周期性批处理**：
+     * 由 `LawyerUnfreezeTask` 每 10 分钟入队一条 tick，再自己领取执行。
+     * 为什么要绕一下 task_queue 而不是 `@Scheduled` 直连数据库：段 2 的异步任务五条规范
+     * 要求所有后台批量动作都留下「已投递 / 已领取 / 已失败」的可观测痕迹，
+     * 直连扫描器崩了没有任何记录，只能靠日志猜（工作流 E3 第 3 条）。</p>
+     */
+    public static final String TYPE_LAWYER_UNFREEZE = "lawyer_unfreeze";
+
     /** 任务状态：待领取。 */
     public static final String STATUS_PENDING = "pending";
 
