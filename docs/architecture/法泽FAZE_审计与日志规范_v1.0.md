@@ -108,16 +108,12 @@
 | 7 | 文章上架 / 下架 | `ARTICLE_PUBLISH` / `ARTICLE_OFFLINE` | ✅ 必须 |
 | **3** | 法条修订（A-27） | `LAW_ITEM_EDIT` | ✅ 必须（AI 引用它；A-27 归段 3 实现，原写「段 7」有误，2026-11-06 更正） |
 | **3** | **AI 对话导出**（A-28 单条导出 JSON） | `AI_CONVERSATION_EXPORT` | ✅ **必须**（`ai_message.content` 是 L4 级敏感数据，导出离开系统管控；2026-11-01 负责人定：**查看不审计，只审计导出**） |
-| 7 | 敏感词增删改 | `SENSITIVE_WORD_*` | ✅ 必须 |
-| 7 | 公告推送 | `ANNOUNCEMENT_PUSH` | ✅ 必须（触达全量用户） |
-| 7 | 内容审核处置 | `CONTENT_REVIEW_*` | ✅ 必须 |
-| 7 | 工单分配/关闭 | `TICKET_*` | ⚠️ 建议 |
 | **7** | **内容审核处置（忽略/警告/封禁）** | `CONTENT_REVIEW_IGNORE` / `CONTENT_REVIEW_WARN` / `CONTENT_REVIEW_BAN` | ✅ **必须**（改用户状态，`7-A2`） |
 | 7 | 敏感词增 / 改 / 删 / 批量导入 | `SENSITIVE_WORD_CREATE` / `_UPDATE` / `_DELETE` / `_IMPORT` | ✅ **必须**（改全平台判定口径） |
 | 7 | 误判申诉处置 | `APPEAL_HANDLE` | ✅ 必须（撤销一次拦截） |
 | 7 | 公告创建 / 推送 | `ANNOUNCEMENT_CREATE` / `ANNOUNCEMENT_PUSH` | ✅ **必须**（触达全量用户，`7-A1`） |
 | 7 | 工单分配 / 回复 / 关闭 | `TICKET_ASSIGN` / `TICKET_REPLY` / `TICKET_CLOSE` | ✅ 必须（`7-A5`） |
-| 7 | **日志导出**（任一导出） | `LOG_EXPORT` | ✅ **必须**（查日志这个动作也要留痕） |
+| 7 | **日志导出**（任一导出） | `LOG_EXPORT` | ✅ **必须**（查日志这个动作也要留痕；该码已在 §6.3 定义，**本段只复用、不重复登记**） |
 | 8 | 系统参数修改 | `SYS_CONFIG_EDIT` | ✅ 必须（抽成比例在这里） |
 | **全部** | **登录 / 登出 / 登录失败** | — | ✅ 必须（走 `login_log`，不是 `operation_log`） |
 
@@ -257,7 +253,7 @@ logback pattern：
 | `balance_flow` / `payment_record` | 数据库 | **≥ 5 年**（资金） | `audit.finance-log-days` |
 | `reconciliation_diff` | 数据库 | ≥ 5 年 | — |
 
-> **页面文案约束（v1.34 段 7 补）**：PC A-26 日志中心页面上写的留存天数**不得低于本表期限**。设计阶段 A-26 稿写的是「操作日志保留 90 天」，**低于本表 `operation_log` ≥ 3 年的要求，该文案作废**，实现时改为「按合规要求长期保留（≥ 3 年）」。另：启动时若 `audit.operation-log-days` < 1095 或 `audit.login-log-days` < 180，服务应拒绝启动。
+> **页面文案约束（v1.34 段 7 补）**：**任何页面的留存文案都不得低于本表期限**（典型是 PC A-26 日志中心）。设计阶段 A-26 稿写的是「操作日志保留 90 天」，**低于本表 `operation_log` ≥ 3 年的要求，该文案作废**，实现时改为「按合规要求长期保留（≥ 3 年）」。另：启动时若 `audit.operation-log-days` < 1095 或 `audit.login-log-days` < 180，服务应拒绝启动。
 
 ## 5.3 归档与删除（不是直接 DELETE）
 
@@ -287,6 +283,7 @@ logback pattern：
 |---|---|---|
 | **操作日志**（A-26 之一） | 时间范围 / 操作人 / 模块 / 动作 / 目标 id / IP | 时间倒序 |
 | **登录日志**（A-26 之二） | 时间范围 / 账号 / IP / 结果（成功/失败） | 时间倒序 |
+| **工单处理记录**（A-22 时间线，段 7 补） | 目标类型固定 `TICKET` + 目标 id（工单 id）/ 时间范围 / 动作 | **时间正序**（处理过程按发生顺序读） |
 | **资金流水**（A-07~A-10 关联） | 用户 / 类型 / 时间 / 业务单号 | 时间倒序 |
 
 ## 6.2 索引必须覆盖查询
@@ -302,6 +299,7 @@ logback pattern：
 **「查这条订单被谁改过」**是最常用的取证查询（`target_type='ORDER' AND target_id=?`），必须有索引。
 
 > **段 7 追加（v1.34）**：`operation_log` 的 `target_type` 还要覆盖 `TICKET` / `CONTENT_REVIEW` / `ANNOUNCEMENT` / `SENSITIVE_WORD` 四类——PC A-22 工单详情的「处理记录时间线」就是查 `target_type='TICKET' AND target_id=?`，该索引必须存在。
+> **工单自身的查询索引**（在 `service_ticket` 表，`V700` 已建）：`idx_ticket_status (status, created_at)` 覆盖 A-21 两 Tab 列表；`idx_ticket_agent (agent_id, status)` 覆盖「处理人」筛选；`idx_ticket_sla (status, sla_due_at)` 覆盖 SLA 超时扫描；`idx_ticket_type (category, type_id)`（`V706`）覆盖 A-22 按「类型 + 原表 id」反查。**时间线查 `operation_log`，工单列表查 `service_ticket`，是两条不同的查询路径**，不要用一个索引去覆盖另一个。
 
 ## 6.3 导出
 

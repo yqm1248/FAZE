@@ -21,8 +21,8 @@
 | **②.9** | [architecture/法泽FAZE_第5段工作流_v1.0.md](architecture/法泽FAZE_第5段工作流_v1.0.md) | **第 5 段具体怎么做？**（8 组 37 任务 / 8 条锚点（`5-A9` 已删）/ 建 8 张表 / 41 个接口；含负责人 2026-11-01 拍板的 **18 项**——**案件中心 + 律师工作台 5 页 + 送达 + 结算引擎 + 提现闭环 + 案例库 + 全局搜索**；§零之二 里三条改变了资金与送达口径，必须先读） |
 | **②.10** | [architecture/法泽FAZE_第6段工作流_v1.0.md](architecture/法泽FAZE_第6段工作流_v1.0.md) | **第 6 段具体怎么做？**（5 组 19 任务（**已全部完成 19/19**）/ 7 条锚点（**3 条挂账**：`6-A1`/`6-A4` 真实部分/`6-A6` 需商户号）/ 建 1 张表（`recharge_record` 13 字段）/ **10 个接口** / 改造 A-09 加「渠道对账」Tab；含 18 项负责人裁决——手续费平台承担、单笔 0.1~5000 元、未实名不可充值、超时 30 分钟；含 Mock 通道先行的验收路径与挂账条件） |
 | **②.11** | [architecture/法泽FAZE_第7段工作流_v1.0.md](architecture/法泽FAZE_第7段工作流_v1.0.md) | **第 7 段具体怎么做？**（8 组 41 任务 / 10 条锚点 / 建 11 张表（**新增第 54 张 `sensitive_word_appeal`、第 55 张 `announcement`**）/ 54 个接口（新增 26）/ APP 10 页 + PC 8 页；**26 项负责人裁决**——看板口径已定、告警走钉钉、表数 53→55、A-20 只看命中片段、**操作日志留存按合规 ≥3 年而非设计稿的 90 天**；开工前必读那节列了 **11 处上游冲突**） |
-| **③** | [architecture/法泽FAZE_技术路线_v2.3.md](architecture/法泽FAZE_技术路线_v2.3.md) | 做什么、怎么做（技术栈、12 个域、51 张表、接口清单、状态机） |
-| **③.5** | [architecture/法泽FAZE_数据表规范_v1.0.md](architecture/法泽FAZE_数据表规范_v1.0.md) | **表怎么命名、字段怎么定、索引怎么建、迁移怎么排、一共 51 张表**（建表前必读） |
+| **③** | [architecture/法泽FAZE_技术路线_v2.3.md](architecture/法泽FAZE_技术路线_v2.3.md) | 做什么、怎么做（技术栈、12 个域、55 张表、接口清单、状态机） |
+| **③.5** | [architecture/法泽FAZE_数据表规范_v1.0.md](architecture/法泽FAZE_数据表规范_v1.0.md) | **表怎么命名、字段怎么定、索引怎么建、迁移怎么排、一共 55 张表**（建表前必读） |
 | **③.6** | [architecture/法泽FAZE_接口规范_v1.0.md](architecture/法泽FAZE_接口规范_v1.0.md) | **接口长什么样**：契约怎么产生（混合 OpenAPI 三级）、URL/请求头/响应体/分页/金额/时间/脱敏/幂等/限流的全部条款、5 组冻结契约的字段级定义（写接口前必读） |
 | **③.7** | [architecture/法泽FAZE_后端代码规范_v1.0.md](architecture/法泽FAZE_后端代码规范_v1.0.md) | **服务端代码怎么写**：包结构与分层、注释、异常、参数校验、事务、持久层、并发与任务表、日志、安全、工程性，**以及每条规则的「承接手段」（谁在拦住违反它的人）**（写服务端代码前必读） |
 | **③.8** | [architecture/法泽FAZE_i18n规范_v1.0.md](architecture/法泽FAZE_i18n规范_v1.0.md) | **四语言文案怎么写**：key 三段式命名、14 个 namespace 与业务域的映射、缺译降级链、RTL 组件约定、服务端通知用哪种语言、6 项完整性门禁（写任何界面文案前必读） |
@@ -58,7 +58,7 @@
 | **新增依赖要登记到哪** | [architecture/依赖清单.md](architecture/依赖清单.md) —— 每条依赖的理由 / 不加的代价 / 风险与兜底 |
 | **哪一页属于哪一段** | 总纲 §4.1（APP 68 页归属）+ §4.2（PC 28 页归属），这是唯一权威表 |
 | **第 0 段要建哪两张表** | [architecture/法泽FAZE_V1基线表结构_v1.0.md](architecture/法泽FAZE_V1基线表结构_v1.0.md) |
-| **错误码怎么编号** | [architecture/法泽FAZE_错误码规范_v1.0.md](architecture/法泽FAZE_错误码规范_v1.0.md)（78 个码 + HTTP 状态码规则） |
+| **错误码怎么编号** | [architecture/法泽FAZE_错误码规范_v1.0.md](architecture/法泽FAZE_错误码规范_v1.0.md)（91 个码 + HTTP 状态码规则） |
 | 为什么是这个顺序、能不能调 | 总纲 §3.2「依赖关系」+ §3.3「严格串行到底约束什么」+ §4.3「归属差异」 |
 | 哪些外部资质会卡住我 | 同上，§九「并行轨道」 |
 | 每一段开工前要检查什么、结束时交什么 | 同上，§六「段的门禁」 |
@@ -235,6 +235,12 @@ docs/
 | [acceptance/seg5/A1-schema.txt](acceptance/seg5/A1-schema.txt) | 段 5 建表与补字段的物证：9 张表 `SHOW CREATE TABLE` 原样输出（22 KB，flyway=`510`） |
 | [acceptance/seg5/H2-rtl.md](acceptance/seg5/H2-rtl.md) | 四语言与 RTL：静态核验**通过**（0 处 `left/right`、`letterSpacing` 全 0、无手动反转），但 **RTL 运行时未验**（缺译文，推段 8） |
 
+锚点结论：`5-A1`~`5-A8` **8/8 通过**。三条与计划口径不同的地方必须一起看：
+① 解冻流水 `biz_type` 是 `income_unfreeze`（不是 `unfreeze`）、`balance_flow.biz_type` 共 **5 值**；
+② `case_library` 实为 **24 字段**（补争议焦点 / 原告 / 被告）；
+③ 三语言文案**仍是登记式缺译**，段 8 统一翻译。
+三项都登记在《[技术路线 v2.3](architecture/法泽FAZE_技术路线_v2.3.md)》§二十六「段 5 施工登记」里——**该节与正文冲突时以该节为准**。
+
 ## 段 6 验收证据（真实充值渠道 + 掉单补单 + 渠道对账）
 
 > 环境：`faze-api` 8081（dev）+ MySQL `faze` + RuoYi 8080 + Redis；Mock 通道（`pay.mock.enabled=true`）。
@@ -260,17 +266,34 @@ docs/
 | [acceptance/seg6/E2-e2e.txt](acceptance/seg6/E2-e2e.txt) | **E2**：下单 → 模拟支付 → 入账 → 查余额 → 对账 一条连贯 8 步走查 |
 | [acceptance/seg6/挂账.md](acceptance/seg6/挂账.md) | 三张挂账锚点 + 未完成任务 + 负责人三项裁决 + **本次暴露的 4 个真 bug** |
 
-## 段 7 验收证据（运营与治理收口 · A~D 组 + C5 + 尾巴补漏）
+## 段 7 验收证据（运营与治理收口 · A~H 全部交付）
 
-> **本段 A~D 组 + C5（APP 客服 4 页）+ 尾巴补漏均已交付**（后端 + PC 端 6 页 + APP 4 页）；
-> E~H 组（APP 设置页 / 看板页面 / 监控告警 / 收口）顺延，
-> 逐条偏差见《[第 7 段工作流](architecture/法泽FAZE_第7段工作流_v1.0.md)》§十一 的 **19 条**记录。
+> **本段 A/B/C/D/E/F/G/H 八组均已交付**（后端 + PC 端 8 页 + APP 14 页 + 监控告警备份 + 收口）；
+> 逐条偏差见《[第 7 段工作流](architecture/法泽FAZE_第7段工作流_v1.0.md)》§十一 的 **57 条**记录。
+> **十条锚点不是全过**：通过 5 条（`7-A3` / `7-A4` / `7-A7` / `7-A9` / `7-A10`）、
+> 部分完成 4 条（`7-A2` / `7-A5` / `7-A6` / `7-A8`）、未完成 1 条（`7-A1`）；
+> 全部挂账与补验方式见 [acceptance/seg7/挂账.md](acceptance/seg7/挂账.md)。
 
 | 证据 | 说明 |
 | --- | --- |
 | [acceptance/seg7/A1-schema.txt](acceptance/seg7/A1-schema.txt) | A1：11 张表 `SHOW CREATE` 全量 + 字段数/索引清单 + 种子计数 + **V703 跑 3 遍仍 50/7/6**（幂等） |
-| [acceptance/seg7/A-02-指标口径.md](acceptance/seg7/A-02-指标口径.md) | A5：10 个指标逐条给「定义 / 算法 SQL / 数据来源 / 边界 / 已知局限」（`7-A10` 的正面证据） |
+| [acceptance/seg7/A-02-指标口径.md](acceptance/seg7/A-02-指标口径.md) | A5：10 个指标逐条给「定义 / 算法 SQL / 数据来源 / 边界 / 已知局限」（`7-A10` 的正面证据，§6 已随趋势切日修正） |
 | [acceptance/seg7/C5-前端4页.md](acceptance/seg7/C5-前端4页.md) | C5：APP 55/56/57/58 四页的 CDP 真实浏览器验收（390×844）+ 逐条验收点 + 真实点击提交证据 + 6 条偏离 |
+| [acceptance/seg7/7-A1-runbook.md](acceptance/seg7/7-A1-runbook.md) | `7-A1` 运营动作清单：**未完成**（0/15 截图），写清为何没做、五步当前可做性、补验步骤 |
+| [acceptance/seg7/7-A2-no-rewrite.md](acceptance/seg7/7-A2-no-rewrite.md) | `7-A2` 原文不被篡改：review 分支原文完整 + 命中三要素；block 分支与命中记录同事务回滚（锚点第 3/4 步不适用） |
+| [acceptance/seg7/7-A3-hot-reload.md](acceptance/seg7/7-A3-hot-reload.md) | `7-A3` 敏感词即时生效：增/改/删三次判定全按最新词库，进程启动时间前后一致（**通过**） |
+| [acceptance/seg7/7-A4-ban.md](acceptance/seg7/7-A4-ban.md) | `7-A4` 黑名单：403 + 独立码 + 提示含客服电话 + 旧 token 立即失效（**通过**） |
+| [acceptance/seg7/7-A5-ticket.md](acceptance/seg7/7-A5-ticket.md) | `7-A5` 投诉工单：接口级双向通过（`waiting→processing→replied`）；**APP 无投诉列表页**（界面级未完成） |
+| [acceptance/seg7/7-A6-audit.md](acceptance/seg7/7-A6-audit.md) | `7-A6` 操作日志：谁/何时/从哪/改了什么 四项齐全，详情抽屉 before/after 对比表；操作人只有 id |
+| [acceptance/seg7/7-A7-metrics.md](acceptance/seg7/7-A7-metrics.md) | `7-A7` 监控指标：Prometheus target UP、6 指标、10 次请求 Δ=10、Grafana 4 图（**通过**；另有 3 张 png） |
+| [acceptance/seg7/7-A8-alert.md](acceptance/seg7/7-A8-alert.md) | `7-A8` 告警真的会响：系统自动 POST 的钉钉 markdown 原文；**钉钉群无证据** + 三条结构缺口 |
+| [acceptance/seg7/T4-alert-mock-evidence.md](acceptance/seg7/T4-alert-mock-evidence.md) | `7-A8` 的 mock 接收端原始证据（headers + body + hex） |
+| [acceptance/seg7/7-A9-restore.md](acceptance/seg7/7-A9-restore.md) | `7-A9` 备份恢复：逐表行数对比 + 3 表抽样 MD5 + `faze_restore` 硬保护（**通过**） |
+| [acceptance/seg7/7-A10-dashboard.md](acceptance/seg7/7-A10-dashboard.md) | `7-A10` 看板口径：4 卡手算=页面、tooltip、待我处理 5 条跳转、pendingReason（**通过**） |
+| [acceptance/seg7/F3-explain.txt](acceptance/seg7/F3-explain.txt) | F3：4 个看板接口的 `EXPLAIN` 执行计划 |
+| [acceptance/seg7/T1-后端接口实测.md](acceptance/seg7/T1-后端接口实测.md) | T1：E/F/G 三组 28KB 逐条 curl/SQL 原文 |
+| [acceptance/seg7/T2-APP-E组4页与设置.md](acceptance/seg7/T2-APP-E组4页与设置.md) | T2：APP E 组 9 页的 35 张截图索引 + 逐项验收 + 偏差降级 |
+| [acceptance/seg7/挂账.md](acceptance/seg7/挂账.md) | **本段全部挂账与补验方式**（锚点 / 功能 / 文档 / 测试数据清理 / 进段 8 的五条硬前置） |
 
 **A~D 组端到端实测结果（2026-11-09）**：
 
@@ -296,12 +319,6 @@ docs/
   （库内只有 `active/blocked/cancelled`），导致公告「全量 / 按角色 / 指定用户」三种目标
   **一直发 0 人而接口照样 200**。修为 `active` 后 `estimate(all)` 由 `0` 变 `6`。见 §十一 第 18 条。
 - 后端测试 **489/489**；前端 `tsc` / `eslint` / `check:rawtext` / `check:i18n` 全绿。
-
-锚点结论：`5-A1`~`5-A8` **8/8 通过**。三条与计划口径不同的地方必须一起看：
-① 解冻流水 `biz_type` 是 `income_unfreeze`（不是 `unfreeze`）、`balance_flow.biz_type` 共 **5 值**；
-② `case_library` 实为 **24 字段**（补争议焦点 / 原告 / 被告）；
-③ 三语言文案**仍是登记式缺译**，段 8 统一翻译。
-三项都登记在《[技术路线 v2.3](architecture/法泽FAZE_技术路线_v2.3.md)》§二十六「段 5 施工登记」里——**该节与正文冲突时以该节为准**。
 
 > **【文档基线 v1.0】** 本文件属于「法泽 FAZE 文档基线 v1.0」（2026-10-28 确立，此后一直有效）。
 > 落款写的是**首次纳入基线的版本**，不随内容变更升级（本文件 §1.1）；当前基线版本见 `docs/BASELINE.md` 头部。

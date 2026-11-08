@@ -19,13 +19,13 @@
 |---|---|---|
 | 文档声称 | 51 张 | 技术路线 §5.1 标题、`docs/README.md`、V1 基线表结构头部 |
 | `CREATE TABLE` 语句数 | **51 条** | 技术路线全文（实测） |
-| **唯一表名** | **49 张**（2026-10-30 实测口径；**v1.27 补正为 51 张**，见下注） | `login_log`、`operation_log` 各被定义两遍 |
+| **唯一表名** | **55 张**（2026-10-30 实测 49 张；**v1.27 补正为 51 张**；**v1.30 起 53 张**；**v1.34 起 55 张**，见附录 A） | 51 条 `CREATE TABLE` 里 `login_log`、`operation_log` 各被定义两遍 |
 | §5.1 表清单行数 | **30 行** | 技术路线 L986–L1015 |
 | V2.3 增量说法 | 17 张 / 15 张 / 15 张 | §5.1 正文、§5.11 标题、V2.3 变更记录 —— **三处不同** |
 
 **裁决**：**以本文件附录 A 为准**（v1.27 起为 51 张；v1.30 起为 53 张——段 5 补 `lawyer_income_settlement` / `case_delivery`；**v1.34 起为 55 张**——段 7 补 `sensitive_word_appeal` / `announcement`，见附录 A 末注）。§5.1 的 30 行清单作废（它里面还有 3 个已改名或已合并的表名：`case` → `legal_case`、`favorite` / `follow` → `social_action`；另有 31 张表从未进过清单）。
 
-**要建的是 54 张**：`invoice`（发票）按总纲「V1 明确不做」不建表；`share_poster` 段 7 不做、暂不建；若要建，按本规范补建，编号顺延不插号。
+**要建的是 54 张**（55 − `invoice` 1 张）：`invoice`（发票）按总纲「V1 明确不做」**永不建表**；`share_poster` 计入段 7 账面但段 7 **不建**（留待段 8 之后），故段 7 实建 **11 张**。若要建 `share_poster`，按本规范补建，编号顺延不插号。
 
 > **v1.27 补正（2026-11-01）**：段 2 新增了 `order_status_log`（第 50 张）与 `task_queue`（第 51 张），当时本附录漏登记，导致「49 张」与段 2 的产物对不上——段 2 工作流 §九 第 1 项已把「补两行」列为**开工前**必办。本次补上：总数 **49 → 51**，要建 **48 → 50**，段 2 的 **10 → 12**，类别 B 追加型 **12 → 14**。
 
@@ -281,7 +281,7 @@ is_minor TINYINT NOT NULL DEFAULT 0 COMMENT '是否未成年：0 否 1 是'
 3. 这张表的生命周期由 `status` 表达，且**不允许用户物理删除**吗？→ 是 → **C 状态机**
 4. 以上都不是 → **A 业务实体**
 
-> 53 张表的分类结果见附录 A，不必每次重判。
+> 55 张表的分类结果见附录 A，不必每次重判。
 
 ## 4.3 软删与唯一键的冲突（必须提前想清楚）
 
@@ -510,7 +510,7 @@ COMMENT='订单主表；状态枚举：created/paid/accepted/completed/cancelled
 
 ---
 
-# 附录 A：表清单（**53 张**，v1.27 补正：原 49 张 + 段 2 的 `order_status_log` / `task_queue`；v1.30 补：段 5 的 `lawyer_income_settlement` / `case_delivery`）
+# 附录 A：表清单（**55 张**，v1.27 补正：原 49 张 + 段 2 的 `order_status_log` / `task_queue`；v1.30 补：段 5 的 `lawyer_income_settlement` / `case_delivery`；v1.34 补：段 7 的 `sensitive_word_appeal` / `announcement`）
 
 > 「建表段」是这张表在哪一段交付（与《开发计划总纲》§五 的段边界一致）。`invoice` 按总纲「V1 明确不做」不建表。
 > 类别：A 业务实体 / B 追加型 / C 状态机 / D 基础数据。
@@ -560,7 +560,7 @@ COMMENT='订单主表；状态枚举：created/paid/accepted/completed/cancelled
 | 41 | `notify_template` | D | 9 | ops | 段 7 | 通知模板，按语言分条 |
 | 42 | `sensitive_word` | D | **12** | ops | 段 7 | 敏感词库（**v1.34 补 `last_hit_at`**，A-25「最近命中」列用） |
 | 43 | `content_review` | B | **12** | ops | 段 7 | 审核命中记录，原文不改（**v1.34 补 `hit_snippet` 命中片段 / `biz_user_id` 内容作者**） |
-| 44 | `service_ticket` | C | **13** | ops | 段 7 | 客服工单（**v1.34 补 4 字段**：`ticket_no` 工单号前缀 `TK` / `title` / `priority` / `sla_due_at` 落库的 24h 受理时限） |
+| 44 | `service_ticket` | C | **13** | ops | 段 7 | 客服工单（**v1.34 补 4 字段**：`ticket_no` 工单号前缀 `TK` / `title` / `priority` / `sla_due_at` 落库的 24h 受理时限；**施工另补 1 列** `type_id`（`V706`，裁决 23：指向 `complaint` / `feedback` 原表 id，A-22 详情取正文用），**实际 14 列**） |
 | 45 | `reconciliation_diff` | B | **20** | trade | 段 5 | 对账差错（**v1.5x 实测更正**：`V507` 建 14 字段，`V510` 补 6 个恒等式巡检字段 `check_type` / `biz_type` / `biz_id` / `expected_cents` / `actual_cents` / `diff_cents` / `found_at` 并把 `bill_date`/`channel` 放宽为可空，实际 20 字段。本表被段 5 回写时漏改，段 6 D3/D4 施工时按 `SHOW CREATE TABLE` 更正） |
 | 46 | `invoice` | C | 15 | trade | **不建** | 发票；V1 明确不做 |
 | 47 | `file_record` | A | 14 | infra | 段 4 | 上传文件登记 |
@@ -573,7 +573,7 @@ COMMENT='订单主表；状态枚举：created/paid/accepted/completed/cancelled
 | 54 | `sensitive_word_appeal` | C | 10 | ops | **段 7** | 敏感词误判申诉：`user_id` / `content_review_id`（唯一键，一条命中只能申诉一次）/ `appeal_reason` / `status`（pending/accepted/rejected）/ `handler_id` / `handle_reason` / `handled_at` / 时间戳（**v1.34 新建**） |
 | 55 | `announcement` | C | 15 | ops | **段 7** | 公告批次主表：`announcement_no` 前缀 `AN` / `title` / `content` / `target_type` + `target_value`（JSON 人群）/ `channels`（JSON 渠道）/ `status`（draft/scheduled/sending/sent/failed）/ `scheduled_at` / `sent_at` / `reach_count` / `open_count` / `created_by` / 时间戳（**v1.34 新建**；A-23「触达/打开率」的唯一落点） |
 
-**合计 55 张，要建 54 张。** 段分布：段 0 = 2、段 1 = 12、段 2 = 12、段 3 = 3、段 4 = 4、**段 5 = 8**、段 6 = 1、**段 7 = 11**（10 张在册 − `share_poster` 1 张 + 新增 2 张）、段 8 = 0。
+**合计 55 张，要建 54 张。** 段分布（按「在册」计）：段 0 = 2、段 1 = 12、段 2 = 12、段 3 = 3、段 4 = 4、**段 5 = 8**、段 6 = 1、**段 7 = 12**（9 张在册 + `share_poster` 1 张 + 新增第 54/55 张）、段 8 = 0；合计 **54 张在册**（2+12+12+3+4+8+1+12 = 54）＋ `invoice` 1 张（不建）= **55 张**。**段 7 实建 11 张**（12 张在册 − `share_poster` 1 张）。
 类别分布：A 业务实体 21、B 追加型 **13**、**C 状态机 14**、D 基础数据 7（v1.48：`ai_message` 由 B 改 C，总数 55 不变）。
 
 > **v1.34 补登记（2026-11-02，段 7 定稿）**：新增第 54 张 `sensitive_word_appeal`（上游有 2 个申诉接口 + A-25 设计稿画了申诉复核，但表从未登记）、第 55 张 `announcement`（A-23 要「触达/打开率」，而 `notification` 是每人一行的通知，没有公告批次概念）。同时 `share_poster` **段 7 不做**（总纲 §5.8 未列、无对应页面、无验收锚点）。详见《[法泽FAZE_第7段工作流_v1.0.md](法泽FAZE_第7段工作流_v1.0.md)》§零之二 第 3~5 项、第 11 项。

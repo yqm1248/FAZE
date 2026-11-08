@@ -926,6 +926,41 @@ GET  /admin/dashboard/ping
 
 > **路径命名说明**：第 17 项 `/admin/exports/{taskId}/download` 用的是「任务」资源而非文件资源；若后续统一到 `/admin/files/**`，只需改这一处（段 7 工作流 §附 已知局限 第 4 条已登记待复核）。
 
+**已列、本段实现的 28 个**（技术路线 §4.8.2 / §4.8.4 已有路径，本段落地；管理端 23 + C 端 5）：
+
+| # | 方法 + 路径 | 用途 | 鉴权 | 幂等 | 主要错误码 |
+|---|---|---|---|---|---|
+| 1 | `GET /admin/dashboard/summary` | 4 个核心指标 + `onlineCount` + 环比 | PC token | 只读（10 分钟缓存） | — |
+| 2 | `GET /admin/dashboard/trends` | 趋势序列（缺日补 0） | PC token | 只读 | — |
+| 3 | `GET /admin/sensitive-words` | 词库列表 | PC token | 只读 | — |
+| 4 | `POST /admin/sensitive-words` | 新增词条 | PC token | `uk_word_lang` 唯一键兜底 | `410005` |
+| 5 | `PUT /admin/sensitive-words/{id}` | 修改词条 | PC token | 全量覆盖 | `410005` / `401004` |
+| 6 | `DELETE /admin/sensitive-words/{id}` | 删除词条（词库可删） | PC token | 已删再删按不存在处理 | `401004` |
+| 7 | `GET /admin/sensitive-word-appeals` | 申诉复核队列 | PC token | 只读 | — |
+| 8 | `POST /admin/sensitive-word-appeals/{id}/audit` | 申诉处置（accepted / rejected） | PC token | 状态 CAS | `410010` |
+| 9 | `GET /admin/content-reviews` | 命中记录列表 | PC token | 只读 | — |
+| 10 | `POST /admin/content-reviews/{id}/audit` | 审核处置（ignore / warn / ban） | PC token | 状态 CAS | `410008` |
+| 11 | `GET /admin/tickets` | 工单列表（处理 / 查看两 Tab） | PC token | 只读 | — |
+| 12 | `GET /admin/tickets/{id}` | 工单详情（join 原表取正文） | PC token | 只读 | `410011` |
+| 13 | `POST /admin/tickets/{id}/assign` | 分配 / 批量分配（置 `agent_id`） | PC token | 覆盖式（同一人重复分配结果一致） | `410011` / `410012` |
+| 14 | `POST /admin/tickets/{id}/reply` | 回复（写 `notification` + 个推） | PC token | 非幂等（每次一条回复），`closed` 后拒绝 | `410012` |
+| 15 | `POST /admin/tickets/{id}/close` | 关闭（`close_reason` 必填） | PC token | 状态 CAS（`closed` 不可回退） | `410012` |
+| 16 | `GET /admin/announcements` | 公告列表（含触达 / 打开率） | PC token | 只读 | — |
+| 17 | `POST /admin/announcements` | 新建公告（人群 / 渠道 / 定时） | PC token | 唯一单号，重放不重复建 | — |
+| 18 | `POST /admin/announcements/{id}/push` | 立即推送 / 取消定时 | PC token | 状态 CAS；`sent` 不可撤回 | `410013` |
+| 19 | `GET /admin/notify-templates` | 模板列表 | PC token | 只读 | — |
+| 20 | `POST /admin/notify-templates` | 新建模板 | PC token | `uk_notify_tpl` 唯一键兜底 | `410005` |
+| 21 | `PUT /admin/notify-templates/{id}` | 修改模板（变量占位符校验） | PC token | 全量覆盖 | `401004` |
+| 22 | `GET /admin/operation-logs` | 操作日志查询 | PC token | 只读 | — |
+| 23 | `GET /admin/login-logs` | 登录日志查询 | PC token | 只读 | — |
+| 24 | `POST /app/complaints` | 提交投诉（同事务生成工单） | App JWT | 非幂等（每次一张单，`uk` 不设） | `410006` |
+| 25 | `POST /app/feedback` | 提交反馈（同事务生成工单） | App JWT | 非幂等（每次一张单） | `410006` |
+| 26 | `GET /pub/faq` | 常见问题（按分类 + 排序） | 公开 | 只读 | — |
+| 27 | `GET /pub/app/version` | 版本检查 | 公开 | 只读 | — |
+| 28 | `POST /app/notifications/{id}/read` | 标记已读（**公告打开率只在 0→1 时 +1**） | App JWT | 幂等（已读再读不重复计数） | `401004` / `401008` |
+
+> 已列 28 个的字段级契约同样以《第 7 段工作流》§三 各任务为准：看板 F1、词库 A2、申诉 B2、审核 B3、工单 C1~C4、公告 D1、模板 D2、日志 A4、投诉反馈 C2、FAQ D5、版本 E5。**本规范不重复字段。**
+
 ---
 
 # 八、待决事项（不拍板不许假装已定）

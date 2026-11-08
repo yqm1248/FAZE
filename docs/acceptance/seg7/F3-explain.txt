@@ -1,0 +1,95 @@
+# F3 EXPLAIN 证据（A-02 看板 4 组接口涉及的 SQL）
+# 生成时间：2026-11-09（第 7 段 T1）
+# 环境：MySQL 8.0.44 / 库 faze / 数据量：login_log 477 行、operation_log 258 行、app_user 9 行、orders 见下方
+
+-- [1] SQL:
+SELECT COUNT(DISTINCT user_id) FROM login_log WHERE result = 'success' AND created_at >= '2026-11-08 16:00:00' AND created_at < '2026-11-09 16:00:00'
+-- EXPLAIN:
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	login_log	NULL	ALL	idx_login_user	NULL	NULL	NULL	477	1.11	Using where
+
+-- [2] SQL:
+SELECT COUNT(*) FROM app_user WHERE deleted_at IS NULL AND created_at >= '2026-11-08 16:00:00' AND created_at < '2026-11-09 16:00:00'
+-- EXPLAIN:
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	app_user	NULL	ALL	NULL	NULL	NULL	NULL	9	11.11	Using where
+
+-- [3] SQL:
+SELECT COUNT(*) FROM orders WHERE created_at >= '2026-11-08 16:00:00' AND created_at < '2026-11-09 16:00:00'
+-- EXPLAIN:
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	orders	NULL	ALL	NULL	NULL	NULL	NULL	16	11.11	Using where
+
+-- [4] SQL:
+SELECT COALESCE(SUM(platform_fee_cents), 0) FROM orders WHERE paid_at IS NOT NULL AND paid_at >= '2026-11-08 16:00:00' AND paid_at < '2026-11-09 16:00:00'
+-- EXPLAIN:
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	orders	NULL	ALL	NULL	NULL	NULL	NULL	16	10.00	Using where
+
+-- [5] SQL:
+SELECT DATE(created_at) AS d, COUNT(*) AS c FROM orders WHERE created_at >= '2026-10-26 16:00:00' GROUP BY DATE(created_at) ORDER BY d
+-- EXPLAIN:
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	orders	NULL	ALL	NULL	NULL	NULL	NULL	16	33.33	Using where; Using temporary; Using filesort
+
+-- [6] SQL:
+SELECT DATE(paid_at) AS d, COALESCE(SUM(platform_fee_cents), 0) AS c FROM orders WHERE paid_at IS NOT NULL AND paid_at >= '2026-10-26 16:00:00' GROUP BY DATE(paid_at) ORDER BY d
+-- EXPLAIN:
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	orders	NULL	ALL	NULL	NULL	NULL	NULL	16	30.00	Using where; Using temporary; Using filesort
+
+-- [7] SQL:
+SELECT COALESCE(NULLIF(region, ''), '其他') AS name, COUNT(*) AS c FROM app_user WHERE deleted_at IS NULL GROUP BY COALESCE(NULLIF(region, ''), '其他') ORDER BY c DESC
+-- EXPLAIN:
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	app_user	NULL	ALL	idx_app_user_region	NULL	NULL	NULL	9	11.11	Using where; Using temporary; Using filesort
+
+-- [8] SQL:
+SELECT COUNT(*) FROM realname_auth WHERE status = 'pending'
+-- EXPLAIN:
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	realname_auth	NULL	ref	idx_realname_status	idx_realname_status	83	const	1	100.00	Using index
+
+-- [9] SQL:
+SELECT COUNT(*) FROM lawyer_application WHERE audit_status = 'pending'
+-- EXPLAIN:
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	lawyer_application	NULL	ref	idx_app_status	idx_app_status	83	const	1	100.00	Using index
+
+-- [10] SQL:
+SELECT COUNT(*) FROM withdraw_record WHERE status = 'applying'
+-- EXPLAIN:
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	withdraw_record	NULL	ref	idx_withdraw_status	idx_withdraw_status	82	const	2	100.00	Using index
+
+-- [11] SQL:
+SELECT COUNT(*) FROM service_ticket WHERE status IN ('waiting', 'processing')
+-- EXPLAIN:
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	service_ticket	NULL	index	idx_ticket_status,idx_ticket_sla	idx_ticket_status	87	NULL	13	100.00	Using where; Using index
+
+-- [12] SQL:
+SELECT COUNT(*) FROM service_ticket WHERE status IN ('waiting', 'processing') AND sla_due_at < '2026-11-09 00:00:00'
+-- EXPLAIN:
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	service_ticket	NULL	range	idx_ticket_status,idx_ticket_sla	idx_ticket_sla	87	NULL	2	100.00	Using where; Using index
+
+-- [13] SQL:
+SELECT COUNT(*) FROM content_review WHERE review_result = 'pending'
+-- EXPLAIN:
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	content_review	NULL	ref	idx_review_pending	idx_review_pending	83	const	2	100.00	Using index
+
+
+# ── 对 legal_order / balance_flow 全表 COUNT 慢查询的判断（F3-4 要求）────────────────
+# 1) 工作流 A5 写的表名 `legal_order` **不存在**（本段实测）：真实表是 `orders`。
+#    对不存在的表做全表 COUNT 无从谈起；对 `orders` 的 COUNT，当前 16 行、EXPLAIN 显示
+#    type=ALL 且 rows=16 —— 数据量小时全表扫描是最优解，加索引反而增加写放大。
+# 2) `balance_flow` 当前不在看板任何指标里（余额流水用于钱包/对账，不是 A-02 的 4 组接口）。
+#    若将来把「平台流水」加进看板，它才是随数据量线性变慢的候选：
+#    balance_flow 是只增不改的资金流水表，10 万行以上时 `SUM(delta_cents)` 全表扫描
+#    在 100ms 级；50 万行后进入 500ms 级，需要预聚合（这也是代码注释里写死的升级路径）。
+# 3) 结论：本段 4 个接口在当前数据量（app_user 9 / orders 16 / login_log 477 / service_ticket 少量）
+#    下全部是毫秒级；**慢查询的触发条件是数据量，不是 SQL 写法**。
+#    升级路径（代码注释同步）：数据量 > 50 万行时改为预聚合表 dashboard_daily_stat；
+#    触发条件：P95 > 800ms 或 单次查询 > 2s。

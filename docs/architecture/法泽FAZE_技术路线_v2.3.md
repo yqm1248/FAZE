@@ -994,6 +994,8 @@ HTTP 状态码：**成功一律 200**（含业务失败也返回 200 + code）�
 
 #### 4.8.4.11 系统（A-25、A-26、A-28）
 
+> **A-28 三个接口归段 3 实现**，列在此组仅为按页面编号归位；本段（段 7）只做 A-25 / A-26 的接口，A-28 的 AI 会话检索属段 3（总纲 §4.2）。
+
 | 方法与路径 | 用途 | 主要表 |
 |---|---|---|
 | `GET /admin/sensitive-words?level=&lang=&kw=` | 词库列表（三级：block / review / warn） | `sensitive_word` |
@@ -1030,7 +1032,7 @@ HTTP 状态码：**成功一律 200**（含业务失败也返回 200 + code）�
 - **发票管理**：技术路线 §15.1 列了，但 V1 不做（PC 计划 §七），不提供接口；
 - **数据大屏 / BI 报表**：不在 A-01 ~ A-28 内；
 - **权限细分接口**：只有一个管理员角色，不提供角色 / 数据范围配置接口；
-- **IM 聊天原文接口**：**待定**（涉隐私合规，见《未完成需备注》§5.2）。A-12 订单详情、A-20 审核队列暂只返回摘要与命中片段；A-28 返回的是 **AI 对话原文**（合规留痕所必需），不是律师与用户的聊天。
+- **IM 聊天原文接口**：**已定（2026-11-02 段 7 裁决 13）——不提供全量拉取**（涉隐私合规，见《未完成需备注》§5.2）。A-12 订单详情、A-20 审核队列只返回摘要与命中片段（+ 前后各 3 条上下文摘要）；要看完整聊天走投诉工单里**用户主动提交的截图**。A-28 返回的是 **AI 对话原文**（合规留痕所必需），不是律师与用户的聊天。
 
 ---
 
@@ -1040,7 +1042,7 @@ HTTP 状态码：**成功一律 200**（含业务失败也返回 200 + code）�
 
 > **2026-10-30 实测：本文档共 51 条 `CREATE TABLE`，唯一表名只有 49 张**（`login_log`、`operation_log` 各被定义两遍）；**下面这张清单只有 30 行**，其中还含 3 个已改名或已合并的表名（`case` → `legal_case`、`favorite` / `follow` → `social_action`），另有 **31 张实际存在的表从未进过清单**。
 >
-> **表清单的唯一准据改为《[法泽FAZE_数据表规范_v1.0.md](法泽FAZE_数据表规范_v1.0.md)》附录 A**。**表总数口径（v1.34，2026-11-02 段 7 定稿）：55 张，要建 54 张**（`invoice` 按「V1 明确不做」不建、`share_poster` 段 7 不做、`sensitive_word_appeal` 与 `announcement` 为段 7 新增的第 54/55 张）。此前 51 / 53 两个数均已被取代。下面这张清单保留为历史记录，**不要再拿它排建表计划**——照它排会同时漏建 31 张、又找不到 3 张表。
+> **表清单的唯一准据改为《[法泽FAZE_数据表规范_v1.0.md](法泽FAZE_数据表规范_v1.0.md)》附录 A**。**表总数：v1.34 起 53 → 55 张**（2026-11-02 段 7 定稿），要建 54 张（`invoice` 按「V1 明确不做」永不建、`share_poster` 计入段 7 账面但段 7 不建、`sensitive_word_appeal` 与 `announcement` 为段 7 新增的第 54/55 张）。此前 51 / 53 两个数均已被取代。下面这张清单保留为历史记录，**不要再拿它排建表计划**——照它排会同时漏建 31 张、又找不到 3 张表。
 >
 > 「V2.3 新增 17 张」与 §5.11 标题的「新增 15 张」、变更记录的「15 张」三处不一致，均以规范附录 A 为准。
 
@@ -2121,6 +2123,7 @@ CREATE TABLE service_ticket (
   agent_id        BIGINT,
   conversation_id BIGINT,
   category        VARCHAR(30),
+  type_id         BIGINT,                        -- v1.34 施工补（V706，裁决 23）：complaint.id / feedback.id，A-22 详情 join 原表取正文
   title           VARCHAR(200) NOT NULL,          -- v1.34 段 7 补：A-21 列表「标题」列
   priority        VARCHAR(10) NOT NULL DEFAULT 'normal',  -- v1.34 段 7 补：low/normal/high/urgent
   status          VARCHAR(20) NOT NULL DEFAULT 'waiting',
@@ -2131,10 +2134,12 @@ CREATE TABLE service_ticket (
   UNIQUE KEY uk_ticket_no (ticket_no),
   KEY idx_ticket_status (status, created_at),
   KEY idx_ticket_agent (agent_id, status),
-  KEY idx_ticket_sla (status, sla_due_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='客服工单；v1.34 段 7 补 4 字段';
+  KEY idx_ticket_sla (status, sla_due_at),
+  KEY idx_ticket_type (category, type_id)         -- V706：按「类型 + 原表 id」反查工单
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='客服工单；v1.34 段 7 补 4 字段 + V706 补 type_id（实际 14 列）';
 ```
 
+```sql
 -- 54. 敏感词误判申诉（v1.34 段 7 新增；上游有 2 个申诉接口与 A-25 申诉复核，但表从未登记）
 CREATE TABLE sensitive_word_appeal (
   id                BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -2198,6 +2203,7 @@ CREATE TABLE invoice (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='发票申请与开具记录';
 ```
 
+```sql
 -- 55. 公告批次主表（v1.34 段 7 新增；A-23 的「触达 / 打开率」唯一落点）
 CREATE TABLE announcement (
   id              BIGINT PRIMARY KEY AUTO_INCREMENT,
