@@ -1,0 +1,10 @@
+{
+  "_comment": "进程外探活（scripts/monitor/health-probe.ps1）的配置。webhook/secret 留空 = 能判定但不能发送（exit 3 会诚实报错）。真实钉钉 webhook 不要写进本文件（会被提交），请放 deploy/.env 的 FAZE_ALERT_WEBHOOK / FAZE_ALERT_SECRET（.env 已 gitignore）；本机演练可用命令行 -Webhook http://127.0.0.1:8088/dingtalk 临时指向 mock 接收端。",
+  "probeUrl": "http://127.0.0.1:8081/api/v1/pub/ping",
+  "fallbackProbeUrl": "http://127.0.0.1:8081/actuator/health",
+  "webhook": "",
+  "secret": "",
+  "failureThreshold": 2,
+  "dedupeMinutes": 30,
+  "timeoutSeconds": 5
+}
