@@ -24,7 +24,6 @@ import com.faze.common.audit.OperationLog;
 import com.faze.common.exception.BusinessException;
 import com.faze.common.exception.ErrorCode;
 import com.faze.common.pojo.PageResult;
-import com.faze.common.util.CsvWriter;
 import com.faze.infra.audit.entity.OperationLogEntity;
 import com.faze.infra.audit.mapper.OperationLogMapper;
 import com.faze.modules.account.service.AccountQueryService;
@@ -43,8 +42,11 @@ import com.faze.modules.ops.enums.TicketStatus;
 import com.faze.modules.ops.mapper.ComplaintMapper;
 import com.faze.modules.ops.mapper.FeedbackMapper;
 import com.faze.modules.ops.mapper.ServiceTicketMapper;
+import com.faze.modules.ops.service.ExportService;
+import com.faze.modules.ops.service.ExportSource;
 import com.faze.modules.ops.service.NotificationService;
 import com.faze.modules.ops.service.TicketService;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
@@ -65,13 +67,16 @@ import tools.jackson.databind.json.JsonMapper;
  */
 @Slf4j
 @Service
-public class AdminTicketService {
+public class AdminTicketService implements ExportSource {
+
+    /** 导出文件名前缀。 */
+    private static final String EXPORT_TYPE = "tickets";
 
     /** 分页上限。 */
     private static final int PAGE_SIZE_MAX = 100;
 
-    /** 导出上限。 */
-    private static final int EXPORT_MAX_ROWS = 5000;
+    /** 导出一次取回的最大行数（超过需要改流式写盘，本段无此场景）。 */
+    private static final int EXPORT_FETCH_MAX = 100_000;
 
     /** CSV 时间格式（+08:00）。 */
     private static final DateTimeFormatter CSV_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
@@ -100,6 +105,9 @@ public class AdminTicketService {
     /** JSON。 */
     private final JsonMapper jsonMapper;
 
+    /** 导出统一服务。 */
+    private final ExportService exportService;
+
     /**
      * 构造服务。
      *
@@ -111,12 +119,14 @@ public class AdminTicketService {
      * @param accountQueryService 账户查询
      * @param operationLogMapper  操作日志 Mapper
      * @param jsonMapper          JSON
+     * @param exportService       导出统一服务
      */
     public AdminTicketService(ServiceTicketMapper ticketMapper, ComplaintMapper complaintMapper,
                               FeedbackMapper feedbackMapper, TicketService ticketService,
                               NotificationService notificationService,
                               AccountQueryService accountQueryService,
-                              OperationLogMapper operationLogMapper, JsonMapper jsonMapper) {
+                              OperationLogMapper operationLogMapper, JsonMapper jsonMapper,
+                              ExportService exportService) {
         this.ticketMapper = ticketMapper;
         this.complaintMapper = complaintMapper;
         this.feedbackMapper = feedbackMapper;
@@ -125,6 +135,7 @@ public class AdminTicketService {
         this.accountQueryService = accountQueryService;
         this.operationLogMapper = operationLogMapper;
         this.jsonMapper = jsonMapper;
+        this.exportService = exportService;
     }
 
     /**
@@ -138,26 +149,7 @@ public class AdminTicketService {
         int pageSize = query.getPageSize() == null || query.getPageSize() < 1
                 ? 10 : Math.min(query.getPageSize(), PAGE_SIZE_MAX);
 
-        LambdaQueryWrapper<ServiceTicket> wrapper = Wrappers.<ServiceTicket>lambdaQuery();
-        if ("processing".equals(query.getTab())) {
-            wrapper.in(ServiceTicket::getStatus, TicketStatus.WAITING.getCode(),
-                    TicketStatus.PROCESSING.getCode());
-        } else if ("finished".equals(query.getTab())) {
-            wrapper.in(ServiceTicket::getStatus, TicketStatus.REPLIED.getCode(),
-                    TicketStatus.CLOSED.getCode());
-        }
-        if (StringUtils.hasText(query.getCategory())) {
-            wrapper.eq(ServiceTicket::getCategory, query.getCategory());
-        }
-        if (query.getAgentId() != null) {
-            wrapper.eq(ServiceTicket::getAgentId, query.getAgentId());
-        }
-        if (StringUtils.hasText(query.getKeyword())) {
-            wrapper.and(w -> w.like(ServiceTicket::getTicketNo, query.getKeyword())
-                    .or().like(ServiceTicket::getTitle, query.getKeyword()));
-        }
-        // 处理中的排前面、超时的再排前面；同组内按创建时间倒序
-        wrapper.orderByDesc(ServiceTicket::getId);
+        LambdaQueryWrapper<ServiceTicket> wrapper = buildWrapper(query);
 
         IPage<ServiceTicket> page = ticketMapper.selectPage(new Page<>(pageNum, pageSize), wrapper);
         List<TicketVO> rows = new ArrayList<>(page.getRecords().size());
@@ -305,37 +297,149 @@ public class AdminTicketService {
      */
     @OperationLog(module = OpsAuditAction.MODULE_OPS, action = "LOG_EXPORT",
             targetType = OpsAuditAction.TARGET_TICKET)
-    public byte[] export(TicketQueryBO query) {
-        TicketQueryBO all = new TicketQueryBO();
-        all.setTab(query.getTab());
-        all.setKeyword(query.getKeyword());
-        all.setCategory(query.getCategory());
-        all.setAgentId(query.getAgentId());
-        all.setPageNum(1);
-        all.setPageSize(EXPORT_MAX_ROWS + 1);
-        PageResult<TicketVO> page = page(all);
-        if (page.getTotal() > EXPORT_MAX_ROWS) {
-            throw new BusinessException(ErrorCode.OPS_EXPORT_TOO_LARGE);
-        }
-        List<String> headers = List.of("ticket_no", "category", "title", "priority", "status",
+    public ExportService.ExportResult export(TicketQueryBO query) {
+        Map<String, Object> params = new LinkedHashMap<>();
+        putIfNotNull(params, "tab", query.getTab());
+        putIfNotNull(params, "keyword", query.getKeyword());
+        putIfNotNull(params, "category", query.getCategory());
+        putIfNotNull(params, "agentId", query.getAgentId());
+        ExportService.ExportResult result = exportService.export(this, params,
+                OpsAuditAction.TARGET_TICKET);
+        exportService.markAudit(OpsAuditAction.TARGET_TICKET, result, params);
+        return result;
+    }
+
+    /**
+     * 导出类型（文件名前缀）。
+     *
+     * @return `tickets`
+     */
+    @Override
+    public String type() {
+        return EXPORT_TYPE;
+    }
+
+    /**
+     * CSV 表头。
+     *
+     * @return 表头
+     */
+    @Override
+    public List<String> headers() {
+        return List.of("ticket_no", "category", "title", "priority", "status",
                 "user_id", "agent_id", "sla_due_at", "overtime", "created_at", "closed_at");
-        List<List<String>> rows = new ArrayList<>(page.getList().size());
-        for (TicketVO vo : page.getList()) {
-            List<String> row = new ArrayList<>(headers.size());
-            row.add(CsvWriter.str(vo.getTicketNo()));
-            row.add(CsvWriter.str(vo.getCategory()));
-            row.add(CsvWriter.str(vo.getTitle()));
-            row.add(CsvWriter.str(vo.getPriority()));
-            row.add(CsvWriter.str(vo.getStatus()));
-            row.add(CsvWriter.str(vo.getUserId()));
-            row.add(CsvWriter.str(vo.getAgentId()));
-            row.add(CsvWriter.str(vo.getSlaDueAt() == null ? null : toLocal(vo.getSlaDueAt())));
-            row.add(CsvWriter.str(vo.getOvertime()));
-            row.add(CsvWriter.str(vo.getCreatedAt() == null ? null : toLocal(vo.getCreatedAt())));
-            row.add(CsvWriter.str(vo.getClosedAt() == null ? null : toLocal(vo.getClosedAt())));
+    }
+
+    /**
+     * 按筛选条件统计行数。
+     *
+     * @param params 筛选条件
+     * @return 行数
+     */
+    @Override
+    public long count(Map<String, Object> params) {
+        Long total = ticketMapper.selectCount(buildWrapper(toQuery(params)));
+        return total == null ? 0L : total;
+    }
+
+    /**
+     * 按筛选条件查全部行（异步任务执行时用）。
+     *
+     * @param params 筛选条件
+     * @return 行数据
+     */
+    @Override
+    public List<List<Object>> rows(Map<String, Object> params) {
+        List<ServiceTicket> records = ticketMapper.selectList(buildWrapper(toQuery(params)));
+        List<List<Object>> rows = new ArrayList<>(records.size());
+        for (ServiceTicket ticket : records) {
+            TicketVO vo = toVO(ticket);
+            List<Object> row = new ArrayList<>(11);
+            row.add(vo.getTicketNo());
+            row.add(vo.getCategory());
+            row.add(vo.getTitle());
+            row.add(vo.getPriority());
+            row.add(vo.getStatus());
+            row.add(vo.getUserId());
+            row.add(vo.getAgentId());
+            row.add(vo.getSlaDueAt() == null ? null : toLocal(vo.getSlaDueAt()));
+            row.add(vo.getOvertime());
+            row.add(vo.getCreatedAt() == null ? null : toLocal(vo.getCreatedAt()));
+            row.add(vo.getClosedAt() == null ? null : toLocal(vo.getClosedAt()));
             rows.add(row);
         }
-        return CsvWriter.toBytes(headers, rows);
+        return rows;
+    }
+
+    /**
+     * 组装工单筛选条件（列表 / 导出 count / 导出 rows 共用，保证三处口径一致）。
+     *
+     * @param query 筛选条件
+     * @return Wrapper
+     */
+    private LambdaQueryWrapper<ServiceTicket> buildWrapper(TicketQueryBO query) {
+        LambdaQueryWrapper<ServiceTicket> wrapper = Wrappers.<ServiceTicket>lambdaQuery();
+        if ("processing".equals(query.getTab())) {
+            wrapper.in(ServiceTicket::getStatus, TicketStatus.WAITING.getCode(),
+                    TicketStatus.PROCESSING.getCode());
+        } else if ("finished".equals(query.getTab())) {
+            wrapper.in(ServiceTicket::getStatus, TicketStatus.REPLIED.getCode(),
+                    TicketStatus.CLOSED.getCode());
+        }
+        if (StringUtils.hasText(query.getCategory())) {
+            wrapper.eq(ServiceTicket::getCategory, query.getCategory());
+        }
+        if (query.getAgentId() != null) {
+            wrapper.eq(ServiceTicket::getAgentId, query.getAgentId());
+        }
+        if (StringUtils.hasText(query.getKeyword())) {
+            wrapper.and(w -> w.like(ServiceTicket::getTicketNo, query.getKeyword())
+                    .or().like(ServiceTicket::getTitle, query.getKeyword()));
+        }
+        wrapper.orderByDesc(ServiceTicket::getId);
+        return wrapper;
+    }
+
+    /**
+     * Map → 工单查询条件（异步任务重查时还原）。
+     *
+     * @param params 参数 Map
+     * @return 查询条件
+     */
+    private TicketQueryBO toQuery(Map<String, Object> params) {
+        TicketQueryBO query = new TicketQueryBO();
+        Map<String, Object> safe = params == null ? Map.of() : params;
+        query.setTab(asString(safe.get("tab")));
+        query.setKeyword(asString(safe.get("keyword")));
+        query.setCategory(asString(safe.get("category")));
+        Object agentId = safe.get("agentId");
+        query.setAgentId(agentId == null ? null
+                : (agentId instanceof Number number ? number.longValue()
+                        : Long.valueOf(String.valueOf(agentId))));
+        return query;
+    }
+
+    /**
+     * 非空才放入 Map。
+     *
+     * @param map   Map
+     * @param key   键
+     * @param value 值
+     */
+    private void putIfNotNull(Map<String, Object> map, String key, Object value) {
+        if (value != null && (!(value instanceof String text) || !text.isBlank())) {
+            map.put(key, value);
+        }
+    }
+
+    /**
+     * 转 String。
+     *
+     * @param value 值
+     * @return 字符串或 null
+     */
+    private String asString(Object value) {
+        return value == null ? null : String.valueOf(value);
     }
 
     /**

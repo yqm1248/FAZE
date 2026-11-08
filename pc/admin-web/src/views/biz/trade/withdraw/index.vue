@@ -299,6 +299,7 @@
  * 注意：通过 ≠ 出款。通过只改状态，已出款才扣冻结并写流水。
  */
 import { onMounted, reactive, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   auditWithdrawal,
@@ -309,6 +310,15 @@ import {
   uploadWithdrawalVoucher
 } from '@/api/biz/withdraw'
 import { formatCents, formatDateTime, textOrDash } from '@/views/biz/shared/format'
+
+/**
+ * 当前路由。
+ *
+ * A-02「待我处理」的提现待办会跳到本页并带 `status=applying`，
+ * 本页负责把这个参数落进筛选条件（否则跳转后仍显示全部状态，
+ * 与看板上的「提现申请待审核 N」对不上）。
+ */
+const route = useRoute()
 
 /** 提现状态选项（与后端 WithdrawStatus 一一对应）。 */
 const STATUS_OPTIONS = [
@@ -642,7 +652,23 @@ function showRejectReason(row) {
   ElMessageBox.alert(row.rejectReason || '（未填写理由）', '驳回理由', { confirmButtonText: '知道了' })
 }
 
-onMounted(loadAll)
+/**
+ * 从路由 query 承接筛选条件（A-02「待我处理」跳转带参）。
+ *
+ * 只接受字符串且非空的状态值；非法值忽略（服务端会按枚举校验，前端不替它兜错值）。
+ * 副作用：写 query.status。
+ */
+function applyRouteQuery() {
+  const { status } = route.query
+  if (typeof status === 'string' && status) {
+    query.status = status
+  }
+}
+
+onMounted(() => {
+  applyRouteQuery()
+  loadAll()
+})
 </script>
 
 <style scoped>

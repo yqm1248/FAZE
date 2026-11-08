@@ -24,7 +24,6 @@ import com.faze.common.audit.OperationLog;
 import com.faze.common.exception.BusinessException;
 import com.faze.common.exception.ErrorCode;
 import com.faze.common.pojo.PageResult;
-import com.faze.common.util.CsvWriter;
 import com.faze.infra.sensitive.SensitiveWordPublisher;
 import com.faze.modules.ops.admin.bo.SensitiveWordQueryBO;
 import com.faze.modules.ops.admin.bo.SensitiveWordSaveBO;
@@ -35,6 +34,8 @@ import com.faze.modules.ops.entity.SensitiveWord;
 import com.faze.modules.ops.enums.SensitiveCategory;
 import com.faze.modules.ops.enums.SensitiveLevel;
 import com.faze.modules.ops.mapper.SensitiveWordMapper;
+import com.faze.modules.ops.service.ExportService;
+import com.faze.modules.ops.service.ExportSource;
 import com.faze.modules.ops.service.SensitiveWordLoader;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
@@ -61,7 +62,10 @@ import tools.jackson.databind.json.JsonMapper;
  */
 @Slf4j
 @Service
-public class AdminSensitiveWordService {
+public class AdminSensitiveWordService implements ExportSource {
+
+    /** 导出文件名前缀。 */
+    private static final String EXPORT_TYPE = "sensitive-words";
 
     /** 分页上限。 */
     private static final int PAGE_SIZE_MAX = 100;
@@ -90,6 +94,9 @@ public class AdminSensitiveWordService {
     /** JSON（审计 detail）。 */
     private final JsonMapper jsonMapper;
 
+    /** 导出统一服务。 */
+    private final ExportService exportService;
+
     /**
      * 构造服务。
      *
@@ -97,15 +104,18 @@ public class AdminSensitiveWordService {
      * @param loader              引擎加载器
      * @param publisher           重载广播
      * @param jsonMapper          JSON
+     * @param exportService       导出统一服务
      */
     public AdminSensitiveWordService(SensitiveWordMapper sensitiveWordMapper,
                                      SensitiveWordLoader loader,
                                      SensitiveWordPublisher publisher,
-                                     JsonMapper jsonMapper) {
+                                     JsonMapper jsonMapper,
+                                     ExportService exportService) {
         this.sensitiveWordMapper = sensitiveWordMapper;
         this.loader = loader;
         this.publisher = publisher;
         this.jsonMapper = jsonMapper;
+        this.exportService = exportService;
     }
 
     /**
@@ -362,26 +372,112 @@ public class AdminSensitiveWordService {
      */
     @OperationLog(module = OpsAuditAction.MODULE_OPS, action = "LOG_EXPORT",
             targetType = OpsAuditAction.TARGET_SENSITIVE_WORD)
-    public byte[] export(SensitiveWordQueryBO query) {
-        List<SensitiveWord> rows = sensitiveWordMapper.selectList(Wrappers.<SensitiveWord>lambdaQuery()
-                .eq(StringUtils.hasText(query.getLevel()), SensitiveWord::getLevel, query.getLevel())
-                .eq(StringUtils.hasText(query.getLang()), SensitiveWord::getLang, query.getLang())
-                .eq(StringUtils.hasText(query.getCategory()), SensitiveWord::getCategory, query.getCategory())
-                .orderByAsc(SensitiveWord::getId));
-        List<String> headers = List.of("word", "category", "level", "lang", "hit_count", "last_hit_at", "enabled");
-        List<List<String>> data = new ArrayList<>(rows.size());
-        for (SensitiveWord row : rows) {
-            List<String> line = new ArrayList<>(headers.size());
-            line.add(CsvWriter.str(row.getWord()));
-            line.add(CsvWriter.str(row.getCategory()));
-            line.add(CsvWriter.str(row.getLevel()));
-            line.add(CsvWriter.str(row.getLang()));
-            line.add(CsvWriter.str(row.getHitCount()));
-            line.add(CsvWriter.str(row.getLastHitAt() == null ? null : toLocalTime(row.getLastHitAt())));
-            line.add(CsvWriter.str(row.getEnabled()));
-            data.add(line);
+    public ExportService.ExportResult export(SensitiveWordQueryBO query) {
+        Map<String, Object> params = new LinkedHashMap<>();
+        putIfNotNull(params, "level", query.getLevel());
+        putIfNotNull(params, "lang", query.getLang());
+        putIfNotNull(params, "category", query.getCategory());
+        ExportService.ExportResult result = exportService.export(this, params,
+                OpsAuditAction.TARGET_SENSITIVE_WORD);
+        exportService.markAudit(OpsAuditAction.TARGET_SENSITIVE_WORD, result, params);
+        return result;
+    }
+
+    /**
+     * 导出类型（文件名前缀）。
+     *
+     * @return `sensitive-words`
+     */
+    @Override
+    public String type() {
+        return EXPORT_TYPE;
+    }
+
+    /**
+     * CSV 表头。
+     *
+     * @return 表头
+     */
+    @Override
+    public List<String> headers() {
+        return List.of("word", "category", "level", "lang", "hit_count", "last_hit_at", "enabled");
+    }
+
+    /**
+     * 按筛选条件统计行数。
+     *
+     * @param params 筛选条件
+     * @return 行数
+     */
+    @Override
+    public long count(Map<String, Object> params) {
+        Long total = sensitiveWordMapper.selectCount(buildExportWrapper(params));
+        return total == null ? 0L : total;
+    }
+
+    /**
+     * 按筛选条件查全部行。
+     *
+     * @param params 筛选条件
+     * @return 行数据
+     */
+    @Override
+    public List<List<Object>> rows(Map<String, Object> params) {
+        List<SensitiveWord> records = sensitiveWordMapper.selectList(buildExportWrapper(params));
+        List<List<Object>> rows = new ArrayList<>(records.size());
+        for (SensitiveWord row : records) {
+            List<Object> line = new ArrayList<>(7);
+            line.add(row.getWord());
+            line.add(row.getCategory());
+            line.add(row.getLevel());
+            line.add(row.getLang());
+            line.add(row.getHitCount());
+            line.add(row.getLastHitAt() == null ? null : toLocalTime(row.getLastHitAt()));
+            line.add(row.getEnabled());
+            rows.add(line);
         }
-        return CsvWriter.toBytes(headers, data);
+        return rows;
+    }
+
+    /**
+     * 组装导出筛选条件（count 与 rows 共用，保证两个数字口径一致）。
+     *
+     * @param params 筛选条件
+     * @return Wrapper
+     */
+    private LambdaQueryWrapper<SensitiveWord> buildExportWrapper(Map<String, Object> params) {
+        Map<String, Object> safe = params == null ? Map.of() : params;
+        return Wrappers.<SensitiveWord>lambdaQuery()
+                .eq(StringUtils.hasText(asString(safe.get("level"))),
+                        SensitiveWord::getLevel, asString(safe.get("level")))
+                .eq(StringUtils.hasText(asString(safe.get("lang"))),
+                        SensitiveWord::getLang, asString(safe.get("lang")))
+                .eq(StringUtils.hasText(asString(safe.get("category"))),
+                        SensitiveWord::getCategory, asString(safe.get("category")))
+                .orderByAsc(SensitiveWord::getId);
+    }
+
+    /**
+     * 非空才放入 Map。
+     *
+     * @param map   Map
+     * @param key   键
+     * @param value 值
+     */
+    private void putIfNotNull(Map<String, Object> map, String key, Object value) {
+        if (value != null && (!(value instanceof String text) || !text.isBlank())) {
+            map.put(key, value);
+        }
+    }
+
+    /**
+     * 转 String。
+     *
+     * @param value 值
+     * @return 字符串或 null
+     */
+    private String asString(Object value) {
+        return value == null ? null : String.valueOf(value);
     }
 
     /**

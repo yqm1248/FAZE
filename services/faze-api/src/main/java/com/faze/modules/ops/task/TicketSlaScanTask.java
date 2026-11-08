@@ -47,15 +47,21 @@ public class TicketSlaScanTask {
     /** Redis（去重）。 */
     private final StringRedisTemplate redis;
 
+    /** G1 指标（工单超时）。 */
+    private final com.faze.modules.ops.metric.FazeMetrics fazeMetrics;
+
     /**
      * 构造任务。
      *
      * @param ticketMapper 工单 Mapper
      * @param redis        Redis
+     * @param fazeMetrics  指标
      */
-    public TicketSlaScanTask(ServiceTicketMapper ticketMapper, StringRedisTemplate redis) {
+    public TicketSlaScanTask(ServiceTicketMapper ticketMapper, StringRedisTemplate redis,
+                             com.faze.modules.ops.metric.FazeMetrics fazeMetrics) {
         this.ticketMapper = ticketMapper;
         this.redis = redis;
+        this.fazeMetrics = fazeMetrics;
     }
 
     /**
@@ -91,6 +97,8 @@ public class TicketSlaScanTask {
             }
         }
         if (alerted > 0) {
+            // G1 指标：工单超时数（7-A7 的业务指标；只统计本轮首次告警的工单）
+            fazeMetrics.recordTicketOvertime(alerted);
             log.warn("工单超时扫描完成：本次扫描 {} 条超时，首次告警 {} 条", overtime.size(), alerted);
         }
     }

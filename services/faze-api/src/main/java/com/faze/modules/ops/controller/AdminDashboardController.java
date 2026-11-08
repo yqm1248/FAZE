@@ -12,6 +12,7 @@
 package com.faze.modules.ops.controller;
 
 import com.faze.common.R;
+import com.faze.modules.ops.admin.controller.ExportResponses;
 import com.faze.modules.ops.admin.service.AdminDashboardService;
 import com.faze.modules.ops.admin.vo.DashboardRegionVO;
 import com.faze.modules.ops.admin.vo.DashboardSummaryVO;
@@ -23,6 +24,7 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -78,12 +80,27 @@ public class AdminDashboardController {
     /**
      * A-02 近 14 天趋势（按日聚合、缺日补 0）。
      *
+     * <p>口径见 `docs/acceptance/seg7/A-02-指标口径.md` §6（订单量）/ §7（收入）。</p>
+     *
      * @param metric orders / revenue，默认 orders
      * @return 趋势点位
      */
     @GetMapping("/trends")
     public R<DashboardTrendVO> trends(@RequestParam(required = false, defaultValue = "orders") String metric) {
         return R.ok(dashboardService.trends(metric));
+    }
+
+    /**
+     * 导出看板报表 CSV（F1 第 6 条）。
+     *
+     * <p>同步返回 CSV（结果集固定很小）；导出动作本身写 `LOG_EXPORT` 审计。</p>
+     *
+     * @param range today / 7d / 30d，默认 today
+     * @return CSV 文件流
+     */
+    @GetMapping("/export")
+    public ResponseEntity<?> export(@RequestParam(required = false, defaultValue = "today") String range) {
+        return ExportResponses.of(dashboardService.export(range));
     }
 
     /**

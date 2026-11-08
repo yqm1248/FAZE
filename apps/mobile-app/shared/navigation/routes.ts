@@ -148,6 +148,8 @@ export const PAGE_ROUTES = {
   workbenchProfile: '/workbench-profile' as Href,
   /** 文书模板列表（段 4 E1 的页面，D2 的「新建文书」入口跳这里）。 */
   docTemplates: '/doc/templates' as Href,
+  /** 我的文书（段 4 E1 的 `/doc/mine`；「全部功能」页「我的文书」入口）。 */
+  docMine: '/doc/mine' as Href,
 
   // ── 段 7 C5：客服 / FAQ / 投诉 / 反馈（4 页）────────────────────────
   /** 客服中心（`/support`，APP 55）。 */
@@ -158,6 +160,20 @@ export const PAGE_ROUTES = {
   complaint: '/complaint' as Href,
   /** 意见反馈（`/feedback`，APP 58）。 */
   feedback: '/feedback' as Href,
+
+  // ── 段 7 E 组：设置 / 关于 / 全部功能 / 企业认证 / 收藏 / 关注 ─────────
+  /** 设置页（`/settings`，APP 41）。 */
+  settings: '/settings' as Href,
+  /** 关于法泽（`/about`，APP 59）。 */
+  about: '/about' as Href,
+  /** 全部功能（`/all-features`，APP 61）。 */
+  allFeatures: '/all-features' as Href,
+  /** 企业认证（`/verify-company`，APP 49）。 */
+  verifyCompany: '/verify-company' as Href,
+  /** 我的收藏（`/favorites`，APP 51）。 */
+  favorites: '/favorites' as Href,
+  /** 关注律师（`/following`，APP 52）。 */
+  following: '/following' as Href,
 } as const;
 
 /** 路由常量表的值类型（用于接收「任一页面路径」的参数）。 */

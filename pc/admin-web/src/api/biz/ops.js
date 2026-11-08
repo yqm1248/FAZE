@@ -360,6 +360,27 @@ export function getDashboardTodos() {
   return request({ url: '/api/v1/admin/dashboard/todos', method: 'get' })
 }
 
+/**
+ * 导出报表（CSV，UTF-8 with BOM）。
+ *
+ * 注意：
+ *   1. 返回的是**文件流**（`responseType: 'blob'`），不走 R 拦截器的 JSON 分支。
+ *   2. 第 7 段 F4 的导出统一规范：文件名 `{type}_{yyyyMMddHHmmss}.csv`，由页面拼装；
+ *      后端只保证内容与表头。导出动作本身由服务端写 `LOG_EXPORT` 审计。
+ *   3. 该接口由后端「A-02 导出」任务交付（本段新增接口，§五 5.2 第 5 号）。
+ *
+ * @param {object} params range today|7d|30d
+ * @returns {Promise<Blob>} CSV 文件流
+ */
+export function exportDashboard(params) {
+  return request({
+    url: '/api/v1/admin/dashboard/export',
+    method: 'get',
+    params,
+    responseType: 'blob'
+  })
+}
+
 // ── A-26 日志中心 ─────────────────────────────────────────────────────────
 
 /**

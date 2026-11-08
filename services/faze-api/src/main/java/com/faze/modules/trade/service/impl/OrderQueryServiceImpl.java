@@ -56,4 +56,26 @@ public class OrderQueryServiceImpl implements OrderQueryService {
                 .eq(Orders::getStatus, STATUS_COMPLETED));
         return count != null && count > 0;
     }
+
+    /**
+     * 按主键批量取订单号。
+     *
+     * <p>一次 IN 查询；`order_no` 为空的行跳过（历史脏数据不该让「目标对象」列变 null）。</p>
+     *
+     * @param orderIds 订单主键集合
+     * @return 主键 → 订单号
+     */
+    @Override
+    public java.util.Map<Long, String> mapOrderNosByIds(java.util.Collection<Long> orderIds) {
+        if (orderIds == null || orderIds.isEmpty()) {
+            return java.util.Map.of();
+        }
+        java.util.Map<Long, String> result = new java.util.HashMap<>(orderIds.size());
+        for (Orders order : ordersMapper.selectBatchIds(orderIds)) {
+            if (order.getId() != null && order.getOrderNo() != null) {
+                result.put(order.getId(), order.getOrderNo());
+            }
+        }
+        return result;
+    }
 }

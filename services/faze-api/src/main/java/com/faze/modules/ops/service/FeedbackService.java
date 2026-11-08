@@ -128,6 +128,10 @@ public class FeedbackService {
         ServiceTicket ticket = ticketService.create(userId, "feedback", feedback.getId(),
                 titleOf(content), TicketPriority.NORMAL);
 
+        // 回填 content_review.biz_id（先审后落库，提交时业务行 id 还不存在）；
+        // block 分支业务行整体回滚，content_review 也随事务回滚，无需回填
+        contentReviewService.bindBizId(verdict.reviewId(), feedback.getId());
+
         FeedbackVO vo = toVO(feedback);
         vo.setTicketNo(ticket.getTicketNo());
         log.info("反馈已提交 userId={} feedbackId={} ticketNo={}", userId, feedback.getId(), ticket.getTicketNo());
@@ -184,6 +188,9 @@ public class FeedbackService {
             ServiceTicket ticket = ticketByTypeId.get(f.getId());
             if (ticket != null) {
                 vo.setTicketNo(ticket.getTicketNo());
+                // 处理进度以工单流转为准（与 ComplaintService.listMine 同一口径）
+                vo.setTicketStatus(ticket.getStatus());
+                vo.setStatus(ticket.getStatus());
                 Notification reply = replyByTicketId.get(ticket.getId());
                 if (reply != null) {
                     vo.setReplyContent(reply.getContent());

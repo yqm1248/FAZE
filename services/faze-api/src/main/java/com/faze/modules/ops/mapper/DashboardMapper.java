@@ -79,23 +79,29 @@ public interface DashboardMapper {
     long sumPlatformFee(@Param("begin") LocalDateTime begin, @Param("end") LocalDateTime end);
 
     /**
-     * 每日订单数趋势。
+     * 每日订单数趋势（**按 Asia/Shanghai 自然日**切桶，2026-11-09 修正）。
+     *
+     * <p>`created_at` 是 UTC DATETIME，直接 `DATE(created_at)` 截出来的日界是 UTC 的
+     * 00:00（= 上海 08:00）。实测后果：上海 11-09 01:21 的订单被折线图记到 11-08，
+     * 而 summary 的「今日」窗口按上海日算，同一页面出现「今日 3 单 / 今天折线 0」的矛盾。
+     * 用 `DATE(created_at + INTERVAL 8 HOUR)` 折算到上海日（中国无夏令时，+8 恒定）。</p>
      *
      * @param begin 起始时间（UTC，含）
-     * @return 日期（yyyy-MM-dd）→ 订单数
+     * @return 上海日期（yyyy-MM-dd）→ 订单数
      */
-    @Select("SELECT DATE(created_at) AS d, COUNT(*) AS c FROM orders "
-            + "WHERE created_at >= #{begin} GROUP BY DATE(created_at) ORDER BY d")
+    @Select("SELECT DATE(created_at + INTERVAL 8 HOUR) AS d, COUNT(*) AS c FROM orders "
+            + "WHERE created_at >= #{begin} GROUP BY DATE(created_at + INTERVAL 8 HOUR) ORDER BY d")
     List<TrendRow> selectOrderTrend(@Param("begin") LocalDateTime begin);
 
     /**
-     * 每日平台服务费趋势（分）。
+     * 每日平台服务费趋势（分，**按 Asia/Shanghai 自然日**切桶，2026-11-09 修正）。
      *
      * @param begin 起始时间（UTC，含）
-     * @return 日期（yyyy-MM-dd）→ 金额
+     * @return 上海日期（yyyy-MM-dd）→ 金额
      */
-    @Select("SELECT DATE(paid_at) AS d, COALESCE(SUM(platform_fee_cents), 0) AS c FROM orders "
-            + "WHERE paid_at IS NOT NULL AND paid_at >= #{begin} GROUP BY DATE(paid_at) ORDER BY d")
+    @Select("SELECT DATE(paid_at + INTERVAL 8 HOUR) AS d, COALESCE(SUM(platform_fee_cents), 0) AS c FROM orders "
+            + "WHERE paid_at IS NOT NULL AND paid_at >= #{begin} "
+            + "GROUP BY DATE(paid_at + INTERVAL 8 HOUR) ORDER BY d")
     List<TrendRow> selectRevenueTrend(@Param("begin") LocalDateTime begin);
 
     /**

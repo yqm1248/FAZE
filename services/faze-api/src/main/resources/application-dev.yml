@@ -41,6 +41,13 @@ faze:
     font-path: ${FAZE_FONT_PATH:C:/Windows/Fonts/simfang.ttf}
     # 仿宋只有 Regular，粗体用黑体承担 700 字重（否则 CSS 的 bold 静默不加粗）
     bold-font-path: ${FAZE_BOLD_FONT_PATH:C:/Windows/Fonts/simhei.ttf}
+  backup:
+    # 备份最后成功时间的文件（第 7 段 G1 的 faze_backup_last_success_timestamp 读它；
+    # OpsHealthService 的「备份新鲜度」也读它）。
+    # **必须是绝对路径**：相对路径按进程工作目录解析，而 faze-api 由 deploy/start-api.ps1 在
+    # `services/faze-api` 目录下启动 → 会去找 `services/faze-api/logs/...`（不存在 → gauge 恒 0）。
+    # T4 的备份脚本按约定写仓库根的 `logs/backup-last-success.txt`，这里显式对齐。
+    last-success-file: E:/dshcode/FAZE/logs/backup-last-success.txt
   probe:
     ai:
       mock: true

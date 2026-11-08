@@ -14,11 +14,13 @@
  */
 package com.faze.modules.ops.admin.service;
 
+import com.faze.common.audit.OperationLog;
 import com.faze.modules.ops.admin.vo.DashboardRegionVO;
 import com.faze.modules.ops.admin.vo.DashboardSummaryVO;
 import com.faze.modules.ops.admin.vo.DashboardTodoVO;
 import com.faze.modules.ops.admin.vo.DashboardTrendVO;
 import com.faze.modules.ops.mapper.DashboardMapper;
+import com.faze.modules.ops.service.ExportService;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -77,17 +79,23 @@ public class AdminDashboardService {
     /** JSON。 */
     private final JsonMapper jsonMapper;
 
+    /** 导出统一服务（看板报表导出，F1 第 6 条）。 */
+    private final ExportService exportService;
+
     /**
      * 构造服务。
      *
      * @param dashboardMapper 聚合查询
      * @param redis           Redis
      * @param jsonMapper      JSON 序列化
+     * @param exportService   导出统一服务
      */
-    public AdminDashboardService(DashboardMapper dashboardMapper, StringRedisTemplate redis, JsonMapper jsonMapper) {
+    public AdminDashboardService(DashboardMapper dashboardMapper, StringRedisTemplate redis,
+                                 JsonMapper jsonMapper, ExportService exportService) {
         this.dashboardMapper = dashboardMapper;
         this.redis = redis;
         this.jsonMapper = jsonMapper;
+        this.exportService = exportService;
     }
 
     /**
@@ -115,6 +123,8 @@ public class AdminDashboardService {
         LocalDateTime prevEnd = begin;
 
         long active = dashboardMapper.countActiveUsers(begin, end);
+        // 数据量 > 50 万行时改为预聚合表 dashboard_daily_stat（不在本段范围）
+        // 触发条件：P95 > 800ms 或 单次查询 > 2s
         long prevActive = dashboardMapper.countActiveUsers(prevBegin, prevEnd);
         long newUsers = dashboardMapper.countNewUsers(begin, end);
         long prevNewUsers = dashboardMapper.countNewUsers(prevBegin, prevEnd);
@@ -134,6 +144,10 @@ public class AdminDashboardService {
         vo.setRevenueCents(revenue);
         vo.setRevenueDelta(delta(revenue, prevRevenue));
         vo.setOnlineCount(null);
+        // 口径待定（F3 第 4 条）：页面必须显示「口径待定」而不是空白或 0
+        String onlinePending = "口径待定：实时在线数需要 WebSocket 会话查询，本段不跨域读，段 8 接入";
+        vo.setPendingReason(onlinePending);
+        vo.setPendingReasons(Map.of("onlineCount", onlinePending));
         vo.setDataAsOf(LocalDateTime.now(ZoneOffset.UTC));
         vo.setNote("收入=已支付订单的服务费合计（platform_fee_cents），不含充值；活跃=登录成功去重用户");
         writeCache(key, vo);
@@ -193,10 +207,16 @@ public class AdminDashboardService {
      * 其余合并为「其他」，`region` 为空也归「其他」。
      * 缓存 10 分钟（工作流 L494 明确把 regions 与 summary / trends 并列缓存）。</p>
      *
-     * <p><b>数据现状：`region` 是 V707 才补的列，当前无任何采集入口，恒为 NULL</b>
-     * ——所以真实返回只有一项「其他」，合计等于未注销用户数。这不是 bug，
-     * 是「列有了、数据还没有」的如实体现（见 `AppUser.region` 注释与 §十一）。
-     * 段 8 补采集入口后才会出现真实地区。</p>
+     * <p><b>数据现状（V707 之后）：`region` 列已建（含 idx_app_user_region），
+     * 但注册流程仍未采集，当前值恒为 NULL</b>——所以真实返回只有一项「其他」，
+     * 合计等于未注销用户数。这不是 bug，是「列有了、数据还没有」的如实体现
+     * （见 `AppUser.region` 注释与 §十一 第 19 条）。</p>
+     *
+     * <p><b>已知口径差（§十一 第 19 条）</b>：本方法只过滤 `deleted_at IS NULL`，
+     * 而公告「全量」人群过滤 `status='active'`；当前 `app_user` 7 行 = active 6 + cancelled 1，
+     * 两个口径**差 1 人**。看板不做补偿：它回答「有多少注册用户（未注销）」，
+     * 公告回答「有多少可触达用户」，语义不同，强行对齐反而会说错话。
+     * 是否统一由段 8 决定。</p>
      *
      * @return 地区分布
      */
@@ -271,9 +291,53 @@ public class AdminDashboardService {
     }
 
     /**
+     * 导出看板报表 CSV（F1 第 6 条：指标 + 日期 + 数值）。
+     *
+     * <p>口径见《A-02 指标口径》§2~§7。副作用：写一条 `LOG_EXPORT` 审计。</p>
+     *
+     * <p>结果集固定很小（9 个指标 + 14×2 个趋势点），走同步生成；
+     * 仍统一用 ExportService（同一个 CsvExporter、同一套文件名规则与审计）。</p>
+     *
+     * @param range today / 7d / 30d
+     * @return 导出结果（同步 bytes）
+     */
+    @OperationLog(module = "ops", action = "LOG_EXPORT", targetType = "DASHBOARD")
+    public ExportService.ExportResult export(String range) {
+        String safeRange = range == null || range.isBlank() ? "today" : range;
+        DashboardSummaryVO summary = summary(safeRange);
+        DashboardTrendVO orders = trends("orders");
+        DashboardTrendVO revenue = trends("revenue");
+
+        List<List<Object>> rows = new ArrayList<>(9 + orders.getPoints().size() + revenue.getPoints().size());
+        // 标签随 range 变：range=7d/30d 时数值是窗口值，文案不能再写「今日」
+        String activeLabel = windowLabel(safeRange) + "活跃用户";
+        String newUserLabel = windowLabel(safeRange) + "新增注册";
+        String orderLabel = windowLabel(safeRange) + "订单";
+        String revenueLabel = "平台" + windowLabel(safeRange) + "收入";
+        rows.add(List.of("核心指标", "dailyActive", summary.getDailyActive(),
+                activeLabel + "（登录去重，降级口径）"));
+        rows.add(List.of("核心指标", "newUsers", summary.getNewUsers(), newUserLabel + "（不含软删）"));
+        rows.add(List.of("核心指标", "orderCount", summary.getOrderCount(), orderLabel + "（全状态）"));
+        rows.add(List.of("核心指标", "revenueCents", summary.getRevenueCents(),
+                revenueLabel + "（分，不含充值）"));
+        rows.add(List.of("核心指标", "onlineCount", "口径待定", "实时在线数本段不实现"));
+        for (DashboardTrendVO.Point point : orders.getPoints()) {
+            rows.add(List.of("订单量趋势", point.getDate(), point.getValue(), "笔"));
+        }
+        for (DashboardTrendVO.Point point : revenue.getPoints()) {
+            rows.add(List.of("平台服务费趋势", point.getDate(), point.getValue(), "分"));
+        }
+        Map<String, Object> params = Map.of("range", safeRange);
+        ExportService.ExportResult result = exportService.exportInline("dashboard-report",
+                List.of("指标", "日期或字段", "数值", "说明"), rows);
+        exportService.markAudit("DASHBOARD", result, params);
+        return result;
+    }
+
+    /**
      * 待我处理（5 类计数）。
      *
-     * <p>口径见《A-02 指标口径》§8。**不缓存**（实时看）。</p>
+     * <p>口径见《A-02 指标口径》§9。**不缓存**（实时看）。</p>
      *
      * @return 5 项
      */
@@ -294,10 +358,25 @@ public class AdminDashboardService {
                 "/biz/trade/withdraw?status=applying"));
         list.add(DashboardTodoVO.of("ticket", "投诉工单待处理", tickets,
                 overtime > 0 ? "其中 " + overtime + " 条已超时" : null,
-                "/biz/ops/tickets?status=waiting"));
+                // 菜单路由实测为 /biz/ops/ticket-list（sys_menu 2232）；写 /tickets 会 404
+                "/biz/ops/ticket-list?status=waiting"));
         list.add(DashboardTodoVO.of("contentReview", "内容审核待处理", reviews, null,
                 "/biz/ops/review-queue?status=pending"));
         return list;
+    }
+
+    /**
+     * range → 中文窗口名（导出标签用）。
+     *
+     * @param range today / 7d / 30d
+     * @return 「今日」/「近 7 天」/「近 30 天」
+     */
+    private String windowLabel(String range) {
+        return switch (range) {
+            case "7d" -> "近 7 天";
+            case "30d" -> "近 30 天";
+            default -> "今日";
+        };
     }
 
     /**

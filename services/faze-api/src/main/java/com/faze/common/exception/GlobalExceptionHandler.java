@@ -17,6 +17,7 @@
 package com.faze.common.exception;
 
 import com.faze.common.R;
+import com.faze.common.support.ServicePhoneProvider;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
@@ -46,6 +47,18 @@ import org.springframework.web.servlet.NoHandlerFoundException;
 @Slf4j
 public class GlobalExceptionHandler {
 
+    /** 客服电话提供者（402004 封禁提示要带申诉入口，号码不许写死）。 */
+    private final ServicePhoneProvider servicePhoneProvider;
+
+    /**
+     * 构造处理器。
+     *
+     * @param servicePhoneProvider 客服电话提供者
+     */
+    public GlobalExceptionHandler(ServicePhoneProvider servicePhoneProvider) {
+        this.servicePhoneProvider = servicePhoneProvider;
+    }
+
     // ── 1. 业务异常 ─────────────────────────────────────────────────────────
 
     /**
@@ -65,7 +78,35 @@ public class GlobalExceptionHandler {
         ErrorCode code = e.getErrorCode();
         log.warn("业务异常 path={} code={} msg={} detail={}",
                 req.getRequestURI(), code.getCode(), code.getMsg(), e.getDetail());
-        return ResponseEntity.status(code.getHttpStatus()).body(R.<Void>fail(code));
+        return ResponseEntity.status(code.getHttpStatus()).body(R.<Void>fail(code, messageOf(code)));
+    }
+
+    /**
+     * 取返回给客户端的 msg。
+     *
+     * <p><b>只有 402004（账号被封禁）会改写文案</b>：`7-A4` 锚点要求封禁提示「明确，
+     * 含申诉入口或客服电话」，而错误码自带的固定文案只有「账号已被封禁」。
+     * 客服电话**从 sys_config.service.phone 读**，不许写死在 i18n 资源或代码里
+     * （写死改号就要改代码，且违反「客服电话不写死」的既有约定）。</p>
+     *
+     * <p>为什么把这段放在异常处理器而不是抛异常处：402004 由多个入口抛（密码登录、
+     * 短信登录、刷新令牌），每个地方各拼一遍必然漂移；错误码 → 文案的映射只该有一处。</p>
+     *
+     * <p>其他错误码一律返回错误码自带的固定文案：动态内容（额度、剩余次数）走响应头，
+     * 不进 msg（否则前端按 msgKey 翻译会失效）。</p>
+     *
+     * @param code 错误码
+     * @return 最终 msg
+     */
+    private String messageOf(ErrorCode code) {
+        if (code != ErrorCode.AUTH_ACCOUNT_BLOCKED) {
+            return code.getMsg();
+        }
+        String phone = servicePhoneProvider.getServicePhone();
+        if (phone == null || phone.isBlank()) {
+            return code.getMsg() + "，如需申诉请通过 APP 客服中心提交";
+        }
+        return code.getMsg() + "，如需申诉请联系客服 " + phone + " 或通过 APP 客服中心提交";
     }
 
     /**

@@ -22,6 +22,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.faze.common.exception.BusinessException;
 import com.faze.common.exception.ErrorCode;
 import com.faze.common.pojo.PageResult;
+import com.faze.common.pojo.TargetBrief;
 import com.faze.infra.law.entity.LawItem;
 import com.faze.infra.law.mapper.LawItemMapper;
 import com.faze.infra.storage.FileStorage;
@@ -33,6 +34,8 @@ import com.faze.modules.content.mapper.ArticleTranslationMapper;
 import com.faze.modules.content.vo.ArticleBlockVO;
 import com.faze.modules.content.vo.ArticleCardVO;
 import com.faze.modules.content.vo.ArticleDetailVO;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -48,7 +51,7 @@ import org.springframework.util.StringUtils;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class ArticleService {
+public class ArticleService implements ArticleQueryService {
 
     /** 简体语言码（源语言，不在译文表）。 */
     public static final String LANG_ZH = "zh-Hans";
@@ -97,6 +100,46 @@ public class ArticleService {
                 .map(row -> toCard(row, translations.get(row.getId()), targetLang))
                 .collect(Collectors.toList());
         return PageResult.of(list, rows.getTotal(), page, size);
+    }
+
+    /**
+     * 按主键批量取文章简要信息（跨域只读接口的实现，E3 收藏列表用）。
+     *
+     * <p>只返回已发布且未软删的文章；标题/摘要按请求语言降级（规则与列表页完全一致，
+     * 不在跨域接口里另写一套）。</p>
+     *
+     * @param articleIds 文章主键集合
+     * @param lang       请求语言
+     * @return articleId → 简要信息；无匹配返回空 Map
+     */
+    @Override
+    public Map<Long, TargetBrief> mapBriefsByIds(Collection<Long> articleIds, String lang) {
+        if (articleIds == null || articleIds.isEmpty()) {
+            return Map.of();
+        }
+        Set<Long> ids = articleIds.stream().filter(java.util.Objects::nonNull).collect(Collectors.toSet());
+        if (ids.isEmpty()) {
+            return Map.of();
+        }
+        String targetLang = normalizeLang(lang);
+        List<Article> rows = articleMapper.selectList(Wrappers.<Article>lambdaQuery()
+                .in(Article::getId, ids)
+                .eq(Article::getStatus, STATUS_PUBLISHED)
+                .isNull(Article::getDeletedAt));
+        if (rows.isEmpty()) {
+            return Map.of();
+        }
+        Map<Long, ArticleTranslation> translations = loadTranslations(ids, targetLang);
+        Map<Long, TargetBrief> result = new HashMap<>(rows.size());
+        for (Article article : rows) {
+            ArticleTranslation translation = translations.get(article.getId());
+            String title = translation == null || !StringUtils.hasText(translation.getTitle())
+                    ? article.getTitle() : translation.getTitle();
+            String summary = translation == null || !StringUtils.hasText(translation.getSummary())
+                    ? article.getSummary() : translation.getSummary();
+            result.put(article.getId(), new TargetBrief(title, summary));
+        }
+        return result;
     }
 
     /**

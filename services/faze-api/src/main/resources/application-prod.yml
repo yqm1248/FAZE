@@ -18,6 +18,13 @@ faze:
     # 显式 false 而不是省略：万一有人把 FAZE_AI_MOCK=true 带进生产环境变量，
     # 这里也会把它覆盖成 false——生产绝不能出现「mock 回答被当成 AI 回答」。
     mock: false
+  backup:
+    # 备份最后成功时间的文件（第 7 段 G1 的 faze_backup_last_success_timestamp 与
+    # OpsHealthService 的「备份新鲜度」都读它）。
+    # **生产必须显式注入绝对路径，不提供默认值**（默认拒绝）：相对路径按进程工作目录解析，
+    # 由部署脚本从哪个目录启动就会飘到哪，表现为 gauge 恒 0 → FazeBackupStale 一直告警。
+    # 备份脚本写哪个文件，这里就配哪个。
+    last-success-file: ${FAZE_BACKUP_LAST_SUCCESS_FILE}
   probe:
     ai:
       mock: false

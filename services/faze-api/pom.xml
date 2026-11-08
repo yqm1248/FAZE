@@ -92,6 +92,29 @@
         <artifactId>spring-boot-starter-webflux</artifactId>
     </dependency>
 
+    <!-- 监控（第 7 段 G1）：actuator + Prometheus registry。
+         版本全部由 spring-boot-starter-parent 4.0.6 管理（micrometer 走 Spring Boot BOM），
+         **不要写 version**——写死会与 Boot 管理的 micrometer 版本打架。
+         `/actuator/prometheus` 只暴露本机/管理员可读（见 SecurityConfig）。 -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-actuator</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.micrometer</groupId>
+      <artifactId>micrometer-registry-prometheus</artifactId>
+    </dependency>
+
+    <!-- 结构化日志（第 7 段 G4）：logback 的 JSON encoder。
+         不在 Spring Boot BOM 里，必须显式锁版本；8.1 要求 logback 1.5.x
+         （SB 4.0.6 自带的就是 1.5.x），**升级 logback 前先核对本依赖的兼容性**。
+         只在 logback-spring.xml 的 JSON 文件 appender 里使用，console 仍是 pattern。 -->
+    <dependency>
+      <groupId>net.logstash.logback</groupId>
+      <artifactId>logstash-logback-encoder</artifactId>
+      <version>8.1</version>
+    </dependency>
+
     <!-- MyBatis-Plus：SB4 starter + 分页插件（两个都要，版本一致） -->
     <dependency>
       <groupId>com.baomidou</groupId>

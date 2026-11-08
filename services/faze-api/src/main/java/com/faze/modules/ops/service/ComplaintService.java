@@ -154,6 +154,10 @@ public class ComplaintService {
         ServiceTicket ticket = ticketService.create(userId, "complaint", complaint.getId(),
                 titleOf(bo.getReason()), TicketPriority.HIGH);
 
+        // 任务 4.5：回填 content_review.biz_id（先审后落库，落库前业务行 id 还不存在）
+        // block 分支不走这里：block 业务行整体回滚，content_review 也随事务回滚，无需回填
+        contentReviewService.bindBizId(verdict.reviewId(), complaint.getId());
+
         // 任务 5：组装返回
         ComplaintVO vo = toVO(complaint);
         vo.setTicketNo(ticket.getTicketNo());
@@ -212,6 +216,10 @@ public class ComplaintService {
             ServiceTicket ticket = ticketByTypeId.get(c.getId());
             if (ticket != null) {
                 vo.setTicketNo(ticket.getTicketNo());
+                // 处理进度以工单流转为准（waiting / processing / replied / closed），
+                // 否则后台分配/回复后 APP 仍显示 pending（7-A5 实测踩过）
+                vo.setTicketStatus(ticket.getStatus());
+                vo.setStatus(ticket.getStatus());
                 Notification reply = replyByTicketId.get(ticket.getId());
                 if (reply != null) {
                     vo.setReplyContent(reply.getContent());

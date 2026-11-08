@@ -21,6 +21,7 @@ import com.faze.modules.account.entity.LoginLog;
 import com.faze.modules.account.mapper.LoginLogMapper;
 import com.faze.modules.account.service.LoginLogQueryService;
 import java.time.LocalDateTime;
+import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -68,5 +69,33 @@ public class LoginLogQueryServiceImpl implements LoginLogQueryService {
 
         IPage<LoginLog> page = loginLogMapper.selectPage(new Page<>(pageNum, pageSize), wrapper);
         return PageResult.of(page.getRecords(), page.getTotal(), pageNum, pageSize);
+    }
+
+    /**
+     * 导出用：取全量（不分页）。
+     *
+     * <p>用 `selectList` 而不是 `selectPage`：分页插件有 `maxLimit=200`，
+     * 导出会被静默截断（见接口注释）。limit 由调用方给上限并 clamp 到 [1, 200000]。</p>
+     *
+     * @param account   账号片段
+     * @param ip        来源 IP
+     * @param result    结果
+     * @param beginTime 起始时间（UTC）
+     * @param endTime   截止时间（UTC）
+     * @param limit     最大行数
+     * @return 登录日志列表（按 id 倒序）
+     */
+    @Override
+    public List<LoginLog> listForExport(String account, String ip, String result,
+                                        LocalDateTime beginTime, LocalDateTime endTime, int limit) {
+        int safeLimit = Math.min(Math.max(limit, 1), 200_000);
+        return loginLogMapper.selectList(Wrappers.<LoginLog>lambdaQuery()
+                .like(StringUtils.hasText(account), LoginLog::getAccount, account)
+                .eq(StringUtils.hasText(ip), LoginLog::getIp, ip)
+                .eq(StringUtils.hasText(result), LoginLog::getResult, result)
+                .ge(beginTime != null, LoginLog::getCreatedAt, beginTime)
+                .le(endTime != null, LoginLog::getCreatedAt, endTime)
+                .orderByDesc(LoginLog::getId)
+                .last("LIMIT " + safeLimit));
     }
 }

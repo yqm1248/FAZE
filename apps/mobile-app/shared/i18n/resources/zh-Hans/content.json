@@ -91,5 +91,18 @@
     "caseMeta": "{{category}} · {{source}}",
     "documentMeta": "{{category}}",
     "noFirm": "独立执业"
+  },
+  "favorites": {
+    "title": "我的收藏",
+    "tabArticle": "文章",
+    "tabLawyer": "律师",
+    "tabCase": "案例",
+    "emptyTitle": "还没有收藏",
+    "emptyDesc": "看到有用的普法文章、律师或相似判例时，点击收藏，即可在这里统一查看。",
+    "goHome": "前往首页",
+    "swipeHint": "向左滑动任一收藏可取消收藏",
+    "cancelFavorite": "取消收藏",
+    "removed": "已取消收藏",
+    "noMore": "没有更多了"
   }
 }

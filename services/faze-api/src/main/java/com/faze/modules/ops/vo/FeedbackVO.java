@@ -33,8 +33,19 @@ public class FeedbackVO {
     /** 联系方式（本人可见）。 */
     private String contact;
 
-    /** 处理状态。 */
+    /**
+     * 反馈状态。
+     *
+     * <p><b>口径（2026-11-09 修正）</b>：有工单时返回**工单状态**
+     * （`waiting` / `processing` / `replied` / `closed`），无工单时退回 `feedback.status`。
+     * 原因同 ComplaintVO：反馈落库即生成工单，用户看到的处理进度应以工单流转为准。</p>
+     */
     private String status;
+
+    /**
+     * 工单状态（`waiting` / `processing` / `replied` / `closed`）；无工单为 null。
+     */
+    private String ticketStatus;
 
     /** 关联工单号。 */
     private String ticketNo;

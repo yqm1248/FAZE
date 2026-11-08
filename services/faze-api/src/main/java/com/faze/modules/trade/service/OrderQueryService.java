@@ -27,4 +27,15 @@ public interface OrderQueryService {
      * @return 属于该用户且状态为 completed 时返回 true
      */
     boolean existsCompletedOrderOfUser(Long orderId, Long userId);
+
+    /**
+     * 按主键批量取订单号（A-26 操作日志的「目标对象」可读名映射用）。
+     *
+     * <p>返回的是**最小投影**（id → orderNo），不返回整行：调用方只需要拼
+     * 「订单 OD2026...」这样的展示文本，拿到金额、状态反而增加泄露面。</p>
+     *
+     * @param orderIds 订单主键集合（空集合返回空 Map）
+     * @return 主键 → 订单号；查不到的不出现在结果里
+     */
+    java.util.Map<Long, String> mapOrderNosByIds(java.util.Collection<Long> orderIds);
 }

@@ -9,11 +9,15 @@
  *   2. `revenueCents` 是**分**，前端负责转元（AGENTS §4.5：金额一律整数分）。
  *   3. `onlineCount` 本段**恒为 null**：实时在线依赖 WebSocket 会话表（conversation 域），
  *      本段不跨域读；口径文档与 §十一 都记了这一项，不返回假数。
+ *      为让页面显示「口径待定」而不是空白，本 VO 带 `pendingReason` / `pendingReasons` 两个字段。
  *   4. `note` 是给页面 hover 提示用的口径说明，**不要把算法写死在前端**。
+ *   5. 4 个数值指标声明为 `Long`（包装类）而不是 `long`：允许 null 表达「口径待定」
+ *      （工作流 F3 第 4 条），null 时前端读 `pendingReasons` 里的同名键取原因。
  */
 package com.faze.modules.ops.admin.vo;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 import lombok.Data;
 
 /**
@@ -51,6 +55,24 @@ public class DashboardSummaryVO {
 
     /** 实时在线数；本段恒为 null（见类注释第 3 条）。 */
     private Integer onlineCount;
+
+    /**
+     * 口径待定原因（F3 第 4 条）。
+     *
+     * <p>当任一指标为 `null` 时，页面必须显示「口径待定」而不是 0 或空白，
+     * 原因文本从本字段读。当前只有 `onlineCount` 会触发。</p>
+     */
+    private String pendingReason;
+
+    /**
+     * 字段级口径待定原因（key = 指标字段名，value = 原因）。
+     *
+     * <p>为什么还要一个 map：`pendingReason` 只有一个字符串，当两个指标同时待定时
+     * 只能表达一个原因，页面无法把原因挂到具体卡片上。字段级 map 让前端按
+     * `pendingReasons.onlineCount` 精确取值。两个字段同时返回是为了兼容
+     * 只认 `pendingReason` 的旧前端。</p>
+     */
+    private Map<String, String> pendingReasons;
 
     /** 数据统计截止时间（UTC）。 */
     private LocalDateTime dataAsOf;

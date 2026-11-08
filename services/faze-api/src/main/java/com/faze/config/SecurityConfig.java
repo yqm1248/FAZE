@@ -21,11 +21,13 @@ import com.faze.security.RestAuthenticationEntryPoint;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.authorization.AuthorizationDecision;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
@@ -76,6 +78,33 @@ public class SecurityConfig {
                         .dispatcherTypeMatchers(jakarta.servlet.DispatcherType.ASYNC).permitAll()
                         // pub：公开接口（ping / 登录 / 探针），探针的「仅非生产」由 @Profile 控制而非这里
                         .requestMatchers("/api/v1/pub/**").permitAll()
+                        // 故障注入（仅 dev/验收）：controller 上有 @Profile("!prod")，prod 下不注册、路径 404。
+                        // 放行它是因为演练脚本要能直接打（不依赖登录态）；它本身只返回 500/延迟，不碰数据。
+                        .requestMatchers("/api/v1/dev/**").permitAll()
+                        // ── actuator（第 7 段 G1）────────────────────────────────────
+                        // health 无脑放行（负载均衡/容器探活都用它，且已配 show-details=never，
+                        // 匿名调用方只看到 UP/DOWN，看不到数据库与 Redis 细节）。
+                        .requestMatchers("/actuator/health").permitAll()
+                        // 其余 actuator 端点：**本机（127.0.0.1 / ::1）免鉴权，外网要求 ROLE_ADMIN**。
+                        // 为什么本机要免鉴权：Prometheus 抓取配置里带不了 JWT（token 会过期），
+                        // 一旦要求 token，Status → Targets 恒为 DOWN，7-A7 直接挂。
+                        // 为什么不能一刀切 permitAll：`/actuator/**` 若暴露在公网，
+                        // 即使当前只 include 了 4 个端点，将来有人加一个 env/heapdump 就是事故。
+                        // `/actuator/env` 现在是 404——它不在 management.endpoints.web.exposure.include 里
+                        // （未暴露的端点由 actuator 自己回 404，根本到不了授权判断）。
+                        .requestMatchers("/actuator/**").access((authentication, context) -> {
+                            String remote = context.getRequest().getRemoteAddr();
+                            boolean local = "127.0.0.1".equals(remote)
+                                    || "0:0:0:0:0:0:0:1".equals(remote)
+                                    || "::1".equals(remote);
+                            if (local) {
+                                return new AuthorizationDecision(true);
+                            }
+                            Authentication principal = authentication.get();
+                            boolean admin = principal != null && principal.getAuthorities().stream()
+                                    .anyMatch(granted -> "ROLE_ADMIN".equals(granted.getAuthority()));
+                            return new AuthorizationDecision(admin);
+                        })
                         // /error：容器内部转发用，必须放行，否则异常响应会被 401 覆盖
                         .requestMatchers("/error").permitAll()
                         // 刷新令牌必须放行：调用它的前提就是 access token 已过期，

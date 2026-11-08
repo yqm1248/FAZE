@@ -184,5 +184,28 @@
     "contactSupport": "联系客服",
     "supportPending": "客服功能将在后续版本开放",
     "backToProfile": "返回我的"
+  },
+  "following": {
+    "title": "关注律师",
+    "sortNote": "按最近活跃排序，最近有动态的排在前面",
+    "stateInactive": "长期未活跃",
+    "activeToday": "今天在线",
+    "activeDaysAgo": "{{days}} 天前在线",
+    "activeMonthsAgo": "{{months}} 个月前在线",
+    "recentUnknown": "近期未上线",
+    "inactiveFeed": "近 30 天没有发布内容，也没有上线",
+    "feedReplyFallback": "回复了 1 条咨询，内容已做隐私处理",
+    "feedNone": "暂无新动态",
+    "lastActive": "最后活跃于 {{date}}",
+    "noRecentActivity": "近期没有新动态",
+    "firmUnknown": "独立执业",
+    "cancelFollow": "取消关注",
+    "message": "发消息",
+    "unfollowed": "已取消关注",
+    "emptyTitle": "还没有关注律师",
+    "emptyDesc": "关注之后，律师发新文章、回复咨询时你会收到提醒，也能在这里快速找到他发起对话。",
+    "emptyAction": "去找律师",
+    "noMore": "没有更多了",
+    "pageNote": "关注的律师有新动态或回复咨询时，你会收到通知。不想收可以在「消息通知」里关掉「律师回复」开关，那里只影响推送，不会解除关注关系。"
   }
 }

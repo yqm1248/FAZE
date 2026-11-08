@@ -36,6 +36,7 @@ public class LawyerQueryServiceImpl implements LawyerQueryService {
 
     private final LawyerMapper lawyerMapper;
     private final AccountMapper accountMapper;
+    private final com.faze.modules.account.converter.LawyerBrowseConverter lawyerBrowseConverter;
 
     /**
      * 按律师主键查。
@@ -89,6 +90,39 @@ public class LawyerQueryServiceImpl implements LawyerQueryService {
                 .stream()
                 .filter(lawyer -> lawyer.getId() != null)
                 .collect(Collectors.toMap(Lawyer::getId, Function.identity(), (left, right) -> left));
+    }
+
+    /**
+     * 按主键批量取律师展示简要信息（E3 收藏/关注列表用）。
+     *
+     * <p>一次 IN 查询 + 复用本域 Converter 解析 specialties；跨域调用方拿到的已是数组。</p>
+     *
+     * @param lawyerIds 律师主键集合
+     * @return 主键 → 简要信息
+     */
+    @Override
+    public Map<Long, com.faze.modules.account.vo.LawyerBriefVO> mapBriefsByIds(Collection<Long> lawyerIds) {
+        Map<Long, Lawyer> rows = mapByIds(lawyerIds);
+        if (rows.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        Map<Long, com.faze.modules.account.vo.LawyerBriefVO> result = new java.util.HashMap<>(rows.size());
+        for (Map.Entry<Long, Lawyer> entry : rows.entrySet()) {
+            Lawyer lawyer = entry.getValue();
+            List<String> specialties = lawyerBrowseConverter.toCard(lawyer).getSpecialties();
+            result.put(entry.getKey(), new com.faze.modules.account.vo.LawyerBriefVO(
+                    lawyer.getId(),
+                    lawyer.getUserId(),
+                    lawyer.getRealName(),
+                    lawyer.getLawFirm(),
+                    lawyer.getRegion(),
+                    lawyer.getPracticeYears(),
+                    specialties,
+                    lawyer.getOnlineStatus(),
+                    lawyer.getRating(),
+                    lawyer.getAvatarUrl()));
+        }
+        return result;
     }
 
     /**

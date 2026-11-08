@@ -161,6 +161,36 @@ public class AccountQueryServiceImpl implements AccountQueryService {
     }
 
     /**
+     * 批量取用户最后登录时间（E3 关注列表用）。
+     *
+     * <p>一次 `selectBatchIds` 取完，避免关注列表逐条查库。已软删用户跳过；
+     * 从未登录过的用户不出现在结果里（调用方按 null 处理）。</p>
+     *
+     * @param userIds 用户主键集合
+     * @return userId → 最后登录时间（UTC）
+     */
+    @Override
+    public java.util.Map<Long, java.time.LocalDateTime> mapLastLoginAt(
+            java.util.Collection<Long> userIds) {
+        if (userIds == null || userIds.isEmpty()) {
+            return java.util.Map.of();
+        }
+        java.util.Set<Long> ids = userIds.stream().filter(java.util.Objects::nonNull)
+                .collect(java.util.stream.Collectors.toSet());
+        if (ids.isEmpty()) {
+            return java.util.Map.of();
+        }
+        java.util.Map<Long, java.time.LocalDateTime> result = new java.util.HashMap<>();
+        for (AppUser user : accountMapper.selectBatchIds(ids)) {
+            if (user.getDeletedAt() != null || user.getLastLoginAt() == null) {
+                continue;
+            }
+            result.put(user.getId(), user.getLastLoginAt());
+        }
+        return result;
+    }
+
+    /**
      * 取启用中的用户 id。
      *
      * @param limit 上限

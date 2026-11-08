@@ -128,7 +128,51 @@ faze:
     # 页数上限兜底（超时中断不一定生效，用页数再兜一层）
     max-pages: 200
 
+  # ── 导出目录（第 7 段 F4）────────────────────────────────────────────
+  # 本机目录存储是「云 OSS 未就绪」时的降级出口（工作流 F4 卡住怎么办已允许）。
+  # 同步导出行数上限 5000 与《审计与日志规范》§6.3 一致，**不要在这里调大**：
+  # 调大等于把「>5000 转异步」的验收条件改没了。下载链接默认 24 小时过期。
+  export:
+    dir: ${FAZE_EXPORT_DIR:E:/faze-export}
+    # 5000 是《审计与日志规范》§6.3 的口径；支持环境变量覆盖**只为验收时把阈值调小**
+    # （不用往库里灌 6000 行也能证明「>阈值 → 410015 + taskId → 异步落文件 → 下载」）。
+    # 生产不要设这个变量，保持默认 5000。
+    sync-max-rows: ${FAZE_EXPORT_SYNC_MAX_ROWS:5000}
+    expire-hours: 24
+
 logging:
   level:
     root: INFO
     com.faze: INFO
+
+# ── 监控（第 7 段 G1）──────────────────────────────────────────────────
+# 1. 只暴露 4 个端点：health / info / prometheus / metrics。
+#    **不要 include: "*"**：一旦全开，`/actuator/env`、`/actuator/heapdump`
+#    就能读到环境变量（含数据库口令）或下载堆转储，等于把服务器交出去。
+#    `7-A7` 的验收项之一就是「/actuator/env 不可访问（403 或 404）」。
+# 2. **actuator 与业务同端口（8081）**，因此**不能**配 `management.server.address`：
+#    Spring Boot 4 实测会在启动期直接抛
+#    `IllegalStateException: Management-specific server address cannot be configured as
+#    the management server is not listening on a separate port`（2026-11-09 实测，
+#    43 个测试上下文全部因此加载失败）。工作流 G1 写的「management.server.address=127.0.0.1」
+#    在「同端口」前提下不成立；要真正只绑本机必须给 management 开独立端口（8082），
+#    而那会破坏 T4 的 Prometheus 抓取地址约定（127.0.0.1:8081/actuator/prometheus）。
+#    **所以「不裸奔」由 SecurityConfig 保证**：`/actuator/**` 本机（127.0.0.1/::1）免鉴权，
+#    非本机要求 ROLE_ADMIN；且只 include 4 个端点（env/heapdump 未暴露 → 404）。
+#    这是一处与工作流字面口径的偏差，已记进第 7 段 §十一 待回写项。
+# 3. Prometheus 抓取不能带 JWT（token 会过期），所以本机（127.0.0.1）免鉴权；
+#    外网访问仍要求 ROLE_ADMIN。
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      # 不向匿名调用方暴露数据库/Redis 细节（只给 UP/DOWN）
+      show-details: never
+    prometheus:
+      enabled: true
+  metrics:
+    tags:
+      application: faze-api

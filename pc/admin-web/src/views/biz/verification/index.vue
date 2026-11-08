@@ -328,9 +328,19 @@
 
 <script setup name="BizVerification">
 import { onMounted, reactive, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { auditVerification, getVerificationDetail, listVerifications } from '@/api/biz/verification'
 import { describeRequestError, formatDateTime, textOrDash, toNumber } from '@/views/biz/shared/format'
+
+/**
+ * 当前路由。
+ *
+ * A-02「待我处理」的实名认证待办会跳到本页并带 `type=realname&status=PENDING`，
+ * 本页负责把这两个参数落进筛选条件——否则跳转只是换了个 URL，列表还是默认全量，
+ * 运营看到的条数与看板卡片对不上。
+ */
+const route = useRoute()
 
 /** 审核状态文案（出参为大写枚举）。 */
 const STATUS_TEXT = {
@@ -680,7 +690,26 @@ function reviewerText(reviewedBy) {
   return `管理员 #${reviewedBy}`
 }
 
-onMounted(loadList)
+/**
+ * 从路由 query 承接筛选条件（A-02「待我处理」跳转带参）。
+ *
+ * 只接受字符串且非空的值；数组/非法值一律忽略，避免 URL 手改把列表查成空。
+ * 副作用：写 query.type / query.status（不触发请求，由调用方随后 loadList）。
+ */
+function applyRouteQuery() {
+  const { type, status } = route.query
+  if (typeof type === 'string' && type) {
+    query.type = type
+  }
+  if (typeof status === 'string' && status) {
+    query.status = status
+  }
+}
+
+onMounted(() => {
+  applyRouteQuery()
+  loadList()
+})
 </script>
 
 <style scoped>

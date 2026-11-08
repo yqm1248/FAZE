@@ -19,13 +19,8 @@ import com.faze.modules.ops.admin.service.AdminTicketService;
 import com.faze.modules.ops.admin.vo.TicketDetailVO;
 import com.faze.modules.ops.admin.vo.TicketVO;
 import jakarta.validation.Valid;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.ContentDisposition;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -125,13 +120,8 @@ public class AdminTicketController {
      * @return CSV 文件流
      */
     @GetMapping("/export")
-    public ResponseEntity<byte[]> export(TicketQueryBO query) {
-        byte[] body = adminTicketService.export(query);
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(new MediaType("text", "csv", StandardCharsets.UTF_8));
-        headers.setContentDisposition(ContentDisposition.attachment()
-                .filename("tickets.csv", StandardCharsets.UTF_8).build());
-        return new ResponseEntity<>(body, headers, HttpStatus.OK);
+    public ResponseEntity<?> export(TicketQueryBO query) {
+        return ExportResponses.of(adminTicketService.export(query));
     }
 
     /**

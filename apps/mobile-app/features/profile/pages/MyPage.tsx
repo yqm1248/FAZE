@@ -24,6 +24,7 @@ import { useRouter } from 'expo-router';
 import type { Href } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Path, Svg } from 'react-native-svg';
 
 import { getCurrentApplication } from '@/features/lawyer/api/application';
 import type { LawyerApplicationStatus } from '@/features/lawyer/api/application';
@@ -185,7 +186,27 @@ export function MyPage() {
             {t('profile.my.slogan')}
           </LocalizedText>
           <View style={styles.heroScale}>
-            <Ionicons name="scale" size={88} color={color.overlay.whiteSoft} />
+            {/*
+              设计稿 05-profile 右上角的天平水印。改用 SVG 直接画：
+              实测 Ionicons 的 scale 码位在打包字体里渲染成了别的字形
+              （@expo/vector-icons 的 glyphmap 与字体版本错配），品牌水印不能赌字体。
+            */}
+            <Svg width={88} height={88} viewBox="0 0 64 64">
+              <Path
+                d="M32 6v44M20 54h24M32 12 13 18M32 12l19 6"
+                stroke={color.overlay.whiteSoft}
+                strokeWidth={2.6}
+                strokeLinecap="round"
+                fill="none"
+              />
+              <Path
+                d="M13 18 5.5 31.5a7.5 7.5 0 0 0 15 0L13 18ZM51 18l-7.5 13.5a7.5 7.5 0 0 0 15 0L51 18Z"
+                stroke={color.overlay.whiteSoft}
+                strokeWidth={2.6}
+                strokeLinejoin="round"
+                fill="none"
+              />
+            </Svg>
           </View>
         </LinearGradient>
 
@@ -313,6 +334,18 @@ export function MyPage() {
                       onPress={() => router.push(PAGE_ROUTES.editProfile)}
                     />
                     <SettingRow
+                      label={t('profile.my.menuEnterprise')}
+                      onPress={() => router.push(PAGE_ROUTES.verifyCompany)}
+                    />
+                    <SettingRow
+                      label={t('profile.my.menuFavorites')}
+                      onPress={() => router.push(PAGE_ROUTES.favorites)}
+                    />
+                    <SettingRow
+                      label={t('profile.my.menuFollowing')}
+                      onPress={() => router.push(PAGE_ROUTES.following)}
+                    />
+                    <SettingRow
                       label={t('profile.my.menuPayPassword')}
                       value={
                         data.profile.payPasswordSet
@@ -367,6 +400,14 @@ export function MyPage() {
                     <SettingRow
                       label={t('profile.my.menuLanguage')}
                       onPress={() => router.push(PAGE_ROUTES.language)}
+                    />
+                    <SettingRow
+                      label={t('profile.my.menuSettings')}
+                      onPress={() => router.push(PAGE_ROUTES.settings)}
+                    />
+                    <SettingRow
+                      label={t('profile.my.menuAllFeatures')}
+                      onPress={() => router.push(PAGE_ROUTES.allFeatures)}
                     />
                   </View>
                 </View>

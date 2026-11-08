@@ -28,13 +28,19 @@ public class SensitiveWordReloadListener implements MessageListener {
     /** 词库加载器（重载入口）。 */
     private final SensitiveWordLoader loader;
 
+    /** G1 指标（热更新失败计数）。 */
+    private final com.faze.modules.ops.metric.FazeMetrics fazeMetrics;
+
     /**
      * 构造订阅者。
      *
-     * @param loader 词库加载器
+     * @param loader      词库加载器
+     * @param fazeMetrics 指标
      */
-    public SensitiveWordReloadListener(SensitiveWordLoader loader) {
+    public SensitiveWordReloadListener(SensitiveWordLoader loader,
+                                       com.faze.modules.ops.metric.FazeMetrics fazeMetrics) {
         this.loader = loader;
+        this.fazeMetrics = fazeMetrics;
     }
 
     /**
@@ -52,6 +58,8 @@ public class SensitiveWordReloadListener implements MessageListener {
             log.info("敏感词库已按广播重载，通道消息体={}",
                     message.getBody() == null ? "" : new String(message.getBody()));
         } catch (Exception e) {
+            // G1 指标：热更新失败数（7-A7 的业务指标；告警规则 FazeSensitiveReloadFail 用它）
+            fazeMetrics.recordSensitiveReloadFail();
             log.error("敏感词库重载失败，继续使用旧树", e);
         }
     }

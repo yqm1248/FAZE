@@ -23,12 +23,7 @@ import com.faze.modules.ops.admin.vo.ImportResultVO;
 import com.faze.modules.ops.admin.vo.SensitiveWordVO;
 import jakarta.validation.Valid;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.ContentDisposition;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -131,12 +126,7 @@ public class AdminSensitiveWordController {
      * @return CSV 文件流
      */
     @GetMapping("/export")
-    public ResponseEntity<byte[]> export(SensitiveWordQueryBO query) {
-        byte[] body = sensitiveWordService.export(query);
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(new MediaType("text", "csv", StandardCharsets.UTF_8));
-        headers.setContentDisposition(ContentDisposition.attachment()
-                .filename("sensitive-words.csv", StandardCharsets.UTF_8).build());
-        return new ResponseEntity<>(body, headers, HttpStatus.OK);
+    public ResponseEntity<?> export(SensitiveWordQueryBO query) {
+        return ExportResponses.of(sensitiveWordService.export(query));
     }
 }

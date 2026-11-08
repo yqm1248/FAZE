@@ -36,4 +36,23 @@ public interface LoginLogQueryService {
     PageResult<LoginLog> page(String account, String ip, String result,
                               LocalDateTime beginTime, LocalDateTime endTime,
                               int pageNum, int pageSize);
+
+    /**
+     * 导出用：按筛选条件取全量（不分页）登录日志。
+     *
+     * <p>**为什么不能用 {@link #page} 传大 pageSize**：项目在
+     * `MybatisPlusConfig` 里给分页插件设了 `maxLimit=200`，所有分页查询都会被静默
+     * clamp 到 200 行——导出会被截断成 200 条，而调用方还以为导全了（2026-11-09 实测踩过）。
+     * 本方法走 `selectList`（不带 Page 对象），**不经过分页插件**，因此不受 maxLimit 限制。</p>
+     *
+     * @param account   账号（脱敏值片段）；可为空
+     * @param ip        来源 IP；可为空
+     * @param result    结果；可为空
+     * @param beginTime 起始时间（UTC）；可为空
+     * @param endTime   截止时间（UTC）；可为空
+     * @param limit     最大行数（调用方给上限，防止误查全表）
+     * @return 登录日志列表（按 id 倒序）
+     */
+    java.util.List<LoginLog> listForExport(String account, String ip, String result,
+                                           LocalDateTime beginTime, LocalDateTime endTime, int limit);
 }

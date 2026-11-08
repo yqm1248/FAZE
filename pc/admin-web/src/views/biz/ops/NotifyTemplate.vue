@@ -48,7 +48,7 @@
         <el-table-column label="变量" min-width="160">
           <template #default="{ row }">
             <el-tag v-for="v in row.variables" :key="v" size="small" style="margin-right: 4px">
-              {{ '{{' + v + '}}' }}
+              {{ formatVariable(v) }}
             </el-tag>
             <span v-if="!row.variables || row.variables.length === 0" class="muted">—</span>
           </template>
@@ -154,6 +154,20 @@ async function load() {
   } finally {
     loading.value = false
   }
+}
+
+/**
+ * 变量名 → 模板占位符文本（如 `{{orderNo}}`）。
+ *
+ * 为什么不在模板里直接写 `{{ '{{' + v + '}}' }}`：Vue 的插值解析器遇到字符串里的
+ * `}}` 会提前闭合插值，报「Unterminated string constant」导致整页编译失败。
+ * 把拼装放进脚本就能绕开模板解析（本处为第 7 段 D4 交付物的一处编译缺陷修复）。
+ *
+ * @param {string} variable 变量名
+ * @returns {string} 形如 `{{variable}}`
+ */
+function formatVariable(variable) {
+  return `{{${variable}}}`
 }
 
 /**

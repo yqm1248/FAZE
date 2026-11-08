@@ -79,6 +79,9 @@ public class ContentReviewService {
     /** JSON 序列化（Jackson 3）。 */
     private final JsonMapper jsonMapper;
 
+    /** G1 指标（敏感词命中）。 */
+    private final com.faze.modules.ops.metric.FazeMetrics fazeMetrics;
+
     /**
      * 构造审核服务。
      *
@@ -87,17 +90,20 @@ public class ContentReviewService {
      * @param engine              Trie 引擎
      * @param sysConfig           平台参数查询
      * @param jsonMapper          JSON 序列化器
+     * @param fazeMetrics         指标
      */
     public ContentReviewService(ContentReviewMapper contentReviewMapper,
                                 SensitiveWordMapper sensitiveWordMapper,
                                 SensitiveWordEngine engine,
                                 SysConfigQueryService sysConfig,
-                                JsonMapper jsonMapper) {
+                                JsonMapper jsonMapper,
+                                com.faze.modules.ops.metric.FazeMetrics fazeMetrics) {
         this.contentReviewMapper = contentReviewMapper;
         this.sensitiveWordMapper = sensitiveWordMapper;
         this.engine = engine;
         this.sysConfig = sysConfig;
         this.jsonMapper = jsonMapper;
+        this.fazeMetrics = fazeMetrics;
     }
 
     /**
@@ -130,6 +136,8 @@ public class ContentReviewService {
 
         // 任务 4：三档处置 + 落记录。warn 落库即 ignored（不进队列），其余 pending
         boolean block = result.blocked() && sysConfig.getBoolean(KEY_BLOCK_ENABLED, true);
+        // G1 指标：命中量按最高级别分标签（7-A7 的业务指标之一）
+        fazeMetrics.recordSensitiveHit(result.maxLevel());
         ContentReview row = new ContentReview();
         row.setBizType(request.bizType().getCode());
         row.setBizId(request.bizId() == null ? 0L : request.bizId());
@@ -148,6 +156,10 @@ public class ContentReviewService {
         log.info("内容命中敏感词 bizType={} bizId={} reviewId={} level={} hits={} block={}",
                 request.bizType(), request.bizId(), row.getId(), result.maxLevel(),
                 result.hits().size(), block);
+        // G4 脱敏：hit_snippet 落库前已 maskText，**日志层必须再脱一次**（手机号/身份证/ossKey）；
+        // 用 DEBUG 级别：默认 dev 下可见（com.faze: DEBUG），生产 INFO 不落原文片段
+        log.debug("命中片段（二次脱敏） bizType={} snippet={}",
+                request.bizType(), com.faze.common.util.LogMaskUtil.maskSnippet(result.snippet()));
         return new ReviewVerdict(block, row.getId());
     }
 
@@ -159,6 +171,35 @@ public class ContentReviewService {
      */
     private boolean isWarnOnly(SensitiveCheckResult result) {
         return "warn".equals(result.maxLevel());
+    }
+
+    /**
+     * 回填命中记录的 `biz_id`（「先审后落库」链路的收尾步骤，2026-11-09 修）。
+     *
+     * <p>为什么需要它：投诉/反馈是「先审内容、再落业务行」，审核发生在业务行插入之前，
+     * 所以 `content_review.biz_id` 只能先写 0。业务行落库后由调用方回填，
+     * 否则 A-20 审核队列拿 `biz_type` + `biz_id` 定位不到被审内容（实测 biz_id 恒为 0）。</p>
+     *
+     * <p><b>block 分支不回填</b>：block 时业务行根本不写（整条请求抛 410006 回滚），
+     * 那条 content_review 也随同一事务回滚，没有可回填的对象——
+     * 这是已知且可接受的行为，不要为了让 block 也留记录去改事务语义。</p>
+     *
+     * <p>副作用：UPDATE content_review.biz_id；reviewId/bizId 任一为空时无操作。</p>
+     *
+     * @param reviewId content_review.id（来自 ReviewVerdict.reviewId）
+     * @param bizId    业务行 id（complaint.id / feedback.id）
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void bindBizId(Long reviewId, Long bizId) {
+        if (reviewId == null || bizId == null) {
+            return;
+        }
+        int rows = contentReviewMapper.update(null, Wrappers.<ContentReview>lambdaUpdate()
+                .set(ContentReview::getBizId, bizId)
+                .eq(ContentReview::getId, reviewId));
+        if (rows > 0) {
+            log.info("content_review.biz_id 已回填 reviewId={} bizId={}", reviewId, bizId);
+        }
     }
 
     /**

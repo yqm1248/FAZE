@@ -1,0 +1,110 @@
+# =============================================================================
+# 职责：第 7 段 G3 的 6 条告警规则（Prometheus 规则文件）。
+# 调用方：prometheus.yml 的 `rule_files`；start-monitor.ps1 启动/重载时加载；
+#         promtool check rules 做语法校验。
+# 数据来源：faze-api 的业务指标（G1，T1 交付）+ 段 5 的身份巡检指标 +
+#           可选的 node_exporter（本段不装，见 FazeDiskLow 注释）。
+# 注意事项：
+#   1. **阈值双处维护（已知冗余，工作流 §三 G3 与 §十一 已登记）**：
+#      本文件里是静态数字；sys_config 里也有同名阈值（alert.* 键），供运营在
+#      后台改。本段**没有**做「改 sys_config 自动同步到规则文件」——改阈值时
+#      两处都要改，改完执行 `Invoke-RestMethod -Method POST http://127.0.0.1:9090/-/reload`
+#      （start-monitor 启动时带了 --web.enable-lifecycle）。
+#   2. 告警结果只落在 Prometheus 的 /api/v1/alerts，**本段不部署 Alertmanager**，
+#      推送由 T1 的 AlertDispatcher 轮询后发 webhook（无钉钉群时指向
+#      scripts/alert/mock-receiver.py 的 8088）。
+#   3. `FazeIdentityBroken` 依赖段 5 的巡检指标 `faze_identity_check_failed_total`。
+#      T1 的 G1 未交付该指标 → 本规则**已登记但指标未就绪**，Prometheus 里该
+#      规则永远是 Inactive（无样本），不算通过，见 7-A8-alert.md 的挂账。
+#   4. `FazeDiskLow` 需要 node_exporter（本段**可选、未安装**）：没装时这条规则
+#      同样只是 Inactive，不影响其余 5 条。
+#   5. 级别标签：P0 立即响应 / P1、P2 次日 9:00–21:00（裁决 20，禁止写 7×24）。
+#   6. 时间单位：Prometheus 的 `for` 是「持续满足多久才 firing」。
+# =============================================================================
+
+groups:
+  - name: faze-alerts
+    rules:
+      # ── P0：服务不可用（抓取不到 = 服务挂了 / 端口不通 / 网关拒绝）────────
+      - alert: FazeServiceDown
+        expr: up{job="faze-api"} == 0
+        for: 1m
+        labels:
+          severity: P0
+          service: faze-api
+        annotations:
+          summary: "faze-api 抓取失败（服务可能已停止）"
+          description: "job=faze-api 的 target 已连续 1 分钟不可达；查 logs/faze-api.out.log 与 8081 端口。"
+          runbook: "docs/ops/运维手册.md#p0-fazeservicedown"
+
+      # ── P1：5xx 占比 > 5%，持续 3 分钟 ────────────────────────────────────
+      - alert: FazeHighErrorRate
+        expr: |
+          sum(rate(faze_http_requests_total{status=~"5.."}[5m]))
+            /
+          clamp_min(sum(rate(faze_http_requests_total[5m])), 0.0001)
+          > 0.05
+        for: 3m
+        labels:
+          severity: P1
+          service: faze-api
+        annotations:
+          summary: "faze-api 5xx 错误率 > 5%"
+          description: "近 5 分钟 5xx 占比已连续 3 分钟超过 5%；先看 /actuator/prometheus 的 status 标签分布与 logs/faze-api-error.log。"
+          runbook: "docs/ops/运维手册.md#p1-接口错误率高"
+
+      # ── P1：P95 延迟 > 1000ms，持续 5 分钟 ───────────────────────────────
+      - alert: FazeHighLatency
+        expr: |
+          histogram_quantile(0.95,
+            sum by (le) (rate(faze_http_request_duration_seconds_bucket[5m]))
+          ) > 1
+        for: 5m
+        labels:
+          severity: P1
+          service: faze-api
+        annotations:
+          summary: "faze-api P95 延迟 > 1s"
+          description: "近 5 分钟 P95 已连续 5 分钟超过 1000ms；先看慢接口（按 path 分组），再查 MySQL 慢查询与 Redis。"
+          runbook: "docs/ops/运维手册.md#p1-接口延迟高"
+
+      # ── P1：备份过期（最后成功时间 > 1.5 天）─────────────────────────────
+      # faze_backup_last_success_timestamp 由 T1 的 Gauge 读取
+      # logs/backup-last-success.txt（epoch 秒，本仓库 backup.ps1 写入）。
+      - alert: FazeBackupStale
+        expr: time() - faze_backup_last_success_timestamp > 86400 * 1.5
+        for: 0m
+        labels:
+          severity: P1
+          service: backup
+        annotations:
+          summary: "数据库备份已超过 36 小时未成功"
+          description: "faze_backup_last_success_timestamp 落后于当前时间 1.5 天以上；查 logs/backup.log 与 E:\\faze-backup\\ 最新 .sql。"
+          runbook: "docs/ops/运维手册.md#p1-备份过期"
+
+      # ── P2：磁盘使用率 > 80%（本段可选，需 node_exporter；未安装则恒 Inactive）
+      - alert: FazeDiskLow
+        expr: |
+          (1 - node_filesystem_avail_bytes{mountpoint="E:"}
+               / node_filesystem_size_bytes{mountpoint="E:"}) > 0.8
+        for: 5m
+        labels:
+          severity: P2
+          service: host
+        annotations:
+          summary: "E: 盘使用率 > 80%"
+          description: "需 node_exporter；本段未安装 → 该规则无样本、不参与 7-A8。磁盘告警补偿手段见运维手册「磁盘与备份清理」。"
+          runbook: "docs/ops/运维手册.md#p2-磁盘使用率"
+
+      # ── P0：身份链路异常（段 5 巡检指标；指标未就绪 → 恒 Inactive）──────
+      # 指标名以段 5 实际交付为准，若不同只改这一行。
+      - alert: FazeIdentityBroken
+        expr: faze_identity_check_failed_total > 0
+        for: 0m
+        labels:
+          severity: P0
+          service: faze-api
+        annotations:
+          summary: "身份校验链路异常（巡检失败计数 > 0）"
+          description: "段 5 的巡检指标 faze_identity_check_failed_total 非 0；本段该指标未交付，规则已登记、未验证。"
+          runbook: "docs/ops/运维手册.md#p0-身份链路异常"

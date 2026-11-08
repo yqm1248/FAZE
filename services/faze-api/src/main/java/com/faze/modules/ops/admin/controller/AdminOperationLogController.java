@@ -15,12 +15,7 @@ import com.faze.common.pojo.PageResult;
 import com.faze.modules.ops.admin.bo.OperationLogQueryBO;
 import com.faze.modules.ops.admin.service.AdminOperationLogService;
 import com.faze.modules.ops.admin.vo.OperationLogVO;
-import java.nio.charset.StandardCharsets;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.ContentDisposition;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -57,12 +52,7 @@ public class AdminOperationLogController {
      * @return CSV 文件流
      */
     @GetMapping("/export")
-    public ResponseEntity<byte[]> export(OperationLogQueryBO query) {
-        byte[] body = adminOperationLogService.export(query);
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(new MediaType("text", "csv", StandardCharsets.UTF_8));
-        headers.setContentDisposition(ContentDisposition.attachment()
-                .filename("operation-logs.csv", StandardCharsets.UTF_8).build());
-        return new ResponseEntity<>(body, headers, HttpStatus.OK);
+    public ResponseEntity<?> export(OperationLogQueryBO query) {
+        return ExportResponses.of(adminOperationLogService.export(query));
     }
 }

@@ -52,6 +52,22 @@ public interface LawyerQueryService {
     Map<Long, Lawyer> mapByIds(Collection<Long> lawyerIds);
 
     /**
+     * 按主键批量取律师展示简要信息（E3 收藏列表 / 关注列表跨域组装用）。
+     *
+     * <p>与 {@link #mapByIds(Collection)} 的区别：这里返回的是**已转换好的展示投影**
+     * （`specialties` 已从 JSON 字符串解析成数组），调用方不需要自己解析 JSON——
+     * JSON 解析集中在 account 域，跨域调用方拿字符串自己解析会形成第二份解析逻辑。</p>
+     *
+     * <p>**包含 `userId`**：关注列表要用它去查 `app_user.last_login_at`（最近活跃时间）。
+     * 不过滤 `audit_status=approved`：收藏/关注列表要能显示「已下架/已清退」的律师
+     * （用户关注过的律师消失会让列表莫名少行），可见性由调用方决定。</p>
+     *
+     * @param lawyerIds 律师主键集合（空集合返回空 Map）
+     * @return 主键 → 简要信息（已排除软删）
+     */
+    Map<Long, com.faze.modules.account.vo.LawyerBriefVO> mapBriefsByIds(Collection<Long> lawyerIds);
+
+    /**
      * 按姓名或律所模糊匹配律师主键（PC 结算 / 提现列表的「律师」查询栏用）。
      *
      * <p>只返回主键：调用方要做的是 `IN` 过滤，拿到整行没用且会浪费带宽。

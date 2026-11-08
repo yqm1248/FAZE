@@ -21,7 +21,7 @@ package com.faze.modules.ops.task;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.faze.common.util.CsvWriter;
+import com.faze.common.export.CsvExporter;
 import com.faze.infra.audit.entity.OperationLogEntity;
 import com.faze.infra.audit.mapper.OperationLogMapper;
 import com.faze.modules.account.service.LoginLogRetentionService;
@@ -150,24 +150,24 @@ public class LogRetentionCleanTask {
         Path file = archiveDir.resolve("operation_log_" + LocalDateTime.now().format(MONTH) + ".csv");
         List<String> headers = List.of("id", "created_at", "operator_id", "operator_type", "module",
                 "action", "target_type", "target_id", "ip", "result", "detail");
-        List<List<String>> data = new ArrayList<>(rows.size());
+        List<List<Object>> data = new ArrayList<>(rows.size());
         for (OperationLogEntity row : rows) {
-            List<String> line = new ArrayList<>(headers.size());
-            line.add(CsvWriter.str(row.getId()));
-            line.add(CsvWriter.str(row.getCreatedAt() == null ? null : row.getCreatedAt().format(CSV_TIME)));
-            line.add(CsvWriter.str(row.getOperatorId()));
-            line.add(CsvWriter.str(row.getOperatorType()));
-            line.add(CsvWriter.str(row.getModule()));
-            line.add(CsvWriter.str(row.getAction()));
-            line.add(CsvWriter.str(row.getTargetType()));
-            line.add(CsvWriter.str(row.getTargetId()));
-            line.add(CsvWriter.str(row.getIp()));
-            line.add(CsvWriter.str(row.getResult()));
-            line.add(CsvWriter.str(row.getDetail()));
+            List<Object> line = new ArrayList<>(headers.size());
+            line.add(row.getId());
+            line.add(row.getCreatedAt() == null ? null : row.getCreatedAt().format(CSV_TIME));
+            line.add(row.getOperatorId());
+            line.add(row.getOperatorType());
+            line.add(row.getModule());
+            line.add(row.getAction());
+            line.add(row.getTargetType());
+            line.add(row.getTargetId());
+            line.add(row.getIp());
+            line.add(row.getResult());
+            line.add(row.getDetail());
             data.add(line);
         }
         // 先写盘；写失败抛异常 → 事务回滚 → 不删
-        Files.write(file, CsvWriter.toBytes(headers, data));
+        Files.write(file, CsvExporter.toBytes(headers, data));
 
         List<Long> ids = new ArrayList<>(rows.size());
         for (OperationLogEntity row : rows) {

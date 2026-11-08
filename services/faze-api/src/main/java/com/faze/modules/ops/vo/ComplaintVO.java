@@ -35,8 +35,24 @@ public class ComplaintVO {
     /** 截图 oss_key 数组。 */
     private String images;
 
-    /** 投诉状态：pending / processing / resolved / rejected。 */
+    /**
+     * 投诉状态。
+     *
+     * <p><b>口径（2026-11-09 修正）</b>：有工单时返回**工单状态**
+     * （`waiting` / `processing` / `replied` / `closed`），无工单时退回 `complaint.status`
+     * （`pending` / `processing` / `resolved` / `rejected`）。原因：投诉落库时同时生成工单，
+     * 用户感知的「处理到哪一步了」由工单流转决定；只回 complaint.status 会让
+     * 「后台已分配/已回复」在 APP 上永远显示 `pending`（`7-A5` 实测踩过）。</p>
+     */
     private String status;
+
+    /**
+     * 工单状态（`waiting` / `processing` / `replied` / `closed`）；无工单为 null。
+     *
+     * <p>与 `status` 同值时也返回，供前端明确区分「投诉单状态」与「工单流转状态」，
+     * 不让前端去猜 `status` 的取值域。</p>
+     */
+    private String ticketStatus;
 
     /** 处理结果说明。 */
     private String result;

@@ -14,14 +14,9 @@ import com.faze.common.R;
 import com.faze.common.pojo.PageResult;
 import com.faze.modules.ops.admin.service.AdminLoginLogService;
 import com.faze.modules.ops.admin.vo.LoginLogVO;
-import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
-import org.springframework.http.ContentDisposition;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -76,17 +71,12 @@ public class AdminLoginLogController {
      * @return CSV 文件流
      */
     @GetMapping("/export")
-    public ResponseEntity<byte[]> export(
+    public ResponseEntity<?> export(
             @RequestParam(required = false) String account,
             @RequestParam(required = false) String ip,
             @RequestParam(required = false) String result,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime beginTime,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endTime) {
-        byte[] body = adminLoginLogService.export(account, ip, result, beginTime, endTime);
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(new MediaType("text", "csv", StandardCharsets.UTF_8));
-        headers.setContentDisposition(ContentDisposition.attachment()
-                .filename("login-logs.csv", StandardCharsets.UTF_8).build());
-        return new ResponseEntity<>(body, headers, HttpStatus.OK);
+        return ExportResponses.of(adminLoginLogService.export(account, ip, result, beginTime, endTime));
     }
 }

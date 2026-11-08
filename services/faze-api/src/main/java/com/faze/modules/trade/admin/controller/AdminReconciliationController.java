@@ -103,8 +103,7 @@ public class AdminReconciliationController {
      */
     @GetMapping("/channel-diffs/export")
     public ResponseEntity<byte[]> exportChannelDiffs(ChannelDiffQueryBO query) {
-        byte[] body = reconciliationService.exportChannelDiffs(query)
-                .getBytes(StandardCharsets.UTF_8);
+        byte[] body = reconciliationService.exportChannelDiffs(query);
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(new MediaType("text", "csv", StandardCharsets.UTF_8));
         headers.setContentDisposition(ContentDisposition.attachment()

@@ -13,6 +13,7 @@ package com.faze.modules.content.service.impl;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.faze.common.exception.BusinessException;
 import com.faze.common.exception.ErrorCode;
+import com.faze.common.pojo.TargetBrief;
 import com.faze.modules.content.admin.bo.AdminLawRefBO;
 import com.faze.modules.content.entity.CaseLibrary;
 import com.faze.modules.content.entity.CaseLibraryTranslation;
@@ -23,7 +24,12 @@ import com.faze.modules.content.vo.CaseCardVO;
 import com.faze.modules.content.vo.CaseDetailVO;
 import com.faze.modules.content.vo.CaseListPageVO;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -88,6 +94,53 @@ public class CaseLibraryQueryServiceImpl implements CaseLibraryQueryService {
         result.setHasMore(hasMore);
         result.setNextCursor(hasMore && !list.isEmpty()
                 ? list.get(list.size() - 1).getId() : null);
+        return result;
+    }
+
+    /**
+     * 按主键批量取案例简要信息（跨域只读接口实现，E3 收藏列表用）。
+     *
+     * <p>标题按请求语言取译文、缺译回退简体；描述取 `summary`。只返回已上线未软删的案例。</p>
+     *
+     * @param caseIds 案例主键集合
+     * @param lang    请求语言
+     * @return caseId → 简要信息
+     */
+    @Override
+    public Map<Long, TargetBrief> mapBriefsByIds(Collection<Long> caseIds, String lang) {
+        if (caseIds == null || caseIds.isEmpty()) {
+            return Map.of();
+        }
+        Set<Long> ids = caseIds.stream().filter(java.util.Objects::nonNull).collect(Collectors.toSet());
+        if (ids.isEmpty()) {
+            return Map.of();
+        }
+        List<CaseLibrary> rows = caseLibraryMapper.selectList(Wrappers.<CaseLibrary>lambdaQuery()
+                .in(CaseLibrary::getId, ids)
+                .eq(CaseLibrary::getStatus, STATUS_PUBLISHED)
+                .isNull(CaseLibrary::getDeletedAt));
+        if (rows.isEmpty()) {
+            return Map.of();
+        }
+        String requested = StringUtils.hasText(lang) ? lang.trim() : LANG_SOURCE;
+        Map<Long, CaseLibraryTranslation> translations = new HashMap<>(0);
+        if (!LANG_SOURCE.equals(requested)) {
+            translations = translationMapper.selectList(Wrappers.<CaseLibraryTranslation>lambdaQuery()
+                            .in(CaseLibraryTranslation::getCaseId, ids)
+                            .eq(CaseLibraryTranslation::getLang, requested))
+                    .stream()
+                    .collect(Collectors.toMap(CaseLibraryTranslation::getCaseId, item -> item,
+                            (left, right) -> left));
+        }
+        Map<Long, TargetBrief> result = new HashMap<>(rows.size());
+        for (CaseLibrary entity : rows) {
+            CaseLibraryTranslation translation = translations.get(entity.getId());
+            String title = translation == null || !StringUtils.hasText(translation.getTitle())
+                    ? entity.getTitle() : translation.getTitle();
+            String summary = translation == null || !StringUtils.hasText(translation.getSummary())
+                    ? entity.getSummary() : translation.getSummary();
+            result.put(entity.getId(), new TargetBrief(title, summary));
+        }
         return result;
     }
 

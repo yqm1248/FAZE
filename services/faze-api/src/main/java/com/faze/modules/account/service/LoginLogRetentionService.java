@@ -17,7 +17,7 @@ package com.faze.modules.account.service;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.faze.common.util.CsvWriter;
+import com.faze.common.export.CsvExporter;
 import com.faze.modules.account.entity.LoginLog;
 import com.faze.modules.account.mapper.LoginLogMapper;
 import java.io.IOException;
@@ -85,23 +85,23 @@ public class LoginLogRetentionService {
         Path file = archiveDir.resolve("login_log_" + LocalDateTime.now().format(MONTH) + ".csv");
         List<String> headers = List.of("id", "created_at", "user_id", "account", "login_type",
                 "result", "fail_reason", "ip", "user_agent", "device_id");
-        List<List<String>> data = new ArrayList<>(rows.size());
+        List<List<Object>> data = new ArrayList<>(rows.size());
         for (LoginLog row : rows) {
-            List<String> line = new ArrayList<>(headers.size());
-            line.add(CsvWriter.str(row.getId()));
-            line.add(CsvWriter.str(row.getCreatedAt() == null ? null : row.getCreatedAt().format(CSV_TIME)));
-            line.add(CsvWriter.str(row.getUserId()));
-            line.add(CsvWriter.str(row.getAccount()));
-            line.add(CsvWriter.str(row.getLoginType()));
-            line.add(CsvWriter.str(row.getResult()));
-            line.add(CsvWriter.str(row.getFailReason()));
-            line.add(CsvWriter.str(row.getIp()));
-            line.add(CsvWriter.str(row.getUserAgent()));
-            line.add(CsvWriter.str(row.getDeviceId()));
+            List<Object> line = new ArrayList<>(headers.size());
+            line.add(row.getId());
+            line.add(row.getCreatedAt() == null ? null : row.getCreatedAt().format(CSV_TIME));
+            line.add(row.getUserId());
+            line.add(row.getAccount());
+            line.add(row.getLoginType());
+            line.add(row.getResult());
+            line.add(row.getFailReason());
+            line.add(row.getIp());
+            line.add(row.getUserAgent());
+            line.add(row.getDeviceId());
             data.add(line);
         }
         // 归档写盘：失败会抛 IOException，事务回滚，**一行都不删**
-        Files.write(file, CsvWriter.toBytes(headers, data));
+        Files.write(file, CsvExporter.toBytes(headers, data));
 
         List<Long> ids = new ArrayList<>(rows.size());
         for (LoginLog row : rows) {

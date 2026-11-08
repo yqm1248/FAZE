@@ -46,15 +46,21 @@ public class OperationLogAspect {
 
     private final JsonMapper jsonMapper;
 
+    /** 审计落库失败的降级出口（写文件 + P1 告警）。 */
+    private final AuditFallbackService auditFallbackService;
+
     /**
      * 构造切面。
      *
-     * @param operationLogMapper 审计表 Mapper
-     * @param jsonMapper         Jackson 3 的 Mapper（校验 detail 是否为合法 JSON）
+     * @param operationLogMapper   审计表 Mapper
+     * @param jsonMapper           Jackson 3 的 Mapper（校验 detail 是否为合法 JSON）
+     * @param auditFallbackService 落库失败降级
      */
-    public OperationLogAspect(OperationLogMapper operationLogMapper, JsonMapper jsonMapper) {
+    public OperationLogAspect(OperationLogMapper operationLogMapper, JsonMapper jsonMapper,
+                              AuditFallbackService auditFallbackService) {
         this.operationLogMapper = operationLogMapper;
         this.jsonMapper = jsonMapper;
+        this.auditFallbackService = auditFallbackService;
     }
 
     /**
@@ -91,8 +97,8 @@ public class OperationLogAspect {
             log.debug("无审计上下文，跳过 operation_log：{}", methodDesc);
             return;
         }
+        OperationLogEntity row = new OperationLogEntity();
         try {
-            OperationLogEntity row = new OperationLogEntity();
             row.setOperatorId(info.getOperatorId());
             row.setOperatorType(info.getOperatorType() == null ? "system" : info.getOperatorType());
             row.setModule(annotation.module());
@@ -107,6 +113,8 @@ public class OperationLogAspect {
         } catch (Exception e) {
             log.error("审计日志落库失败 module={} action={} method={}",
                     annotation.module(), annotation.action(), methodDesc, e);
+            // 降级：写 logs/audit-fallback.log + 立即 P1 告警（审计链路断了）
+            auditFallbackService.fallback(row, methodDesc, e);
         }
     }
 

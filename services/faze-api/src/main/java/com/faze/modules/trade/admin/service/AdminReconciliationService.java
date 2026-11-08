@@ -433,25 +433,28 @@ public class AdminReconciliationService {
      * @param query 筛选条件（页码字段被忽略）
      * @return CSV 文本（带 UTF-8 BOM，Excel 直接打开不乱码）
      */
-    public String exportChannelDiffs(ChannelDiffQueryBO query) {
+    public byte[] exportChannelDiffs(ChannelDiffQueryBO query) {
         List<ReconciliationDiff> rows = reconciliationDiffMapper.selectList(
                 buildChannelDiffWrapper(query).orderByDesc(ReconciliationDiff::getId));
         Map<Long, String> orderNoById = loadOrderNos(rows);
-        StringBuilder sb = new StringBuilder(rows.size() * 128 + 128);
-        sb.append('\ufeff');
-        sb.append("账单日期,渠道,差异类型,渠道交易号,本地单号,差异金额(元),状态,发现时间\r\n");
+        List<String> headers = List.of("账单日期", "渠道", "差异类型", "渠道交易号",
+                "本地单号", "差异金额(元)", "状态", "发现时间");
+        List<List<Object>> data = new ArrayList<>(rows.size());
         for (ReconciliationDiff row : rows) {
-            sb.append(csvCell(row.getBillDate() == null ? "" : row.getBillDate().toString())).append(',');
-            sb.append(csvCell(channelLabel(row.getChannel()))).append(',');
-            sb.append(csvCell(diffTypeLabel(row.getDiffType()))).append(',');
-            sb.append(csvCell(row.getChannelTxnId())).append(',');
-            sb.append(csvCell(orderNoById.get(row.getRechargeId()))).append(',');
-            sb.append(csvCell(centsToYuan(nonNull(row.getAmountCents())))).append(',');
-            sb.append(csvCell(statusLabel(row.getStatus()))).append(',');
-            sb.append(csvCell(formatFoundAt(row.getFoundAt()))).append("\r\n");
+            List<Object> line = new ArrayList<>(headers.size());
+            line.add(row.getBillDate() == null ? null : row.getBillDate().toString());
+            line.add(channelLabel(row.getChannel()));
+            line.add(diffTypeLabel(row.getDiffType()));
+            line.add(row.getChannelTxnId());
+            line.add(orderNoById.get(row.getRechargeId()));
+            line.add(centsToYuan(nonNull(row.getAmountCents())));
+            line.add(statusLabel(row.getStatus()));
+            line.add(formatFoundAt(row.getFoundAt()));
+            data.add(line);
         }
         log.info("导出渠道差异 CSV rows={}", rows.size());
-        return sb.toString();
+        // 统一走 common/export/CsvExporter（UTF-8 BOM + RFC 4180 + 防注入），不在这里拼 CSV
+        return com.faze.common.export.CsvExporter.toBytes(headers, data);
     }
 
     /**
@@ -532,23 +535,6 @@ public class AdminReconciliationService {
         }
         return utc.atZone(ZoneOffset.UTC).withZoneSameInstant(BIZ_ZONE).toLocalDateTime()
                 .format(FOUND_AT_FORMAT);
-    }
-
-    /**
-     * CSV 单元格转义：含逗号 / 引号 / 换行时用双引号包裹，内部引号翻倍。
-     *
-     * @param value 原值；null 返回空串
-     * @return CSV 安全单元格
-     */
-    private static String csvCell(String value) {
-        if (value == null) {
-            return "";
-        }
-        if (value.indexOf(',') < 0 && value.indexOf('"') < 0
-                && value.indexOf('\n') < 0 && value.indexOf('\r') < 0) {
-            return value;
-        }
-        return "\"" + value.replace("\"", "\"\"") + "\"";
     }
 
     /**

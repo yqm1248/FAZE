@@ -63,6 +63,18 @@ public interface AccountQueryService {
             java.util.Collection<Long> userIds);
 
     /**
+     * 批量取用户的最后登录时间（E3 关注列表「最近活跃时间」用）。
+     *
+     * <p>语义：`app_user.last_login_at` 是**该账号最后一次登录成功的时间**。
+     * 「在线」另有 `lawyer.online_status`，两者不是一回事：登录过不等于此刻在线，
+     * 调用方要分开用（前者判断「长期未活跃」，后者判断「此刻在线」）。</p>
+     *
+     * @param userIds 用户主键集合（空集合返回空 Map）
+     * @return userId → 最后登录时间（UTC）；从未登录的用户不出现在结果里
+     */
+    java.util.Map<Long, java.time.LocalDateTime> mapLastLoginAt(java.util.Collection<Long> userIds);
+
+    /**
      * 取启用中（status=normal 且未软删）的用户 id，按 id 升序，最多 limit 条。
      *
      * <p>公告「全量」目标用。limit 由调用方分批（D5：每批 ≤500），
