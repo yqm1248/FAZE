@@ -4,7 +4,46 @@
 
 ---
 
-## 2026-11-09 · 第 7 段文档口径：APP 页面 **68 → 69**（新增第 69 页「我的投诉」列表）
+## 2026-11-09 · 第 69 页最后 2 项补验 + 修复「投诉/反馈截图上传从来不可能成功」的后端缺陷
+
+**做了什么**：负责人要求用真实浏览器把第 69 页剩下两项（提交成功态入口、带图缩略图）验掉。用 CDP
+直连本机已在运行的 Chrome（真实鼠标事件 + 真实磁盘文件），两项**都验过**；补验过程中查出并修掉一个
+**此前一直存在、被记成「已通过」的 P1 缺陷**。
+
+| 项 | 结果 |
+|---|---|
+| 提交成功态入口 | ✅ 真实点击「提交投诉」→ 「已提交，单号 `TK20261109000027`」→ 点「查看我的投诉」跳到 `/complaint-list` 且列表含该单号；截图 `docs/acceptance/seg7/T2-69-success-state.png` |
+| 带图缩略图 | ✅ `DOM.setFileInputFiles` 写入真实 PNG（41814 B）→ UI「已上传 1 张」→ 提交 `TK20261109000028` → 列表 `<img>` `naturalWidth=1440`、`src` 为服务端签名地址（`isBlob=false`）；截图 `T2-69-upload-form.png` / `T2-69-thumb-list.png` |
+| 顺带查出 | **`UploadBO.scene` 的 `@Pattern` 白名单漏 `complaint` / `feedback`** → `POST /app/upload/token` 必返 `401001 scene: 场景不在白名单内` → 57 投诉页 / 58 反馈页的截图上传**从未成功过一次**，页面只弹「截图上传失败，请重试」 |
+
+**为什么之前没被发现**（这条比缺陷本身更值得记）：场景白名单**存在三处**——APP 侧 `UploadScene`、
+`StorageKeyRules.ALLOWED_SCENES`、`UploadBO` 的 Bean Validation 正则。段 7 C5 只改了前两处，
+第三处是入参的第一道闸，先于存储层执行，所以「看起来加了、实际进不去」。
+`C5-前端4页.md` 当时按代码路径判了 ✅，没做真实上传；缩略图那项又因为「历史投诉 `images` 全为 null」
+一直没触发渲染分支 —— 两个空白叠在一起，把缺陷藏了整整一批。
+
+**改了什么**：
+
+| 文件 | 改动 |
+|---|---|
+| `services/faze-api/…/modules/account/bo/UploadBO.java` | `@Pattern` 正则补 `complaint|feedback`；javadoc 写明三处白名单必须逐项一致，并写清漏项时的表征（页面「截图上传失败」+ 后端 `401001`） |
+| `services/faze-api/src/test/java/com/faze/modules/account/bo/UploadBOTest.java` | **新增**（4 个测试）：8 个客户端场景逐个过正则、逐个在 `StorageKeyRules` 内、4 个服务端专用场景**不得**进客户端白名单、伪造场景（`../../etc` / `avatar/../../x` / `complaint_extra`）必须被拒 |
+
+**文档**：`T2-APP-69投诉列表.md` 新增 §七（两项补验全过程 + 缺陷定位与修复）；`C5-前端4页.md`
+纠正两处失实记录（投诉页截图的 ✅ 与「前后端已同步」的说法）、把 58 页截图上传改标「未单独复测」；
+`挂账.md` 关闭 21b 并把新增测试数据与对象清理方式补进 §四。
+
+**基线**：`docs/BASELINE.md` **本版不动**——本次改动全部落在 `services/faze-api`（代码 + 测试）与
+`docs/acceptance/seg7/` 的三份**过程记录**（按 `BASELINE.md` 第三节 §2.6 的一贯口径，验收证据不进
+基线资产），**45 份基线资产零变更**，因此不出新基线版本。新增的 3 张证据截图同样不算资产。
+
+**验证**：`mvn -B test` 全量 **502 / 502** 通过（原 498 + 新增 4）；`mvn -q -DskipTests compile` EXIT 0；
+修复后用同一个页面重新走一遍上传 → 提交 → 缩略图，全部通过。
+
+**顺带纠正**：`tmp/seg7h/submit-complaint.js` 原来用 `innerText.includes('查看我的投诉')` 判断成功态，
+但表单态顶部本来就有同名入口 → 该断言**恒为真**，等于没验。已改用「`textarea` 消失 + 文本含『已提交』」。
+
+---
 
 **做了什么**：负责人 2026-11-09 拍板，APP 页面总数 **68 → 69**，新增第 69 页「我的投诉」列表
 （路由 `/complaint-list`，所属**第 7 段** C 组客服链路）。本批**只改文档、不改任何代码**。
