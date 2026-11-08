@@ -90,9 +90,19 @@ public enum RechargeStatus {
     /**
      * 该状态中文名的 i18n key。
      *
-     * @return 形如 {@code trade.recharge.status.pending}
+     * <p>键形态遵循《i18n 规范》的三段式「域.场景.元素」且**元素段 camelCase**，
+     * 与既有 {@code trade.order.statusPending} 一致；不写成
+     * {@code trade.recharge.status.pending} 四段，也不会用字符串拼接生成 key
+     * （规范明确禁止拼 key：拼接会让 key 无法被静态检查发现缺失）。</p>
+     *
+     * @return 形如 {@code trade.recharge.statusPending}
      */
     public String i18nKey() {
-        return "trade.recharge.status." + code;
+        return switch (this) {
+            case PENDING -> "trade.recharge.statusPending";
+            case SUCCESS -> "trade.recharge.statusSuccess";
+            case FAILED -> "trade.recharge.statusFailed";
+            case CLOSED -> "trade.recharge.statusClosed";
+        };
     }
 }

@@ -16,6 +16,7 @@ package com.faze.modules.trade.mapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.faze.modules.trade.entity.RechargeRecord;
 import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
 import java.time.LocalDateTime;
@@ -78,4 +79,45 @@ public interface RechargeRecordMapper extends BaseMapper<RechargeRecord> {
              LIMIT #{batchSize}
             """)
     int closeExpired(@Param("now") LocalDateTime now, @Param("batchSize") int batchSize);
+
+    /**
+     * 统计用户当日已占用的充值金额（分，B3 单日限额用）。
+     *
+     * <p>**口径是 `pending` + `success`，不是只算 `success`**：只算成功的话，用户可以连续
+     * 开多张未支付的单绕过额度（B1「卡住怎么办」）；`failed` / `closed` 自然不计——
+     * 这两态的钱没进来，占配额就是白占（D2 关单后额度必须恢复）。</p>
+     *
+     * <p>用一条 `SUM` 汇总，不在应用层循环查多笔（B1 明确要求）。</p>
+     *
+     * @param userId   用户主键
+     * @param sinceUtc 当日 0 点（东八区）换算成的 UTC 时刻
+     * @return 已占用金额（分）；无记录时为 0
+     */
+    @Select("""
+            SELECT COALESCE(SUM(amount_cents), 0)
+              FROM recharge_record
+             WHERE user_id = #{userId}
+               AND status IN ('pending', 'success')
+               AND created_at >= #{sinceUtc}
+            """)
+    long sumDailyCents(@Param("userId") Long userId, @Param("sinceUtc") LocalDateTime sinceUtc);
+
+    /**
+     * 统计用户当日已发起的充值单数（B3 单日笔数限额用）。
+     *
+     * <p>统计口径与 {@link #sumDailyCents} 保持一致（`pending` + `success`），
+     * 两个口径一旦不一致，用户就能靠「多开单少付钱」绕过其中一个。</p>
+     *
+     * @param userId   用户主键
+     * @param sinceUtc 当日 0 点（东八区）换算成的 UTC 时刻
+     * @return 单数；无记录时为 0
+     */
+    @Select("""
+            SELECT COUNT(*)
+              FROM recharge_record
+             WHERE user_id = #{userId}
+               AND status IN ('pending', 'success')
+               AND created_at >= #{sinceUtc}
+            """)
+    long countDaily(@Param("userId") Long userId, @Param("sinceUtc") LocalDateTime sinceUtc);
 }

@@ -1,7 +1,9 @@
 /*
- * 职责：段 5 的业务单号生成器（案件 CS / 提现 WD / 结算 JS / 送达回执 SD / 案例 CL）。
+ * 职责：段 5 的业务单号生成器（案件 CS / 提现 WD / 结算 JS / 送达回执 SD / 案例 CL），
+ *       第 6 段在此基础上追加充值单前缀 RC（`nextRechargeNo`），机制未变。
  * 调用方：caseflow 的 CaseService、trade 的 WithdrawService / SettlementService、
- *         caseflow 的 DeliveryService、content 的 CaseLibraryService。
+ *         caseflow 的 DeliveryService、content 的 CaseLibraryService、
+ *         第 6 段 trade 的 RechargeCreateExecutor。
  * 数据来源：Redis key `faze:seq:{前缀}:{yyyyMMdd}`；数据库唯一键是最后一道防线。
  * 注意：
  *   1. **禁止用 MAX(单号)+1**（并发必撞、表大了还慢）——《第 5 段工作流》§三 A3。
@@ -136,6 +138,18 @@ public class BizNoGenerator {
     }
 
     /**
+     * 生成充值单号（第 6 段 B1 新增）。
+     *
+     * <p>前缀 {@code RC} 由《第 6 段工作流》§三 A1、§零之二 第 17 项指定，与既有五个前缀
+     * 不重叠；沿用「Redis INCR + 唯一索引兜底 + 降级」同一套机制，不另写实现。</p>
+     *
+     * @return 形如 {@code RC20261108000001}
+     */
+    public String nextRechargeNo() {
+        return next(BizPrefix.RECHARGE);
+    }
+
+    /**
      * 校验单号格式是否合法（16 位：2 大写前缀 + 14 数字）。
      *
      * @param no 待校验单号
@@ -221,7 +235,9 @@ public class BizNoGenerator {
         /** 送达回执。 */
         DELIVERY("SD"),
         /** 案例。 */
-        CASE_LIBRARY("CL");
+        CASE_LIBRARY("CL"),
+        /** 充值单（第 6 段）。 */
+        RECHARGE("RC");
 
         private final String code;
 

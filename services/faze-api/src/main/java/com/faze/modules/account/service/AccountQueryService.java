@@ -31,6 +31,18 @@ public interface AccountQueryService {
     Optional<AccountAuthSnapshot> findAuthSnapshot(Long userId);
 
     /**
+     * 取用户的实名认证状态（第 6 段 B3 新增）。
+     *
+     * <p>取值来自 `app_user.realname_status`：`none` / `pending` / `approved` / `rejected`。
+     * 充值侧只关心「是不是 approved」，但这里返回原始值，由调用方定口径——
+     * 别在查询层把 `pending` 折成 `none`，否则「审核中」和「没提交」的错误文案分不出来。</p>
+     *
+     * @param userId 用户主键
+     * @return 状态值；用户不存在或已软删时返回空（调用方按未实名处理）
+     */
+    Optional<String> findRealnameStatus(Long userId);
+
+    /**
      * 取用户的有效设备列表（未软删）。
      *
      * @param userId          用户主键

@@ -60,6 +60,27 @@ public class AccountQueryServiceImpl implements AccountQueryService {
     }
 
     /**
+     * 取用户的实名认证状态（第 6 段 B3）。
+     *
+     * <p>只读 `realname_status` 一列，不查 `realname_auth` 表：充值拦截只需要「是否已通过」，
+     * 去查审核记录会把充值链路和审核链路耦合起来，且多一次 JOIN 没有收益。</p>
+     *
+     * @param userId 用户主键
+     * @return 状态值；用户不存在或已软删时返回空
+     */
+    @Override
+    public Optional<String> findRealnameStatus(Long userId) {
+        if (userId == null) {
+            return Optional.empty();
+        }
+        AppUser user = accountMapper.selectById(userId);
+        if (user == null || user.getDeletedAt() != null) {
+            return Optional.empty();
+        }
+        return Optional.ofNullable(user.getRealnameStatus());
+    }
+
+    /**
      * 取设备列表。
      *
      * @param userId          用户主键

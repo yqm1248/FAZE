@@ -1,4 +1,10 @@
 {
+  "recharge": {
+    "statusPending": "待支付",
+    "statusSuccess": "充值成功",
+    "statusFailed": "充值失败",
+    "statusClosed": "已关闭"
+  },
   "balance": {
     "title": "账户余额",
     "availableLabel": "可用余额",
@@ -123,6 +129,9 @@
   },
   "pay": {
     "title": "支付",
+    "channelWechat": "微信支付",
+    "channelAlipay": "支付宝",
+    "channelMock": "模拟支付",
     "amountLabel": "应付金额",
     "blockOrder": "订单信息",
     "blockMethod": "支付方式",

@@ -12,13 +12,16 @@
 
 | 常量 | code（落库） | label | i18n key | 本段是否可跑 |
 |---|---|---|---|---|
-| `WECHAT` | `wechat` | 微信支付 | `trade.pay.channel.wechat` | ⚠️ 代码就绪，联调等商户号 |
-| `ALIPAY` | `alipay` | 支付宝 | `trade.pay.channel.alipay` | ⚠️ 同上 |
-| `MOCK` | `mock` | Mock 通道 | `trade.pay.channel.mock` | ✅ 四条可验锚点全在它上面 |
+| `WECHAT` | `wechat` | 微信支付 | `trade.pay.channelWechat` | ⚠️ 代码就绪，联调等商户号 |
+| `ALIPAY` | `alipay` | 支付宝 | `trade.pay.channelAlipay` | ⚠️ 同上 |
+| `MOCK` | `mock` | Mock 通道 | `trade.pay.channelMock` | ✅ 四条可验锚点全在它上面 |
 
 - 与 `recharge_record.channel` 列注释一致（`wechat / alipay / mock`），A1 已验。
 - `isReal()` 区分 Mock 与真实渠道；`configPrefix()` 生成 `pay.<channel>`。
 - 非法值抛 **401001**（参数错误），**不抛 405013**——405013 的语义是「渠道存在但被关掉」，两者不能混。
+- **i18n key 形态在 B1 修正**：原写法 `trade.pay.channel.wechat` 是四段点号，违反《i18n 规范》的
+  三段式「域.场景.元素 + 元素段 camelCase」（既有 `trade.pay.methodBalance` 即此形态）。现改为
+  `trade.pay.channelWechat`，用枚举 switch 写字面量而**不拼 key**（规范禁拼 key）。
 
 ## 二、充值单状态 `RechargeStatus`（4 态）
 
@@ -27,10 +30,12 @@
 
 | 常量 | code（落库） | label | i18n key | 终态 |
 |---|---|---|---|---|
-| `PENDING` | `pending` | 待支付 | `trade.recharge.status.pending` | 否 |
-| `SUCCESS` | `success` | 充值成功 | `trade.recharge.status.success` | ✅ |
-| `FAILED` | `failed` | 渠道失败 | `trade.recharge.status.failed` | ✅ |
-| `CLOSED` | `closed` | 已关闭 | `trade.recharge.status.closed` | ✅ |
+| `PENDING` | `pending` | 待支付 | `trade.recharge.statusPending` | 否 |
+| `SUCCESS` | `success` | 充值成功 | `trade.recharge.statusSuccess` | ✅ |
+| `FAILED` | `failed` | 渠道失败 | `trade.recharge.statusFailed` | ✅ |
+| `CLOSED` | `closed` | 已关闭 | `trade.recharge.statusClosed` | ✅ |
+
+> i18n key 形态同 `PayChannel`：B1 从四段点号改为三段式 camelCase，理由见 §一 末条。
 
 合法迁移 3 条：
 

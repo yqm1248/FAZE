@@ -96,9 +96,16 @@ public enum PayChannel {
     /**
      * 该渠道中文名的 i18n key。
      *
-     * @return 形如 {@code trade.pay.channel.wechat}
+     * <p>同样遵循三段式 + camelCase 元素段（{@code trade.pay.channelWechat}），
+     * 与既有 {@code trade.pay.methodBalance} 同族；**不拼 key**，用枚举 switch 写字面量。</p>
+     *
+     * @return 形如 {@code trade.pay.channelWechat}
      */
     public String i18nKey() {
-        return "trade.pay.channel." + code;
+        return switch (this) {
+            case WECHAT -> "trade.pay.channelWechat";
+            case ALIPAY -> "trade.pay.channelAlipay";
+            case MOCK -> "trade.pay.channelMock";
+        };
     }
 }
