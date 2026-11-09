@@ -4,6 +4,113 @@
 
 ---
 
+## 2026-11-09 · 首页改版 + 会话准入打通 + 浏览器验收缺陷批量修复
+
+**背景**：负责人用浏览器逐页点测后提了 10 条问题。核查发现它们不是同一类东西——
+3 条是**功能缺口**（付款做了、会话准入没做）、3 条是**数据损坏**（乱码 / 模板字段类型写错）、
+4 条是样式与文案。本批一次处理，并顺带把「付完钱没有聊天入口」这条真实资金损失路径堵上。
+
+### 一、首页改版（负责人定的新形态）
+
+| 位置 | 改前 | 改后 |
+|---|---|---|
+| 标题 | 法泽 + 普惠法律服务，就在身边 | **按时间问候**（早上好 / 下午好 / 晚上好）+ 站在你的角度 |
+| 右上角 | 「我的」头像 | **消息图标**（进消息中心；「我的」由底部 tab 承担） |
+| 快捷入口 | 找律师 / 我的订单 / 消息中心 / AI 咨询 | **生成起诉状 / 律师咨询 / 进度查询 / 全部功能** |
+| AI 卡 | 在方块上方 | 下移到方块之后（内容不变） |
+| 每日学法 | 每篇文章一张独立卡片 | **一张卡 + 多行列表**（行间细分割线，设计稿 `.law-card`） |
+
+- 「生成起诉状」要模板 id（`LAWSUIT-001` 是自增主键，各环境不同）：点按时先拉模板列表取 id
+  再跳表单页；**拉不到就降级到文书模板列表页**，不做「点了没反应」。
+- 「进度查询」只进「我的案件」列表：`/case-progress` 必须带 `caseId`，首页给不出具体案件。
+- 「全部功能」放首页是因为它原来只有「我的 → 设置」一条深路径，负责人明确要求提到首页。
+
+### 二、律师页「死路」修复（真机阻塞级）
+
+**同一份 `LawyerListPage` 挂在两个路由上**：`/lawyer`（底部 tab，有 tabbar）与
+`/lawyer-list`（独立页，无 tabbar）。而**所有入口都指向 `/lawyer-list`**，且页面写死
+`showBack={false}`——结果是从首页/全部功能点进去后**既没返回箭头也没底部 tab**，
+Web 上能靠浏览器后退救，真机上是彻底卡死。
+
+- `showBack` 改为按 `usePathname()` 判断：`/lawyer` 不显示、`/lawyer-list` 显示
+- 首页、全部功能页、订单空态、关注律师页、消息中心**共 5 处入口**统一改指 `/lawyer`（tab 页）
+- `/lawyer-list` 路由壳保留（还有推送直达等旧链路）
+
+### 三、会话准入：没买过服务的不能开新会话
+
+改前 `conversation` 模块**一行都不引用订单**，`createOrGet` 只校验律师可见——
+没付钱也能直接开聊。本批在服务端补上准入：
+
+- 新增跨域只读查询 `OrderQueryService.existsActiveOrderOfUserAndLawyer` /
+  `listActiveOrdersOfUserAndLawyer`（conversation 不直接依赖 trade 的 Mapper，守分层禁令）
+- 「有效订单」口径：`paid` + `in_service` 且未软删；排除 `pending` / `completed` /
+  `cancelled` / `refunding` / `refunded` / `refund_rejected`
+- **只拦新建会话**，已有会话照常进入——否则用户退款后连历史聊天都打不开
+- **律师侧豁免**：`createOrGetForLawyerInitiated`，仅 `WorkbenchServiceImpl#sendDocumentToClient`
+  （律师发文书）调用，文书归属由调用方校验
+- 新增 `ConversationSeqGenerator`（从 `MessageService` 抽出 `max(INCR, 库内最大+1)` 的取号逻辑，
+  两处共用；`MessageService` 顺带从 620 行降到 523 行）
+
+### 四、进会话自动推一条订单通知（纯文字）
+
+用户付完钱进会话时，服务端自动插一条 `senderRole=system` / `msgType=system` 的消息：
+
+```
+您已购买图文咨询，订单号 OR20261109001216，金额 ¥60.00，现在可以和律师沟通了。
+```
+
+- **幂等**：`client_msg_id = order-notice-{orderId}`，同一笔订单只发一次，重复进会话不刷屏
+- **`content` 存 i18n key + 参数**（不是中文死文本）：`{"key":"conversation.orderNotice",
+  "serviceType":…,"orderNo":…,"amountCents":…}`，前端解析后按当前语言渲染
+- 不回写 `conversation.last_message` / `unread_*`：这条是给用户看的上下文，
+  不该在律师的会话列表里冒出一个「未读」
+- 前端 `ChatPage` 新增 `SystemNotice` 居中提示：**原来 `out = senderRole !== 'lawyer'`
+  会把系统消息当成用户自己发的**，靠右显示还带「已读」，等于用户复读一遍订单号
+
+### 五、支付成功页：主按钮改成「进入会话」
+
+改前成功态主按钮是「查看订单」，真实的会话入口藏在「订单详情 → 进入聊天」，用户找不到。
+现在成功态两个按钮：**查看订单（次）/ 进入会话（主）**；失败态行为不变。
+
+### 六、错误码：新增 404005，不动冻结码
+
+`404003` 在《错误码规范》§3.4 已冻结为 `error.conversation.closed`（会话已结束）。
+「未购买服务」是另一个语义，取 **`404005` / `error.conversation.not-purchased`**，
+规范 §3.4 已登记。前端 `errorCodes.ts` 同步，`ChatPage` 命中时显示
+「还没有购买这位律师的咨询服务」+ **「去购买咨询服务」**按钮跳回律师详情。
+
+### 七、浏览器验收缺陷修复
+
+| 问题 | 根因（已核实） | 处理 |
+|---|---|---|
+| 律师简介乱码 | 不是前端问题：`lawyer.bio` 存的是「UTF-8 字节被按 ISO-8859-1 逐字节存成字符」的**双重编码**，且 MySQL 的 latin1 是 cp1252 超集、`CONVERT` 会把 0x80–0x9F 变成 `?`，**编码转换救不回来** | 在 JS 里按码点 `& 0xFF` 还原原始字节再解 UTF-8；全库 287 个文本列按 HEX 特征扫了一遍，共修 4 处（`lawyer.bio`、`doc_template#7` 的 `name/category/template_html`、`document` 的 2 条 `title`/`doc_type`） |
+| 支付密码框被浏览器自动填了 5 位 | `react-native-web` 把 `secureTextEntry` 映成 `type="password"`，且不传 `autoComplete` 时默认 `'on'`——Chrome 把登录密码灌了进来 | Web 端不传 `secureTextEntry`（type 回到 text）+ `autoComplete="off"` + `importantForAutofill="no"`；掩码本来就是自绘的，不受影响 |
+| 起诉状输入框黑色焦点框「和灰底不贴合」 | 那是 **Chrome 的 UA 焦点环**，不是设计边框。且 Chrome 的 `outline-style: auto` **会忽略 `outline-width`**，只写 `outlineWidth: 0` 去不掉 | 改 `outlineStyle: 'solid'` + `outlineWidth: 0` 覆盖 UA，聚焦态改挂到外层灰底容器（主色细边框） |
+| 文书模板卡显示「6 个字段」 | 设计稿那行本来是**一句业务描述**，实现时换成了字段数这种内部术语 | 整行删除（`DocTemplateBrief` 没有描述字段，删是当前唯一不改后端的选项）；四语言 `document.templates.fieldCount` 一并删 |
+| 全部功能页底部像内部说明 | 文案是「这一页是兜底导航：首页和「我的」只放高频入口……」 | 四语言改成「这里是导航页，首页找不到的功能都在这里。」 |
+| 起诉状「性别」要填空 | 模板 `field_schema` 里写成了 `"type":"text"`（`DynamicForm` 本来就支持 `select`） | 改数据：`select` + `options: ["男","女"]`，渲染成胶囊选项 |
+
+### 八、验证
+
+- 后端：`mvn -DskipTests compile` 通过；会话域单测 **27/27**（`ConversationServiceTest` 12、
+  `MessageServiceTest` 12、`ConversationSeqGeneratorTest` 3）
+- 前端：`npm run verify` 全绿（tsc / eslint / check-raw-text 186 文件 0 命中 / check-i18n 三项）
+- 接口实测：未购买律师建会话 → `404005`；已购买 → 200 且落到会话；消息列表拿到订单通知
+- 浏览器实测（390×844 + CDP 真实鼠标事件）：首页四入口/消息图标/时间问候、支付结果页
+  「进入会话」、会话页订单通知居中、性别胶囊、模板卡无字段数、`/lawyer` 有 tabbar 无返回、
+  `/lawyer-list` 有返回无 tabbar、未购买账号进会话显示「去购买咨询服务」
+
+### 九、遗留（挂账）
+
+1. **文档基线**：《错误码规范》§3.4 已加 404005，按 `BASELINE.md` §4 需重算指纹出新基线版本——**待做**。
+2. **Web 焦点环是全局性问题**：本次只按范围修了 `DynamicForm`；`SearchBar`、登录/注册等
+   用 RN `TextInput` 的地方在 Web 上同样会画 Chrome 黑环，要统一收口得抽 `WebTextInput`
+   或全局窄范围 CSS。
+3. **`MessageService` 仍超《后端代码规范》§2.5 的 500 行上限**（本次 620→523，本来就超）。
+4. 本轮测试产生的订单 20 在 30 分钟后会被 `OrderAcceptTimeoutTask` 自动退款，属既有设计。
+
+---
+
 ## 2026-11-09 · 段 8：三语译文全量落地 + i18n 首次四语言生效
 
 **做了什么**：段 0~7 期间 `bo` / `ug-Arab-CN` / `kk-Arab-CN` 的 14 个 JSON 全是 `{}`，
