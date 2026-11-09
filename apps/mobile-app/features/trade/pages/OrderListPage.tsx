@@ -273,7 +273,7 @@ export function OrderListPage() {
             <PrimaryButton
               label={t('trade.order.emptyAction')}
               variant="outline"
-              onPress={() => router.push(PAGE_ROUTES.lawyerList)}
+              onPress={() => router.push(PAGE_ROUTES.lawyerTab)}
               style={styles.emptyAction}
             />
           </View>

@@ -2,7 +2,8 @@
  * 找律师页。
  *
  * 职责：G3.1 的律师列表——搜索 + 5 档分类 + 律师卡片 + 分页 + 四态。
- * 调用方：路由壳 `app/lawyer-list.tsx`（首页「找律师」入口、订单空态入口）。
+ * 调用方：两个路由壳——`app/(tabs)/lawyer.tsx`（底部 tab 页 `/lawyer`）与
+ *         `app/lawyer-list.tsx`（首页 / 全部功能 / 订单空态 push 进来的二级页 `/lawyer-list`）。
  * 数据来源：`features/lawyer/api/lawyers.ts` → `GET /app/lawyers`。
  * 注意：
  *   1. **分类 tab 是 5 档固定值**（全部 / 民事纠纷 / 刑事辩护 / 婚姻家事 / 合同纠纷），
@@ -16,7 +17,7 @@
  *   5. 四态齐全：加载（骨架）/ 空（可清空筛选）/ 错误（可重试）/ 正常。
  */
 
-import { useRouter } from 'expo-router';
+import { usePathname, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
@@ -34,7 +35,7 @@ import { Screen } from '@/shared/components/Screen';
 import { SearchBar } from '@/shared/components/SearchBar';
 import { useI18n } from '@/shared/i18n';
 import type { MessageKey } from '@/shared/i18n';
-import { lawyerDetailHref } from '@/shared/navigation/routes';
+import { lawyerDetailHref, PAGE_ROUTES } from '@/shared/navigation/routes';
 import { color, radius, size, spacing, typography } from '@/shared/theme';
 import { centsFromServer } from '@/shared/utils/money';
 
@@ -163,6 +164,7 @@ function LawyerItem({ lawyer, onPress }: { lawyer: LawyerCard; onPress: () => vo
 export function LawyerListPage() {
   const { t } = useI18n();
   const router = useRouter();
+  const pathname = usePathname();
   const [category, setCategory] = useState<CategoryKey>('all');
   const [keywordInput, setKeywordInput] = useState('');
   const [keyword, setKeyword] = useState('');
@@ -174,6 +176,21 @@ export function LawyerListPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const itemsRef = useRef<LawyerCard[]>([]);
   const categoryValue = CATEGORIES.find((item) => item.key === category)?.value ?? '';
+
+  /**
+   * 是否显示返回箭头。
+   *
+   * 同一份页面被两个路由复用：
+   *   - `app/(tabs)/lawyer.tsx` → `/lawyer`（底部 tab 页，栈底，返回箭头无意义）；
+   *   - `app/lawyer-list.tsx` → `/lawyer-list`（首页「找律师」、全部功能、订单空态等入口
+   *     push 进来的二级页，**必须有返回**，否则既没箭头也没底部 tab，用户卡死）。
+   *
+   * 为什么用 `usePathname()` 而不是 `useSegments()`：本页只有这两个宿主路由，路径字符串
+   * 就是唯一判据；`useSegments()` 返回的是含 `(tabs)` 分组名的数组，还得再判断分组与长度，
+   * 比直接比路径更容易写错。这里只对 tab 页关返回、其余一律显示——以后多一个宿主路由时
+   * 默认有返回，不会重演「卡死」。
+   */
+  const showBack = pathname !== String(PAGE_ROUTES.lawyerTab);
 
   /**
    * 拉一页律师。
@@ -243,11 +260,10 @@ export function LawyerListPage() {
   return (
     <Screen edges={['top', 'left', 'right']}>
       {/*
-        tab 内页是栈底，没有可返回的目标（点返回会 replace('/')），所以关掉返回箭头。
-        段 3 F1 唯一允许改本页的地方：只改这个开关，业务不动。
-        仍走 `/lawyer-list` 路由壳（首页入口 / F3 转人工）时也是栈底，箭头同样无意义。
+        返回箭头按宿主路由决定（见上面 `showBack` 的注释）：
+        tab 页 `/lawyer` 是栈底，关掉；`/lawyer-list` 是 push 进来的二级页，必须保留。
       */}
-      <AppHeader title={t('lawyer.browse.title')} showBack={false} />
+      <AppHeader title={t('lawyer.browse.title')} showBack={showBack} />
       <View style={styles.topbar}>
         <SearchBar
           value={keywordInput}

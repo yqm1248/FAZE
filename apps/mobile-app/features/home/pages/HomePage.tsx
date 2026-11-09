@@ -1,18 +1,26 @@
 /**
  * 首页（段 2 G8.2，设计稿 `01-home.html`）。
  *
- * 职责：问候 + 搜索入口 + 快捷入口 + **「每日学法」文章区块（真实接口，`2-A7` 的判据）**。
- * 调用方：路由壳 `app/home.tsx`；登录/启动后由 `SplashPage` 分流到这里。
- * 数据来源：`GET /api/v1/pub/articles?pageSize=3`（公开接口）。
+ * 职责：按时间问候 + 消息入口 + 搜索 + **四个快捷入口**（生成起诉状 / 律师咨询 /
+ *      进度查询 / 全部功能）+ AI 助手卡 + **「每日学法」文章区块**（真实接口，`2-A7` 的判据）。
+ * 调用方：路由壳 `app/(tabs)/home.tsx`；登录/启动后由 `SplashPage` 分流到这里。
+ * 数据来源：`GET /api/v1/pub/articles?pageSize=3`（公开接口）；
+ *          `GET /api/v1/app/doc-templates`（只为「生成起诉状」取模板 id）。
  * 注意：
  *   1. **「每日学法」必须是真实数据**：工作流 G8.2 明确「若首页区块原来是硬编码，必须替换掉，
  *      不是并排显示」。本页没有写死任何文章。
  *   2. **文章区块失败不拖垮整页**：搜索、快捷入口是静态的，只有文章区块有自己的
  *      loading / error / empty 三态与重试——首页整体不能因为文章接口挂了变成错误页。
- *   3. 段 2 没有底部 tab 导航（全局导航属段 3）：本页用**顶部头像 + 快捷入口**承担页面间跳转，
- *      并在验收文档记偏差；不隐藏「消息中心」入口（工作流 G8.3 第 3 条）。
- *   4. 未实现的功能（AI 咨询、搜索、文书代写、查法条）点按给「即将开放」提示，
- *      **不做成静默无反应的按钮**。
+ *   3. **「生成起诉状」必须拿到模板 id**：起诉状表单页地址是 `/doc/lawsuit?templateId=`，
+ *      而模板 id 是数据库自增的、各环境不同，不能写死。所以点按先拉一次模板列表取 id，
+ *      取不到（断网/接口挂）就降级到文书模板列表页，让用户自己选——**不能点了没反应**。
+ *   4. **「律师咨询」进的是底部 tab 页 `/lawyer`**，不是段 2 的 `/lawyer-list` 独立页：
+ *      后者没有底部 tab、当时也没返回按钮，从首页进去会卡死（2026-11-09 实测）。
+ *   5. **「进度查询」只能进「我的案件」列表**：进度页 `/case-progress` 必须带 `caseId`，
+ *      首页给不出具体案件，直接跳会是错误页。
+ *   6. 段 2 没有底部 tab 导航（全局导航属段 3）：本页顶部**消息图标**承担消息入口
+ *      （工作流 G8.3 第 3 条），「我的」入口由底部 tab 承担，不在这里重复放头像。
+ *   7. 未实现的功能（搜索）点按给「即将开放」提示，**不做成静默无反应的按钮**。
  */
 
 import { Ionicons } from '@expo/vector-icons';
@@ -22,6 +30,7 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { getArticles } from '@/features/content/api/articles';
 import type { ArticleCard } from '@/features/content/api/articles';
+import { fetchTemplates } from '@/features/document/api/client';
 import { AppCard } from '@/shared/components/AppCard';
 import { useToast } from '@/shared/components/AppToast';
 import { LoadingState } from '@/shared/components/LoadingState';
@@ -29,7 +38,6 @@ import { LocalizedText } from '@/shared/components/LocalizedText';
 import { LtrText } from '@/shared/components/LtrText';
 import { Screen } from '@/shared/components/Screen';
 import { SectionTitle } from '@/shared/components/SectionTitle';
-import { TagChip } from '@/shared/components/TagChip';
 import { useI18n } from '@/shared/i18n';
 import type { MessageKey } from '@/shared/i18n';
 import { articleHref, PAGE_ROUTES, articlesHref } from '@/shared/navigation/routes';
@@ -39,23 +47,72 @@ import { formatServerDate } from '@/shared/utils/serverTime';
 /** 首页「每日学法」展示条数。 */
 const DAILY_LEARNING_LIMIT = 3;
 
+/** 起诉状模板的 code 前缀（与文书模板页同一口径）。 */
+const LAWSUIT_CODE_PREFIX = 'LAWSUIT-';
+
+/** 快捷入口的动作：跳固定路由，或走「先取模板 id」的特殊流程。 */
+type QuickAction = 'lawsuit' | 'link';
+
 /** 快捷入口。 */
 const QUICK_ENTRIES: ReadonlyArray<{
   key: string;
   labelKey: MessageKey;
   icon: React.ComponentProps<typeof Ionicons>['name'];
+  action: QuickAction;
   href?: string;
 }> = [
-  { key: 'lawyers', labelKey: 'home.quickFindLawyer', icon: 'people-outline', href: String(PAGE_ROUTES.lawyerList) },
-  { key: 'orders', labelKey: 'home.quickMyOrders', icon: 'receipt-outline', href: String(PAGE_ROUTES.orders) },
-  { key: 'messages', labelKey: 'home.quickMessages', icon: 'notifications-outline', href: String(PAGE_ROUTES.messages) },
-  { key: 'ai', labelKey: 'home.quickAi', icon: 'sparkles-outline', href: String(PAGE_ROUTES.agent) },
+  {
+    key: 'lawsuit',
+    labelKey: 'home.quickLawsuit',
+    icon: 'document-text-outline',
+    action: 'lawsuit',
+  },
+  {
+    key: 'lawyer',
+    labelKey: 'home.quickLawyerConsult',
+    icon: 'people-outline',
+    action: 'link',
+    href: String(PAGE_ROUTES.lawyerTab),
+  },
+  {
+    key: 'progress',
+    labelKey: 'home.quickCaseProgress',
+    icon: 'time-outline',
+    action: 'link',
+    href: String(PAGE_ROUTES.caseMy),
+  },
+  {
+    key: 'features',
+    labelKey: 'home.quickAllFeatures',
+    icon: 'grid-outline',
+    action: 'link',
+    href: String(PAGE_ROUTES.allFeatures),
+  },
 ];
+
+/**
+ * 按当前小时选问候语。
+ *
+ * 5–11 点早上好、12–17 点下午好、其余晚上好。只影响标题一句文案，不做定时刷新：
+ * 用户不会在首页停留跨时段。
+ *
+ * @param hour 0–23 的本地小时
+ * @returns 问候语的 i18n key
+ */
+function greetingKeyOf(hour: number): MessageKey {
+  if (hour >= 5 && hour < 12) {
+    return 'home.greetMorning';
+  }
+  if (hour >= 12 && hour < 18) {
+    return 'home.greetAfternoon';
+  }
+  return 'home.greetEvening';
+}
 
 /**
  * 首页。
  *
- * 副作用：挂载时拉 3 篇已发布文章。
+ * 副作用：挂载时拉 3 篇已发布文章；点「生成起诉状」时拉一次模板列表。
  *
  * @returns 首页界面
  */
@@ -65,6 +122,10 @@ export function HomePage() {
   const router = useRouter();
   const [articles, setArticles] = useState<ArticleCard[]>([]);
   const [phase, setPhase] = useState<'loading' | 'error' | 'ready'>('loading');
+  const [lawsuitBusy, setLawsuitBusy] = useState(false);
+
+  /** 挂载时定一次问候语：只取小时，不随页面停留变化。 */
+  const [greetingKey] = useState<MessageKey>(() => greetingKeyOf(new Date().getHours()));
 
   /** 拉「每日学法」区块。 */
   const loadArticles = useCallback(async (): Promise<void> => {
@@ -82,22 +143,49 @@ export function HomePage() {
     void loadArticles();
   }, [loadArticles]);
 
+  /**
+   * 打开起诉状表单。
+   *
+   * 副作用：拉模板列表取 `LAWSUIT-` 模板的 id 后跳表单页；取不到就降级到模板列表页。
+   *          连点只发一次请求。
+   */
+  const openLawsuit = useCallback(async (): Promise<void> => {
+    if (lawsuitBusy) {
+      return;
+    }
+    setLawsuitBusy(true);
+    try {
+      const result = await fetchTemplates();
+      if (result.ok) {
+        const template = result.data.find((item) => item.code.startsWith(LAWSUIT_CODE_PREFIX));
+        if (template !== undefined) {
+          router.push(`/doc/lawsuit?templateId=${encodeURIComponent(template.id)}` as never);
+          return;
+        }
+      }
+      // 降级：模板列表页自己会处理加载/错误态，比停在这里弹 toast 更有出路
+      router.push(PAGE_ROUTES.docTemplates);
+    } finally {
+      setLawsuitBusy(false);
+    }
+  }, [lawsuitBusy, router]);
+
   return (
     <Screen edges={['top', 'left', 'right']}>
       {/* 底部安全区由 tab bar 负责（段 3 F1）：页面不再取 bottom，否则 tab 下会多一段空白。 */}
       <ScrollView contentContainerStyle={styles.body}>
         <View style={styles.header}>
           <View style={styles.brand}>
-            <LocalizedText numberOfLines={1} style={styles.brandName}>{t('home.brand')}</LocalizedText>
+            <LocalizedText numberOfLines={1} style={styles.brandName}>{t(greetingKey)}</LocalizedText>
             <LocalizedText numberOfLines={1} style={styles.brandSlogan}>{t('home.slogan')}</LocalizedText>
           </View>
           <Pressable
-            onPress={() => router.push(PAGE_ROUTES.profile)}
+            onPress={() => router.push(PAGE_ROUTES.messages)}
             accessibilityRole="button"
-            accessibilityLabel={t('home.mineEntry')}
-            style={styles.avatar}
+            accessibilityLabel={t('home.quickMessages')}
+            style={styles.iconButton}
           >
-            <Ionicons name="person-circle-outline" size={36} color={color.brand.primary} />
+            <Ionicons name="notifications-outline" size={24} color={color.text.body} />
           </Pressable>
         </View>
 
@@ -115,6 +203,10 @@ export function HomePage() {
             <Pressable
               key={entry.key}
               onPress={() => {
+                if (entry.action === 'lawsuit') {
+                  void openLawsuit();
+                  return;
+                }
                 if (entry.href === undefined) {
                   toast.show(t('home.soon'));
                   return;
@@ -127,7 +219,7 @@ export function HomePage() {
               <View style={styles.quickIcon}>
                 <Ionicons name={entry.icon} size={22} color={color.brand.primary} />
               </View>
-              <LocalizedText numberOfLines={1} style={styles.quickLabel}>{t(entry.labelKey)}</LocalizedText>
+              <LocalizedText numberOfLines={2} style={styles.quickLabel}>{t(entry.labelKey)}</LocalizedText>
             </Pressable>
           ))}
         </View>
@@ -163,34 +255,35 @@ export function HomePage() {
             <LocalizedText numberOfLines={2} style={styles.empty}>{t('home.articlesEmpty')}</LocalizedText>
           ) : null}
 
+          {/*
+            一张卡 + 三行列表（设计稿 `01-home.html` 的 `.law-card` + `.law-list__item`）。
+            段 2 早期实现是「每篇文章一张卡」，三条卡片叠在一起像条款清单，
+            2026-11-09 按负责人反馈改成单卡内分行、行间细分割线。
+          */}
           {phase === 'ready' && articles.length > 0 ? (
-            <View style={styles.articleList}>
-              {articles.map((article) => (
+            <AppCard style={styles.lawCard}>
+              {articles.map((article, index) => (
                 <Pressable
                   key={article.id}
                   onPress={() => router.push(articleHref(article.id))}
                   accessibilityRole="button"
+                  style={[
+                    styles.lawRow,
+                    index === articles.length - 1 ? null : styles.lawRowDivider,
+                  ]}
                 >
-                  <AppCard style={styles.articleCard}>
-                    <View style={styles.articleHead}>
-                      {article.category === null ? null : (
-                        <TagChip label={article.category} variant="soft" size="sm" />
-                      )}
-                      {article.langFallback ? (
-                        <TagChip label={t('content.list.langFallback')} variant="outline" size="sm" />
-                      ) : null}
-                    </View>
-                    <LocalizedText numberOfLines={2} style={styles.articleTitle}>{article.title}</LocalizedText>
-                    {article.summary === null ? null : (
-                      <LocalizedText numberOfLines={2} style={styles.articleSummary}>{article.summary}</LocalizedText>
+                  <LocalizedText numberOfLines={2} style={styles.lawTitle}>{article.title}</LocalizedText>
+                  <View style={styles.lawMetaRow}>
+                    {article.category === null ? null : (
+                      <LocalizedText numberOfLines={1} style={styles.lawCategory}>{article.category}</LocalizedText>
                     )}
-                    <LtrText numberOfLines={1} style={styles.articleDate}>
+                    <LtrText numberOfLines={1} style={styles.lawDate}>
                       {formatServerDate(article.publishedAt)}
                     </LtrText>
-                  </AppCard>
+                  </View>
                 </Pressable>
               ))}
-            </View>
+            </AppCard>
           ) : null}
         </View>
 
@@ -224,7 +317,7 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: color.text.muted,
   },
-  avatar: {
+  iconButton: {
     width: size.inputHeight,
     height: size.inputHeight,
     alignItems: 'center',
@@ -267,6 +360,7 @@ const styles = StyleSheet.create({
   quickLabel: {
     ...typography.caption,
     color: color.text.body,
+    textAlign: 'center',
   },
   aiCard: {
     gap: spacing.xs,
@@ -321,26 +415,32 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.lg,
     textAlign: 'center',
   },
-  articleList: {
-    gap: spacing.sm,
+  lawCard: {
     marginTop: spacing.sm,
+    paddingVertical: 0,
   },
-  articleCard: {
+  lawRow: {
+    paddingVertical: spacing.md,
     gap: spacing.xs,
   },
-  articleHead: {
+  lawRowDivider: {
+    borderBottomWidth: size.hairline,
+    borderBottomColor: color.border.divider,
+  },
+  lawTitle: {
+    ...typography.body,
+    color: color.text.body,
+  },
+  lawMetaRow: {
     flexDirection: 'row',
-    gap: spacing.xs,
+    alignItems: 'center',
+    gap: spacing.sm,
   },
-  articleTitle: {
-    ...typography.bodyLarge,
-    color: color.text.primary,
+  lawCategory: {
+    ...typography.micro,
+    color: color.brand.primary,
   },
-  articleSummary: {
-    ...typography.bodySmall,
-    color: color.text.secondary,
-  },
-  articleDate: {
+  lawDate: {
     ...typography.micro,
     color: color.text.muted,
   },

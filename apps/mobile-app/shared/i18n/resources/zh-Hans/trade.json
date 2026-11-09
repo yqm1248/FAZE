@@ -220,7 +220,8 @@
     "reasonLocked": "支付密码已锁定，请稍后再试",
     "reasonState": "订单状态已变化，请到订单里看看",
     "reasonNetwork": "网络不稳定，请重试",
-    "reasonUnknown": "支付没有完成，请重试"
+    "reasonUnknown": "支付没有完成，请重试",
+    "enterChat": "进入会话"
   },
   "payPassword": {
     "title": "支付密码",

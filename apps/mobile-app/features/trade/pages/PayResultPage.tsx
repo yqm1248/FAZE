@@ -1,8 +1,9 @@
-﻿/**
+/**
  * 支付结果页。
  *
- * 职责：G2.3 的支付结果——成功显示订单号/金额/支付前后余额与「查看订单」；
- * 失败显示原因（密码错 / 余额不足 / 状态变化 / 网络）与「重新支付」。
+ * 职责：G2.3 的支付结果——成功显示订单号/金额/支付前后余额，并给出「查看订单」与
+ *      **「进入会话」**两个出口（付完钱的主路径是找律师沟通，不是回首页）；
+ *      失败显示原因（密码错 / 余额不足 / 状态变化 / 网络）与「重新支付」。
  * 调用方：路由壳 `app/pay-result.tsx`；由支付页 `router.replace` 跳进来。
  * 数据来源：`GET /app/orders/{id}`（单号/金额/支付时间）、`GET /app/wallet/balance`（支付后余额）、
  *          路由参数 `ok`（1 成功 / 0 失败）与 `reason`（失败原因的 i18n key）。
@@ -38,7 +39,7 @@ import { useI18n } from '@/shared/i18n';
 import type { MessageKey } from '@/shared/i18n';
 import { formatAmount } from '@/shared/i18n/datetime';
 import { useAsyncResource } from '@/shared/hooks/useAsyncResource';
-import { PAGE_ROUTES, orderDetailHref, payHref } from '@/shared/navigation/routes';
+import { chatHref, orderDetailHref, payHref } from '@/shared/navigation/routes';
 import { color, radius, size, spacing, typography } from '@/shared/theme';
 import { centsFromServer } from '@/shared/utils/money';
 import { formatServerDateTime } from '@/shared/utils/serverTime';
@@ -194,26 +195,39 @@ export function PayResultPage() {
               </ScrollView>
 
               <ActionBar>
+                {/*
+                  成功态主按钮改成「进入会话」：付完钱最想做的事是找律师说话。
+                  原来的主按钮是「查看订单」，真实的会话入口藏在「订单详情 → 进入聊天」里，
+                  用户根本找不到（2026-11-09 负责人实测反馈）。
+                  失败态维持原行为：去看订单或重新支付。
+                */}
                 <View style={styles.actionRow}>
                   <PrimaryButton
-                    label={
-                      success ? t('trade.payResult.backHome') : t('trade.payResult.viewOrder')
-                    }
+                    label={t('trade.payResult.viewOrder')}
                     variant="outline"
-                    onPress={() =>
-                      success ? router.replace(PAGE_ROUTES.root) : router.replace(orderDetailHref(orderId))
-                    }
+                    onPress={() => router.replace(orderDetailHref(orderId))}
                     style={styles.actionGhost}
                   />
-                  <PrimaryButton
-                    label={success ? t('trade.payResult.viewOrder') : t('trade.payResult.retry')}
-                    onPress={() =>
-                      success
-                        ? router.replace(orderDetailHref(orderId))
-                        : router.replace(payHref(orderId))
-                    }
-                    style={styles.actionPrimary}
-                  />
+                  {success ? (
+                    <PrimaryButton
+                      label={t('trade.payResult.enterChat')}
+                      onPress={() => {
+                        // 律师已清退时 lawyerId 为 null：退回订单详情，不跳一个没有对端的会话
+                        if (ctx.order.lawyerId === null) {
+                          router.replace(orderDetailHref(orderId));
+                          return;
+                        }
+                        router.push(chatHref(ctx.order.lawyerId));
+                      }}
+                      style={styles.actionPrimary}
+                    />
+                  ) : (
+                    <PrimaryButton
+                      label={t('trade.payResult.retry')}
+                      onPress={() => router.replace(payHref(orderId))}
+                      style={styles.actionPrimary}
+                    />
+                  )}
                 </View>
               </ActionBar>
             </>

@@ -60,7 +60,7 @@ const FEATURE_GROUPS: readonly FeatureGroup[] = [
   {
     titleKey: 'profile.allFeatures.groupConsult',
     items: [
-      { labelKey: 'profile.allFeatures.findLawyer', icon: 'people-outline', href: PAGE_ROUTES.lawyerList, primary: true },
+      { labelKey: 'profile.allFeatures.findLawyer', icon: 'people-outline', href: PAGE_ROUTES.lawyerTab, primary: true },
       { labelKey: 'profile.allFeatures.aiChat', icon: 'chatbubbles-outline', href: PAGE_ROUTES.agent, primary: true },
       { labelKey: 'profile.allFeatures.caseQuery', icon: 'library-outline', href: PAGE_ROUTES.case },
       { labelKey: 'profile.allFeatures.articles', icon: 'document-text-outline', href: PAGE_ROUTES.articles },

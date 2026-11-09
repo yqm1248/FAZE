@@ -46,7 +46,7 @@ export function MessagesPage() {
         <LocalizedText numberOfLines={3} style={styles.note}>{t('content.messages.soon')}</LocalizedText>
 
         <Pressable
-          onPress={() => router.push(PAGE_ROUTES.lawyerList)}
+          onPress={() => router.push(PAGE_ROUTES.lawyerTab)}
           accessibilityRole="button"
           style={styles.chatEntry}
         >

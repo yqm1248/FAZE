@@ -267,7 +267,7 @@ export function FollowingPage() {
       </LocalizedText>
       <PrimaryButton
         label={t('lawyer.following.emptyAction')}
-        onPress={() => router.push(PAGE_ROUTES.lawyerList)}
+        onPress={() => router.push(PAGE_ROUTES.lawyerTab)}
         style={styles.emptyButton}
       />
     </View>
