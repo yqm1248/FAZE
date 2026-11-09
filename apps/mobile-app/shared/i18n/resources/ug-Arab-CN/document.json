@@ -58,7 +58,8 @@
     "maxReached": "ئەڭ كۆپ {{max}} تال",
     "minKeep": "كەم دېگەندە {{min}} تال ساقلاڭ",
     "datePlaceholder": "چېسلا تاللاڭ",
-    "counter": "{{current}} / {{max}}"
+    "counter": "{{current}} / {{max}}",
+    "invalidMoney": "توغرا سومما كىرگۈزۈڭ (ئەڭ كۆپ ئىككى خانىلىق ئونلۇق)"
   },
   "mine": {
     "title": "مېنىڭ ھۆججەتلىرىم",

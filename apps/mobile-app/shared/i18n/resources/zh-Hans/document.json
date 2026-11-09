@@ -58,7 +58,8 @@
     "maxReached": "最多 {{max}} 项",
     "minKeep": "至少保留 {{min}} 项",
     "datePlaceholder": "请选择日期",
-    "counter": "{{current}} / {{max}}"
+    "counter": "{{current}} / {{max}}",
+    "invalidMoney": "请填写正确的金额（最多两位小数）"
   },
   "mine": {
     "title": "我的文书",

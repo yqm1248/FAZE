@@ -58,7 +58,8 @@
     "maxReached": "མང་མཐར་ {{max}} ཡིག",
     "minKeep": "ཉུང་མཐར་ {{min}} ཡིག་བཞག་རོགས།",
     "datePlaceholder": "ཚེས་པ་འདེམས་རོགས།",
-    "counter": "{{current}} / {{max}}"
+    "counter": "{{current}} / {{max}}",
+    "invalidMoney": "དངུལ་ཚད་ཡང་དག་པ་བཀང་རོགས། ཆུང་ཆུང་གི་ཚེག་ཨང་གཉིས་ལས་མི་བརྒལ་བ།"
   },
   "mine": {
     "title": "ངའི་ཡིག་ཆ།",

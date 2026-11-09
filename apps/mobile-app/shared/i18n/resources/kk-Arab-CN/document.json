@@ -58,7 +58,8 @@
     "maxReached": "ەڭ كوپ {{max}} دانا",
     "minKeep": "كەم دەگەندە {{min}} دانا ساقتاڭىز",
     "datePlaceholder": "كۇندى تالداڭىز",
-    "counter": "{{current}} / {{max}}"
+    "counter": "{{current}} / {{max}}",
+    "invalidMoney": "دۇرىس سومانى ەنگىزىڭىز (ەڭ كوپ ەكى تامىرلىق وننىق)"
   },
   "mine": {
     "title": "مەنىڭ قۇجاتتارىم",

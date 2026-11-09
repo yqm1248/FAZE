@@ -50,6 +50,7 @@ import {
   parseFormData,
   saveDraft,
 } from '@/features/document/api/client';
+import { toRmbUpper } from '@/features/document/utils/rmbUpper';
 import type {
   DocumentDetail,
   DocTemplateBrief,
@@ -57,8 +58,7 @@ import type {
   FieldType,
 } from '@/features/document/api/client';
 import type { ApiResult } from '@/shared/api/types';
-import { ActionBar, useActionBarSpace } from '@/shared/components/ActionBar';
-import { AppHeader } from '@/shared/components/AppHeader';
+import { ActionBar, useActionBarSpace } from '@/shared/components/ActionBar';import { AppHeader } from '@/shared/components/AppHeader';
 import { useToast } from '@/shared/components/AppToast';
 import { ErrorState } from '@/shared/components/ErrorState';
 import { LoadingState } from '@/shared/components/LoadingState';
@@ -121,6 +121,23 @@ export type DynamicField = {
   maxItems: number;
   /** 文本最大长度（可空）。 */
   maxLength: number | null;
+  /**
+   * 是否在表单里隐藏。
+   *
+   * 隐藏字段是**派生字段**：模板里要它（`{{key}}` 必须能在 schema 里找到，否则
+   * `TemplateRenderer` 抛「模板引用了未定义的字段」），但不该让用户手填——
+   * 典型例子是借条的「借款金额（大写）」，由小写金额自动算出来。
+   * 隐藏字段不渲染、不参与表单校验，提交前由 `applyDerivedFields` 算好塞进 form_data。
+   */
+  hidden: boolean;
+  /** 派生来源字段名（`hidden` 为 true 时有意义）。 */
+  derivedFrom: string | null;
+  /** 派生算法名（当前只认 `rmbUpper`，未知值原样复制来源值）。 */
+  derive: string | null;
+  /** 输入框右侧的固定单位（如 `%`）；`null` 表示不显示。 */
+  suffix: string | null;
+  /** 数值格式约束：`money` = 金额（最多两位小数）。 */
+  format: string | null;
 };
 
 /** 一条校验问题：文案 key + 占位符变量（渲染层再 `t()`）。 */
@@ -265,6 +282,11 @@ function normalizeField(input: unknown): DynamicField | null {
     minItems: type === 'array' ? Math.max(minItemsRaw ?? 0, 0) : 0,
     maxItems: type === 'array' ? Math.max(maxItemsRaw ?? DEFAULT_MAX_ITEMS, 1) : 0,
     maxLength: maxLength === null ? null : Math.max(maxLength, 0),
+    hidden: readBoolean(record, 'hidden'),
+    derivedFrom: readString(record, 'derivedFrom'),
+    derive: readString(record, 'derive'),
+    suffix: readString(record, 'suffix'),
+    format: readString(record, 'format'),
   };
 }
 
@@ -408,6 +430,11 @@ function validateScalar(field: DynamicField, raw: string): ValidationIssue | nul
   if (field.type === 'number' && !/^-?\d+(?:\.\d+)?$/.test(value)) {
     return { key: 'document.dynamic.invalidNumber', vars: {} };
   }
+  // 金额：最多两位小数。拦住「12.345」这种输入——大写金额转换只到分，
+  // 放过去会在生成时被服务端判「必填项未填写：借款金额（大写）」，报错点离输入点太远。
+  if (field.format === 'money' && !/^\d+(?:\.\d{1,2})?$/.test(value)) {
+    return { key: 'document.dynamic.invalidMoney', vars: {} };
+  }
   if (field.type === 'date' && !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
     return { key: 'document.dynamic.invalidDate', vars: {} };
   }
@@ -426,6 +453,10 @@ export function validateFormValues(fields: DynamicField[], values: FormValues): 
   const missingLabels: string[] = [];
 
   for (const field of fields) {
+    // 派生字段由 applyDerivedFields 在提交前算好，不该按「用户没填」报必填
+    if (field.hidden) {
+      continue;
+    }
     const value = values[field.name];
     if (field.type === 'array') {
       const rows: FormItem[] = Array.isArray(value) ? value : [];
@@ -473,6 +504,34 @@ export function validateFormValues(fields: DynamicField[], values: FormValues): 
 }
 
 /**
+ * 计算派生字段的值。
+ *
+ * 派生字段（`hidden` + `derivedFrom`）不出现在表单里，但**模板占位符和服务端的必填校验
+ * 都依赖它**：占位符在 schema 里找不到定义会抛「模板引用了未定义的字段」，值空着又会
+ * 被判「必填项未填写」。所以保存草稿与生成前都必须按来源字段算出来。
+ *
+ * 当前只支持 `derive: 'rmbUpper'`（金额小写转大写，见 `utils/rmbUpper.ts`）；
+ * 未知算法**原样复制来源值**——宁可给一个不完美的值，也不能让整单生成失败。
+ *
+ * @param fields 字段定义
+ * @param values 用户填的表单值
+ * @returns 带上派生字段的新值（不修改入参）
+ */
+export function applyDerivedFields(fields: DynamicField[], values: FormValues): FormValues {
+  const derived = fields.filter((field) => field.hidden && field.derivedFrom !== null);
+  if (derived.length === 0) {
+    return values;
+  }
+  const next: FormValues = { ...values };
+  for (const field of derived) {
+    const source = values[field.derivedFrom ?? ''];
+    const sourceText = typeof source === 'string' ? source : '';
+    next[field.name] = field.derive === 'rmbUpper' ? toRmbUpper(sourceText) : sourceText;
+  }
+  return next;
+}
+
+/**
  * 把字段按「标量卡 / array 卡」分组（与设计稿的分组卡片一致）。
  *
  * 连续的非 array 字段合成一张「基本信息」卡；每个 array 字段单独一张卡。
@@ -488,6 +547,10 @@ function groupFields(
   > = [];
   let pending: DynamicField[] = [];
   for (const field of fields) {
+    // 派生字段不在表单里出现（见 DynamicField.hidden 的说明）
+    if (field.hidden) {
+      continue;
+    }
     if (field.type === 'array') {
       if (pending.length > 0) {
         groups.push({ kind: 'scalars', fields: pending });
@@ -741,6 +804,11 @@ function ScalarField({
         ]}
       >
         {renderControl()}
+        {field.suffix === null ? null : (
+          <LocalizedText numberOfLines={1} style={styles.suffixText} testID={`${fieldTestID}-suffix`}>
+            {field.suffix}
+          </LocalizedText>
+        )}
       </View>
       {error === null ? null : (
         <LocalizedText numberOfLines={2} style={styles.fieldError} testID={`${fieldTestID}-error`}>
@@ -1137,7 +1205,8 @@ function FormBody({ data, config }: { data: FormPageData; config: DocumentFormCo
         id: documentIdRef.current ?? undefined,
         templateId: template.id,
         title: template.name,
-        formData: JSON.stringify(valuesRef.current),
+        // 派生字段（金额大写等）不渲染、不校验，落库前按来源字段算出来再提交
+        formData: JSON.stringify(applyDerivedFields(fields, valuesRef.current)),
       });
       if (!result.ok) {
         if (mountedRef.current) {
@@ -1158,7 +1227,7 @@ function FormBody({ data, config }: { data: FormPageData; config: DocumentFormCo
     } finally {
       savingRef.current = null;
     }
-  }, [template]);
+  }, [fields, template]);
 
   useEffect(() => {
     persistRef.current = persist;
@@ -1564,6 +1633,12 @@ const styles = StyleSheet.create({
   inputRowFocused: {
     borderWidth: size.hairline,
     borderColor: color.brand.primary,
+  },
+  /** 输入框右侧的固定单位（如利率的 `%`）——只展示，不进 form_data。 */
+  suffixText: {
+    ...typography.body,
+    color: color.text.secondary,
+    marginStart: spacing.xs,
   },
   input: {
     ...typography.body,
