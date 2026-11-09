@@ -38,6 +38,10 @@ tmp/
 # 《第1段工作流》H1 要求每条锚点都有证据文件路径，log 属于证据本体。
 !docs/acceptance/**/*.log
 
+# 段 8 i18n 预览页的字体副本（2.3 MB，从 apps/mobile-app/assets/fonts/ 复制而来）。
+# 只为本机 file:// 预览服务；字体本体已入库，不重复存。
+docs/acceptance/seg8/fonts/
+
 # 测试与覆盖率
 coverage/
 .jest-cache/

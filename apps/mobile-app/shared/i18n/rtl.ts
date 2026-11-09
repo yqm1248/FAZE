@@ -13,10 +13,30 @@
  */
 
 import * as Updates from 'expo-updates';
-import { I18nManager } from 'react-native';
+import { I18nManager, Platform } from 'react-native';
 
 import { dirOf } from './lang';
 import type { Lang } from './lang';
+
+/**
+ * web 端的排版方向兜底。
+ *
+ * `react-native-web` 的 `I18nManager.forceRTL` 是空实现，浏览器里 `dir` 永远是 ltr；
+ * 而负责人明确「真机验收全部改为浏览器验收」，所以 web 上必须自己写 `document.dir`。
+ * **只在 web 生效**，native 仍走 `forceRTL` + reload 那条链路，不影响 `0-A3`。
+ *
+ * @param lang 当前语言
+ */
+export function applyWebDirection(lang: Lang): void {
+  if (Platform.OS !== 'web') {
+    return;
+  }
+  const doc = globalThis.document;
+  if (doc === undefined) {
+    return;
+  }
+  doc.documentElement.dir = dirOf(lang) === 'rtl' ? 'rtl' : 'ltr';
+}
 
 /**
  * 应用目标语言的方向。

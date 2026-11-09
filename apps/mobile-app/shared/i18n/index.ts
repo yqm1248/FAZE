@@ -20,8 +20,8 @@ import { readStoredLang, writeStoredLang } from '@/shared/api/tokenStore';
 
 import { DEFAULT_LANG, detectSystemLang, dirOf, isLang } from './lang';
 import type { Lang } from './lang';
-import { ZH_HANS, ZH_HANS_ERROR } from './resources';
-import { applyDirection } from './rtl';
+import { LANG_RESOURCES, ZH_HANS, ZH_HANS_ERROR } from './resources';
+import { applyDirection, applyWebDirection } from './rtl';
 
 /** 扁平化后的一层 key 表（如 `common.state.loading`）。 */
 type FlatTree<T, Prefix extends string = ''> = {
@@ -94,16 +94,21 @@ function lookup(tree: unknown, path: string[]): string | undefined {
 }
 
 /**
- * 在 zh-Hans 资源里查 key。
+ * 在指定语言的资源里查 key。
  *
  * error 域的 key 是完整 msgKey，其余 key 的第一段是 namespace。
  *
- * @param key 文案 key
- * @returns 中文文案；未找到时 undefined
+ * @param langCode 语言码
+ * @param key      文案 key
+ * @returns 该语言的文案；未找到时 undefined（由调用方沿降级链继续查）
  */
-function lookupZhHans(key: string): string | undefined {
+function lookupInLang(langCode: Lang, key: string): string | undefined {
+  const resource = LANG_RESOURCES[langCode];
+  if (resource === undefined) {
+    return undefined;
+  }
   if (key.startsWith('error.')) {
-    const direct = (ZH_HANS_ERROR as Record<string, string>)[key];
+    const direct = resource.error[key];
     if (direct !== undefined) {
       return direct;
     }
@@ -112,7 +117,7 @@ function lookupZhHans(key: string): string | undefined {
   if (!namespace || rest.length === 0) {
     return undefined;
   }
-  const tree = (ZH_HANS as Record<string, unknown>)[namespace];
+  const tree = resource.ns[namespace];
   if (tree === undefined) {
     return undefined;
   }
@@ -180,20 +185,30 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  // web 兜底：react-native-web 的 I18nManager.forceRTL 是空实现，方向要显式写到 document。
+  // native 仍走 rtl.ts 的 forceRTL + reload，不受影响。
+  useEffect(() => {
+    applyWebDirection(lang);
+  }, [lang]);
+
   const t = useCallback(
     (key: MessageKey, vars?: TranslationVars): string => {
-      // 段 0 只有 zh-Hans 有内容，其余语言逐级降级到它。
-      const zh = lookupZhHans(key);
-      if (zh !== undefined) {
-        return interpolate(zh, vars, key);
+      // 段 8 起四语言全量：先查当前语言，缺译再降级到 zh-Hans（i18n 规范 §5）。
+      // 绝不把空串丢到界面上——那会变成「界面上什么都没有」这种最难定位的问题。
+      let hit = lookupInLang(lang, key);
+      if (hit === undefined && lang !== 'zh-Hans') {
+        hit = lookupInLang('zh-Hans', key);
+      }
+      if (hit !== undefined) {
+        return interpolate(hit, vars, key);
       }
       if (__DEV__) {
         console.warn(`[i18n] 缺 key: ${key}`);
         return `⟦${key}⟧`;
       }
-      return lookupZhHans(FALLBACK_KEY) ?? '内容暂时无法显示';
+      return lookupInLang('zh-Hans', FALLBACK_KEY) ?? '内容暂时无法显示';
     },
-    [],
+    [lang],
   );
 
   const changeLang = useCallback(
