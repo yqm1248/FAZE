@@ -1,7 +1,7 @@
 /**
  * 文书模板列表页（段 4 E1，设计稿 `design/ui/23-doc-templates.html`）。
  *
- * 职责：分类筛选 + 模板卡片网格；卡片显示模板名、分类、字段数与一句话说明；
+ * 职责：分类筛选 + 模板卡片网格；卡片显示模板名、分类与「免费生成」标识；
  *       点卡片按 `code` 前缀分流到起诉状表单页或其它文书表单页。
  * 调用方：路由壳 `app/doc/templates.tsx`；「我的」页「我的文书」入口跳到这里。
  * 数据来源：`GET /app/doc-templates`（只返回 `active`，见 `features/document/api/client.ts`）。
@@ -27,7 +27,7 @@ import type { Href } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
-import { fetchTemplates, parseFieldSchema } from '@/features/document/api/client';
+import { fetchTemplates } from '@/features/document/api/client';
 import type { DocTemplateBrief } from '@/features/document/api/client';
 import { AppHeader } from '@/shared/components/AppHeader';
 import { DirectionalIcon } from '@/shared/components/DirectionalIcon';
@@ -89,16 +89,6 @@ function categoryLabel(
 }
 
 /**
- * 计算模板的表单字段数。
- *
- * @param template 模板
- * @returns 字段数（`field_schema` 为空时 0）
- */
-function fieldCountOf(template: DocTemplateBrief): number {
-  return parseFieldSchema(template.fieldSchema).fields.length;
-}
-
-/**
  * 拼表单页路由（带 `templateId`）。
  *
  * @param code       模板 code（决定进哪一页）
@@ -129,7 +119,6 @@ function TemplateCard({
 }) {
   const { t } = useI18n();
   const icon = (template.category === null ? undefined : CATEGORY_ICONS[template.category]) ?? 'document-outline';
-  const fieldCount = fieldCountOf(template);
 
   return (
     <Pressable
@@ -148,9 +137,6 @@ function TemplateCard({
       {categoryText === '' ? null : (
         <TagChip label={categoryText} variant="brand" style={styles.cardTag} />
       )}
-      <LocalizedText numberOfLines={2} style={styles.cardMeta}>
-        {t('document.templates.fieldCount', { count: fieldCount })}
-      </LocalizedText>
       <View style={styles.cardFoot}>
         <LocalizedText numberOfLines={1} style={styles.cardFree}>
           {t('document.templates.free')}
@@ -406,10 +392,6 @@ const styles = StyleSheet.create({
   },
   cardTag: {
     marginTop: spacing.xxs,
-  },
-  cardMeta: {
-    ...typography.caption,
-    color: color.text.muted,
   },
   cardFoot: {
     flexDirection: 'row',

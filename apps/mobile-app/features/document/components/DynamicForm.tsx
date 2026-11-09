@@ -21,6 +21,10 @@
  *   4. 自动保存只在用户改动后触发（回填不触发）；离开页面用 ref 取最新值，避免闭包拿到旧值。
  *   5. 表单值受控于本文件的页面壳：`DynamicForm` 只渲染，`onChange` 收整张 `FormValues`。
  *   6. 视觉数值全部来自 `tokens`；RTL 只用 `start/end`，不写物理方向。
+ *   7. **Web 的焦点环由本文件接管**（2026-11-09 实测问题）：浏览器默认在输入框上画黑色
+ *      focus ring，盖住圆角灰底容器、看起来「边框和灰底不贴合」。做法是用 `outlineStyle: 'solid'`
+ *      + `outlineWidth: 0` 去掉输入控件自身的轮廓（UA 的 `auto` 会忽略宽度，必须覆盖样式，
+ *      见 `WEB_FOCUS_RESET` 注释），把聚焦态换成外层灰底容器 `inputRow` 的主色细边框。
  */
 
 import { Ionicons } from '@expo/vector-icons';
@@ -35,6 +39,7 @@ import {
   StyleSheet,
   TextInput,
   View,
+  type TextStyle,
 } from 'react-native';
 
 import {
@@ -499,6 +504,22 @@ function groupFields(
   return groups;
 }
 
+/**
+ * 去掉浏览器默认焦点轮廓。
+ *
+ * 为什么要同时写 `outlineStyle` 和 `outlineWidth`：Chrome 的 UA 焦点环是
+ * `outline-style: auto`，而 **`auto` 会忽略 `outline-width`**（宽度由浏览器决定）——
+ * 实测只写 `outlineWidth: 0` 时，真实鼠标点击后仍会画出黑色方框。所以把 `outlineStyle`
+ * 显式改成 `'solid'`（覆盖 UA 的 `auto`）再配 `outlineWidth: 0`，浏览器就不画轮廓了。
+ * 为什么不用 `outlineStyle: 'none'`：RN 0.81 的 `TextStyle` 只允许
+ * `'solid' | 'dotted' | 'dashed'`（`StyleSheetTypes.d.ts:417`），没有 `'none'`，
+ * 写 `'none'` 会被 TS 拒绝；`solid + 0` 等价于不画，且类型原生支持。
+ * 原生端这两个属性不产生可见效果（宽度为 0）。
+ *
+ * 聚焦态改由外层灰底容器 `styles.inputRowFocused`（主色细边框）表达，见 `ScalarField`。
+ */
+const WEB_FOCUS_RESET: TextStyle = { outlineStyle: 'solid', outlineWidth: 0 };
+
 /** Web 日期输入的属性类型（DOM 类型只在这个文件出现一次）。 */
 type DateInputProps = React.InputHTMLAttributes<HTMLInputElement> & {
   style?: React.CSSProperties;
@@ -512,22 +533,28 @@ type DateInputProps = React.InputHTMLAttributes<HTMLInputElement> & {
  * Web 验收下 `<input type="date">` 就是原生日期选择器，避免手输。
  * 原生端由 `ScalarField` 退回 TextInput。
  *
- * @param props.value   `YYYY-MM-DD`
+ * @param props.value    `YYYY-MM-DD`
  * @param props.onChange 变化回调
+ * @param props.onFocus  获得焦点（用于把聚焦态交给外层灰底容器）
+ * @param props.onBlur   失焦
  * @param props.disabled 是否禁用
- * @param props.label   无障碍标签
- * @param props.testID  自动化标识
+ * @param props.label    无障碍标签
+ * @param props.testID   自动化标识
  * @returns 受控 DOM input
  */
 function WebDateInput({
   value,
   onChange,
+  onFocus,
+  onBlur,
   disabled,
   label,
   testID,
 }: {
   value: string;
   onChange: (next: string) => void;
+  onFocus: () => void;
+  onBlur: () => void;
   disabled: boolean;
   label: string;
   testID: string;
@@ -542,6 +569,8 @@ function WebDateInput({
     'aria-label': label,
     'data-testid': testID,
     onChange: handleChange,
+    onFocus,
+    onBlur,
     style: {
       minHeight: size.inputHeight,
       width: '100%',
@@ -550,6 +579,8 @@ function WebDateInput({
       backgroundColor: color.background.input,
       color: color.text.body,
       border: 'none',
+      // 原生日期控件自带浏览器焦点轮廓，与圆角灰底不贴合，这里统一去掉（聚焦态看外层容器）。
+      outlineStyle: 'none',
       paddingInlineStart: spacing.md,
       paddingInlineEnd: spacing.md,
       fontSize: typography.body.fontSize,
@@ -589,6 +620,7 @@ function ScalarField({
   onBlur: () => void;
 }) {
   const { t } = useI18n();
+  const [focused, setFocused] = useState(false);
   const fieldTestID = `${testIDPrefix}-field-${field.name}`;
   const inputTestID = `${testIDPrefix}-input-${field.name}`;
   // 文本类没有 schema 提示时用「请输入<标签>」，不用「请选择」——「请选择」是 select 的措辞。
@@ -640,6 +672,11 @@ function ScalarField({
               onChange(next);
               onBlur();
             }}
+            onFocus={() => setFocused(true)}
+            onBlur={() => {
+              setFocused(false);
+              onBlur();
+            }}
             disabled={disabled}
             label={labelText}
             testID={inputTestID}
@@ -651,7 +688,11 @@ function ScalarField({
           testID={inputTestID}
           value={value}
           onChangeText={onChange}
-          onBlur={onBlur}
+          onFocus={() => setFocused(true)}
+          onBlur={() => {
+            setFocused(false);
+            onBlur();
+          }}
           placeholder={t('document.dynamic.datePlaceholder')}
           accessibilityLabel={labelText}
           editable={!disabled}
@@ -666,14 +707,22 @@ function ScalarField({
         testID={inputTestID}
         value={value}
         onChangeText={onChange}
-        onBlur={onBlur}
+        onFocus={() => setFocused(true)}
+        onBlur={() => {
+          setFocused(false);
+          onBlur();
+        }}
         placeholder={field.placeholder ?? placeholder}
         accessibilityLabel={labelText}
         keyboardType={field.type === 'number' ? 'numeric' : 'default'}
         maxLength={field.maxLength ?? undefined}
         multiline={multiline}
         editable={!disabled}
-        style={[styles.input, multiline ? styles.inputMultiline : null]}
+        style={[
+          styles.input,
+          multiline ? styles.inputMultiline : null,
+          Platform.OS === 'web' ? WEB_FOCUS_RESET : null,
+        ]}
         placeholderTextColor={color.text.muted}
       />
     );
@@ -684,7 +733,13 @@ function ScalarField({
       <LocalizedText numberOfLines={2} style={styles.fieldLabel}>
         {labelText}
       </LocalizedText>
-      <View style={[styles.inputRow, field.type === 'textarea' ? styles.inputRowMultiline : null]}>
+      <View
+        style={[
+          styles.inputRow,
+          field.type === 'textarea' ? styles.inputRowMultiline : null,
+          focused ? styles.inputRowFocused : null,
+        ]}
+      >
         {renderControl()}
       </View>
       {error === null ? null : (
@@ -1504,6 +1559,11 @@ const styles = StyleSheet.create({
   inputRowMultiline: {
     alignItems: 'flex-start',
     paddingVertical: spacing.sm,
+  },
+  /** 聚焦态：主色细边框取代浏览器默认焦点环（见 `WEB_FOCUS_RESET`）。 */
+  inputRowFocused: {
+    borderWidth: size.hairline,
+    borderColor: color.brand.primary,
   },
   input: {
     ...typography.body,

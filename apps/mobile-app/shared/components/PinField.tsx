@@ -10,10 +10,18 @@
  *      这样 Web / 原生表现一致（Web 上直接点透明输入框会命中它，其余端靠 focus()）。
  *   2. 圆点用模块常量而不是 JSX 字面量（ESLint 的 no-raw-text 会拦字符串字面量）。
  *   3. `numberOfLines` 显式给：阿拉伯系字体必须给行数上限（i18n 规范 §7.1）。
+ *   4. **Web 端禁止让浏览器把它当登录密码框自动填充**（2026-11-09 实测问题）：
+ *      react-native-web 在 `secureTextEntry` 为真时把输入框映射成 `type="password"`
+ *      （`react-native-web/dist/cjs/exports/TextInput/index.js:177-178`），且不传
+ *      `autoComplete` 时默认写成 `'on'`（同文件 :349），Chrome 于是把已保存的登录密码
+ *      灌进支付密码格。本文件因此：Web 不传 `secureTextEntry`（类型退回 text）、
+ *      `autoComplete="off"`（Web 不填、iOS 映射 textContentType=none）、Android 再补
+ *      `importantForAutofill="no"`；原生端仍保留 `secureTextEntry` 的密码语义。
+ *      输入框本身 opacity 0 且回显用 BULLET 自绘，去掉 secureTextEntry 不影响掩码。
  */
 
 import { useRef, useState } from 'react';
-import { Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { color, radius, size, spacing, typography } from '@/shared/theme';
 
@@ -82,7 +90,13 @@ export function PinField({
         onChangeText={(text) => onChangeText(text.replace(/\D/g, '').slice(0, length))}
         keyboardType="number-pad"
         maxLength={length}
-        secureTextEntry
+        // Web 上不能传 secureTextEntry（会被 react-native-web 映射成 type="password"，
+        // 进而被 Chrome 当作可自动填充的登录密码框）；原生端保留密码输入语义。
+        secureTextEntry={Platform.OS !== 'web'}
+        // 浏览器自动填充的两个开关：autoComplete 同时覆盖 Web 与 iOS（off → textContentType=none），
+        // importantForAutofill 只对 Android 生效（Web 上 react-native-web 不透传该属性）。
+        autoComplete="off"
+        importantForAutofill="no"
         editable={editable}
         accessibilityLabel={accessibilityLabel}
         onFocus={() => setFocused(true)}
