@@ -53,5 +53,6 @@
   "error.trade.withdraw-too-frequent": "提现过于频繁，请稍后再试",
   "error.content.case-no-law-ref": "案例未填写法条引用，不能上线",
   "error.content.case-lang-incomplete": "案例语言版本不齐",
-  "error.content.case-published": "案例已上线，须先下架再删除"
+  "error.content.case-published": "案例已上线，须先下架再删除",
+  "error.conversation.not-purchased": "还没有购买这位律师的咨询服务，不能发起会话。"
 }

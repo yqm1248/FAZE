@@ -8,9 +8,9 @@
  *   1. **每一个入口都先 `ConversationService#assertMember`**（技术路线 §7.3.2）：
  *      send / read / recall / typing / history 一个都不能漏；撤回还要额外三条
  *      （消息属于该会话 + 发送者是自己 + 2 分钟内）。
- *   2. **seq 由 Redis INCR 生成，但必须与库内最大值取 max**：Redis 重启 / 数据被清后
- *      seq 会从 1 重新开始，直接 INCR 会与 `uk_msg_conversation_seq` 撞键。
- *      取 max(INCR 值, 库内最大 seq + 1) 是唯一安全的写法（多一次索引查询，可接受）。
+ *   2. **seq 由 `ConversationSeqGenerator` 统一生成**（Redis INCR 与库内最大值取 max）：
+ *      Redis 重启 / 数据被清后直接 INCR 会与 `uk_msg_conversation_seq` 撞键。
+ *      用户消息、文书消息、系统通知三类写消息路径都走它，不各自拼 seq。
  *   3. **先入库再推送**（工作流 G6.5 第 3 条）：推送是副作用，落库成功才算「已送达存储」；
  *      反过来会出现「对方收到了、自己历史里没有」。
  *   4. **`client_msg_id` 去重**：重发/重连补发带同一 id，服务端返回已有消息（`duplicated=true`），
@@ -40,7 +40,6 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -52,9 +51,6 @@ import org.springframework.util.StringUtils;
 @RequiredArgsConstructor
 @Slf4j
 public class MessageService {
-
-    /** 会话 seq 的 Redis key 前缀。 */
-    private static final String SEQ_KEY_PREFIX = "faze:conv:seq:";
 
     /** 单条文本消息长度上限。 */
     private static final int MAX_TEXT_LENGTH = 5000;
@@ -80,7 +76,9 @@ public class MessageService {
     private final ConversationMapper conversationMapper;
     private final ConversationMessageMapper messageMapper;
     private final ConversationService conversationService;
-    private final StringRedisTemplate redis;
+
+    /** 会话内序号生成器（唯一入口，别再自己拼 seq）。 */
+    private final ConversationSeqGenerator seqGenerator;
 
     /** 文件存储：图片/文件消息库里存 OSS key，出参前换签名地址。 */
     private final FileStorage fileStorage;
@@ -120,7 +118,7 @@ public class MessageService {
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
         ConversationMessage message = new ConversationMessage();
         message.setConversationId(conversationId);
-        message.setSeq(nextSeq(conversationId));
+        message.setSeq(seqGenerator.next(conversationId));
         message.setClientMsgId(normalizedClientId);
         message.setSenderRole(member.getRole().getCode());
         message.setSenderId(member.getSelfId());
@@ -222,7 +220,7 @@ public class MessageService {
     @Transactional(rollbackFor = Exception.class)
     public MarkReadResult markRead(Long userId, Long conversationId, Long lastReadSeq) {
         ConversationMember member = conversationService.assertMember(conversationId, userId);
-        long maxSeq = maxSeq(conversationId);
+        long maxSeq = seqGenerator.max(conversationId);
         long target = lastReadSeq == null ? 0L : Math.min(lastReadSeq, maxSeq);
         if (target <= 0) {
             return new MarkReadResult(conversationId, member.getRole(), 0L);
@@ -385,40 +383,6 @@ public class MessageService {
     }
 
     /**
-     * 取下一条会话内序号（Redis INCR 与库内最大值取 max）。
-     *
-     * @param conversationId 会话主键
-     * @return 新序号
-     */
-    private long nextSeq(Long conversationId) {
-        String key = SEQ_KEY_PREFIX + conversationId;
-        Long incr = redis.opsForValue().increment(key);
-        long candidate = incr == null ? 1L : incr;
-        long dbMax = maxSeq(conversationId);
-        if (candidate <= dbMax) {
-            candidate = dbMax + 1;
-            redis.opsForValue().set(key, String.valueOf(candidate));
-            log.warn("会话 seq 落后于库内最大值，已对齐 conversationId={} incr={} dbMax={}",
-                    conversationId, incr, dbMax);
-        }
-        return candidate;
-    }
-
-    /**
-     * 取会话当前最大 seq。
-     *
-     * @param conversationId 会话主键
-     * @return 最大 seq；无消息返回 0
-     */
-    private long maxSeq(Long conversationId) {
-        ConversationMessage last = messageMapper.selectOne(Wrappers.<ConversationMessage>lambdaQuery()
-                .eq(ConversationMessage::getConversationId, conversationId)
-                .orderByDesc(ConversationMessage::getSeq)
-                .last("LIMIT 1"));
-        return last == null || last.getSeq() == null ? 0L : last.getSeq();
-    }
-
-    /**
      * 按 (conversationId, clientMsgId) 查已有消息。
      *
      * @param conversationId 会话主键
@@ -544,7 +508,7 @@ public class MessageService {
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
         ConversationMessage message = new ConversationMessage();
         message.setConversationId(conversationId);
-        message.setSeq(nextSeq(conversationId));
+        message.setSeq(seqGenerator.next(conversationId));
         // 文书消息由服务端发起，clientMsgId 用「doc-文书id-时间」保证唯一且可追溯
         message.setClientMsgId(truncate(
                 "doc-" + safeKey.hashCode() + "-" + now.toEpochSecond(java.time.ZoneOffset.UTC), 64));

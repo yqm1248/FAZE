@@ -114,6 +114,15 @@ public enum ErrorCode {
     CONVERSATION_NOT_FOUND(404001, 200, "error.conversation.not-found", "会话不存在"),
     /** 无权访问该会话（不是会话成员）。HTTP **403**。 */
     CONVERSATION_FORBIDDEN(404002, 403, "error.conversation.forbidden", "无权访问该会话"),
+    /**
+     * 未购买该律师的咨询服务，不能发起会话（会话准入拦截）。HTTP 200。
+     *
+     * <p>**为什么是 404005 而不是 404003**：《错误码规范》§3.4 已把 404003 冻结为
+     * `error.conversation.closed`（会话已结束）、404004 冻结为 `error.conversation.not-participant`
+     * （不是会话参与方）；本文件类头第 4 条明令「不许改已冻结码的含义」，
+     * 故顺延取 404 段内下一个空号。</p>
+     */
+    CONVERSATION_NOT_PURCHASED(404005, 200, "error.conversation.not-purchased", "未购买该律师的咨询服务，不能发起会话"),
 
     // ── AI 域 08 ─────────────────────────────────────────────────────────
     /*

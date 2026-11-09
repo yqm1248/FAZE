@@ -45,7 +45,7 @@ public class ConversationMessage {
     /** 发送者角色：user / lawyer / system / customer_service。 */
     private String senderRole;
 
-    /** 发送者 ID（user 是 app_user.id，lawyer 是 lawyer.id）。 */
+    /** 发送者 ID（user 是 app_user.id，lawyer 是 lawyer.id；system 无真实发送者，约定存 0）。 */
     private Long senderId;
 
     /** 消息类型：text / image / file / system。 */

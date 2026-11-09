@@ -24,7 +24,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
@@ -49,10 +49,14 @@ import { ErrorState } from '@/shared/components/ErrorState';
 import { LoadingState } from '@/shared/components/LoadingState';
 import { LocalizedText } from '@/shared/components/LocalizedText';
 import { LtrText } from '@/shared/components/LtrText';
+import { PrimaryButton } from '@/shared/components/PrimaryButton';
 import { Screen } from '@/shared/components/Screen';
 import { useI18n } from '@/shared/i18n';
 import type { MessageKey } from '@/shared/i18n';
+import { formatAmount } from '@/shared/i18n/datetime';
+import { PAGE_ROUTES, lawyerDetailHref } from '@/shared/navigation/routes';
 import { color, radius, size, spacing, typography } from '@/shared/theme';
+import { centsFromServer } from '@/shared/utils/money';
 import { parseServerTime } from '@/shared/utils/serverTime';
 
 /** 首屏与每次翻页条数。 */
@@ -67,6 +71,46 @@ const QUICK_KEYS: ReadonlyArray<MessageKey> = [
   'conversation.quick2',
   'conversation.quick3',
 ];
+
+/** 服务类型 code → 律师详情页同一套服务名 key（订单通知里要翻成当前语言）。 */
+const SERVICE_LABEL_KEYS: Readonly<Record<string, MessageKey>> = {
+  consult_text: 'lawyer.detail.serviceConsultText',
+  consult_phone: 'lawyer.detail.serviceConsultPhone',
+  document: 'lawyer.detail.serviceDocument',
+};
+
+/** 订单通知系统消息的载荷（服务端 `content` 里存的 JSON）。 */
+type OrderNoticePayload = {
+  /** i18n key，当前只有 `conversation.orderNotice`。 */
+  key?: string;
+  /** 服务类型 code。 */
+  serviceType?: string;
+  /** 业务单号。 */
+  orderNo?: string;
+  /** 金额（分，字符串，与接口口径一致）。 */
+  amountCents?: string;
+};
+
+/**
+ * 解析订单通知载荷。
+ *
+ * @param content 系统消息的 content
+ * @returns 解析结果；不是 JSON 或解析失败时 null（调用方退回原样显示）
+ */
+function parseOrderNotice(content: string | null): OrderNoticePayload | null {
+  if (content === null || !content.startsWith('{')) {
+    return null;
+  }
+  try {
+    const parsed: unknown = JSON.parse(content);
+    if (typeof parsed !== 'object' || parsed === null) {
+      return null;
+    }
+    return parsed as OrderNoticePayload;
+  } catch {
+    return null;
+  }
+}
 
 /** 本地「发送中」气泡（文本 / 图片 / 文件三种）。 */
 type PendingMessage = {
@@ -99,6 +143,7 @@ export function ChatPage() {
   const conversationIdParam = typeof params.conversationId === 'string' ? params.conversationId : '';
   const isDirect = conversationIdParam !== '';
   const { t } = useI18n();
+  const router = useRouter();
   const toast = useToast();
 
   const [phase, setPhase] = useState<'loading' | 'error' | 'ready'>('loading');
@@ -466,6 +511,14 @@ export function ChatPage() {
 
   const headerTitle = conversation?.peerName ?? t('conversation.title');
   const empty = messages.length === 0 && pending.length === 0;
+  /**
+   * 是否为「没买过该律师的服务」这一种业务失败（后端 404005）。
+   *
+   * 码位说明：404003 在《错误码规范》§3.4 已冻结为「会话已结束」，不能挪作他用；
+   * 404005 是本轮新增的「未购买咨询服务」。两者语义不同，勿混。
+   * 单独拎出来是因为它不该显示通用「加载失败」：用户需要的是「去哪买」这个出路。
+   */
+  const needPurchase = error !== null && error.kind === 'business' && error.code === 404005;
 
   return (
     <Screen edges={['top', 'left', 'right', 'bottom']}>
@@ -493,12 +546,29 @@ export function ChatPage() {
 
       {phase === 'error' && error !== null ? (
         <View style={styles.pad}>
-          <ErrorState
-            error={error}
-            onRetry={() => {
-              void load();
-            }}
-          />
+          {needPurchase ? (
+            <View style={styles.needPurchase}>
+              <Ionicons name="lock-closed-outline" size={30} color={color.text.muted} />
+              <LocalizedText numberOfLines={3} style={styles.needPurchaseText}>
+                {t('conversation.needPurchase')}
+              </LocalizedText>
+              <PrimaryButton
+                label={t('conversation.goPurchase')}
+                onPress={() => {
+                  // 从律师详情进来时 lawyerId 一定有；万一没有就回律师 tab
+                  router.replace(lawyerId === '' ? PAGE_ROUTES.lawyerTab : lawyerDetailHref(lawyerId));
+                }}
+                style={styles.needPurchaseButton}
+              />
+            </View>
+          ) : (
+            <ErrorState
+              error={error}
+              onRetry={() => {
+                void load();
+              }}
+            />
+          )}
         </View>
       ) : null}
 
@@ -674,6 +744,39 @@ export function ChatPage() {
 }
 
 /**
+ * 一条居中显示的系统提示（当前只有「已购买服务」的订单通知）。
+ *
+ * 服务端把内容存成 `{"key":"conversation.orderNotice","serviceType":…,"orderNo":…,"amountCents":…}`，
+ * 这里按 key 翻成当前语言；解析失败就原样显示 content，不静默吞掉内容。
+ *
+ * @param props.content 系统消息的原始 content
+ * @returns 居中的提示条
+ */
+function SystemNotice({ content }: { content: string | null }) {
+  const { t } = useI18n();
+  const notice = parseOrderNotice(content);
+  let text = content ?? '';
+  if (
+    notice !== null &&
+    notice.serviceType !== undefined &&
+    notice.orderNo !== undefined &&
+    notice.amountCents !== undefined
+  ) {
+    const serviceKey = SERVICE_LABEL_KEYS[notice.serviceType];
+    text = t('conversation.orderNotice', {
+      service: serviceKey === undefined ? notice.serviceType : t(serviceKey),
+      orderNo: notice.orderNo,
+      amount: formatAmount(centsFromServer(notice.amountCents)),
+    });
+  }
+  return (
+    <View style={styles.systemRow}>
+      <LocalizedText numberOfLines={6} style={styles.systemText}>{text}</LocalizedText>
+    </View>
+  );
+}
+
+/**
  * 一条消息气泡。
  *
  * @param props.message    消息
@@ -682,6 +785,10 @@ export function ChatPage() {
  */
 function MessageBubble({ message, onLongPress }: { message: ChatMessage; onLongPress: () => void }) {
   const { t } = useI18n();
+  // 系统消息居中显示：既不算「我发的」，也不算律师发的（否则会靠右带「已读」）
+  if (message.senderRole === 'system') {
+    return <SystemNotice content={message.content} />;
+  }
   const out = message.senderRole !== 'lawyer';
   const clock = clockOf(message.createdAt);
   return (
@@ -801,6 +908,34 @@ const styles = StyleSheet.create({
   },
   row: {
     flexDirection: 'row',
+  },
+  systemRow: {
+    alignItems: 'center',
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.xs,
+  },
+  systemText: {
+    ...typography.caption,
+    color: color.text.muted,
+    textAlign: 'center',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.sm,
+    backgroundColor: color.background.input,
+  },
+  needPurchase: {
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingTop: spacing.xxxl,
+    paddingHorizontal: spacing.xl,
+  },
+  needPurchaseText: {
+    ...typography.body,
+    color: color.text.secondary,
+    textAlign: 'center',
+  },
+  needPurchaseButton: {
+    alignSelf: 'stretch',
   },
   rowOut: {
     justifyContent: 'flex-end',

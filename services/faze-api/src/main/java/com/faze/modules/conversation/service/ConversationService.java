@@ -2,17 +2,23 @@
  * 职责：IM 会话的创建/获取、成员校验、会话列表（C 端与律师端）。
  * 调用方：modules/conversation/controller/ConversationController、
  *        modules/conversation/service/MessageService（成员校验 + 会话行回写）、
- *        modules/conversation/ws/handler/*（成员校验）。
- * 数据来源：faze.conversation（读写）、faze.lawyer（对端律师信息）、faze.app_user（对端用户昵称/头像）。
+ *        modules/conversation/ws/handler/*（成员校验）、
+ *        modules/workbench/service/WorkbenchServiceImpl（律师发文书时的服务端内部建会话）。
+ * 数据来源：faze.conversation（读写）、faze.lawyer（对端律师信息）、faze.app_user（对端用户昵称/头像）、
+ *          经 trade 域 `OrderQueryService` 读 faze.orders（会话准入与订单通知）。
  * 注意：
  *   1. **`assertMember` 是全域唯一的鉴权入口**（技术路线 §7.3.1）：REST 与 WS 都调它，
  *      任何「先查消息再判归属」的写法都会漏路径。
  *   2. **一个用户 × 一个律师 = 一条会话**（`uk_conversation_user_lawyer`，段 2 拍板第 6 项）：
  *      `POST /app/conversations` 是「创建或获取」，冲突时返回已存在那条，不报错。
  *   3. 会话与订单**解耦**：律师点「结束服务」不关会话、不关连接（拍板第 6 项）。
- *   4. 列表排序 `last_msg_at DESC, id DESC`（稳定分页）；`unread_*` 是冗余计数，
+ *      但**新建**会话有准入：用户对该律师必须有「已支付且未完结」的订单（status = paid / in_service），
+ *      否则抛 404005。**已存在的会话不再校验**——否则用户退款后连历史聊天记录都打不开。
+ *   4. 进入会话（新建与已存在两条路径）都会补发订单通知系统消息（幂等键 `order-notice-{orderId}`），
+ *      见 `OrderNoticeService`。
+ *   5. 列表排序 `last_msg_at DESC, id DESC`（稳定分页）；`unread_*` 是冗余计数，
  *      真相在 `conversation_message.read_by_*_at`，由 MessageService 按消息表重算。
- *   5. **不缓存成员关系**：缓存失效窗口就是越权窗口。
+ *   6. **不缓存成员关系**：缓存失效窗口就是越权窗口。
  */
 package com.faze.modules.conversation.service;
 
@@ -30,6 +36,7 @@ import com.faze.modules.conversation.entity.Conversation;
 import com.faze.modules.conversation.enums.SenderRole;
 import com.faze.modules.conversation.mapper.ConversationMapper;
 import com.faze.modules.conversation.vo.ConversationVO;
+import com.faze.modules.trade.service.OrderQueryService;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -55,6 +62,12 @@ public class ConversationService {
     private final ConversationMapper conversationMapper;
     private final LawyerMapper lawyerMapper;
     private final AccountMapper accountMapper;
+
+    /** 跨域只读：订单查询（会话准入与订单通知都只读它，不直接依赖 trade 的 Mapper/实体）。 */
+    private final OrderQueryService orderQueryService;
+
+    /** 订单通知补发（系统消息，幂等）。 */
+    private final OrderNoticeService orderNoticeService;
 
     /**
      * 校验当前用户是否为会话成员，并给出后续操作需要的身份信息。
@@ -82,29 +95,98 @@ public class ConversationService {
     }
 
     /**
-     * 创建或获取「我与某律师」的会话。
+     * 创建或获取「我与某律师」的会话（C 端入口，**新建时校验购买记录**）。
      *
-     * <p>副作用：不存在时插入一条空会话（不写系统消息；段 2 的欢迎语由客户端展示）。</p>
+     * <p>副作用：不存在时插入一条空会话；两条路径都会补发订单通知系统消息。</p>
      *
      * @param userId   当前登录用户（来自 token）
      * @param lawyerId 律师主键
      * @return 会话（C 端视角，对端为律师）
-     * @throws BusinessException 401004 律师不存在或不可见
+     * @throws BusinessException 401004 律师不存在或不可见 / 404005 未购买该律师的咨询服务
      */
     public ConversationVO createOrGet(Long userId, Long lawyerId) {
+        return createOrGet(userId, lawyerId, true);
+    }
+
+    /**
+     * 创建或获取会话（**服务端内部通道：跳过「用户已购买」准入**）。
+     *
+     * <p>调用方：workbench 的律师发送文书（`WorkbenchServiceImpl#sendDocumentToClient`）。
+     * 该动作是律师履约，与用户是否付款无关；文书归属已由调用方校验
+     * （文书必须是本律师代写），所以这里不需要再用订单准入拦一次。</p>
+     *
+     * @param userId   委托人用户主键（app_user.id）
+     * @param lawyerId 律师主键（lawyer.id）
+     * @return 会话（C 端视角，对端为律师）
+     * @throws BusinessException 401004 律师不存在或不可见
+     */
+    public ConversationVO createOrGetForLawyerInitiated(Long userId, Long lawyerId) {
+        return createOrGet(userId, lawyerId, false);
+    }
+
+    /**
+     * 创建或获取会话的共用实现。
+     *
+     * <p>准入只作用于**新建**：已有会话直接返回（含补发通知），不再校验订单——
+     * 会话与订单解耦（类头第 3 条），律师结束服务 / 用户退款后历史聊天必须仍能打开。</p>
+     *
+     * @param userId         用户主键
+     * @param lawyerId       律师主键
+     * @param requirePurchase 是否要求「已支付且未完结」订单（C 端 true，律师内部通道 false）
+     * @return 会话
+     */
+    private ConversationVO createOrGet(Long userId, Long lawyerId, boolean requirePurchase) {
+        // 任务 1：律师必须存在 + 审核通过 + 未软删，否则 401004
         Lawyer lawyer = requireVisibleLawyer(lawyerId);
-        Conversation existing = conversationMapper.selectOne(Wrappers.<Conversation>lambdaQuery()
-                .eq(Conversation::getUserId, userId)
-                .eq(Conversation::getLawyerId, lawyer.getId())
-                .isNull(Conversation::getDeletedAt));
+
+        // 任务 2：已有会话直接返回（唯一键保证一个用户对一个律师只有一条）
+        Conversation existing = findConversation(userId, lawyer.getId());
         if (existing != null) {
+            orderNoticeService.ensureOrderNotices(existing, userId, lawyer.getId());
             return toVO(existing, SenderRole.USER, lawyer);
         }
 
+        // 任务 3：新建会话的准入——没有「已支付且未完结」的订单就不许建
+        if (requirePurchase
+                && !orderQueryService.existsActiveOrderOfUserAndLawyer(userId, lawyer.getId())) {
+            throw new BusinessException(ErrorCode.CONVERSATION_NOT_PURCHASED);
+        }
+
+        // 任务 4：插入空会话（并发冲突由唯一键裁决）
+        Conversation conversation = insertConversation(userId, lawyer.getId());
+
+        // 任务 5：补发订单通知（新建路径同样覆盖；已存在路径在任务 2 处理）
+        orderNoticeService.ensureOrderNotices(conversation, userId, lawyer.getId());
+        return toVO(conversation, SenderRole.USER, lawyer);
+    }
+
+    /**
+     * 查「用户 × 律师」的会话（未软删）。
+     *
+     * @param userId   用户主键
+     * @param lawyerId 律师主键
+     * @return 会话；没有返回 null
+     */
+    private Conversation findConversation(Long userId, Long lawyerId) {
+        return conversationMapper.selectOne(Wrappers.<Conversation>lambdaQuery()
+                .eq(Conversation::getUserId, userId)
+                .eq(Conversation::getLawyerId, lawyerId)
+                .isNull(Conversation::getDeletedAt));
+    }
+
+    /**
+     * 插入一条空会话；并发点「联系律师」时唯一键是最终裁决。
+     *
+     * @param userId   用户主键
+     * @param lawyerId 律师主键
+     * @return 新建（或并发下已被别人插入）的会话
+     * @throws BusinessException 404001 冲突后仍查不到（数据异常）
+     */
+    private Conversation insertConversation(Long userId, Long lawyerId) {
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
         Conversation conversation = new Conversation();
         conversation.setUserId(userId);
-        conversation.setLawyerId(lawyer.getId());
+        conversation.setLawyerId(lawyerId);
         conversation.setUnreadUser(0);
         conversation.setUnreadLawyer(0);
         conversation.setCreatedAt(now);
@@ -112,18 +194,14 @@ public class ConversationService {
         try {
             conversationMapper.insert(conversation);
         } catch (DuplicateKeyException e) {
-            // 并发点「联系律师」：唯一键是最终裁决，冲突就返回已有会话
-            Conversation created = conversationMapper.selectOne(Wrappers.<Conversation>lambdaQuery()
-                    .eq(Conversation::getUserId, userId)
-                    .eq(Conversation::getLawyerId, lawyer.getId())
-                    .isNull(Conversation::getDeletedAt));
+            Conversation created = findConversation(userId, lawyerId);
             if (created == null) {
                 throw new BusinessException(ErrorCode.CONVERSATION_NOT_FOUND);
             }
-            return toVO(created, SenderRole.USER, lawyer);
+            return created;
         }
-        log.info("创建会话 userId={} lawyerId={} conversationId={}", userId, lawyer.getId(), conversation.getId());
-        return toVO(conversation, SenderRole.USER, lawyer);
+        log.info("创建会话 userId={} lawyerId={} conversationId={}", userId, lawyerId, conversation.getId());
+        return conversation;
     }
 
     /**

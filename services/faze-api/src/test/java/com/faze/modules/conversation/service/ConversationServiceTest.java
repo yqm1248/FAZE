@@ -1,12 +1,14 @@
 /*
- * 职责：ConversationService 的单测——成员校验（含 403）、创建或获取、两端口径的列表 VO。
+ * 职责：ConversationService 的单测——成员校验（含 403）、创建或获取（含购买准入）、两端口径的列表 VO。
  * 调用方：mvn test（纯 Mockito，不启动 Spring、不连库）。
- * 数据来源：Mock 的 ConversationMapper / LawyerMapper / AccountMapper。
+ * 数据来源：Mock 的 ConversationMapper / LawyerMapper / AccountMapper / OrderQueryService / OrderNoticeService。
  * 注意：
  *   1. **越权是 IM 域最常见的漏洞**：非成员必须 404002（HTTP 403），且「会话不存在」与
  *      「不是成员」要能区分（前者 404001）——混成一个码会让用户以为会话被删了。
  *   2. 「创建或获取」的核心断言：已存在时**不插新行**，直接返回已有会话。
- *   3. 律师端列表：当前用户不是律师时返回空页而不是报错（前端不需要为「没入驻」写分支）。
+ *   3. **新建会话有购买准入**：没有有效订单必须 404005 且不插行；律师内部通道
+ *      （`createOrGetForLawyerInitiated`）不校验（律师履约与用户付款无关）。
+ *   4. 律师端列表：当前用户不是律师时返回空页而不是报错（前端不需要为「没入驻」写分支）。
  */
 package com.faze.modules.conversation.service;
 
@@ -23,6 +25,7 @@ import com.faze.modules.conversation.entity.Conversation;
 import com.faze.modules.conversation.enums.SenderRole;
 import com.faze.modules.conversation.mapper.ConversationMapper;
 import com.faze.modules.conversation.vo.ConversationVO;
+import com.faze.modules.trade.service.OrderQueryService;
 import java.util.List;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.BeforeAll;
@@ -39,6 +42,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -64,6 +68,12 @@ class ConversationServiceTest {
     @Mock
     private AccountMapper accountMapper;
 
+    @Mock
+    private OrderQueryService orderQueryService;
+
+    @Mock
+    private OrderNoticeService orderNoticeService;
+
     private ConversationService conversationService;
 
     /**
@@ -79,7 +89,8 @@ class ConversationServiceTest {
 
     @BeforeEach
     void setUp() {
-        conversationService = new ConversationService(conversationMapper, lawyerMapper, accountMapper);
+        conversationService = new ConversationService(conversationMapper, lawyerMapper, accountMapper,
+                orderQueryService, orderNoticeService);
     }
 
     /**
@@ -207,6 +218,82 @@ class ConversationServiceTest {
 
         assertEquals(ErrorCode.COMMON_NOT_FOUND, ex.getErrorCode());
         verify(conversationMapper, never()).insert(any(Conversation.class));
+    }
+
+    /**
+     * 创建或获取：没有有效订单 → 404005，且不插会话行。
+     */
+    @Test
+    @DisplayName("创建或获取：未购买该律师服务 → 404005，不建会话")
+    void createOrGetWithoutActiveOrder() {
+        when(lawyerMapper.selectOne(any(Wrapper.class))).thenReturn(lawyer(LAWYER_ID, LAWYER_USER_ID));
+        when(conversationMapper.selectOne(any(Wrapper.class))).thenReturn(null);
+        when(orderQueryService.existsActiveOrderOfUserAndLawyer(USER_ID, LAWYER_ID)).thenReturn(false);
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> conversationService.createOrGet(USER_ID, LAWYER_ID));
+
+        assertEquals(ErrorCode.CONVERSATION_NOT_PURCHASED, ex.getErrorCode());
+        assertEquals(200, ex.getErrorCode().getHttpStatus());
+        verify(conversationMapper, never()).insert(any(Conversation.class));
+    }
+
+    /**
+     * 创建或获取：有有效订单 → 建会话并补发订单通知。
+     */
+    @Test
+    @DisplayName("创建或获取：有有效订单 → 建会话 + 补发订单通知")
+    void createOrGetWithActiveOrder() {
+        when(lawyerMapper.selectOne(any(Wrapper.class))).thenReturn(lawyer(LAWYER_ID, LAWYER_USER_ID));
+        when(conversationMapper.selectOne(any(Wrapper.class))).thenReturn(null);
+        when(orderQueryService.existsActiveOrderOfUserAndLawyer(USER_ID, LAWYER_ID)).thenReturn(true);
+        when(conversationMapper.insert(any(Conversation.class))).thenAnswer(invocation -> {
+            Conversation row = invocation.getArgument(0);
+            row.setId(CONVERSATION_ID);
+            return 1;
+        });
+
+        ConversationVO vo = conversationService.createOrGet(USER_ID, LAWYER_ID);
+
+        assertEquals(CONVERSATION_ID, vo.getId());
+        verify(conversationMapper).insert(any(Conversation.class));
+        verify(orderNoticeService).ensureOrderNotices(any(Conversation.class), eq(USER_ID), eq(LAWYER_ID));
+    }
+
+    /**
+     * 律师内部通道：没有有效订单也能建会话（律师履约不看用户付款）。
+     */
+    @Test
+    @DisplayName("律师内部建会话：跳过购买准入")
+    void createOrGetForLawyerInitiatedWithoutOrder() {
+        when(lawyerMapper.selectOne(any(Wrapper.class))).thenReturn(lawyer(LAWYER_ID, LAWYER_USER_ID));
+        when(conversationMapper.selectOne(any(Wrapper.class))).thenReturn(null);
+        when(conversationMapper.insert(any(Conversation.class))).thenAnswer(invocation -> {
+            Conversation row = invocation.getArgument(0);
+            row.setId(CONVERSATION_ID);
+            return 1;
+        });
+
+        ConversationVO vo = conversationService.createOrGetForLawyerInitiated(USER_ID, LAWYER_ID);
+
+        assertEquals(CONVERSATION_ID, vo.getId());
+        verify(orderQueryService, never()).existsActiveOrderOfUserAndLawyer(any(), any());
+        verify(conversationMapper).insert(any(Conversation.class));
+    }
+
+    /**
+     * 已存在会话：不再校验订单（退款后历史聊天仍可打开），但要补发通知。
+     */
+    @Test
+    @DisplayName("创建或获取：已有会话不校验订单，仍补发通知")
+    void createOrGetExistingWithoutOrderCheck() {
+        when(lawyerMapper.selectOne(any(Wrapper.class))).thenReturn(lawyer(LAWYER_ID, LAWYER_USER_ID));
+        when(conversationMapper.selectOne(any(Wrapper.class))).thenReturn(conversation());
+
+        conversationService.createOrGet(USER_ID, LAWYER_ID);
+
+        verify(orderQueryService, never()).existsActiveOrderOfUserAndLawyer(any(), any());
+        verify(orderNoticeService).ensureOrderNotices(any(Conversation.class), eq(USER_ID), eq(LAWYER_ID));
     }
 
     /**

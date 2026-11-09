@@ -53,5 +53,6 @@
   "error.trade.withdraw-too-frequent": "شىعارۋ توم كوپ بولدى، كەيىنىرەك قايتا سىناڭىز",
   "error.content.case-no-law-ref": "ىس ۇلگىسىندە قۇقىق ماددەسى كەلتىرىلمەگەن، جاريالاۋعا بولمايدى",
   "error.content.case-lang-incomplete": "ىس ۇلگىسىنىڭ تىل نۇسقاسى تولىق ەمەس",
-  "error.content.case-published": "ىس ۇلگىسى جاريالانعان، الدىمەن تومەندەتىپ سوسىن جويۋ كەرەك"
+  "error.content.case-published": "ىس ۇلگىسى جاريالانعان، الدىمەن تومەندەتىپ سوسىن جويۋ كەرەك",
+  "error.conversation.not-purchased": "بۇ ادۆوكاتتىڭ كەڭەس قىزمەتىن ساتىپ الماعاندىقتان، اڭگىمە باستاي المايسىز."
 }

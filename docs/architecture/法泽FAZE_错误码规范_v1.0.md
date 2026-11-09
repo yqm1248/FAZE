@@ -130,6 +130,7 @@ NNN = 3 位：域内序号，从 001 起
 | `404002` | **403** | `error.conversation.forbidden` | 无权访问该会话 |
 | `404003` | 200 | `error.conversation.closed` | 会话已结束，不能继续发送 |
 | `404004` | 200 | `error.conversation.not-participant` | 不是会话参与方 |
+| `404005` | 200 | `error.conversation.not-purchased` | 未购买该律师的咨询服务，不能发起会话（2026-11-09 新增；**只拦新建会话**，已有会话照常可进） |
 | `504001` | 200 | `error.conversation.send-failed` | 消息发送失败 |
 | `504002` | 200 | `error.conversation.push-down` | 离线推送服务不可用 |
 

@@ -1,15 +1,19 @@
 /*
- * 职责：订单的**只读**跨域查询接口（供 ops 域的投诉校验等使用）。
- * 调用方：modules/ops 的 ComplaintService（校验「律师投诉必须关联本用户已完成订单」）。
+ * 职责：订单的**只读**跨域查询接口（供 ops 域的投诉校验、conversation 域的会话准入使用）。
+ * 调用方：modules/ops 的 ComplaintService（校验「律师投诉必须关联本用户已完成订单」）、
+ *        modules/conversation 的 OrderNoticeService / ConversationService（会话准入与订单通知）。
  * 数据来源：faze.orders（trade 域的表）。
  * 注意：
- *   1. 按后端规范 §2.3：跨域只允许查询接口，所以这里只暴露 `exists*` / `get*`，
+ *   1. 按后端规范 §2.3：跨域只允许查询接口，所以这里只暴露 `exists*` / `get*` / `list*`，
  *      不暴露任何写方法——订单写操作是 trade 域自己的事。
  *   2. 只返回**布尔或最小投影**，不返回 Orders 实体：跨域返回整行会让调用方能改字段
  *      （哪怕只是读，也给人「可以顺手改」的错觉）。
- *   3. 时间/金额口径不需要，本接口只回答「这张单是不是你的、完成没有」。
+ *   3. 时间/金额口径不需要，本接口只回答「这张单是不是你的、完成没有、还在不在服务期」。
  */
 package com.faze.modules.trade.service;
+
+import com.faze.modules.trade.vo.OrderBriefVO;
+import java.util.List;
 
 /**
  * 订单只读查询。
@@ -27,6 +31,31 @@ public interface OrderQueryService {
      * @return 属于该用户且状态为 completed 时返回 true
      */
     boolean existsCompletedOrderOfUser(Long orderId, Long userId);
+
+    /**
+     * 判断某用户对某律师是否存在「有效订单」（会话准入的唯一依据）。
+     *
+     * <p>「有效」= **已支付且未完结**：`paid`（钱已扣、等接单）与 `in_service`（律师已接单）。
+     * 其余一律不算：`pending`（没付钱）、`completed`（已完结）、`cancelled`、`refunding`、
+     * `refunded`、`refund_rejected`（退款驳回后会回退到 in_service / completed，本身不是稳定态）。</p>
+     *
+     * @param userId   用户主键（app_user.id）
+     * @param lawyerId 律师主键（lawyer.id，**不是**律师的 app_user.id）
+     * @return 存在有效订单返回 true
+     */
+    boolean existsActiveOrderOfUserAndLawyer(Long userId, Long lawyerId);
+
+    /**
+     * 取某用户对某律师的全部有效订单（进入会话时补发订单通知用）。
+     *
+     * <p>口径与 {@link #existsActiveOrderOfUserAndLawyer} 完全一致，按订单主键升序返回，
+     * 保证同一会话内补发的通知顺序稳定。</p>
+     *
+     * @param userId   用户主键（app_user.id）
+     * @param lawyerId 律师主键（lawyer.id）
+     * @return 有效订单的最小投影；没有返回空列表（不返回 null）
+     */
+    List<OrderBriefVO> listActiveOrdersOfUserAndLawyer(Long userId, Long lawyerId);
 
     /**
      * 按主键批量取订单号（A-26 操作日志的「目标对象」可读名映射用）。

@@ -2,10 +2,10 @@
  * 职责：MessageService 的单测——发送（幂等 / seq / 摘要）、历史游标、已读重算、撤回四条校验。
  * 调用方：mvn test（纯 Mockito，不启动 Spring、不连库）。
  * 数据来源：Mock 的 ConversationMapper / ConversationMessageMapper / ConversationService /
- *          StringRedisTemplate（seq INCR）。
+ *          ConversationSeqGenerator（seq 生成）。
  * 注意：
- *   1. **seq 的写法是本次实现的关键**：Redis INCR 与库内最大值取 max，
- *      用例覆盖「Redis 值落后于库内最大值」时自动对齐，否则多实例/Redis 重启会撞唯一键。
+ *   1. **seq 规则已抽到 `ConversationSeqGenerator`**（Redis INCR 与库内最大值取 max）：
+ *      它的对齐用例在 `ConversationSeqGeneratorTest`；本类只断言「用的是生成器给的 seq」。
  *   2. 撤回必须验「超过 2 分钟被拒」「撤回他人消息被拒」——这两个是 G6.4 的验收判据。
  *   3. 幂等命中（同 clientMsgId）必须返回已有消息且 `duplicated=true`，**不插第二行**。
  *   4. 已读后未读数按消息表重算（不是简单清零）。
@@ -33,8 +33,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
-import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.core.ValueOperations;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -45,7 +43,6 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -74,10 +71,7 @@ class MessageServiceTest {
     private ConversationService conversationService;
 
     @Mock
-    private StringRedisTemplate redis;
-
-    @Mock
-    private ValueOperations<String, String> valueOperations;
+    private ConversationSeqGenerator seqGenerator;
 
     @Mock
     private com.faze.infra.storage.FileStorage fileStorage;
@@ -97,9 +91,8 @@ class MessageServiceTest {
 
     @BeforeEach
     void setUp() {
-        messageService = new MessageService(conversationMapper, messageMapper, conversationService, redis,
-                fileStorage);
-        when(redis.opsForValue()).thenReturn(valueOperations);
+        messageService = new MessageService(conversationMapper, messageMapper, conversationService,
+                seqGenerator, fileStorage);
     }
 
     /**
@@ -148,14 +141,14 @@ class MessageServiceTest {
     }
 
     /**
-     * 正常发送：seq 取自 INCR，落库并回写会话摘要。
+     * 正常发送：seq 取自生成器，落库并回写会话摘要。
      */
     @Test
     @DisplayName("发送：落库 + 回写摘要，duplicated=false")
     void sendText() {
         when(conversationService.assertMember(CONVERSATION_ID, USER_ID)).thenReturn(userMember());
         when(messageMapper.selectOne(any(Wrapper.class))).thenReturn(null);
-        when(valueOperations.increment(anyString())).thenReturn(3L);
+        when(seqGenerator.next(CONVERSATION_ID)).thenReturn(3L);
         when(messageMapper.insert(any(ConversationMessage.class))).thenAnswer(invocation -> {
             ConversationMessage row = invocation.getArgument(0);
             row.setId(MESSAGE_ID);
@@ -216,30 +209,6 @@ class MessageServiceTest {
 
         assertEquals(ErrorCode.COMMON_PARAM_INVALID, ex.getErrorCode());
         verify(messageMapper, never()).insert(any(ConversationMessage.class));
-    }
-
-    /**
-     * Redis seq 落后于库内最大值：必须对齐到 dbMax+1，否则撞唯一键。
-     */
-    @Test
-    @DisplayName("发送：Redis seq 落后时取库内最大值 +1")
-    void sendAlignsStaleSeq() {
-        ConversationMessage latest = message(1);
-        latest.setSeq(42L);
-        when(conversationService.assertMember(CONVERSATION_ID, USER_ID)).thenReturn(userMember());
-        // 第 1 次 selectOne：按 clientMsgId 查重（未命中）；第 2 次：查库内最大 seq（42）
-        when(messageMapper.selectOne(any(Wrapper.class))).thenReturn(null, latest);
-        when(valueOperations.increment(anyString())).thenReturn(2L);
-        when(messageMapper.insert(any(ConversationMessage.class))).thenAnswer(invocation -> {
-            ConversationMessage row = invocation.getArgument(0);
-            row.setId(MESSAGE_ID);
-            return 1;
-        });
-
-        MessageService.SendOutcome outcome = messageService.send(USER_ID, CONVERSATION_ID, "text",
-                "我来对齐", "c-align", null, null, null);
-
-        assertEquals(43L, outcome.message().getSeq());
     }
 
     /**
@@ -343,10 +312,8 @@ class MessageServiceTest {
     @DisplayName("已读：lastReadSeq 之后的对端消息计入未读")
     void markReadRecountsUnread() {
         when(conversationService.assertMember(CONVERSATION_ID, USER_ID)).thenReturn(userMember());
-        // 第一次 selectOne 是 maxSeq（取最新一条），第二次是 …（本用例库内最大 seq = 20）
-        ConversationMessage latest = message(1);
-        latest.setSeq(20L);
-        when(messageMapper.selectOne(any(Wrapper.class))).thenReturn(latest);
+        // 库内最大 seq = 20（对齐辅助），未读按消息表重算
+        when(seqGenerator.max(CONVERSATION_ID)).thenReturn(20L);
         when(messageMapper.selectCount(any(Wrapper.class))).thenReturn(2L);
         when(messageMapper.update(any(), any(Wrapper.class))).thenReturn(1);
 
@@ -364,9 +331,7 @@ class MessageServiceTest {
     @DisplayName("已读：超前游标 clamp 到最大 seq")
     void markReadClamps() {
         when(conversationService.assertMember(CONVERSATION_ID, USER_ID)).thenReturn(userMember());
-        ConversationMessage latest = message(1);
-        latest.setSeq(20L);
-        when(messageMapper.selectOne(any(Wrapper.class))).thenReturn(latest);
+        when(seqGenerator.max(CONVERSATION_ID)).thenReturn(20L);
         when(messageMapper.selectCount(any(Wrapper.class))).thenReturn(0L);
         when(messageMapper.update(any(), any(Wrapper.class))).thenReturn(1);
 

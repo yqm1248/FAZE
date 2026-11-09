@@ -154,10 +154,12 @@ public class WorkbenchServiceImpl implements WorkbenchService {
         }
 
         // 任务 2：取（或建）与该委托人的会话
+        // 走 `createOrGetForLawyerInitiated`：这是律师履约动作，**不能套用 C 端「用户已购买」准入**
+        // （用户可能已经退款 / 订单已完结，但律师仍要把代写好的文书发出去）。
         Conversation conversation = conversationQueryService.findByUserAndLawyer(
                 doc.getUserId(), lawyer.getId());
         if (conversation == null) {
-            conversationService.createOrGet(doc.getUserId(), lawyer.getId());
+            conversationService.createOrGetForLawyerInitiated(doc.getUserId(), lawyer.getId());
             conversation = conversationQueryService.findByUserAndLawyer(
                     doc.getUserId(), lawyer.getId());
         }

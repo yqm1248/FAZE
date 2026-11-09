@@ -34,6 +34,7 @@ export const ERROR_MSG_KEYS: Readonly<Record<number, MessageKey>> = {
   402010: 'error.auth.password-weak',
   404001: 'error.conversation.not-found',
   404002: 'error.conversation.forbidden',
+  404005: 'error.conversation.not-purchased',
   406001: 'error.document.template-not-found',
   406002: 'error.document.form-invalid',
   406003: 'error.document.not-found',
