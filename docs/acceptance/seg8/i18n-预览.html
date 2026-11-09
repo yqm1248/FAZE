@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<title>法泽 i18n 四语言预览（修订后）</title>
+<style>
+@font-face{font-family:'FAZE-Tib';src:url('./fonts/NotoSerifTibetan-Variable.ttf') format('truetype');font-weight:100 900;font-display:swap}
+@font-face{font-family:'FAZE-Arab';src:url('./fonts/NotoNaskhArabic-Variable.ttf') format('truetype');font-weight:100 900;font-display:swap}
+*{box-sizing:border-box}
+body{margin:0;padding:24px;background:#0f1117;color:#e6e8ef;font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif}
+h1{font-size:18px;margin:0 0 6px}
+.sub{font-size:12px;color:#8b93a7;margin-bottom:20px}
+.grid{display:flex;gap:16px;align-items:flex-start;overflow-x:auto;padding-bottom:24px}
+.col{flex:0 0 360px}
+.col h2{font-size:13px;margin:0 0 8px;color:#9aa4bb;font-weight:600;text-align:left}
+.phone{width:360px;background:#fff;color:#14202e;border-radius:14px;padding:14px;min-height:400px}
+.col.bo .val,.col.bo .zh{font-family:'FAZE-Tib',serif;line-height:2.1}
+.col.ar .val,.col.ar .zh{font-family:'FAZE-Arab',serif;line-height:1.9;letter-spacing:0}
+.col.ar .zh{direction:ltr;text-align:left}
+.row{padding:7px 0;border-bottom:1px solid #eef1f5}
+.row:last-child{border-bottom:0}
+.g{display:inline-block;font-size:10px;background:#eef2fa;color:#4b5c79;border-radius:4px;padding:1px 5px;margin-inline-end:6px}
+.k{font-size:10px;color:#93a0b5;font-family:monospace;direction:ltr}
+.zh{font-size:11px;color:#8b93a7;margin-top:3px}
+.val{font-size:15px;margin-top:3px;word-break:break-word}
+.long .val{font-size:13px;line-height:2.1}
+.note{font-size:12px;color:#8b93a7;margin:18px 0 0;max-width:1100px;line-height:1.8}
+</style>
+</head>
+<body>
+<h1>法泽 · 三语译文修订版预览</h1>
+<div class="sub">左起：简体中文（对照）／藏文 bo／维吾尔文 ug-Arab-CN／哈萨克文 kk-Arab-CN。藏文用 Noto Serif Tibetan，阿拉伯字母用 Noto Naskh Arabic；维/哈为 RTL。</div>
+<div class="grid">
+<section class="col zh" lang="zh-Hans" dir="ltr">
+    <h2>zh-Hans</h2>
+    <div class="phone"><div class="row"><span class="g">splash</span><span class="k">splash.name</span><div class="zh">法泽</div><div class="val">法泽</div></div>
+<div class="row"><span class="g">splash</span><span class="k">splash.slogan</span><div class="zh">法护民生 · 智慧法律服务</div><div class="val">法护民生 · 智慧法律服务</div></div>
+<div class="row"><span class="g">登录</span><span class="k">login.title</span><div class="zh">登录</div><div class="val">登录</div></div>
+<div class="row"><span class="g">登录</span><span class="k">login.phoneLabel</span><div class="zh">手机号</div><div class="val">手机号</div></div>
+<div class="row"><span class="g">登录</span><span class="k">login.phonePlaceholder</span><div class="zh">请输入手机号</div><div class="val">请输入手机号</div></div>
+<div class="row"><span class="g">登录</span><span class="k">login.passwordLabel</span><div class="zh">密码</div><div class="val">密码</div></div>
+<div class="row"><span class="g">登录</span><span class="k">login.submit</span><div class="zh">登录</div><div class="val">登录</div></div>
+<div class="row"><span class="g">登录</span><span class="k">login.registerLink</span><div class="zh">去注册</div><div class="val">去注册</div></div>
+<div class="row"><span class="g">注册</span><span class="k">register.agreementUser</span><div class="zh">《用户服务协议》</div><div class="val">《用户服务协议》</div></div>
+<div class="row"><span class="g">注册</span><span class="k">register.agreementPrivacy</span><div class="zh">《隐私政策》</div><div class="val">《隐私政策》</div></div>
+<div class="row"><span class="g">Tab</span><span class="k">tab.home</span><div class="zh">首页</div><div class="val">首页</div></div>
+<div class="row"><span class="g">Tab</span><span class="k">tab.lawyer</span><div class="zh">律师</div><div class="val">律师</div></div>
+<div class="row"><span class="g">Tab</span><span class="k">tab.agent</span><div class="zh">智能体</div><div class="val">智能体</div></div>
+<div class="row"><span class="g">Tab</span><span class="k">tab.case</span><div class="zh">案例</div><div class="val">案例</div></div>
+<div class="row"><span class="g">Tab</span><span class="k">tab.profile</span><div class="zh">我的</div><div class="val">我的</div></div>
+<div class="row"><span class="g">按钮</span><span class="k">action.confirm</span><div class="zh">确定</div><div class="val">确定</div></div>
+<div class="row"><span class="g">按钮</span><span class="k">action.cancel</span><div class="zh">取消</div><div class="val">取消</div></div>
+<div class="row"><span class="g">按钮</span><span class="k">action.save</span><div class="zh">保存</div><div class="val">保存</div></div>
+<div class="row"><span class="g">按钮</span><span class="k">action.close</span><div class="zh">关闭</div><div class="val">关闭</div></div>
+<div class="row"><span class="g">按钮</span><span class="k">action.logout</span><div class="zh">退出登录</div><div class="val">退出登录</div></div>
+<div class="row"><span class="g">状态</span><span class="k">state.loading</span><div class="zh">加载中</div><div class="val">加载中</div></div>
+<div class="row"><span class="g">状态</span><span class="k">state.empty</span><div class="zh">暂无内容</div><div class="val">暂无内容</div></div>
+<div class="row"><span class="g">状态</span><span class="k">state.retry</span><div class="zh">重试</div><div class="val">重试</div></div>
+<div class="row"><span class="g">状态</span><span class="k">state.noMore</span><div class="zh">没有更多了</div><div class="val">没有更多了</div></div>
+
+
+<div class="row"><span class="g">业务</span><span class="k">browse.categoryContract</span><div class="zh">合同纠纷</div><div class="val">合同纠纷</div></div>
+<div class="row"><span class="g">业务</span><span class="k">browse.categoryCivil</span><div class="zh">民事纠纷</div><div class="val">民事纠纷</div></div>
+<div class="row"><span class="g">业务</span><span class="k">my.menuComplaints</span><div class="zh">我的投诉</div><div class="val">我的投诉</div></div>
+<div class="row"><span class="g">业务</span><span class="k">allFeatures.messages</span><div class="zh">消息中心</div><div class="val">消息中心</div></div>
+<div class="row"><span class="g">文档</span><span class="k">seal.uploading</span><div class="zh">上传中</div><div class="val">上传中</div></div>
+<div class="row"><span class="g">文档</span><span class="k">seal.uploadFailed</span><div class="zh">上传失败，请重试</div><div class="val">上传失败，请重试</div></div>
+<div class="row"><span class="g">交易</span><span class="k">pay.title</span><div class="zh">支付</div><div class="val">支付</div></div>
+<div class="row"><span class="g">交易</span><span class="k">order.statusPaid</span><div class="zh">等待接单</div><div class="val">等待接单</div></div>
+<div class="row long"><span class="g">长文</span><span class="k">about.boundary</span><div class="zh">需要说清楚的是：法泽是技术平台，不是律师事务所。平台提供法律知识、AI 问答、律师对接和文书排版工具；具体的法律服务由入驻律师以其所属律师事务所的名义提供，平台不直接出具法律意见、不代理诉讼、不代收诉讼费。诉讼费用由人民法院依法收取，平台不经手、也不代缴。</div><div class="val">需要说清楚的是：法泽是技术平台，不是律师事务所。平台提供法律知识、AI 问答、律师对接和文书排版工具；具体的法律服务由入驻律师以其所属律师事务所的名义提供，平台不直接出具法律意见、不代理诉讼、不代收诉讼费。诉讼费用由人民法院依法收取，平台不经手、也不代缴。</div></div></div>
+  </section>
+<section class="col bo" lang="bo" dir="ltr">
+    <h2>bo</h2>
+    <div class="phone"><div class="row"><span class="g">splash</span><span class="k">splash.name</span><div class="zh">法泽</div><div class="val">法泽</div></div>
+<div class="row"><span class="g">splash</span><span class="k">splash.slogan</span><div class="zh">法护民生 · 智慧法律服务</div><div class="val">ཁྲིམས་ཀྱིས་མི་དམངས་ཀྱི་འཚོ་བ་སྲུང་། · རིག་ནུས་ཁྲིམས་ལུགས་ཞབས་འདེགས།</div></div>
+<div class="row"><span class="g">登录</span><span class="k">login.title</span><div class="zh">登录</div><div class="val">ནང་འཇུག</div></div>
+<div class="row"><span class="g">登录</span><span class="k">login.phoneLabel</span><div class="zh">手机号</div><div class="val">ཁ་པར་ཨང་ཀི།</div></div>
+<div class="row"><span class="g">登录</span><span class="k">login.phonePlaceholder</span><div class="zh">请输入手机号</div><div class="val">ཁ་པར་ཨང་ཀི་འཇུག་རོགས།</div></div>
+<div class="row"><span class="g">登录</span><span class="k">login.passwordLabel</span><div class="zh">密码</div><div class="val">གསང་ཚོད།</div></div>
+<div class="row"><span class="g">登录</span><span class="k">login.submit</span><div class="zh">登录</div><div class="val">ནང་འཇུག</div></div>
+<div class="row"><span class="g">登录</span><span class="k">login.registerLink</span><div class="zh">去注册</div><div class="val">ཐོ་འགོད་ལ་འགྲོ</div></div>
+<div class="row"><span class="g">注册</span><span class="k">register.agreementUser</span><div class="zh">《用户服务协议》</div><div class="val">«བེད་སྤྱོད་མཁན་གྱི་ཞབས་ཞུའི་གྲོས་མཐུན»</div></div>
+<div class="row"><span class="g">注册</span><span class="k">register.agreementPrivacy</span><div class="zh">《隐私政策》</div><div class="val">«གསང་བའི་སྲིད་ཇུས»</div></div>
+<div class="row"><span class="g">Tab</span><span class="k">tab.home</span><div class="zh">首页</div><div class="val">མདུན་ཤོག</div></div>
+<div class="row"><span class="g">Tab</span><span class="k">tab.lawyer</span><div class="zh">律师</div><div class="val">ཁྲིམས་སྐྱོབ་པ།</div></div>
+<div class="row"><span class="g">Tab</span><span class="k">tab.agent</span><div class="zh">智能体</div><div class="val">AI རིག་ནུས།</div></div>
+<div class="row"><span class="g">Tab</span><span class="k">tab.case</span><div class="zh">案例</div><div class="val">གྱོད་དཔེ།</div></div>
+<div class="row"><span class="g">Tab</span><span class="k">tab.profile</span><div class="zh">我的</div><div class="val">ངའི།</div></div>
+<div class="row"><span class="g">按钮</span><span class="k">action.confirm</span><div class="zh">确定</div><div class="val">གཏན་འཁེལ།</div></div>
+<div class="row"><span class="g">按钮</span><span class="k">action.cancel</span><div class="zh">取消</div><div class="val">མི་བྱེད།</div></div>
+<div class="row"><span class="g">按钮</span><span class="k">action.save</span><div class="zh">保存</div><div class="val">ཉར་བ།</div></div>
+<div class="row"><span class="g">按钮</span><span class="k">action.close</span><div class="zh">关闭</div><div class="val">བསྡུ་བ།</div></div>
+<div class="row"><span class="g">按钮</span><span class="k">action.logout</span><div class="zh">退出登录</div><div class="val">ཕྱིར་ཐོན།</div></div>
+<div class="row"><span class="g">状态</span><span class="k">state.loading</span><div class="zh">加载中</div><div class="val">འཇུག་བཞིན་པ།</div></div>
+<div class="row"><span class="g">状态</span><span class="k">state.empty</span><div class="zh">暂无内容</div><div class="val">ནང་དོན་མེད།</div></div>
+<div class="row"><span class="g">状态</span><span class="k">state.retry</span><div class="zh">重试</div><div class="val">ཡང་བསྐྱར་ཚོད་ལྟ།</div></div>
+<div class="row"><span class="g">状态</span><span class="k">state.noMore</span><div class="zh">没有更多了</div><div class="val">དེ་ལས་མེད།</div></div>
+
+
+<div class="row"><span class="g">业务</span><span class="k">browse.categoryContract</span><div class="zh">合同纠纷</div><div class="val">གན་རྒྱའི་རྩོད་གཞི</div></div>
+<div class="row"><span class="g">业务</span><span class="k">browse.categoryCivil</span><div class="zh">民事纠纷</div><div class="val">མི་དམངས་ཀྱི་རྩོད་གཞི</div></div>
+<div class="row"><span class="g">业务</span><span class="k">my.menuComplaints</span><div class="zh">我的投诉</div><div class="val">ངའི་ཞུ་གཏུགས།</div></div>
+<div class="row"><span class="g">业务</span><span class="k">allFeatures.messages</span><div class="zh">消息中心</div><div class="val">འཕྲིན་བརྡ་ལྟེ་གནས</div></div>
+<div class="row"><span class="g">文档</span><span class="k">seal.uploading</span><div class="zh">上传中</div><div class="val">སྤར་བཞིན་པ།</div></div>
+<div class="row"><span class="g">文档</span><span class="k">seal.uploadFailed</span><div class="zh">上传失败，请重试</div><div class="val">སྤར་མ་ཐུབ། ཡང་བསྐྱར་ཚོད་ལྟ་བྱེད་རོགས</div></div>
+<div class="row"><span class="g">交易</span><span class="k">pay.title</span><div class="zh">支付</div><div class="val">དངུལ་སྤྲོད།</div></div>
+<div class="row"><span class="g">交易</span><span class="k">order.statusPaid</span><div class="zh">等待接单</div><div class="val">ལེན་རྒྱུར་སྒུག</div></div>
+<div class="row long"><span class="g">长文</span><span class="k">about.boundary</span><div class="zh">需要说清楚的是：法泽是技术平台，不是律师事务所。平台提供法律知识、AI 问答、律师对接和文书排版工具；具体的法律服务由入驻律师以其所属律师事务所的名义提供，平台不直接出具法律意见、不代理诉讼、不代收诉讼费。诉讼费用由人民法院依法收取，平台不经手、也不代缴。</div><div class="val">གསལ་པོར་བཤད་དགོས་པ་ནི། ཕ་ཙེ་ནི་ལག་རྩལ་གྱི་སྟེགས་བུ་ཡིན་ལ་ཁྲིམས་སྐྱོབ་པའི་ལས་ཁུངས་མིན། སྟེགས་བུས་ཁྲིམས་ལུགས་ཀྱི་ཤེས་བྱ། AI འདྲིས་ལན། ཁྲིམས་སྐྱོབ་པ་དང་མཐུད་སྦྲེལ། ཡིག་ཆའི་སྒྲིག་སྟངས་ཀྱི་ཡོ་བྱད་བཅས་སྤྲོད་ཀྱི་ཡོད། དངོས་གནས་ཀྱི་ཁྲིམས་ལུགས་ཞབས་ཞུ་ནི་ཐོ་འགོད་བྱས་པའི་ཁྲིམས་སྐྱོབ་པས་ཁོང་གི་ལས་ཁུངས་ཀྱི་མིང་ནས་སྤྲོད་པ་ཡིན། སྟེགས་བུས་ཐད་ཀར་ཁྲིམས་ལུགས་ཀྱི་བསམ་ཚུལ་མི་སྤྲོད་ལ། ཁྲིམས་ཞུར་ཚབ་མི་བྱེད་ལ། ཁྲིམས་ཞུའི་རིན་ཀྱང་ཚབ་ཏུ་མི་ལེན། ཁྲིམས་ཞུའི་རིན་ནི་མི་དམངས་ཁྲིམས་ཁང་གིས་ཁྲིམས་ལྟར་ལེན་པ་ཡིན་ལ། སྟེགས་བུས་ལག་ཏུ་མི་འཛིན་ལ་ཚབ་ཏུ་མི་སྤྲོད</div></div></div>
+  </section>
+<section class="col ar" lang="ug-Arab-CN" dir="rtl">
+    <h2>ug-Arab-CN</h2>
+    <div class="phone"><div class="row"><span class="g">splash</span><span class="k">splash.name</span><div class="zh">法泽</div><div class="val">法泽</div></div>
+<div class="row"><span class="g">splash</span><span class="k">splash.slogan</span><div class="zh">法护民生 · 智慧法律服务</div><div class="val">قانۇن خەلق تۇرمۇشىنى قوغدايدۇ · ئەقلىي قانۇن مۇلازىمىتى</div></div>
+<div class="row"><span class="g">登录</span><span class="k">login.title</span><div class="zh">登录</div><div class="val">كىرىش</div></div>
+<div class="row"><span class="g">登录</span><span class="k">login.phoneLabel</span><div class="zh">手机号</div><div class="val">تېلېفون نومۇرى</div></div>
+<div class="row"><span class="g">登录</span><span class="k">login.phonePlaceholder</span><div class="zh">请输入手机号</div><div class="val">تېلېفون نومۇرىنى كىرگۈزۈڭ</div></div>
+<div class="row"><span class="g">登录</span><span class="k">login.passwordLabel</span><div class="zh">密码</div><div class="val">پارول</div></div>
+<div class="row"><span class="g">登录</span><span class="k">login.submit</span><div class="zh">登录</div><div class="val">كىرىش</div></div>
+<div class="row"><span class="g">登录</span><span class="k">login.registerLink</span><div class="zh">去注册</div><div class="val">تىزىملىتىشقا بارىسىز</div></div>
+<div class="row"><span class="g">注册</span><span class="k">register.agreementUser</span><div class="zh">《用户服务协议》</div><div class="val">«ئىشلەتكۈچى مۇلازىمەت كېلىشىمى»</div></div>
+<div class="row"><span class="g">注册</span><span class="k">register.agreementPrivacy</span><div class="zh">《隐私政策》</div><div class="val">«شەخسىي مەخپىيەت سىياسىتى»</div></div>
+<div class="row"><span class="g">Tab</span><span class="k">tab.home</span><div class="zh">首页</div><div class="val">باش بەت</div></div>
+<div class="row"><span class="g">Tab</span><span class="k">tab.lawyer</span><div class="zh">律师</div><div class="val">ئادۋوكات</div></div>
+<div class="row"><span class="g">Tab</span><span class="k">tab.agent</span><div class="zh">智能体</div><div class="val">ئەقلىي ئاگېنت</div></div>
+<div class="row"><span class="g">Tab</span><span class="k">tab.case</span><div class="zh">案例</div><div class="val">ئىش ئۈلگىسى</div></div>
+<div class="row"><span class="g">Tab</span><span class="k">tab.profile</span><div class="zh">我的</div><div class="val">مېنىڭ</div></div>
+<div class="row"><span class="g">按钮</span><span class="k">action.confirm</span><div class="zh">确定</div><div class="val">جەزملەشتۈرۈش</div></div>
+<div class="row"><span class="g">按钮</span><span class="k">action.cancel</span><div class="zh">取消</div><div class="val">بىكار قىلىش</div></div>
+<div class="row"><span class="g">按钮</span><span class="k">action.save</span><div class="zh">保存</div><div class="val">ساقلاش</div></div>
+<div class="row"><span class="g">按钮</span><span class="k">action.close</span><div class="zh">关闭</div><div class="val">تاقاش</div></div>
+<div class="row"><span class="g">按钮</span><span class="k">action.logout</span><div class="zh">退出登录</div><div class="val">تىزىمدىن چېكىنىش</div></div>
+<div class="row"><span class="g">状态</span><span class="k">state.loading</span><div class="zh">加载中</div><div class="val">يۈكلىنىۋاتىدۇ</div></div>
+<div class="row"><span class="g">状态</span><span class="k">state.empty</span><div class="zh">暂无内容</div><div class="val">مەزمۇن يوق</div></div>
+<div class="row"><span class="g">状态</span><span class="k">state.retry</span><div class="zh">重试</div><div class="val">قايتا سىناش</div></div>
+<div class="row"><span class="g">状态</span><span class="k">state.noMore</span><div class="zh">没有更多了</div><div class="val">تېخىمۇ يوق</div></div>
+
+
+<div class="row"><span class="g">业务</span><span class="k">browse.categoryContract</span><div class="zh">合同纠纷</div><div class="val">توختام تالاش-تارتىشى</div></div>
+<div class="row"><span class="g">业务</span><span class="k">browse.categoryCivil</span><div class="zh">民事纠纷</div><div class="val">پۇقراۋى تالاش-تارتىش</div></div>
+<div class="row"><span class="g">业务</span><span class="k">my.menuComplaints</span><div class="zh">我的投诉</div><div class="val">مېنىڭ شيكايەتلىرىم</div></div>
+<div class="row"><span class="g">业务</span><span class="k">allFeatures.messages</span><div class="zh">消息中心</div><div class="val">ئۇچۇر مەركىزى</div></div>
+<div class="row"><span class="g">文档</span><span class="k">seal.uploading</span><div class="zh">上传中</div><div class="val">يۈكلىنىۋاتىدۇ</div></div>
+<div class="row"><span class="g">文档</span><span class="k">seal.uploadFailed</span><div class="zh">上传失败，请重试</div><div class="val">يۈكلەش مەغلۇپ بولدى، قايتا سىناڭ</div></div>
+<div class="row"><span class="g">交易</span><span class="k">pay.title</span><div class="zh">支付</div><div class="val">پۇل تۆلەش</div></div>
+<div class="row"><span class="g">交易</span><span class="k">order.statusPaid</span><div class="zh">等待接单</div><div class="val">قوبۇل قىلىشنى كۈتۈش</div></div>
+<div class="row long"><span class="g">长文</span><span class="k">about.boundary</span><div class="zh">需要说清楚的是：法泽是技术平台，不是律师事务所。平台提供法律知识、AI 问答、律师对接和文书排版工具；具体的法律服务由入驻律师以其所属律师事务所的名义提供，平台不直接出具法律意见、不代理诉讼、不代收诉讼费。诉讼费用由人民法院依法收取，平台不经手、也不代缴。</div><div class="val">ئېنىق قىلىپ ئېيتىش كېرەك: فازې تېخنىكا سۇپىسى، ئادۋوكاتخانا ئەمەس. سۇپا قانۇن بىلىمى، AI سوراق-جاۋاب، ئادۋوكات بىلەن ئۇلاش ۋە ھۆججەت تىزىش قوراللىرىنى تەمىنلەيدۇ؛ كونكرېت قانۇن مۇلازىمىتىنى كىرگەن ئادۋوكات ئۆزى تەۋە ئادۋوكاتخانىسىنىڭ نامى بىلەن تەمىنلەيدۇ، سۇپا بىۋاسىتە قانۇن پىكرى چىقارمايدۇ، دەۋاغا ۋاكالەتەن قاتناشمايدۇ، دەۋا ھەققىنى ۋاكالەتەن ئالمايدۇ. دەۋا ھەققىنى خەلق سوتى قانۇن بويىچە ئالىدۇ، سۇپا قولغا ئالمايدۇ ۋە ۋاكالەتەن تۆلىمەيدۇ.</div></div></div>
+  </section>
+<section class="col ar" lang="kk-Arab-CN" dir="rtl">
+    <h2>kk-Arab-CN</h2>
+    <div class="phone"><div class="row"><span class="g">splash</span><span class="k">splash.name</span><div class="zh">法泽</div><div class="val">法泽</div></div>
+<div class="row"><span class="g">splash</span><span class="k">splash.slogan</span><div class="zh">法护民生 · 智慧法律服务</div><div class="val">قانۇن حالىق تۇرمىسىن قورعايدى · اقىلدى قۇقىقتىق قىزمەت</div></div>
+<div class="row"><span class="g">登录</span><span class="k">login.title</span><div class="zh">登录</div><div class="val">كىرۋ</div></div>
+<div class="row"><span class="g">登录</span><span class="k">login.phoneLabel</span><div class="zh">手机号</div><div class="val">تەلەفون نومىرى</div></div>
+<div class="row"><span class="g">登录</span><span class="k">login.phonePlaceholder</span><div class="zh">请输入手机号</div><div class="val">تەلەفون نومىرىن ەنگىزىڭىز</div></div>
+<div class="row"><span class="g">登录</span><span class="k">login.passwordLabel</span><div class="zh">密码</div><div class="val">قۇپياسوز</div></div>
+<div class="row"><span class="g">登录</span><span class="k">login.submit</span><div class="zh">登录</div><div class="val">كىرۋ</div></div>
+<div class="row"><span class="g">登录</span><span class="k">login.registerLink</span><div class="zh">去注册</div><div class="val">تىركەلۋگە بارۋ</div></div>
+<div class="row"><span class="g">注册</span><span class="k">register.agreementUser</span><div class="zh">《用户服务协议》</div><div class="val">«قولدانۋشى قىزمەت كەلىسىمى»</div></div>
+<div class="row"><span class="g">注册</span><span class="k">register.agreementPrivacy</span><div class="zh">《隐私政策》</div><div class="val">«جەكە قۇپىيالىق ساياساتى»</div></div>
+<div class="row"><span class="g">Tab</span><span class="k">tab.home</span><div class="zh">首页</div><div class="val">باس بەت</div></div>
+<div class="row"><span class="g">Tab</span><span class="k">tab.lawyer</span><div class="zh">律师</div><div class="val">ادۆوكات</div></div>
+<div class="row"><span class="g">Tab</span><span class="k">tab.agent</span><div class="zh">智能体</div><div class="val">اقىلدى اعەنت</div></div>
+<div class="row"><span class="g">Tab</span><span class="k">tab.case</span><div class="zh">案例</div><div class="val">مىسال</div></div>
+<div class="row"><span class="g">Tab</span><span class="k">tab.profile</span><div class="zh">我的</div><div class="val">مەنىڭ</div></div>
+<div class="row"><span class="g">按钮</span><span class="k">action.confirm</span><div class="zh">确定</div><div class="val">راستاۋ</div></div>
+<div class="row"><span class="g">按钮</span><span class="k">action.cancel</span><div class="zh">取消</div><div class="val">باس تارتۋ</div></div>
+<div class="row"><span class="g">按钮</span><span class="k">action.save</span><div class="zh">保存</div><div class="val">ساقتاۋ</div></div>
+<div class="row"><span class="g">按钮</span><span class="k">action.close</span><div class="zh">关闭</div><div class="val">جابۋ</div></div>
+<div class="row"><span class="g">按钮</span><span class="k">action.logout</span><div class="zh">退出登录</div><div class="val">شىعۋ</div></div>
+<div class="row"><span class="g">状态</span><span class="k">state.loading</span><div class="zh">加载中</div><div class="val">جۇكتەلۋدە</div></div>
+<div class="row"><span class="g">状态</span><span class="k">state.empty</span><div class="zh">暂无内容</div><div class="val">مازمۇن جوق</div></div>
+<div class="row"><span class="g">状态</span><span class="k">state.retry</span><div class="zh">重试</div><div class="val">قايتا سىناۋ</div></div>
+<div class="row"><span class="g">状态</span><span class="k">state.noMore</span><div class="zh">没有更多了</div><div class="val">باسقا جوق</div></div>
+
+
+<div class="row"><span class="g">业务</span><span class="k">browse.categoryContract</span><div class="zh">合同纠纷</div><div class="val">شارت تالاسى</div></div>
+<div class="row"><span class="g">业务</span><span class="k">browse.categoryCivil</span><div class="zh">民事纠纷</div><div class="val">ازاماتتىق تالاس</div></div>
+<div class="row"><span class="g">业务</span><span class="k">my.menuComplaints</span><div class="zh">我的投诉</div><div class="val">مەنىڭ شاعىمدارىم</div></div>
+<div class="row"><span class="g">业务</span><span class="k">allFeatures.messages</span><div class="zh">消息中心</div><div class="val">حابار ورتالىعى</div></div>
+<div class="row"><span class="g">文档</span><span class="k">seal.uploading</span><div class="zh">上传中</div><div class="val">جۇكتەلۋدە</div></div>
+<div class="row"><span class="g">文档</span><span class="k">seal.uploadFailed</span><div class="zh">上传失败，请重试</div><div class="val">جۇكتەۋ ساتسىز بولدى، قايتا سىناڭىز</div></div>
+<div class="row"><span class="g">交易</span><span class="k">pay.title</span><div class="zh">支付</div><div class="val">تولەم</div></div>
+<div class="row"><span class="g">交易</span><span class="k">order.statusPaid</span><div class="zh">等待接单</div><div class="val">قابىلداۋدى كۇتۋ</div></div>
+<div class="row long"><span class="g">长文</span><span class="k">about.boundary</span><div class="zh">需要说清楚的是：法泽是技术平台，不是律师事务所。平台提供法律知识、AI 问答、律师对接和文书排版工具；具体的法律服务由入驻律师以其所属律师事务所的名义提供，平台不直接出具法律意见、不代理诉讼、不代收诉讼费。诉讼费用由人民法院依法收取，平台不经手、也不代缴。</div><div class="val">انىق ايتۋ كەرەك: فازە تەحنيكالىق الاڭ، ادۆوكاتحانا ەمەس. الاڭ قۇقىق بىلىمىن، AI سۇراق-جاۋاب، ادۆوكاتپەن بايلانىستىرۋ جانە قۇجات تىزۋ قۇرالدارىن ۇسىنادى؛ ناقتى قۇقىق قىزمەتىن كىرگەن ادۆوكات وزىنىڭ ادۆوكاتحاناسىنىڭ اتىمەن كورسەتەدى، الاڭ بىۋاسىتە قۇقىقتىق پىكىر بەرمەيدى، داعۋاعا وكىلدىك ەتپەيدى، داعۋا اقىسىن الىپ تا قالمايدى. داعۋا اقىسىن حالىق سوتى قۇقىق بويىنشا الادى، الاڭ قولعا الىپ تا، وكىلدىك تۇردە ٴتولەپ تە قويمايدى.</div></div></div>
+  </section>
+</div>
+<p class="note">看这四件事：① 藏文有没有断行错位、tsheg 是否正常；② 维/哈的标点、书名号 «» 是否在正确一侧；③ 数字（如 18、64、9:00–20:00）方向是否正常；④ 品牌名「法泽」在 RTL 文本里位置是否合理。长文一条用来看溢出与行高。</p>
+</body>
+</html>
