@@ -248,6 +248,36 @@ export function MyPage() {
                   </View>
                 </View>
 
+                {/* 律师工作台入口：只有 roles 含 lawyer 的账号才出现。
+                    段 5 交付了工作台与「客户咨询」页，但一直没接任何界面入口——
+                    律师登录后找不到回复用户消息的地方（2026-11-09 补）。
+                    放在用户卡与余额卡之间：这是律师回来看「有没有新活」的入口，
+                    优先级高于余额。 */}
+                {isLawyer ? (
+                  <Pressable
+                    onPress={() => router.push(PAGE_ROUTES.lawyerWorkbench)}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('profile.my.lawyerWorkbench')}
+                    style={({ pressed }) => [
+                      styles.workbenchEntry,
+                      pressed ? styles.pressed : null,
+                    ]}
+                  >
+                    <View style={styles.workbenchIcon}>
+                      <Ionicons name="briefcase-outline" size={20} color={color.brand.primaryPressed} />
+                    </View>
+                    <View style={styles.workbenchBody}>
+                      <LocalizedText numberOfLines={1} style={styles.workbenchTitle}>
+                        {t('profile.my.lawyerWorkbench')}
+                      </LocalizedText>
+                      <LocalizedText numberOfLines={1} style={styles.workbenchHint}>
+                        {t('profile.my.lawyerWorkbenchHint')}
+                      </LocalizedText>
+                    </View>
+                    <Ionicons name="chevron-forward" size={16} color={color.brand.primary} />
+                  </Pressable>
+                ) : null}
+
                 {/* 余额卡：主区可点进明细；「去充值」是同级按钮（不能嵌套 Pressable——
                     react-native-web 会把 accessibilityRole=button 渲染成真实 <button>，
                     按钮套按钮是非法 HTML，控制台会报嵌套警告） */}
@@ -530,14 +560,43 @@ const styles = StyleSheet.create({
     ...typography.bodySmall,
     color: color.text.muted,
   },
+  /** 律师工作台入口（仅律师角色可见）。 */
+  workbenchEntry: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radius.md,
+    backgroundColor: color.brand.primarySoft,
+  },
+  workbenchIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: color.background.surface,
+  },
+  workbenchBody: {
+    flex: 1,
+    gap: spacing.xxs,
+  },
+  workbenchTitle: {
+    ...typography.bodyLarge,
+    color: color.text.primary,
+  },
+  workbenchHint: {
+    ...typography.micro,
+    color: color.text.secondary,
+  },
   wallet: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
     padding: spacing.lg,
     borderRadius: radius.md,
-  },
-  walletMain: {
+  },  walletMain: {
     flex: 1,
     gap: spacing.xxs,
   },

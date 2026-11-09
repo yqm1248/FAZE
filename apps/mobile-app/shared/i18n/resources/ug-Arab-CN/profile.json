@@ -58,7 +58,9 @@
     "lawyerRejected": "رەت قىلىندى",
     "lawyerDraft": "قارالما",
     "lawyerNone": "كىرمىدى",
-    "loadFailed": "ئۇچۇر يۈكلەنمىدى"
+    "loadFailed": "ئۇچۇر يۈكلەنمىدى",
+    "lawyerWorkbench": "ئادۋوكات خىزمەت ئورنى",
+    "lawyerWorkbenchHint": "خېرىدارلارنىڭ مەسلىھەتى ۋە ۋەزىپىلىرىنى كۆرۈش"
   },
   "accountSecurity": {
     "title": "ھېسابات ۋە بىخەتەرلىك",

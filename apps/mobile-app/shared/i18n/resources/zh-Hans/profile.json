@@ -58,7 +58,9 @@
     "lawyerRejected": "已驳回",
     "lawyerDraft": "草稿",
     "lawyerNone": "未入驻",
-    "loadFailed": "资料没有加载出来"
+    "loadFailed": "资料没有加载出来",
+    "lawyerWorkbench": "律师工作台",
+    "lawyerWorkbenchHint": "查看客户咨询与待办"
   },
   "accountSecurity": {
     "title": "账号与安全",

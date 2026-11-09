@@ -58,7 +58,9 @@
     "lawyerRejected": "قايتارىلدى",
     "lawyerDraft": "قارالاما",
     "lawyerNone": "كىرمەدى",
-    "loadFailed": "اقپارات جۇكتەلمەدى"
+    "loadFailed": "اقپارات جۇكتەلمەدى",
+    "lawyerWorkbench": "ادۆوكات قىزمەت ورنى",
+    "lawyerWorkbenchHint": "تۇتىنۋشىلار كەڭەسى مەن ۋەزىپەلەرىن كورۋ"
   },
   "accountSecurity": {
     "title": "ەسەپ جانە قاۋىپسىزدىك",

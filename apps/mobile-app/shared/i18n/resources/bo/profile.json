@@ -58,7 +58,9 @@
     "lawyerRejected": "ཕྱིར་སྐུར་ཟིན",
     "lawyerDraft": "རྩ་ཐོ།",
     "lawyerNone": "ཐོ་མ་འགོད",
-    "loadFailed": "ཆ་འཕྲིན་འཇུག་མ་ཐུབ"
+    "loadFailed": "ཆ་འཕྲིན་འཇུག་མ་ཐུབ",
+    "lawyerWorkbench": "ཁྲིམས་སྐྱོབ་པའི་ལས་ཁུངས",
+    "lawyerWorkbenchHint": "ཞབས་ཞུ་མཁན་གྱི་བློ་འདྲི་དང་ལས་འགན་ལྟ་བ།"
   },
   "accountSecurity": {
     "title": "རྩིས་ཁྲ་དང་བདེ་འཇགས",
