@@ -150,6 +150,14 @@ export const PAGE_ROUTES = {
   docTemplates: '/doc/templates' as Href,
   /** 我的文书（段 4 E1 的 `/doc/mine`；「全部功能」页「我的文书」入口）。 */
   docMine: '/doc/mine' as Href,
+  /** 电子签章（`/doc/seals`，段 4 E5；「我的」页「电子签章」入口）。 */
+  docSeals: '/doc/seals' as Href,
+  /** 文书表单（`/doc/form`，段 4 E3；模板列表点「使用模板」）。 */
+  docForm: '/doc/form' as Href,
+  /** 文书预览（`/doc/preview`，段 4 E4；表单「立即生成」后跳这里）。 */
+  docPreview: '/doc/preview' as Href,
+  /** 起诉状表单（`/doc/lawsuit`，段 4 E2；首页快捷入口与 `LAWSUIT-*` 模板）。 */
+  docLawsuit: '/doc/lawsuit' as Href,
 
   // ── 段 7 C5：客服 / FAQ / 投诉 / 反馈（4 页）────────────────────────
   /** 客服中心（`/support`，APP 55）。 */

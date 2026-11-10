@@ -66,6 +66,7 @@ import { Screen } from '@/shared/components/Screen';
 import { TagChip } from '@/shared/components/TagChip';
 import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
 import { useI18n } from '@/shared/i18n';
+import { PAGE_ROUTES } from '@/shared/navigation/routes';
 import { color, radius, shadow, size, spacing, typography } from '@/shared/theme';
 import { formatServerDateTime } from '@/shared/utils/serverTime';
 
@@ -87,17 +88,6 @@ import {
   shareDocument,
 } from '../api/export';
 import type { ExportKind, ExportOutcome } from '../api/export';
-
-/**
- * 路由：文书预览页与表单页。
- *
- * 为什么不从 `shared/navigation/routes.ts` 取：那份常量表不在本任务的写范围内
- * （并行开发，改它会造成写冲突）。等段 4 收口时把这两条搬进去，本文件跟着换成常量。
- */
-/** 表单页路由（E2/E3 的起诉状表单；`id` 传模板主键，`documentId` 传草稿主键）。 */
-const FORM_ROUTE = '/doc/lawsuit';
-/** 签章管理页路由（E6）。 */
-const SEALS_ROUTE = '/doc/seals';
 
 /** 轮询间隔（毫秒）：工作流 §三 E4 第 5 条 —— 3 秒。 */
 const POLL_INTERVAL_MS = 3000;
@@ -444,7 +434,7 @@ export function DocPreviewPage() {
   const backToForm = useCallback(() => {
     if (ready === null) {
       // 详情还没拿到（加载中 / 错误态）：只能进表单页，让它按模板列表自己兜底。
-      router.push(FORM_ROUTE as Href);
+      router.push(PAGE_ROUTES.docLawsuit);
       return;
     }
     const query = new URLSearchParams();
@@ -452,7 +442,7 @@ export function DocPreviewPage() {
       query.set('id', ready.doc.templateId);
     }
     query.set('documentId', ready.doc.id);
-    router.push(`${FORM_ROUTE}?${query.toString()}` as Href);
+    router.push(`${String(PAGE_ROUTES.docLawsuit)}?${query.toString()}` as Href);
   }, [ready, router]);
 
   /** 加载签名库（盖章面板打开时）。 */
@@ -1029,7 +1019,7 @@ export function DocPreviewPage() {
                   variant="outline"
                   onPress={() => {
                     setSealOpen(false);
-                    router.push(SEALS_ROUTE as Href);
+                    router.push(PAGE_ROUTES.docSeals);
                   }}
                   testID="docPreview.sign.manage"
                 />

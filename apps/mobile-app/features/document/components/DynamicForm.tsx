@@ -70,16 +70,11 @@ import { useI18n } from '@/shared/i18n';
 import type { MessageKey } from '@/shared/i18n';
 import { useAsyncResource } from '@/shared/hooks/useAsyncResource';
 import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
+import { PAGE_ROUTES } from '@/shared/navigation/routes';
 import { color, radius, size, spacing, typography } from '@/shared/theme';
 
 /** 自动保存的防抖时长（毫秒）。工作流 E2 第 3 条：改动后 5 秒。 */
 const AUTOSAVE_DELAY_MS = 5000;
-
-/** 预览页路由。路由常量由 lead 统一登记进 `shared/navigation/routes.ts`，本任务范围内先本地声明。 */
-const PREVIEW_ROUTE = '/doc/preview';
-
-/** 模板列表页路由（空态「返回模板列表」用）。 */
-const TEMPLATES_ROUTE = '/doc/templates';
 
 /** array 字段缺省上限：schema 没给 `maxItems` 时按 20 条封顶，避免无限添加。 */
 const DEFAULT_MAX_ITEMS = 20;
@@ -1068,7 +1063,7 @@ type FormPageData = {
  * @returns 可传给 router 的地址
  */
 function previewHref(documentId: string): Href {
-  return `${PREVIEW_ROUTE}?id=${encodeURIComponent(documentId)}&generating=1` as Href;
+  return `${String(PAGE_ROUTES.docPreview)}?id=${encodeURIComponent(documentId)}&generating=1` as Href;
 }
 
 /**
@@ -1128,7 +1123,7 @@ function FormEmptyState({
       <PrimaryButton
         label={t('document.form.backToTemplates')}
         variant="outline"
-        onPress={() => router.replace(TEMPLATES_ROUTE as Href)}
+        onPress={() => router.replace(PAGE_ROUTES.docTemplates)}
         style={styles.emptyAction}
         testID={`${testIDPrefix}-back-templates`}
       />

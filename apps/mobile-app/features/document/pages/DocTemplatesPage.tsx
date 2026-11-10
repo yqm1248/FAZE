@@ -3,7 +3,7 @@
  *
  * 职责：分类筛选 + 模板卡片网格；卡片显示模板名、分类与「免费生成」标识；
  *       点卡片按 `code` 前缀分流到起诉状表单页或其它文书表单页。
- * 调用方：路由壳 `app/doc/templates.tsx`；「我的」页「我的文书」入口跳到这里。
+ * 调用方：`app/doc` 目录下的模板列表路由壳（`templates.tsx`）；「我的」页「我的文书」入口跳到这里。
  * 数据来源：`GET /app/doc-templates`（只返回 `active`，见 `features/document/api/client.ts`）。
  * 注意：
  *   1. **分类不写死在 App 里**：筛选条从接口数据里收集 distinct `category`，
@@ -40,13 +40,8 @@ import { TagChip } from '@/shared/components/TagChip';
 import { useI18n } from '@/shared/i18n';
 import type { MessageKey } from '@/shared/i18n';
 import { useAsyncResource } from '@/shared/hooks/useAsyncResource';
+import { PAGE_ROUTES } from '@/shared/navigation/routes';
 import { color, radius, size, spacing, typography } from '@/shared/theme';
-
-/** 起诉状表单页路由（路由常量待 `shared/navigation/routes.ts` 统一登记）。 */
-const LAWSUIT_ROUTE = '/doc/lawsuit';
-
-/** 其它文书表单页路由（同上）。 */
-const FORM_ROUTE = '/doc/form';
 
 /** 模板 code 前缀：命中则进起诉状表单页（工作流 E1 的分流规则）。 */
 const LAWSUIT_CODE_PREFIX = 'LAWSUIT-';
@@ -96,8 +91,10 @@ function categoryLabel(
  * @returns 可传给 `router.push` 的地址
  */
 function formHref(code: string, templateId: string): Href {
-  const base = code.startsWith(LAWSUIT_CODE_PREFIX) ? LAWSUIT_ROUTE : FORM_ROUTE;
-  return `${base}?templateId=${encodeURIComponent(templateId)}` as Href;
+  const base = code.startsWith(LAWSUIT_CODE_PREFIX)
+    ? PAGE_ROUTES.docLawsuit
+    : PAGE_ROUTES.docForm;
+  return `${String(base)}?templateId=${encodeURIComponent(templateId)}` as Href;
 }
 
 /**

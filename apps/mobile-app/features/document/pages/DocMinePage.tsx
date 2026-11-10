@@ -54,6 +54,7 @@ import { PrimaryButton } from '@/shared/components/PrimaryButton';
 import { Screen } from '@/shared/components/Screen';
 import { useI18n } from '@/shared/i18n';
 import type { MessageKey } from '@/shared/i18n';
+import { PAGE_ROUTES } from '@/shared/navigation/routes';
 import { color, radius, size, spacing, typography } from '@/shared/theme';
 import { formatServerDateTime } from '@/shared/utils/serverTime';
 
@@ -62,12 +63,6 @@ const PAGE_SIZE = 20;
 
 /** 距底部多少像素时自动加载下一页。 */
 const LOAD_MORE_THRESHOLD = 120;
-
-/** 模板列表页路由。 */
-const TEMPLATES_ROUTE = '/doc/templates';
-
-/** 预览页路由（路由常量待 `shared/routes.ts` 统一登记）。 */
-const PREVIEW_ROUTE = '/doc/preview';
 
 /** 状态筛选档位。 */
 type StatusFilter = 'all' | 'draft' | 'done' | 'failed';
@@ -123,7 +118,7 @@ function statusKeyOf(status: string): MessageKey | null {
  * @returns 可传给 `router.push` 的地址
  */
 function previewHref(documentId: string): Href {
-  return `${PREVIEW_ROUTE}?id=${encodeURIComponent(documentId)}` as Href;
+  return `${String(PAGE_ROUTES.docPreview)}?id=${encodeURIComponent(documentId)}` as Href;
 }
 
 /**
@@ -349,7 +344,7 @@ export function DocMinePage() {
               />
               <HeaderIconButton
                 name="add"
-                onPress={() => router.push(TEMPLATES_ROUTE as Href)}
+                onPress={() => router.push(PAGE_ROUTES.docTemplates)}
                 size={22}
               />
             </View>
@@ -487,7 +482,7 @@ export function DocMinePage() {
               <PrimaryButton
                 label={t('document.mine.emptyAction')}
                 variant="outline"
-                onPress={() => router.push(TEMPLATES_ROUTE as Href)}
+                onPress={() => router.push(PAGE_ROUTES.docTemplates)}
                 style={styles.emptyAction}
                 testID="mine-empty-action"
               />
