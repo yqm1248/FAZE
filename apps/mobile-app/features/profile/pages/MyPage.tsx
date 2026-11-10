@@ -16,6 +16,8 @@
  *   3. 退出登录必须清本地会话（`features/profile/api/profile.ts` 的 `logout` 已处理），
  *      即使服务端失败也回登录页。
  *   4. 四态：加载（骨架）/ 错误（可重试）/ 空（资料结构恒存在，不发空态）/ 正常。
+ *   5. 本页是**常驻 tab 页**：每次重新聚焦都静默刷新三份数据（不闪骨架），
+ *      否则实名 / 余额 / 入驻状态会在整个会话里停在旧值（P1-6）。
  */
 
 import { Ionicons } from '@expo/vector-icons';
@@ -42,6 +44,7 @@ import { SectionTitle } from '@/shared/components/SectionTitle';
 import { SettingRow } from '@/shared/components/SettingRow';
 import { useI18n } from '@/shared/i18n';
 import { useAsyncResource } from '@/shared/hooks/useAsyncResource';
+import { useRefreshOnFocus } from '@/shared/hooks/useRefreshOnFocus';
 import { PAGE_ROUTES } from '@/shared/navigation/routes';
 import { color, gradient, radius, spacing, typography } from '@/shared/theme';
 import { centsFromServer } from '@/shared/utils/money';
@@ -145,6 +148,8 @@ export function MyPage() {
   const { t } = useI18n();
   const router = useRouter();
   const resource = useAsyncResource<MyData>(loadMyData);
+  // 常驻 tab：从实名 / 余额 / 入驻等二级页返回时静默刷新，整个会话都不会再看到旧状态。
+  useRefreshOnFocus(resource.reloadSilently);
   const [logoutVisible, setLogoutVisible] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
 

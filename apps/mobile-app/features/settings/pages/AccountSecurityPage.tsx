@@ -23,6 +23,7 @@ import { SectionTitle } from '@/shared/components/SectionTitle';
 import { SettingRow } from '@/shared/components/SettingRow';
 import { useI18n } from '@/shared/i18n';
 import { useAsyncResource } from '@/shared/hooks/useAsyncResource';
+import { useRefreshOnFocus } from '@/shared/hooks/useRefreshOnFocus';
 import { PAGE_ROUTES } from '@/shared/navigation/routes';
 import { color, spacing, typography } from '@/shared/theme';
 
@@ -57,6 +58,8 @@ export function AccountSecurityPage() {
   const { t } = useI18n();
   const router = useRouter();
   const profileResource = useAsyncResource(getProfile);
+  // 从「修改密码 / 换绑手机 / 实名」返回时静默刷新状态（支付密码/实名可能已变）。
+  useRefreshOnFocus(profileResource.reloadSilently);
 
   return (
     <Screen edges={['top', 'left', 'right', 'bottom']}>
