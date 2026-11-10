@@ -8,7 +8,8 @@
  *   1. **首屏（第 1 步）必须有合规说明条**，文案是设计稿原文，逐字照抄，不许改写
  *      （工作流 §三 B1 第 2 条）。
  *   2. **没有「保存草稿」**（设计稿明确没有，工作流第 3 条也不加）。中途退出 = 数据丢失，
- *      因此返回时弹确认（用 `Alert.alert`，AGENTS §5 允许；不许用 `alert()`）。
+ *      因此返回时弹确认；确认框用 `shared/components/ConfirmDialog`——
+ *      **不许用 `Alert.alert`**：`react-native-web` 里它是空函数，Web 上点了没反应（P1-5）。
  *   3. 校验失败在**行内**提示，不用弹窗（工作流 B1 第 6 条）。
  *   4. 证据段 5 只做占位：走段 1 的 OSS 直传，不在立案接口传文件流（B1「卡住怎么办」），
  *      所以 `evidenceUrls` 传空数组。
@@ -25,11 +26,12 @@
 
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
 import { createCase } from '@/features/case/api/client';
 import type { CaseTypeCode } from '@/features/case/api/client';
 import { AppHeader } from '@/shared/components/AppHeader';
+import { ConfirmDialog } from '@/shared/components/ConfirmDialog';
 import { LocalizedText } from '@/shared/components/LocalizedText';
 import { PrimaryButton } from '@/shared/components/PrimaryButton';
 import { Screen } from '@/shared/components/Screen';
@@ -99,6 +101,8 @@ export function FilingPage() {
   const [amountYuan, setAmountYuan] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [errorKey, setErrorKey] = useState<MessageKey | null>(null);
+  /** 「离开将丢失已填内容」确认框是否可见。 */
+  const [leaveVisible, setLeaveVisible] = useState(false);
 
   /**
    * 是否已经填过任何内容（决定返回时要不要弹「离开将丢失」）。
@@ -159,7 +163,9 @@ export function FilingPage() {
   };
 
   /**
-   * 退出确认：填过内容才弹，避免误触丢数据。
+   * 退出确认：填过内容才弹确认框，避免误触丢数据。
+   *
+   * 副作用：未填内容直接 `router.back()`；填过则打开 `ConfirmDialog`。
    *
    * @returns 无
    */
@@ -168,16 +174,7 @@ export function FilingPage() {
       router.back();
       return;
     }
-    Alert.alert(t('case.filing.leaveTitle'), t('case.filing.leaveBody'), [
-      { text: t('case.filing.leaveStay'), style: 'cancel' },
-      {
-        text: t('case.filing.leaveExit'),
-        style: 'destructive',
-        onPress: () => {
-          router.back();
-        },
-      },
-    ]);
+    setLeaveVisible(true);
   };
 
   /** 提交（仅第 4 步）。 */
@@ -531,6 +528,20 @@ export function FilingPage() {
           </View>
         </View>
       </ScrollView>
+
+      <ConfirmDialog
+        visible={leaveVisible}
+        title={t('case.filing.leaveTitle')}
+        description={t('case.filing.leaveBody')}
+        confirmLabel={t('case.filing.leaveExit')}
+        cancelLabel={t('case.filing.leaveStay')}
+        onConfirm={() => {
+          setLeaveVisible(false);
+          router.back();
+        }}
+        onCancel={() => setLeaveVisible(false)}
+        danger
+      />
     </Screen>
   );
 }

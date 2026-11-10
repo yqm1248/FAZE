@@ -50,6 +50,14 @@ export default tseslint.config(
               message:
                 '用户可见文本必须走 <LocalizedText>；原生 Text 只允许出现在 LocalizedText.tsx 与 LtrText.tsx。',
             },
+            {
+              // RNW 的 Alert.alert 是空函数：Web 上点了没反应（P1-5 的根因）。
+              // 二次确认统一用 shared/components/ConfirmDialog，轻提示用 AppToast。
+              name: 'react-native',
+              importNames: ['Alert'],
+              message:
+                'RNW 的 Alert.alert 是空函数（点了没反应）；二次确认用 shared/components/ConfirmDialog，轻提示用 AppToast。',
+            },
           ],
         },
       ],

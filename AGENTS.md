@@ -122,7 +122,7 @@ services/faze-api/src/main/java/com/faze/
 - 禁止使用 `rgba()` 或 `#RRGGBB` 字面量写颜色（令牌文件除外，ESLint 已强制）。
 - 禁止 `left` / `right` 硬编码，一律 `start` / `end`（RTL 必需）。
 - 禁止把原项目的 HTML 语义标签习惯带进来（`<div>`、`<h2>`）；RN 只有 `View` / `Text`。
-- 禁止使用 `alert()`；统一 `AppToast` 或 `Alert.alert`。
+- 禁止 `alert()`；也**禁止 `Alert.alert`**——`react-native-web` 的实现是空函数，Web 上点了没反应。二次确认统一用 `shared/components/ConfirmDialog`，轻提示用 `AppToast`。
 - 禁止在业务代码里手写 `U+2066` 等 BiDi 控制符；一律走 `shared/components/LtrText`。
 - 禁止把敏感信息（身份证影像、手写签名、聊天原文）放进日志、错误上报或公开可读的 OSS 路径。
 - 禁止使用 `openhtmltopdf` 生成**含少数民族文字**的 PDF（不做 shaping）。中文场景可用（文书只做中文，见《第 4 段工作流》）。
