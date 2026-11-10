@@ -1,0 +1,23 @@
+{
+  "_comment": "数据完整性巡检的**已知非零项台账**。data-integrity.sql 的规则是「n 必须为 0」，但当前有两项因根因未消除而恒为 1。把它们写在这里，是为了让「红灯」和「已知红灯」区分开——否则 CI 只能要么长期红、要么把整个检查关掉，两种都是坏结局。",
+  "_rules": [
+    "maxAllowed 里的键是检查编号（如 A12），值是「允许的最大条数」。实测 n ≤ 允许值 → 通过；n 超过 → 失败。",
+    "**用 ≤ 而不是 =**：CI 的库是 Flyway 从空库建的、没有这批脏数据，实测 0 条也必须通过。",
+    "每一项都必须写清 reason（为什么现在不清）与 closeWhen（什么条件下可以删掉这条豁免）。**没有 closeWhen 的豁免等于永久放弃这条检查。**",
+    "新增豁免必须同时改 docs/facts/DEFERRED.md 或 DRIFT.md 对应行，不允许只在这里悄悄加一条。"
+  ],
+  "maxAllowed": {
+    "A12": {
+      "n": 1,
+      "reason": "user 3 的 realname_auth=rejected 而 app_user.realname_status=approved。负责人 2026-11-11 定方案 C：不改数据。根因是 DRIFT-015（实名状态两套真相），改数据只是让两边一致、不解决问题；且该用户是 deploy/verify-admin-api.mjs 硬编码的钱包验收账号（walletUser=3），改成 rejected 会断管理端验收，改成 approved 等于伪造审核记录。",
+      "closeWhen": "DRIFT-015 修完（realname_status 由 realname_auth 派生）后重跑，本项应自动归 0；届时删掉本条豁免。",
+      "owner": "DRIFT-015"
+    },
+    "A20": {
+      "n": 1,
+      "reason": "case_library.law_refs 写「第七百三十三条」，其 lawItemId=23 经 V710 已正名为「第七百二十二条」。根因是**法条库缺真正的 733 正文**（V710 明确不补录、等人工核对 flk.npc.gov.cn），属段八。改快照只会把错误藏起来。",
+      "closeWhen": "补录法条库真正的第七百三十三条正文并回写快照（段八）后重跑，归 0 时删掉本条豁免。",
+      "owner": "DRIFT-018 / DEFERRED"
+    }
+  }
+}

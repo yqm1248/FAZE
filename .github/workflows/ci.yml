@@ -80,6 +80,12 @@ jobs:
           java-version: '17'
           cache: maven
 
+      # 巡检脚本是 Node 写的（scripts/monitor/check-integrity.mjs），需要 node。
+      # ubuntu-latest 自带 mysql 客户端，不需要额外装。
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
       # 建两个账号，把「迁移有 DDL / 运行没 DDL」这个约束在 CI 里也立起来。
       # 注意这里给 faze_app 的是**库级** SELECT/INSERT/UPDATE/DELETE（不是逐表）：
       # 表还没建，无法逐表授权；逐表形态由本地 sync-db-grants.ps1 负责。
@@ -122,6 +128,22 @@ jobs:
             exit 1
           fi
           echo "OK：faze_app 无法建表（迁移只走 faze_migrate）"
+
+      # ── 数据完整性巡检（G7 接入）────────────────────────────────────
+      # 20 条只读检查，判读规则「n 必须为 0」。已知非零项由 scripts/monitor/known-issues.json
+      # 逐条豁免，且每条都写了关闭条件——没有台账的话只有两种坏结局：长期红（人开始忽略）
+      # 或整条关掉（真问题也看不见）。
+      #
+      # CI 的库是 Flyway 从空库建的，A12/A20 会实测 0 条；台账用的是「≤ 允许值」而不是
+      # 「= 允许值」，所以空库也通过。开发者本地库有那两条历史脏数据，实测各 1 条，同样通过。
+      - name: 数据完整性巡检（20 条 DIRT 检查）
+        run: node scripts/monitor/check-integrity.mjs
+        env:
+          FAZE_DB_HOST: 127.0.0.1
+          FAZE_DB_PORT: '3306'
+          FAZE_DB_USER: faze_app
+          FAZE_DB_PASSWORD: ci_app_pw_not_a_secret
+          FAZE_DB_NAME: faze
 
   # ── APP：tsc + eslint + 无裸 <Text> + i18n 完整性 ──────────────────
   mobile:
@@ -198,6 +220,13 @@ jobs:
       - name: 设计稿与页面映射完整
         working-directory: .
         run: node scripts/facts/check-pages.mjs
+
+      # 承诺性注释：把「代码里说我保证做到 X」变成可 diff 的清单。
+      # 不要求每条承诺都加标记（实测 444 条，绝大多数是对的），而是要求「总量可见」——
+      # 新增一条承诺时清单会变，人必须看一眼它是真的还是吹的。
+      - name: 承诺性注释与文案（清单不漂移 + 范围承诺在台账内）
+        working-directory: .
+        run: node scripts/facts/check-contracts.mjs --check
 
   # ── PC 后台：能构建即可（RuoYi 前端没有 lint script） ──────────────
   admin-web:
