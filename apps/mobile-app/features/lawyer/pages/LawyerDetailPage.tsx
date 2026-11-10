@@ -43,6 +43,7 @@ import { Screen } from '@/shared/components/Screen';
 import { useI18n } from '@/shared/i18n';
 import type { MessageKey } from '@/shared/i18n';
 import { useAsyncResource } from '@/shared/hooks/useAsyncResource';
+import { useRefreshOnFocus } from '@/shared/hooks/useRefreshOnFocus';
 import { payHref } from '@/shared/navigation/routes';
 import { color, radius, size, spacing, typography } from '@/shared/theme';
 import { centsFromServer } from '@/shared/utils/money';
@@ -153,6 +154,8 @@ export function LawyerDetailPage() {
   const resource = useAsyncResource<LawyerDetail>(() => getLawyerDetail(lawyerId), {
     enabled: lawyerId !== '',
   });
+  // 从下单 / 会话返回时静默刷新资料与关注状态（不闪骨架）。
+  useRefreshOnFocus(resource.reloadSilently);
   const [reviews, setReviews] = useState<LawyerReview[]>([]);
   const [reviewTotal, setReviewTotal] = useState(0);
   const [reviewPage, setReviewPage] = useState(0);

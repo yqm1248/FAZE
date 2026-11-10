@@ -28,6 +28,7 @@ import { InfoRow } from '@/shared/components/SettingRow';
 import { StatusHero } from '@/shared/components/StatusHero';
 import { useI18n } from '@/shared/i18n';
 import { useAsyncResource } from '@/shared/hooks/useAsyncResource';
+import { useRefreshOnFocus } from '@/shared/hooks/useRefreshOnFocus';
 import { PAGE_ROUTES } from '@/shared/navigation/routes';
 import { color, radius, spacing, typography } from '@/shared/theme';
 import { formatServerDateTime } from '@/shared/utils/serverTime';
@@ -44,6 +45,8 @@ export function LawyerJoinStatusPage() {
   const router = useRouter();
   const toast = useToast();
   const resource = useAsyncResource(getCurrentApplication);
+  // 从入驻表单 / 材料补交页返回时静默刷新审核状态（不闪骨架）。
+  useRefreshOnFocus(resource.reloadSilently);
 
   return (
     <Screen edges={['top', 'left', 'right', 'bottom']}>

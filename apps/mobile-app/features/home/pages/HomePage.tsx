@@ -42,6 +42,7 @@ import { Screen } from '@/shared/components/Screen';
 import { SectionTitle } from '@/shared/components/SectionTitle';
 import { useI18n } from '@/shared/i18n';
 import type { MessageKey } from '@/shared/i18n';
+import { useRefreshOnFocus } from '@/shared/hooks/useRefreshOnFocus';
 import { articleHref, PAGE_ROUTES, articlesHref } from '@/shared/navigation/routes';
 import { color, radius, size, spacing, typography } from '@/shared/theme';
 import { formatServerDate } from '@/shared/utils/serverTime';
@@ -129,11 +130,20 @@ export function HomePage() {
   /** 挂载时定一次问候语：只取小时，不随页面停留变化。 */
   const [greetingKey] = useState<MessageKey>(() => greetingKeyOf(new Date().getHours()));
 
-  /** 拉「每日学法」区块。 */
-  const loadArticles = useCallback(async (): Promise<void> => {
-    setPhase('loading');
+  /**
+   * 拉「每日学法」区块。
+   *
+   * @param silent 静默刷新（聚焦用）：不置 loading、失败保留已有文章
+   */
+  const loadArticles = useCallback(async (silent = false): Promise<void> => {
+    if (!silent) {
+      setPhase('loading');
+    }
     const result = await getArticles({ pageNum: 1, pageSize: DAILY_LEARNING_LIMIT });
     if (!result.ok) {
+      if (silent) {
+        return;
+      }
       setPhase('error');
       return;
     }
@@ -144,6 +154,13 @@ export function HomePage() {
   useEffect(() => {
     void loadArticles();
   }, [loadArticles]);
+
+  // 常驻 tab：从文章 / 律师等二级页返回时静默刷新「每日学法」（不闪骨架）。
+  useRefreshOnFocus(
+    useCallback(() => {
+      void loadArticles(true);
+    }, [loadArticles]),
+  );
 
   /**
    * 打开起诉状表单。

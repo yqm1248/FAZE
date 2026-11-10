@@ -20,7 +20,7 @@
  *              case-more-{type} / case-empty / case-error / case-retry
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
@@ -34,6 +34,7 @@ import { LoadingState } from '@/shared/components/LoadingState';
 import { LocalizedText } from '@/shared/components/LocalizedText';
 import { Screen } from '@/shared/components/Screen';
 import { useI18n } from '@/shared/i18n';
+import { useRefreshOnFocus } from '@/shared/hooks/useRefreshOnFocus';
 import type { MessageKey } from '@/shared/i18n';
 import { PAGE_ROUTES } from '@/shared/navigation/routes';
 import type { AppError } from '@/shared/api/types';
@@ -71,26 +72,34 @@ export function CaseListPage() {
   const [error, setError] = useState<AppError | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState('');
+  /** 是否已有分组用「查看更多」翻过页：翻过就跳过聚焦刷新，避免列表被打回第一屏。 */
+  const pagedRef = useRef(false);
 
   /**
    * 并发拉三组首屏。
    *
    * @param isRefresh 是否是下拉刷新（刷新时不显示骨架，避免闪屏）
+   * @param silent    静默刷新（聚焦用）：不置 loading、失败保留已有列表
    */
-  const load = useCallback(async (isRefresh = false): Promise<void> => {
-    if (!isRefresh) {
-      setPhase('loading');
-    }
-    const results = await Promise.all(
-      GROUPS.map((group) => fetchCases(group.type, null, lang, PAGE_SIZE)),
-    );
-    const failed = results.find((item) => !item.ok);
-    if (failed !== undefined && !failed.ok) {
-      setError(failed.error);
-      setPhase('error');
-      setRefreshing(false);
-      return;
-    }
+  const load = useCallback(
+    async (isRefresh = false, silent = false): Promise<void> => {
+      if (!isRefresh && !silent) {
+        setPhase('loading');
+      }
+      const results = await Promise.all(
+        GROUPS.map((group) => fetchCases(group.type, null, lang, PAGE_SIZE)),
+      );
+      const failed = results.find((item) => !item.ok);
+      if (failed !== undefined && !failed.ok) {
+        if (silent) {
+          setRefreshing(false);
+          return;
+        }
+        setError(failed.error);
+        setPhase('error');
+        setRefreshing(false);
+        return;
+      }
     const next: Record<string, GroupState> = {};
     let totalCount = 0;
     results.forEach((result, index) => {
@@ -114,6 +123,16 @@ export function CaseListPage() {
     void load();
   }, [load]);
 
+  // 从案例详情返回时静默刷新三组首屏；已用「查看更多」翻过页则跳过（避免列表被打回第一屏）。
+  useRefreshOnFocus(
+    useCallback(() => {
+      if (pagedRef.current) {
+        return;
+      }
+      void load(true, true);
+    }, [load]),
+  );
+
   /**
    * 某一组加载更多（游标追加）。
    *
@@ -125,6 +144,7 @@ export function CaseListPage() {
       return;
     }
     setLoadingMore(type);
+    pagedRef.current = true;
     const res = await fetchCases(type, current.cursor, lang, PAGE_SIZE);
     setLoadingMore('');
     if (!res.ok) {

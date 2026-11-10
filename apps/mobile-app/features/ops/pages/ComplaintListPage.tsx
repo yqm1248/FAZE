@@ -38,6 +38,7 @@ import { Screen } from '@/shared/components/Screen';
 import { useI18n } from '@/shared/i18n';
 import type { MessageKey } from '@/shared/i18n';
 import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
+import { useRefreshOnFocus } from '@/shared/hooks/useRefreshOnFocus';
 import { PAGE_ROUTES } from '@/shared/navigation/routes';
 import { color, radius, spacing, typography } from '@/shared/theme';
 import { formatServerDateTime } from '@/shared/utils/serverTime';
@@ -177,11 +178,20 @@ export function ComplaintListPage() {
   /** 是否正在加载更多（防连点）。 */
   const [loadingMore, setLoadingMore] = useState(false);
 
-  /** 拉第一页（首屏与错误态重试共用）。 */
-  const loadFirstPage = useCallback(async () => {
-    setState({ phase: 'loading' });
+  /**
+   * 拉第一页（首屏与错误态重试共用）。
+   *
+   * @param silent 静默刷新（聚焦用）：不置 loading、失败保留已有列表
+   */
+  const loadFirstPage = useCallback(async (silent = false) => {
+    if (!silent) {
+      setState({ phase: 'loading' });
+    }
     const result = await listMyComplaints(1, PAGE_SIZE);
     if (!result.ok) {
+      if (silent) {
+        return;
+      }
       setState({ phase: 'error', error: result.error });
       return;
     }
@@ -199,6 +209,16 @@ export function ComplaintListPage() {
   useEffect(() => {
     void loadFirstPage();
   }, [loadFirstPage]);
+
+  // 从投诉详情 / 提交页返回时静默刷新；已翻页时跳过，避免打回第 1 页。
+  useRefreshOnFocus(
+    useCallback(() => {
+      if (page !== 1) {
+        return;
+      }
+      void loadFirstPage(true);
+    }, [loadFirstPage, page]),
+  );
 
   /** 加载下一页：失败只 toast，不清空已加载数据。 */
   const loadMore = async () => {

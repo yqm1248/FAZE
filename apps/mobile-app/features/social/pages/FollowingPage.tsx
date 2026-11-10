@@ -31,6 +31,7 @@ import { PrimaryButton } from '@/shared/components/PrimaryButton';
 import { Screen } from '@/shared/components/Screen';
 import { useI18n } from '@/shared/i18n';
 import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
+import { useRefreshOnFocus } from '@/shared/hooks/useRefreshOnFocus';
 import { chatHref, PAGE_ROUTES } from '@/shared/navigation/routes';
 import { color, radius, spacing, typography } from '@/shared/theme';
 import { formatServerDate, parseServerTime } from '@/shared/utils/serverTime';
@@ -88,11 +89,20 @@ export function FollowingPage() {
   /** 正在取关的律师 id（防连点）。 */
   const [removingId, setRemovingId] = useState<string | null>(null);
 
-  /** 拉关注列表。 */
-  const load = useCallback(async () => {
-    setState({ phase: 'loading' });
+  /**
+   * 拉关注列表。
+   *
+   * @param silent 静默刷新（聚焦用）：不置 loading、失败保留已有列表
+   */
+  const load = useCallback(async (silent = false) => {
+    if (!silent) {
+      setState({ phase: 'loading' });
+    }
     const result = await getFollows();
     if (!result.ok) {
+      if (silent) {
+        return;
+      }
       setState({ phase: 'error', error: result.error });
       return;
     }
@@ -102,6 +112,13 @@ export function FollowingPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // 从律师详情返回时静默刷新关注状态（不闪骨架）。
+  useRefreshOnFocus(
+    useCallback(() => {
+      void load(true);
+    }, [load]),
+  );
 
   /**
    * 取消关注。

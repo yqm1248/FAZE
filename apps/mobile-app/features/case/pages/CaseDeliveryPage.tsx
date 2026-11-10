@@ -43,6 +43,7 @@ import { PrimaryButton } from '@/shared/components/PrimaryButton';
 import { Screen } from '@/shared/components/Screen';
 import { useI18n } from '@/shared/i18n';
 import type { MessageKey } from '@/shared/i18n';
+import { useRefreshOnFocus } from '@/shared/hooks/useRefreshOnFocus';
 import { PAGE_ROUTES } from '@/shared/navigation/routes';
 import type { AppError } from '@/shared/api/types';
 import { color, radius, size, spacing, typography } from '@/shared/theme';
@@ -112,23 +113,42 @@ export function CaseDeliveryPage() {
   const [actionError, setActionError] = useState<MessageKey | null>(null);
   const [receiptOpen, setReceiptOpen] = useState<string | null>(null);
 
-  /** 拉列表。 */
-  const load = useCallback(async (): Promise<void> => {
-    setPhase('loading');
-    const res = await fetchDeliveries(caseId, null);
-    if (!res.ok) {
-      setError(res.error);
-      setPhase('error');
-      return;
-    }
-    setError(null);
-    setRows(res.data.list);
-    setPhase('success');
-  }, [caseId]);
+  /**
+   * 拉列表。
+   *
+   * @param silent 静默刷新（聚焦用）：不置 loading、失败保留已有列表
+   */
+  const load = useCallback(
+    async (silent = false): Promise<void> => {
+      if (!silent) {
+        setPhase('loading');
+      }
+      const res = await fetchDeliveries(caseId, null);
+      if (!res.ok) {
+        if (silent) {
+          return;
+        }
+        setError(res.error);
+        setPhase('error');
+        return;
+      }
+      setError(null);
+      setRows(res.data.list);
+      setPhase('success');
+    },
+    [caseId],
+  );
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  // 从签收面板 / 案件进度返回时静默刷新送达状态（不闪骨架）。
+  useRefreshOnFocus(
+    useCallback(() => {
+      void load(true);
+    }, [load]),
+  );
 
   /** 改送达方式。 */
   const onChooseMethod = async (row: DeliveryRow, code: DeliveryMethodCode): Promise<void> => {

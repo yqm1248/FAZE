@@ -40,6 +40,7 @@ import { TagChip } from '@/shared/components/TagChip';
 import { useI18n } from '@/shared/i18n';
 import type { MessageKey } from '@/shared/i18n';
 import { useAsyncResource } from '@/shared/hooks/useAsyncResource';
+import { useRefreshOnFocus } from '@/shared/hooks/useRefreshOnFocus';
 import { PAGE_ROUTES } from '@/shared/navigation/routes';
 import { color, radius, size, spacing, typography } from '@/shared/theme';
 
@@ -157,6 +158,8 @@ export function DocTemplatesPage() {
   const resource = useAsyncResource(fetchTemplates, {
     emptyWhen: (list) => list.length === 0,
   });
+  // 从表单 / 预览返回时静默刷新模板列表（不闪骨架）。
+  useRefreshOnFocus(resource.reloadSilently);
   const [activeCategory, setActiveCategory] = useState<string>(ALL_CATEGORIES);
 
   /**

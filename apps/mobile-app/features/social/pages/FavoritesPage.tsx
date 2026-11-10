@@ -33,6 +33,7 @@ import { PrimaryButton } from '@/shared/components/PrimaryButton';
 import { Screen } from '@/shared/components/Screen';
 import { useI18n } from '@/shared/i18n';
 import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
+import { useRefreshOnFocus } from '@/shared/hooks/useRefreshOnFocus';
 import { PAGE_ROUTES } from '@/shared/navigation/routes';
 import { color, radius, spacing, typography } from '@/shared/theme';
 
@@ -69,12 +70,22 @@ export function FavoritesPage() {
   /** 正在取消的条目 key（防连点重复请求）。 */
   const [removingKey, setRemovingKey] = useState<string | null>(null);
 
-  /** 拉当前分类列表；成功后同步计数缓存。 */
+  /**
+   * 拉当前分类列表；成功后同步计数缓存。
+   *
+   * @param targetType 分类
+   * @param silent     静默刷新（聚焦用）：不置 loading、失败保留已有列表
+   */
   const load = useCallback(
-    async (targetType: SocialTargetType) => {
-      setState({ phase: 'loading' });
+    async (targetType: SocialTargetType, silent = false) => {
+      if (!silent) {
+        setState({ phase: 'loading' });
+      }
       const result = await getFavorites(targetType);
       if (!result.ok) {
+        if (silent) {
+          return;
+        }
         setState({ phase: 'error', error: result.error });
         return;
       }
@@ -88,6 +99,13 @@ export function FavoritesPage() {
   useEffect(() => {
     void load(tab);
   }, [load, tab]);
+
+  // 从收藏详情返回时静默刷新当前分类（不闪骨架）。
+  useRefreshOnFocus(
+    useCallback(() => {
+      void load(tab, true);
+    }, [load, tab]),
+  );
 
   /**
    * 取消收藏一条。

@@ -35,6 +35,7 @@ import { Screen } from '@/shared/components/Screen';
 import { SearchBar } from '@/shared/components/SearchBar';
 import { useI18n } from '@/shared/i18n';
 import type { MessageKey } from '@/shared/i18n';
+import { useRefreshOnFocus } from '@/shared/hooks/useRefreshOnFocus';
 import { lawyerDetailHref, PAGE_ROUTES } from '@/shared/navigation/routes';
 import { color, radius, size, spacing, typography } from '@/shared/theme';
 import { centsFromServer } from '@/shared/utils/money';
@@ -197,10 +198,11 @@ export function LawyerListPage() {
    *
    * @param targetPage 页码（从 1 开始）
    * @param replace    是否替换现有列表
+   * @param silent     静默刷新（聚焦用）：不置 loading、失败保留已有列表
    */
   const load = useCallback(
-    async (targetPage: number, replace: boolean) => {
-      if (replace) {
+    async (targetPage: number, replace: boolean, silent = false) => {
+      if (replace && !silent) {
         setPhase('loading');
       }
       const result = await getLawyers({
@@ -210,6 +212,9 @@ export function LawyerListPage() {
         keyword,
       });
       if (!result.ok) {
+        if (silent) {
+          return;
+        }
         setError(result.error);
         setPhase('error');
         return;
@@ -228,6 +233,16 @@ export function LawyerListPage() {
   useEffect(() => {
     void load(1, true);
   }, [load]);
+
+  // 从律师详情返回时静默刷新当前搜索/分类；已翻页时跳过，避免打回第 1 页。
+  useRefreshOnFocus(
+    useCallback(() => {
+      if (pageNum !== 1) {
+        return;
+      }
+      void load(1, true, true);
+    }, [load, pageNum]),
+  );
 
   /**
    * 加载更多。

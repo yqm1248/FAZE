@@ -45,6 +45,7 @@ import { LtrText } from '@/shared/components/LtrText';
 import { Screen } from '@/shared/components/Screen';
 import { useI18n } from '@/shared/i18n';
 import type { MessageKey } from '@/shared/i18n';
+import { useRefreshOnFocus } from '@/shared/hooks/useRefreshOnFocus';
 import { aiChatConversationHref } from '@/shared/navigation/routes';
 import { color, size, spacing, typography } from '@/shared/theme';
 import { parseServerTime } from '@/shared/utils/serverTime';
@@ -207,11 +208,20 @@ export function AiHistoryPage() {
   /** 删除请求进行中（确认框按钮置 busy，防连点）。 */
   const [deleting, setDeleting] = useState(false);
 
-  /** 拉第一页（重试与首屏共用）。 */
-  const loadFirstPage = useCallback(async (): Promise<void> => {
-    setPhase('loading');
+  /**
+   * 拉第一页（重试与首屏共用）。
+   *
+   * @param silent 静默刷新（聚焦用）：不置 loading、失败保留已有列表
+   */
+  const loadFirstPage = useCallback(async (silent = false): Promise<void> => {
+    if (!silent) {
+      setPhase('loading');
+    }
     const result = await listConversations(1, PAGE_SIZE);
     if (!result.ok) {
+      if (silent) {
+        return;
+      }
       setError(result.error);
       setPhase('error');
       return;
@@ -226,6 +236,16 @@ export function AiHistoryPage() {
   useEffect(() => {
     void loadFirstPage();
   }, [loadFirstPage]);
+
+  // 从 AI 会话返回时静默刷新历史；已翻页时跳过，避免打回第 1 页。
+  useRefreshOnFocus(
+    useCallback(() => {
+      if (pageNum !== 1) {
+        return;
+      }
+      void loadFirstPage(true);
+    }, [loadFirstPage, pageNum]),
+  );
 
   /** 上拉加载下一页（`hasMore=false` 时不再请求）。 */
   const loadNextPage = useCallback(async (): Promise<void> => {

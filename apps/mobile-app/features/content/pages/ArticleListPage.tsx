@@ -30,6 +30,7 @@ import { Screen } from '@/shared/components/Screen';
 import { TagChip } from '@/shared/components/TagChip';
 import { useI18n } from '@/shared/i18n';
 import type { MessageKey } from '@/shared/i18n';
+import { useRefreshOnFocus } from '@/shared/hooks/useRefreshOnFocus';
 import { articleHref } from '@/shared/navigation/routes';
 import { useRouter } from 'expo-router';
 import { color, spacing, typography } from '@/shared/theme';
@@ -66,11 +67,20 @@ export function ArticleListPage() {
   const [error, setError] = useState<AppError | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
 
-  /** 拉第一页（切分类时重置）。 */
-  const loadFirst = useCallback(async (): Promise<void> => {
-    setPhase('loading');
+  /**
+   * 拉第一页（切分类时重置）。
+   *
+   * @param silent 静默刷新（聚焦用）：不置 loading、失败保留已有列表
+   */
+  const loadFirst = useCallback(async (silent = false): Promise<void> => {
+    if (!silent) {
+      setPhase('loading');
+    }
     const result = await getArticles({ pageNum: 1, pageSize: PAGE_SIZE, category });
     if (!result.ok) {
+      if (silent) {
+        return;
+      }
       setError(result.error);
       setPhase('error');
       return;
@@ -85,6 +95,16 @@ export function ArticleListPage() {
   useEffect(() => {
     void loadFirst();
   }, [loadFirst]);
+
+  // 从文章详情返回时静默刷新；已翻页时跳过，避免打回第 1 页。
+  useRefreshOnFocus(
+    useCallback(() => {
+      if (pageNum !== 1) {
+        return;
+      }
+      void loadFirst(true);
+    }, [loadFirst, pageNum]),
+  );
 
   /** 加载下一页。 */
   const loadMore = async (): Promise<void> => {

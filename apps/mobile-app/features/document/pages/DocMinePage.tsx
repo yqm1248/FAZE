@@ -54,6 +54,7 @@ import { PrimaryButton } from '@/shared/components/PrimaryButton';
 import { Screen } from '@/shared/components/Screen';
 import { useI18n } from '@/shared/i18n';
 import type { MessageKey } from '@/shared/i18n';
+import { useRefreshOnFocus } from '@/shared/hooks/useRefreshOnFocus';
 import { PAGE_ROUTES } from '@/shared/navigation/routes';
 import { color, radius, size, spacing, typography } from '@/shared/theme';
 import { formatServerDateTime } from '@/shared/utils/serverTime';
@@ -208,12 +209,13 @@ export function DocMinePage() {
    *
    * @param targetPage 页码（从 1 开始）
    * @param mode       替换首屏 / 刷新 / 追加
+   * @param silent     静默刷新（聚焦用）：不置 loading、失败保留已有列表
    */
   const load = useCallback(
-    async (targetPage: number, mode: LoadMode) => {
+    async (targetPage: number, mode: LoadMode, silent = false) => {
       const seq = requestSeqRef.current + 1;
       requestSeqRef.current = seq;
-      if (mode === 'replace') {
+      if (mode === 'replace' && !silent) {
         setPhase('loading');
       }
       setError(null);
@@ -228,6 +230,9 @@ export function DocMinePage() {
         return;
       }
       if (!result.ok) {
+        if (silent) {
+          return;
+        }
         if (mode === 'append') {
           toast.show(t('document.mine.refreshFailed'));
           return;
@@ -250,6 +255,16 @@ export function DocMinePage() {
   useEffect(() => {
     void load(1, 'replace');
   }, [load]);
+
+  // 从模板页 / 预览页返回时静默刷新当前筛选；已翻页时跳过，避免打回第 1 页。
+  useRefreshOnFocus(
+    useCallback(() => {
+      if (pageNum !== 1) {
+        return;
+      }
+      void load(1, 'refresh', true);
+    }, [load, pageNum]),
+  );
 
   /**
    * 下拉刷新：保留列表，重新拉第 1 页。
