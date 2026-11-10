@@ -8,6 +8,8 @@
  *   2. 推给对端的 `chat.read` 带 `readerRole`：客户端用它判断「我发的消息被谁读了」。
  *   3. 已读不上报给发送端自己（发送端已经知道自己的已读位置，回推只是噪音）。
  *   4. `lastReadSeq` 由服务端 clamp 到会话最大 seq：客户端时钟/竞态导致的超前值不该被接受。
+ *   5. **只有 `MarkReadResult#advanced` 为真时才推**：重复上报（重连补报同一位置、
+ *      客户端 effect 重跑）不推，否则对端收到回执→重渲染→再上报，形成已读回环风暴。
  */
 package com.faze.modules.conversation.ws.handler;
 
@@ -49,6 +51,12 @@ public class ChatReadHandler implements ChatTypeHandler {
         ConversationMember member = conversationService.assertMember(conversationId, context.userId());
         MessageService.MarkReadResult result = messageService.markRead(context.userId(), conversationId,
                 lastReadSeq);
+
+        // 已读位置没前进（重复上报 / 重连补报同一位置）就不推：
+        // 推了只会让对端重渲染并可能再触发它自己的上报，形成回环。
+        if (!result.advanced()) {
+            return;
+        }
 
         Long peerUserId = member.getPeerUserId();
         if (peerUserId == null) {

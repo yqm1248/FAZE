@@ -19,6 +19,10 @@
  *      → 把 key 当 `fileUrl` 发出」。本页只负责选择、上传、发送与挂载；缩略图/文件卡片/全屏
  *      查看在 `features/conversation/components/` 下的三个组件里。上传期间输入区禁用，防重复点击。
  *   5. 撤回入口：长按自己的消息 → 确认框 → `chat.recall`（服务端还会校验 2 分钟窗口）。
+ *   6. **气泡方向与撤回归属只看 `message.mine`**（后端 `MessageVO.mine`，查看者视角）：
+ *      律师端与用户端共用本页，不能再用 `senderRole === 'lawyer'` 判方向（写死用户视角，
+ *      律师端会全反）；也不能用 senderId 与当前用户 id 比较（分域 id，常 false）。
+ *      一律 `mine === true` 判断，缺失时降级为「对方消息」（左侧）。
  */
 
 import { Ionicons } from '@expo/vector-icons';
@@ -162,6 +166,8 @@ export function ChatPage() {
   const [attachVisible, setAttachVisible] = useState(false);
 
   const scrollRef = useRef<ScrollView | null>(null);
+  /** 已上报的最大 seq：只增不减，用来止住「上报 → 对方回执 → 再上报」的回环。 */
+  const reportedSeqRef = useRef(0);
   /** 上传中的同步守卫：state 更新有一帧延迟，连点会进两次上传。 */
   const uploadingRef = useRef(false);
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -239,8 +245,9 @@ export function ChatPage() {
             conversationId,
             seq: ack.seq,
             clientMsgId: ack.clientMsgId,
-            senderRole: 'user',
-            senderId: '',
+            // 服务端确认的一定是自己发的：方向只看 mine。
+            // 不再硬编码 senderRole/senderId——律师端刚发出的消息会因写死的 'user' 偶发跳边。
+            mine: true,
             msgType: local.kind,
             content: local.content === '' ? null : local.content,
             fileUrl: local.localUri ?? null,
@@ -256,9 +263,26 @@ export function ChatPage() {
           return next;
         });
       },
-      onRead: () => {
-        // 对方读了我的消息：刷新「已读」状态（简化：把已发出的全部标为已读）
-        setMessages((current) => current.map((item) => ({ ...item, readByPeer: true })));
+      onRead: (event) => {
+        // 对方读了我的消息：把消息标为已读（简化语义：收到一次回执全部标已读）。
+        // 两条止血措施（P0-3 回环风暴）：
+        //   1. 只有真正发生 false→true 的项才产生新对象；没有变化就返回原数组。
+        //      原实现无条件 map 造新数组 → effect 依赖 messages → 再上报 → 回环。
+        //   2. 先校验会话号：服务端按 user_id 推送，别的会话的回执不许动本会话的消息。
+        if (String(event.conversationId) !== conversationId) {
+          return;
+        }
+        setMessages((current) => {
+          let changed = false;
+          const next = current.map((item) => {
+            if (item.readByPeer) {
+              return item;
+            }
+            changed = true;
+            return { ...item, readByPeer: true };
+          });
+          return changed ? next : current;
+        });
       },
       onRecall: (event) => {
         setMessages((current) =>
@@ -291,25 +315,55 @@ export function ChatPage() {
     },
   );
 
-  /** 已读上报（WS 在线走 WS，断线走 REST 兜底）。 */
-  const reportRead = useCallback((): void => {
-    const last = messages[messages.length - 1];
-    if (last === undefined) {
-      return;
-    }
-    if (socketStatus === 'online') {
-      sendRead(last.seq);
-      return;
-    }
-    void markConversationRead(conversationId, last.seq);
-  }, [messages, conversationId, socketStatus, sendRead]);
+  /**
+   * 最后一条消息的 seq（数字；空会话为 0）。
+   *
+   * 用它做「已读位置是否前进」的判断，上报 effect 因此**不再依赖整个 messages 数组**——
+   * messages 每次更新（包括对方回执触发的 readByPeer 变化）都重跑 effect，是回环的根因。
+   */
+  const lastMessage = messages[messages.length - 1];
+  const lastSeq = lastMessage === undefined ? 0 : Number(lastMessage.seq) || 0;
 
-  /** 进入页面/收到消息后上报已读。 */
+  /**
+   * 已读上报（WS 在线走 WS，断线走 REST 兜底）。
+   *
+   * 只有「已读位置前进」才真正发包：重复上报没有意义，还会让服务端每次都
+   * UPDATE conversation 行、再把 chat.read 推回对端（P0-3 实测 2436 次 UPDATE）。
+   *
+   * @param seq 本次要上报的最大 seq（数字；<= 0 或未前进时直接返回）
+   */
+  const reportRead = useCallback(
+    (seq: number): void => {
+      if (seq <= 0 || seq <= reportedSeqRef.current) {
+        return;
+      }
+      reportedSeqRef.current = seq;
+      const rawSeq = String(seq);
+      if (socketStatus === 'online') {
+        sendRead(rawSeq);
+        return;
+      }
+      void markConversationRead(conversationId, rawSeq);
+    },
+    [conversationId, socketStatus, sendRead],
+  );
+
+  /**
+   * 重连/掉线时清空已上报位置。
+   *
+   * 重连成功后服务端会补拉新消息，必须允许按当前最大 seq 重新补报一次；
+   * 不清零会让「重连前已报过 seq=N」永久挡住 N 之后的上报。
+   */
+  useEffect(() => {
+    reportedSeqRef.current = 0;
+  }, [socketStatus]);
+
+  /** 进入页面/收到新消息后上报已读（仅位置前进时真正发包）。 */
   useEffect(() => {
     if (phase === 'ready' && socketStatus === 'online') {
-      reportRead();
+      reportRead(lastSeq);
     }
-  }, [phase, socketStatus, messages, reportRead]);
+  }, [phase, socketStatus, lastSeq, reportRead]);
 
   /** 加载更早的消息（seq 游标，向更早翻）。 */
   const loadEarlier = async (): Promise<void> => {
@@ -619,7 +673,9 @@ export function ChatPage() {
                 key={message.id}
                 message={message}
                 onLongPress={() => {
-                  if (message.senderRole === 'lawyer') {
+                  // 只有「自己发的」才能撤回。归属一律看 mine（`=== true`，缺失降级为对方消息）；
+                  // 不改用 senderId 比较：用户侧是 app_user.id、律师侧是 lawyer.id，比较恒 false。
+                  if (message.mine !== true) {
                     return;
                   }
                   setRecallTarget(message);
@@ -789,7 +845,10 @@ function MessageBubble({ message, onLongPress }: { message: ChatMessage; onLongP
   if (message.senderRole === 'system') {
     return <SystemNotice content={message.content} />;
   }
-  const out = message.senderRole !== 'lawyer';
+  // 气泡方向只看 mine（后端按 viewerRole 算好的查看者视角）：
+  // 用户端与律师端共用本页，`senderRole !== 'lawyer'` 是写死的用户视角，律师端会全反。
+  // `=== true` 不能省：旧后端/本地 optimistic 消息没有 mine 时必须降级为「对方消息」（左侧）。
+  const out = message.mine === true;
   const clock = clockOf(message.createdAt);
   return (
     <Pressable

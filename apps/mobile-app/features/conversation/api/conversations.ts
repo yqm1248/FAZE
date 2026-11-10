@@ -49,10 +49,27 @@ export type ChatMessage = {
   seq: string;
   /** 客户端幂等键（自己发的消息用它做本地替换）。 */
   clientMsgId: string;
-  /** 发送者角色：user / lawyer / system / customer_service。 */
-  senderRole: string;
-  /** 发送者 id。 */
-  senderId: string;
+  /**
+   * 是否**当前登录者自己发的**（气泡方向的唯一依据，后端 `MessageVO.mine`）。
+   *
+   * 可空是刻意的：后端先上线/前端先上线、以及本地 optimistic 消息都可能没有该字段，
+   * 页面一律用 `mine === true` 判断，缺失时降级为「对方消息」（左侧）。
+   * **不要**用 `!mine` 判断，也不要用 senderId 与当前用户 id 比较。
+   */
+  mine?: boolean;
+  /**
+   * 发送者角色：user / lawyer / system / customer_service。
+   *
+   * 只用于「系统消息」这类展示判断；**气泡方向不要用它**（律师端会判反）。
+   * 本地 optimistic 消息（`onAck` 构造）没有该字段，故为可选。
+   */
+  senderRole?: string;
+  /**
+   * 发送者 id（**分域 id**：用户侧 app_user.id、律师侧 lawyer.id）。
+   *
+   * 不能与当前登录用户 id 比较来判断方向（验收律师 app_user.id=1、lawyer.id=2，恒 false）。
+   */
+  senderId?: string;
   /** 消息类型：text / image / file / system。 */
   msgType: string;
   /** 文本内容；已撤回为 null。 */

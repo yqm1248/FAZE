@@ -49,10 +49,19 @@ public class MessagePushService {
     /**
      * 把一条新消息推给对端（离线则入队 message_offline + 排一条系统推送任务）。
      *
+     * <p>**推出去的 VO 必须改成接收者视角**：入参是 `MessageService#send` 返回的
+     * 发送者视角 VO（`mine=true`），原样推给对端会让接收端把「对方刚发来的消息」
+     * 渲染到自己右侧（P0-2 实测：两端实时帧 mine 都是 true）。这里只翻转 `mine`，
+     * 其余字段两端通用；离线补推走 `toReceiverVO`，那一路本来就是对的方向。</p>
+     *
      * @param member  发送者的成员关系（含对端推送目标）
-     * @param message 消息出参
+     * @param message 消息出参（发送者视角；进入本方法后 mine 被置为 false）
      */
     public void pushToPeer(ConversationMember member, MessageVO message) {
+        // 推给对端的一定是对方发的：mine 必须按接收者视角置 false，不能沿用发送者视角。
+        // 调用方 ChatSendHandler 在 pushToPeer 之后不再使用该 VO（ack 已在之前用简单字段发完，
+        // 且 ack 不含 mine），所以就地修改是安全的。
+        message.setMine(false);
         Long peerUserId = member.getPeerUserId();
         if (peerUserId == null) {
             log.warn("对端账号不可用，消息只落库不推送 conversationId={} messageId={}",
@@ -125,7 +134,7 @@ public class MessagePushService {
      * 尝试立即推给某个在线用户。
      *
      * @param userId  接收方用户
-     * @param message 消息（发送者视角的 VO：接收端只按 senderRole/senderId 判方向，
+     * @param message 消息（**接收者视角**的 VO：mine 已由 `pushToPeer` 置 false；
      *                「对端已读」字段对它无意义）
      * @return 推送成功返回 true；离线或发送失败返回 false（调用方回落离线队列）
      */

@@ -209,12 +209,14 @@ public class MessageService {
      * 标记已读（WS `chat.read` 与 REST `POST /conversations/{id}/read` 共用本方法）。
      *
      * <p>副作用：把 `seq <= lastReadSeq` 的对端消息标为自己已读，
-     * 并按消息表重算本侧未读数。</p>
+     * 并按消息表重算本侧未读数。**只有已读位置真正前进时才回写 conversation 行**：
+     * 重复上报（断线重连补报同一位置、客户端 effect 重跑）不该制造 UPDATE 噪音——
+     * 段 2 实测「2 行表 30 秒 2436 次 UPDATE」，就是这里无条件回写放大的。</p>
      *
      * @param userId         当前登录用户
      * @param conversationId 会话主键
      * @param lastReadSeq    已读到的最大 seq
-     * @return 已读结果（供推送 `chat.read` 给对方）
+     * @return 已读结果（`advanced` 供调用方决定是否向对端推送 `chat.read`）
      * @throws BusinessException 404001 / 404002
      */
     @Transactional(rollbackFor = Exception.class)
@@ -223,24 +225,31 @@ public class MessageService {
         long maxSeq = seqGenerator.max(conversationId);
         long target = lastReadSeq == null ? 0L : Math.min(lastReadSeq, maxSeq);
         if (target <= 0) {
-            return new MarkReadResult(conversationId, member.getRole(), 0L);
+            return new MarkReadResult(conversationId, member.getRole(), 0L, false);
         }
 
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+        int marked;
         if (member.isLawyer()) {
-            messageMapper.update(null, Wrappers.<ConversationMessage>lambdaUpdate()
+            marked = messageMapper.update(null, Wrappers.<ConversationMessage>lambdaUpdate()
                     .eq(ConversationMessage::getConversationId, conversationId)
                     .le(ConversationMessage::getSeq, target)
                     .ne(ConversationMessage::getSenderRole, SenderRole.LAWYER.getCode())
                     .isNull(ConversationMessage::getReadByLawyerAt)
                     .set(ConversationMessage::getReadByLawyerAt, now));
         } else {
-            messageMapper.update(null, Wrappers.<ConversationMessage>lambdaUpdate()
+            marked = messageMapper.update(null, Wrappers.<ConversationMessage>lambdaUpdate()
                     .eq(ConversationMessage::getConversationId, conversationId)
                     .le(ConversationMessage::getSeq, target)
                     .ne(ConversationMessage::getSenderRole, SenderRole.USER.getCode())
                     .isNull(ConversationMessage::getReadByUserAt)
                     .set(ConversationMessage::getReadByUserAt, now));
+        }
+
+        // 「已读位置前进」的判据 = 本次真的把至少一条对端消息从「未读」标成「已读」：
+        // 消息表 UPDATE 带 isNull(read_by_*_at)，同一位置重复上报影响 0 行。
+        if (marked == 0) {
+            return new MarkReadResult(conversationId, member.getRole(), target, false);
         }
 
         // 未读 = 对端发来、且 seq 超过已读位置的消息数（以消息表为真相，不信冗余计数）
@@ -255,7 +264,7 @@ public class MessageService {
                 .set(member.isLawyer() ? Conversation::getUnreadLawyer : Conversation::getUnreadUser,
                         (int) unread)
                 .set(Conversation::getUpdatedAt, now));
-        return new MarkReadResult(conversationId, member.getRole(), target);
+        return new MarkReadResult(conversationId, member.getRole(), target, true);
     }
 
     /**
@@ -347,6 +356,10 @@ public class MessageService {
         vo.setFileSize(recalled ? null : message.getFileSize());
         // 「对端已读」只对自己发的消息有意义：自己发 → 看对方的已读时间
         boolean selfSent = viewerRole != null && viewerRole.getCode().equals(message.getSenderRole());
+        // 气泡方向由**查看者视角**决定，直接复用 selfSent，不在前端用 senderId 猜
+        // （senderId 是分域 id，比较恒 false）。toReceiverVO 传的是接收者角色，
+        // 所以离线补推出去的消息 mine 天然为 false。
+        vo.setMine(selfSent);
         if (selfSent && viewerRole == SenderRole.LAWYER) {
             vo.setReadByPeer(message.getReadByUserAt() != null);
         } else if (selfSent) {
@@ -569,8 +582,10 @@ public class MessageService {
      * @param conversationId 会话主键
      * @param readerRole     读取者角色（推给对端时告诉它「谁读了」）
      * @param lastReadSeq    实际生效的已读位置
+     * @param advanced       本次是否真的推进了已读位置（false = 重复上报，调用方不必写库也不必推送）
      */
-    public record MarkReadResult(Long conversationId, SenderRole readerRole, long lastReadSeq) {
+    public record MarkReadResult(Long conversationId, SenderRole readerRole, long lastReadSeq,
+            boolean advanced) {
     }
 
     /**
