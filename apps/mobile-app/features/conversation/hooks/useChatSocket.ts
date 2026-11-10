@@ -16,6 +16,10 @@
  *      本 hook 只做「去重表」维护，真正的合并由页面按 id 去重渲染。
  *   5. 组件卸载/切会话时**主动关闭**连接并取消重连定时器：否则旧页面的连接会一直挂着,
  *      同一账号多连接还会触发服务端「踢旧设备」。
+ *   6. **帧处理层必须校验 `conversationId`**：服务端的离线补推按 `user_id` 跨会话投递
+ *      （离线队列一次 drain 出该用户多个会话的消息），一条连接收到的帧里可能带别的会话号。
+ *      不校验就会把 conv1 的消息渲染进 conv2（实测发生过 conv1 的图片 id=12 进 conv2）。
+ *      见 `isForActiveConversation`。
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -212,8 +216,42 @@ export function useChatSocket(conversationId: string, handlers: ChatSocketHandle
         return;
       }
       const data = envelope.data ?? {};
+
+      /** 当前会话主键（`connect` 的闭包值；空串表示会话还没准备好）。 */
+      const activeConversationId = conversationId;
+
+      /**
+       * 判断一帧的会话主键是否属于当前会话。
+       *
+       * 服务端离线补推按 `user_id` 跨会话投递，帧里可能带的是别的会话——
+       * 不校验就会把 conv1 的消息渲染进 conv2。用 `String()` 归一比较：
+       * 服务端 Long 按接口规范序列化为字符串，但历史实现/补丁里有 number 形态，
+       * 直接用 `!==` 会让**全部帧被丢弃**（聊天页整页不刷新）。
+       *
+       * @param raw 帧里的 conversationId（类型未知，可能缺失）
+       * @returns true 放行；false 丢弃
+       */
+      const isForActiveConversation = (raw: unknown): boolean => {
+        // 会话还没准备好时保持原有行为（不过滤）：只为兜底 hook 被别处调用时不误丢帧，
+        // 正常路径下 conversationId 为空时连接根本不会建立。
+        if (activeConversationId === '') {
+          return true;
+        }
+        // 帧里没带 conversationId（结构异常）时保持原有行为，不因缺字段丢消息；
+        // 真正要拦的是「带了一个别的会话号」。
+        if (typeof raw !== 'string' && typeof raw !== 'number') {
+          return true;
+        }
+        return String(raw) === activeConversationId;
+      };
+
       switch (envelope.type) {
         case 'chat.message': {
+          // 跨会话过滤必须放在 trackSeq 之前：别的会话的 seq 若混进来，
+          // 会把本会话的「已收最大 seq」顶高，重连补拉时漏消息。
+          if (!isForActiveConversation(data.conversationId)) {
+            return;
+          }
           const message = data as unknown as ChatMessage;
           trackSeq(message.seq);
           handlersRef.current.onMessage(message);
@@ -226,19 +264,35 @@ export function useChatSocket(conversationId: string, handlers: ChatSocketHandle
           return;
         }
         case 'chat.read': {
+          if (!isForActiveConversation(data.conversationId)) {
+            return;
+          }
           handlersRef.current.onRead(data as unknown as ChatReadEvent);
           return;
         }
         case 'chat.recall': {
+          if (!isForActiveConversation(data.conversationId)) {
+            return;
+          }
           handlersRef.current.onRecall(data as unknown as ChatRecallEvent);
           return;
         }
         case 'chat.typing': {
+          if (!isForActiveConversation(data.conversationId)) {
+            return;
+          }
           handlersRef.current.onTyping(data.isTyping === true);
           return;
         }
         case 'chat.history': {
-          const list = (data.messages ?? []) as ChatMessage[];
+          // 帧级先拦一次（服务端 payload 带 conversationId），
+          // 列表内再逐条拦一次：补推混进来的别的会话消息一并丢掉。
+          if (!isForActiveConversation(data.conversationId)) {
+            return;
+          }
+          const list = ((data.messages ?? []) as ChatMessage[]).filter((item) =>
+            isForActiveConversation(item.conversationId),
+          );
           for (const item of list) {
             trackSeq(item.seq);
           }
