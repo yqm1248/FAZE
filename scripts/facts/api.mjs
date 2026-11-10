@@ -27,6 +27,7 @@
  */
 
 import { readdirSync, readFileSync, writeFileSync, statSync, mkdirSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { join, relative, sep } from 'node:path';
 
 const REPO = join(import.meta.dirname, '..', '..');
@@ -164,10 +165,20 @@ for (const e of endpoints) {
   byMethod[e.method] = (byMethod[e.method] ?? 0) + 1;
 }
 
+// 源指纹：对全部 Controller 源码做稳定哈希。
+// **不要改回 generatedAt（当天日期）**：那会让 CI 的 `git diff --exit-code docs/facts/`
+// 在次日必然失败（内容没变、日期变了），把门禁变成日历。源码不变则本字段不变。
+const digest = createHash('sha256');
+for (const f of files.slice().sort()) {
+  digest.update(relative(REPO, f).split(sep).join('/'));
+  digest.update(readFileSync(f));
+}
+const sourceDigest = digest.digest('hex').slice(0, 16);
+
 const payload = {
   _comment:
     '本文件由 scripts/facts/api.mjs 从 Controller 源码生成，禁止手改。口径见 docs/standards/说辞一致与真相源规范.md §四。',
-  generatedAt: new Date().toISOString().slice(0, 10),
+  sourceDigest,
   sourceRoot: 'services/faze-api/src/main/java/com/faze',
   totals: {
     controllers: files.length,

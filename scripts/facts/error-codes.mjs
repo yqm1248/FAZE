@@ -20,12 +20,13 @@
  *
  * 注意事项：
  *   本脚本**不校验 msgKey 在 i18n 资源里是否存在**——那需要读四语言 JSON，
- *   属于 i18n 事实生成器的职责（见 scripts/facts/i18n.mjs）。这里只登记不越界。
+ *   属于 i18n 事实生成器的职责（见 scripts/facts/extract-i18n.mjs）。这里只登记不越界。
  *
  * 退出码：0 成功（含发现重复码）/ 1 解析不到任何码
  */
 
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { join } from 'node:path';
 
 const REPO = join(import.meta.dirname, '..', '..');
@@ -86,10 +87,14 @@ const emptyMsgKey = codes.filter((c) => !c.msgKey);
 
 codes.sort((a, b) => a.code - b.code);
 
+// 源指纹：单文件哈希。**不要改回 generatedAt（当天日期）**，否则 CI 的
+// `git diff --exit-code docs/facts/` 次日必然失败，把门禁变成日历。
+const sourceDigest = createHash('sha256').update(src).digest('hex').slice(0, 16);
+
 const payload = {
   _comment:
     '本文件由 scripts/facts/error-codes.mjs 从 ErrorCode.java 生成，禁止手改。口径见 docs/standards/说辞一致与真相源规范.md §四。',
-  generatedAt: new Date().toISOString().slice(0, 10),
+  sourceDigest,
   source: 'services/faze-api/src/main/java/com/faze/common/exception/ErrorCode.java',
   totals: { codes: codes.length, duplicates: duplicates.length, emptyMsgKey: emptyMsgKey.length },
   byPrefix,

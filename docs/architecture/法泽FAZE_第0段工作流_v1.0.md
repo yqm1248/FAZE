@@ -88,7 +88,7 @@
 
 | 入库 | 不入库 |
 |---|---|
-| `eas-build.json`（EAS 返回的构建记录，含 buildId / 状态 / 完成时间） | APK / AAB 本体（留在 `E:\dshcode	mp\seg0pk\`，`_meta.md` 里记 sha256 + 下载 URL） |
+| `eas-build.json`（EAS 返回的构建记录，含 buildId / 状态 / 完成时间） | APK / AAB 本体（留在 `E:\dshcode	mp\seg0apk\`，`_meta.md` 里记 sha256 + 下载 URL） |
 | 真机安装与启动的截图 `.png` | — |
 | 命令输出 `.txt`（UTF-8） | **`.log`**（被 `.gitignore` 忽略，进不了 git） |
 | `_meta.md`（机型 / 系统 / 构建号 / commit / 结论） | `node_modules`、`.expo`、`dist` |

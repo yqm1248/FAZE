@@ -1,0 +1,20 @@
+{
+  "name": "faze-workspace-tools",
+  "version": "1.0.0",
+  "private": true,
+  "description": "法泽 FAZE 仓库级工具入口。本文件不声明任何依赖，只提供 npm scripts 别名，避免文档里写一长串 node 命令。真正的应用依赖在 apps/mobile-app/package.json 与 pc/admin-web/package.json。",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "facts": "node scripts/facts/run-all.mjs",
+    "facts:nodb": "node scripts/facts/run-all.mjs --skip-db",
+    "check:facts": "node scripts/facts/check-facts.mjs",
+    "check:facts:nodb": "node scripts/facts/check-facts.mjs --skip-db",
+    "check:baseline": "node scripts/facts/check-baseline.mjs",
+    "check:pages": "node scripts/facts/check-pages.mjs",
+    "check:drift": "node scripts/facts/check-drift.mjs",
+    "check:contracts": "node scripts/facts/check-contracts.mjs",
+    "render:docs": "node scripts/facts/render-docs.mjs"
+  }
+}

@@ -1,0 +1,152 @@
+{
+  "_comment": "本文件由 scripts/facts/extract-i18n.mjs 从 shared/i18n/resources 生成，禁止手改。口径见 docs/standards/说辞一致与真相源规范.md §四。切换语言目录后必须重跑，CI 会拦 git diff。",
+  "sourceDigest": "8753836b866a6589",
+  "source": "apps/mobile-app/shared/i18n/resources",
+  "sourceLang": "zh-Hans",
+  "targetLangs": [
+    "bo",
+    "ug-Arab-CN",
+    "kk-Arab-CN"
+  ],
+  "totals": {
+    "namespaces": 14,
+    "jsonFiles": 56,
+    "sourceKeys": 1880,
+    "leafCount": 1880,
+    "nodeCount": 1965,
+    "countNote": "sourceKeys=带 namespace 前缀去重后的 key 数；leafCount=可翻译叶子条目数；nodeCount=含中间对象的总节点数。三者都可查，引用数字时必须连口径一起引。"
+  },
+  "coverage": {
+    "zh-Hans": {
+      "keys": 1880,
+      "sourceKeys": 1880,
+      "ratio": 1
+    },
+    "bo": {
+      "keys": 1880,
+      "sourceKeys": 1880,
+      "ratio": 1
+    },
+    "ug-Arab-CN": {
+      "keys": 1880,
+      "sourceKeys": 1880,
+      "ratio": 1
+    },
+    "kk-Arab-CN": {
+      "keys": 1880,
+      "sourceKeys": 1880,
+      "ratio": 1
+    }
+  },
+  "perNamespace": {
+    "ai": {
+      "zh-Hans": 47,
+      "bo": 47,
+      "ug-Arab-CN": 47,
+      "kk-Arab-CN": 47
+    },
+    "auth": {
+      "zh-Hans": 101,
+      "bo": 101,
+      "ug-Arab-CN": 101,
+      "kk-Arab-CN": 101
+    },
+    "case": {
+      "zh-Hans": 179,
+      "bo": 179,
+      "ug-Arab-CN": 179,
+      "kk-Arab-CN": 179
+    },
+    "common": {
+      "zh-Hans": 28,
+      "bo": 28,
+      "ug-Arab-CN": 28,
+      "kk-Arab-CN": 28
+    },
+    "content": {
+      "zh-Hans": 92,
+      "bo": 92,
+      "ug-Arab-CN": 92,
+      "kk-Arab-CN": 92
+    },
+    "conversation": {
+      "zh-Hans": 36,
+      "bo": 36,
+      "ug-Arab-CN": 36,
+      "kk-Arab-CN": 36
+    },
+    "document": {
+      "zh-Hans": 161,
+      "bo": 161,
+      "ug-Arab-CN": 161,
+      "kk-Arab-CN": 161
+    },
+    "error": {
+      "zh-Hans": 57,
+      "bo": 57,
+      "ug-Arab-CN": 57,
+      "kk-Arab-CN": 57
+    },
+    "home": {
+      "zh-Hans": 24,
+      "bo": 24,
+      "ug-Arab-CN": 24,
+      "kk-Arab-CN": 24
+    },
+    "lawyer": {
+      "zh-Hans": 196,
+      "bo": 196,
+      "ug-Arab-CN": 196,
+      "kk-Arab-CN": 196
+    },
+    "ops": {
+      "zh-Hans": 123,
+      "bo": 123,
+      "ug-Arab-CN": 123,
+      "kk-Arab-CN": 123
+    },
+    "profile": {
+      "zh-Hans": 363,
+      "bo": 363,
+      "ug-Arab-CN": 363,
+      "kk-Arab-CN": 363
+    },
+    "trade": {
+      "zh-Hans": 324,
+      "bo": 324,
+      "ug-Arab-CN": 324,
+      "kk-Arab-CN": 324
+    },
+    "workbench": {
+      "zh-Hans": 149,
+      "bo": 149,
+      "ug-Arab-CN": 149,
+      "kk-Arab-CN": 149
+    }
+  },
+  "missing": {},
+  "placeholderMismatch": [],
+  "structureMismatch": [],
+  "pendingFile": {
+    "path": "apps/mobile-app/shared/i18n/resources/.i18n-pending.json",
+    "exists": true,
+    "registeredTotal": 0,
+    "computedTotal": 0,
+    "consistent": true,
+    "perLangConsistent": {
+      "bo": true,
+      "ug-Arab-CN": true,
+      "kk-Arab-CN": true
+    }
+  },
+  "duplicateKeyNames": {
+    "count": 1,
+    "keys": {
+      "settings.title": [
+        "profile",
+        "workbench"
+      ]
+    },
+    "note": "同名短路径在多个 namespace 下复用；加前缀后彼此独立、不会互相覆盖。此清单只陈述事实，不判断是否为缺陷。"
+  }
+}

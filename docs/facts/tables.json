@@ -1,6 +1,6 @@
 {
   "_comment": "本文件由 scripts/facts/tables.mjs 从 information_schema + flyway_schema_history 生成，禁止手改。口径见 docs/standards/说辞一致与真相源规范.md §四。",
-  "generatedAt": "2026-11-10",
+  "sourceDigest": "6150d201ecc7ff6d",
   "database": "faze",
   "totals": {
     "tables": 53,

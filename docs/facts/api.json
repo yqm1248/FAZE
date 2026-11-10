@@ -1,6 +1,6 @@
 {
   "_comment": "本文件由 scripts/facts/api.mjs 从 Controller 源码生成，禁止手改。口径见 docs/standards/说辞一致与真相源规范.md §四。",
-  "generatedAt": "2026-11-10",
+  "sourceDigest": "c7844130563e9c8a",
   "sourceRoot": "services/faze-api/src/main/java/com/faze",
   "totals": {
     "controllers": 78,

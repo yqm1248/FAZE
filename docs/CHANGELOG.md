@@ -4,6 +4,63 @@
 
 ---
 
+## 2026-11-11（三）· G2 收尾：i18n 与页面事实；`check-baseline` 首次运行抓出三层问题；基线 v1.69
+
+**背景**：接上一条（G2 第二批：表结构 + 错误码）。本批补齐 G2 剩下的两类事实，并把「基线自己可校验」接上。
+
+### 一、两个新事实生成器
+
+| 脚本 | 产出 | 实测 |
+|---|---|---|
+| `scripts/facts/extract-i18n.mjs` | `docs/facts/i18n-keys.json` | 4 语言 × 14 namespace = 56 个 json；**三个口径同时给出**：总节点 **1965** / 叶子 **1880** / 带前缀去重 **1880**；覆盖各 **100%**；占位符不一致 **0** |
+| `scripts/facts/extract-pages.mjs` | `docs/facts/pages.json` | 产品页 69 / 路由常量 71 / 实现 71 / 设计稿主屏 68 / PC 28；**6 页写死路由**、**`/case-detail` 壳无对应常量**、49 页无 `testID` |
+
+`page-inventory.mjs` 改为 import `extract-pages.mjs` 的 `collect()`，**解析只留一处**——此前它自带一套解析逻辑，同一件事两个实现。
+
+### 二、抓出 DRIFT-046 与 DRIFT-047
+
+- **DRIFT-046**：「i18n 有多少个 key」有三个正确答案（总节点 1965 / 叶子 1880 / 带前缀去重 1880）。《护栏计划》§2.1 写「1965 个 key」，取的是总节点口径但没标。
+- **DRIFT-047**：`check-i18n.ps1` 按短 key 扁平化，导致 `profile.settings.title`（设置）与 `workbench.settings.title`（服务设置）**被并成一条**，前者缺译永远不报警。**已修**：两侧同时加 namespace 前缀，改时 `.i18n-pending.json` 为空，零迁移成本。
+
+### 三、`check-facts.mjs` / `run-all.mjs`：事实生成与门禁
+
+- `npm run facts` 跑全部 5 个生成器；`npm run facts:nodb` 跳过数据库类（CI 的 mobile job 没有 MySQL）。
+- `npm run check:facts` = 重跑一遍 + `git status --porcelain docs/facts/` 必须为空。**这才叫「接住」**——之前三个脚本全靠人记得跑。
+- **三个 facts json 的 `generatedAt`（当天日期）改为 `sourceDigest`（源内容哈希）**。不这么改，`git diff --exit-code` 次日必然红：内容一字未变、日期变了。那是把门禁变成日历。实测三个文件各只变 1 行，证明其他内容完全稳定。
+
+### 四、`check-baseline.mjs` 第一次运行，抓出三层问题（本批最值得记的一段）
+
+起因：BASELINE §五 的完整性校验是**手工维护**的 PowerShell 列表，只列了 **32 个文件**，而 §二 已登记 **51 份**——清单自己漏了 19 份。改为从 §二 自动解析后：
+
+| 层 | 现象 | 结论 |
+|---|---|---|
+| 一 | **30 份**登记值与实测差 1；其中 **18 份**字节和指纹完全一致、只有行数差 1 | 表头写「行数 = LF 个数 + 1」，但登记的**一半按 `wc -l`、一半按 +1**。**错的是说明，不是数字**。统一到 `wc -l` |
+| 二 | 报「编号 2 → 4 缺 3」，看着像漏登记一份 | 实际是 `#3` 行首多一个空格，正则要求行首 `\|`，整行被跳过。**先修解析器再下结论** |
+| 三 | 标题「50 份 Markdown + 1 份令牌 JSON = 51」 | 实测 **47 份 Markdown + 4 份 JSON**。数字 51 对，**构成错**。本批加 2 份 json 后为 **47 + 6 = 53** |
+
+脚本带 `--fix`：按实测改写登记值，只动数字，保留 📝/🆕 标记与「是什么」列。它**不判断改动是否预期**——写文档的人知道刚才改了什么，脚本不知道。
+
+### 五、顺带修掉 4 处混进正文的控制字符
+
+`\a`、`\b` 被当成转义写进正文，落库成真实 BEL(0x07) / BS(0x08)：
+
+| 文件 | 原文 | 修后 |
+|---|---|---|
+| `docs/BASELINE.md` | 本版把 `<BEL>pi.json` 补登 | `api.json` |
+| `docs/CHANGELOG.md` | `payment_record.channel 补 <BS>alance` | `补 balance` |
+| `docs/CHANGELOG.md` | `<BEL>udit_remark` | `audit_remark` |
+| `docs/architecture/法泽FAZE_第0段工作流_v1.0.md` | `tmp\seg0<BEL>pk\` | `tmp\seg0\apk\` |
+
+渲染不可见，但会让全文检索 `api.json` 搜不到。全仓 272 份 md/json 已扫，现为 **0 份含控制字符**。`check-baseline` 也因此报了一次「指纹变了但行数/字节没变」——**它准确识别出这是等长改动**。
+
+### 六、这一批**没有**做的事
+
+1. **`check:facts` 还没接进 CI**。脚本能跑，接线在 G3。
+2. **DRIFT-044/045 仍没改数字**。归因没做完之前不换数字。
+3. **49 页无 `testID` 只登记不整改**——它是 G7 的输入。
+
+---
+
 ## 2026-11-11（三）· G2 第二批：表结构与错误码事实；基线 v1.68 补正漏算
 
 **背景**：接上一条（G2 第一批：页面 + 接口）。本批把事实生成扩到表结构与错误码。
@@ -2111,9 +2168,9 @@ Error 1044），改为纯 UPDATE JOIN。
 
 按《数据表规范》§8.1 用 V200 区间建段 2 的 10 张既有表 + 2 张新增表。
 orders.status 补 
-efund_rejected（八态）、payment_record.channel 补 alance、
+efund_rejected（八态）、payment_record.channel 补 balance、
 
-efund_record 补 udit_remark。实测迁移 0.653s，12 张字段数与附录 A 逐个一致，索引均 <=6。
+efund_record 补 audit_remark。实测迁移 0.653s，12 张字段数与附录 A 逐个一致，索引均 <=6。
 新表需 sync-db-grants.ps1 同步逐表授权（已执行，27 张表）。
 
 > 偏差：段 1 实际用 V3~V12（占段 0 区间），未按 §8.1 的 V100~V199；已执行的迁移不改，段 2 起按规则用 V200。

@@ -26,6 +26,7 @@
  */
 
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -139,10 +140,20 @@ const tables = tableRows.map(([name, comment]) => {
 const applied = fwRows.filter((r) => r[2] === '1').map((r) => ({ version: r[0], description: r[1] }));
 const latest = fwRows.length > 0 ? fwRows[fwRows.length - 1][0] : null;
 
+// 源指纹：对 schema 形状（表名 + 列名:类型，排序后）做稳定哈希。
+// **不要改回 generatedAt（当天日期）**：那会让 CI 的 `git diff --exit-code docs/facts/`
+// 在次日必然失败，把门禁变成日历。表结构不变 → 本字段不变；加/删/改列 → 立刻变。
+const schemaDigest = createHash('sha256');
+for (const t of [...tables].sort((a, b) => (a.name < b.name ? -1 : 1))) {
+  schemaDigest.update(t.name);
+  for (const c of [...t.columns].sort()) schemaDigest.update(c);
+}
+const sourceDigest = schemaDigest.digest('hex').slice(0, 16);
+
 const payload = {
   _comment:
     '本文件由 scripts/facts/tables.mjs 从 information_schema + flyway_schema_history 生成，禁止手改。口径见 docs/standards/说辞一致与真相源规范.md §四。',
-  generatedAt: new Date().toISOString().slice(0, 10),
+  sourceDigest,
   database: DB.name,
   totals: {
     tables: tables.length,

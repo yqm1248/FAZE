@@ -144,9 +144,16 @@ docs/
     （另 7 份：网络层约定 / 页面四态约定 / 构建路径 / 字体选型 / 探针与流式约定 /
       法条数据录入规范 / AI对话留存策略，见 standards/README.md）
   facts/                                 事实登记表（长期记忆，不是待办清单）
-    DRIFT.md                              说辞漂移：同一事物、说法不同
+    DRIFT.md                              说辞漂移：同一事物、说法不同（D3 组是跑脚本量出来的）
     DEFERRED.md                           段八挂账汇总索引：计划有、代码无
-    （本目录不设 README —— 怎么用、什么该进哪张表，只在
+    api.json                              接口清单    ← scripts/facts/api.mjs 生成，禁止手改
+    tables.json                           表结构      ← scripts/facts/tables.mjs 生成
+    error-codes.json                      错误码      ← scripts/facts/error-codes.mjs 生成
+    i18n-keys.json                        四语言 key  ← scripts/facts/extract-i18n.mjs 生成
+    pages.json                            页面逐项明细 ← scripts/facts/extract-pages.mjs 生成
+    （以上 5 份 json 全部由 `npm run facts` 生成、`npm run check:facts` 校验，
+      CI 用 `git diff --exit-code docs/facts/` 拦漂移；**手改一定被覆盖**。
+      本目录不设 README —— 怎么用、什么该进哪张表，只在
       standards/说辞一致与真相源规范.md §二、§五 写一份，避免第二份副本腐坏）
   analysis/                              决策依据与背景
     原项目技术债清单.md

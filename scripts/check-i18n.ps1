@@ -63,7 +63,13 @@ function Read-LangFlat([string]$lang) {
     $flat = @{}
     foreach ($file in (Get-JsonFiles $lang)) {
         $json = Get-Content -LiteralPath $file.FullName -Encoding UTF8 -Raw | ConvertFrom-Json
-        $part = Flatten-Json $json
+        # 用 namespace 文件名做前缀（2026-11-11 修）。
+        # 不加前缀时，不同 namespace 的同名路径会互相覆盖：实测
+        # `profile.settings.title`（设置）与 `workbench.settings.title`（服务设置）是两条
+        # 不同译文，扁平化后只剩一条，于是前者缺译**永远不会被本脚本报出来**。
+        # 当时 `.i18n-pending.json` 为空，改口径零迁移成本；有登记以后再改要迁移数据。
+        $ns = [System.IO.Path]::GetFileNameWithoutExtension($file.Name)
+        $part = Flatten-Json $json $ns
         foreach ($k in $part.Keys) { $flat[$k] = $part[$k] }
     }
     return $flat

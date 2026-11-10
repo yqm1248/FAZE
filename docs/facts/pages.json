@@ -1,0 +1,4283 @@
+{
+  "_comment": "本文件由 scripts/facts/extract-pages.mjs 从 app/ + features/ + design/ 生成，禁止手改。口径见 docs/standards/说辞一致与真相源规范.md §四。与设计稿的映射关系另见 design/PAGE-MAP.json。",
+  "sourceDigest": "90ed465e7b72efc1",
+  "sources": {
+    "routes": "apps/mobile-app/shared/navigation/routes.ts",
+    "shells": "apps/mobile-app/app/**/*.tsx",
+    "pages": "apps/mobile-app/features/**/*Page.tsx",
+    "designUi": "design/ui/*.html",
+    "designAdmin": "design/admin/*.html"
+  },
+  "counts": {
+    "productPages": 69,
+    "pageRoutes": 71,
+    "devRoutes": 2,
+    "shells": 72,
+    "pageImpls": 71,
+    "designMainScreens": 68,
+    "designHtml": 71,
+    "designSupplementScreens": 3,
+    "adminScreens": 28
+  },
+  "countNote": "四个数都对但构成不同：产品页=路由常量−开发探测；路由常量含开发探测；页面实现含探测页；设计稿主屏=HTML−b/c 补充屏。引用时必须连口径一起引。",
+  "diffs": {
+    "routeWithoutShell": [],
+    "shellWithoutRoute": [
+      "/case-detail"
+    ],
+    "pageWithoutShell": [],
+    "shellWithoutPage": [],
+    "impureShells": [],
+    "pagesWithoutTestId": [
+      "apps/mobile-app/features/account/pages/EnterpriseAuthPage.tsx",
+      "apps/mobile-app/features/account/pages/PayPasswordPage.tsx",
+      "apps/mobile-app/features/account/pages/RealnamePage.tsx",
+      "apps/mobile-app/features/auth/pages/AgreementPage.tsx",
+      "apps/mobile-app/features/auth/pages/ForgotPasswordPage.tsx",
+      "apps/mobile-app/features/auth/pages/LoginPage.tsx",
+      "apps/mobile-app/features/auth/pages/PrivacyPage.tsx",
+      "apps/mobile-app/features/auth/pages/RegisterPage.tsx",
+      "apps/mobile-app/features/auth/pages/SplashPage.tsx",
+      "apps/mobile-app/features/content/pages/ArticleDetailPage.tsx",
+      "apps/mobile-app/features/content/pages/ArticleListPage.tsx",
+      "apps/mobile-app/features/content/pages/MessageDetailPage.tsx",
+      "apps/mobile-app/features/content/pages/MessagesPage.tsx",
+      "apps/mobile-app/features/conversation/pages/ChatPage.tsx",
+      "apps/mobile-app/features/document/pages/DocFormPage.tsx",
+      "apps/mobile-app/features/document/pages/DocLawsuitFormPage.tsx",
+      "apps/mobile-app/features/home/pages/HomePage.tsx",
+      "apps/mobile-app/features/lawyer/pages/LawyerDetailPage.tsx",
+      "apps/mobile-app/features/lawyer/pages/LawyerJoinPage.tsx",
+      "apps/mobile-app/features/lawyer/pages/LawyerJoinStatusPage.tsx",
+      "apps/mobile-app/features/lawyer/pages/LawyerListPage.tsx",
+      "apps/mobile-app/features/lawyer/pages/LawyerOrdersPage.tsx",
+      "apps/mobile-app/features/ops/pages/ComplaintListPage.tsx",
+      "apps/mobile-app/features/ops/pages/ComplaintPage.tsx",
+      "apps/mobile-app/features/ops/pages/FaqPage.tsx",
+      "apps/mobile-app/features/ops/pages/FeedbackPage.tsx",
+      "apps/mobile-app/features/ops/pages/SupportPage.tsx",
+      "apps/mobile-app/features/profile/pages/MyPage.tsx",
+      "apps/mobile-app/features/settings/pages/AboutPage.tsx",
+      "apps/mobile-app/features/settings/pages/AccountSecurityPage.tsx",
+      "apps/mobile-app/features/settings/pages/AllFeaturesPage.tsx",
+      "apps/mobile-app/features/settings/pages/ChangePasswordPage.tsx",
+      "apps/mobile-app/features/settings/pages/ChangePhonePage.tsx",
+      "apps/mobile-app/features/settings/pages/DeactivatePage.tsx",
+      "apps/mobile-app/features/settings/pages/EditProfilePage.tsx",
+      "apps/mobile-app/features/settings/pages/LanguagePage.tsx",
+      "apps/mobile-app/features/settings/pages/NotifySettingsPage.tsx",
+      "apps/mobile-app/features/settings/pages/PrivacySettingsPage.tsx",
+      "apps/mobile-app/features/settings/pages/SettingsPage.tsx",
+      "apps/mobile-app/features/social/pages/FavoritesPage.tsx",
+      "apps/mobile-app/features/social/pages/FollowingPage.tsx",
+      "apps/mobile-app/features/trade/pages/BalancePage.tsx",
+      "apps/mobile-app/features/trade/pages/OrderDetailPage.tsx",
+      "apps/mobile-app/features/trade/pages/OrderListPage.tsx",
+      "apps/mobile-app/features/trade/pages/PayPage.tsx",
+      "apps/mobile-app/features/trade/pages/PayResultPage.tsx",
+      "apps/mobile-app/features/trade/pages/RechargePage.tsx",
+      "apps/mobile-app/features/trade/pages/RefundPage.tsx",
+      "apps/mobile-app/features/trade/pages/ReviewPage.tsx"
+    ],
+    "pagesWithRawText": [],
+    "literalNavigations": [
+      {
+        "file": "apps/mobile-app/features/content/pages/CaseDetailPage.tsx",
+        "targets": [
+          "/agent"
+        ]
+      },
+      {
+        "file": "apps/mobile-app/features/content/pages/CaseListPage.tsx",
+        "targets": [
+          "/case-detail?id=${item.id}"
+        ]
+      },
+      {
+        "file": "apps/mobile-app/features/content/pages/MessagesPage.tsx",
+        "targets": [
+          "/home"
+        ]
+      },
+      {
+        "file": "apps/mobile-app/features/content/pages/SearchPage.tsx",
+        "targets": [
+          "/lawyer-detail?id=${item.id}",
+          "/article?id=${item.id}",
+          "/case-detail?id=${item.id}"
+        ]
+      },
+      {
+        "file": "apps/mobile-app/features/lawyer/pages/LawyerOrdersPage.tsx",
+        "targets": [
+          "/lawyer-workbench"
+        ]
+      },
+      {
+        "file": "apps/mobile-app/features/settings/pages/ChangePasswordPage.tsx",
+        "targets": [
+          "/account-security"
+        ]
+      }
+    ]
+  },
+  "routes": [
+    {
+      "key": "root",
+      "path": "/",
+      "isDev": false,
+      "shell": "apps/mobile-app/app/index.tsx",
+      "page": "apps/mobile-app/features/auth/pages/SplashPage.tsx"
+    },
+    {
+      "key": "login",
+      "path": "/login",
+      "isDev": false,
+      "shell": "apps/mobile-app/app/login.tsx",
+      "page": "apps/mobile-app/features/auth/pages/LoginPage.tsx"
+    },
+    {
+      "key": "language",
+      "path": "/language",
+      "isDev": false,
+      "shell": "apps/mobile-app/app/language.tsx",
+      "page": "apps/mobile-app/features/settings/pages/LanguagePage.tsx"
+    },
+    {
+      "key": "devProbe",
+      "path": "/dev/probe",
+      "isDev": true,
+      "shell": "apps/mobile-app/app/dev/probe.tsx",
+      "page": "apps/mobile-app/features/dev/pages/ProbePage.tsx"
+    },
+    {
+      "key": "devRtl",
+      "path": "/dev/rtl",
+      "isDev": true,
+      "shell": "apps/mobile-app/app/dev/rtl.tsx",
+      "page": "apps/mobile-app/features/dev/pages/RtlProbePage.tsx"
+    },
+    {
+      "key": "register",
+      "path": "/register",
+      "isDev": false,
+      "shell": "apps/mobile-app/app/register.tsx",
+      "page": "apps/mobile-app/features/auth/pages/RegisterPage.tsx"
+    },
+    {
+      "key": "forgotPassword",
+      "path": "/forgot-password",
+      "isDev": false,
+      "shell": "apps/mobile-app/app/forgot-password.tsx",
+      "page": "apps/mobile-app/features/auth/pages/ForgotPasswordPage.tsx"
+    },
+    {
+      "key": "agreement",
+      "path": "/agreement",
+      "isDev": false,
+      "shell": "apps/mobile-app/app/agreement.tsx",
+      "page": "apps/mobile-app/features/auth/pages/AgreementPage.tsx"
+    },
+    {
+      "key": "privacy",
+      "path": "/privacy",
+      "isDev": false,
+      "shell": "apps/mobile-app/app/privacy.tsx",
+      "page": "apps/mobile-app/features/auth/pages/PrivacyPage.tsx"
+    },
+    {
+      "key": "balance",
+      "path": "/balance",
+      "isDev": false,
+      "shell": "apps/mobile-app/app/balance.tsx",
+      "page": "apps/mobile-app/features/trade/pages/BalancePage.tsx"
+    },
+    {
+      "key": "recharge",
+      "path": "/recharge",
+      "isDev": false,
+      "shell": "apps/mobile-app/app/recharge.tsx",
+      "page": "apps/mobile-app/features/trade/pages/RechargePage.tsx"
+    },
+    {
+      "key": "payPassword",
+      "path": "/pay-password",
+      "isDev": false,
+      "shell": "apps/mobile-app/app/pay-password.tsx",
+      "page": "apps/mobile-app/features/account/pages/PayPasswordPage.tsx"
+    },
+    {
+      "key": "lawyerJoin",
+      "path": "/lawyer-join",
+      "isDev": false,
+      "shell": "apps/mobile-app/app/lawyer-join.tsx",
+      "page": "apps/mobile-app/features/lawyer/pages/LawyerJoinPage.tsx"
+    },
+    {
+      "key": "lawyerJoinStatus",
+      "path": "/lawyer-join-status",
+      "isDev": false,
+      "shell": "apps/mobile-app/app/lawyer-join-status.tsx",
+      "page": "apps/mobile-app/features/lawyer/pages/LawyerJoinStatusPage.tsx"
+    },
+    {
+      "key": "profile",
+      "path": "/profile",
+      "isDev": false,
+      "shell": "apps/mobile-app/app/(tabs)/profile.tsx",
+      "page": "apps/mobile-app/features/profile/pages/MyPage.tsx"
+    },
+    {
+      "key": "accountSecurity",
+      "path": "/account-security",
+      "isDev": false,
+      "shell": "apps/mobile-app/app/account-security.tsx",
+      "page": "apps/mobile-app/features/settings/pages/AccountSecurityPage.tsx"
+    },
+    {
+      "key": "changePassword",
+      "path": "/change-password",
+      "isDev": false,
+      "shell": "apps/mobile-app/app/change-password.tsx",
+      "page": "apps/mobile-app/features/settings/pages/ChangePasswordPage.tsx"
+    },
+    {
+      "key": "changePhone",
+      "path": "/change-phone",
+      "isDev": false,
+      "shell": "apps/mobile-app/app/change-phone.tsx",
+      "page": "apps/mobile-app/features/settings/pages/ChangePhonePage.tsx"
+    },
+    {
+      "key": "deactivate",
+      "path": "/deactivate",
+      "isDev": false,
+      "shell": "apps/mobile-app/app/deactivate.tsx",
+      "page": "apps/mobile-app/features/settings/pages/DeactivatePage.tsx"
+    },
+    {
+      "key": "verifyRealname",
+      "path": "/verify-realname",
+      "isDev": false,
+      "shell": "apps/mobile-app/app/verify-realname.tsx",
+      "page": "apps/mobile-app/features/account/pages/RealnamePage.tsx"
+    },
+    {
+      "key": "editProfile",
+      "path": "/edit-profile",
+      "isDev": false,
+      "shell": "apps/mobile-app/app/edit-profile.tsx",
+      "page": "apps/mobile-app/features/settings/pages/EditProfilePage.tsx"
+    },
+    {
+      "key": "notifySettings",
+      "path": "/notify-settings",
+      "isDev": false,
+      "shell": "apps/mobile-app/app/notify-settings.tsx",
+      "page": "apps/mobile-app/features/settings/pages/NotifySettingsPage.tsx"
+    },
+    {
+      "key": "privacySettings",
+      "path": "/privacy-settings",
+      "isDev": false,
+      "shell": "apps/mobile-app/app/privacy-settings.tsx",
+      "page": "apps/mobile-app/features/settings/pages/PrivacySettingsPage.tsx"
+    },
+    {
+      "key": "orders",
+      "path": "/orders",
+      "isDev": false,
+      "shell": "apps/mobile-app/app/orders.tsx",
+      "page": "apps/mobile-app/features/trade/pages/OrderListPage.tsx"
+    },
+    {
+      "key": "orderDetail",
+      "path": "/order-detail",
+      "isDev": false,
+      "shell": "apps/mobile-app/app/order-detail.tsx",
+      "page": "apps/mobile-app/features/trade/pages/OrderDetailPage.tsx"
+    },
+    {
+      "key": "pay",
+      "path": "/pay",
+      "isDev": false,
+      "shell": "apps/mobile-app/app/pay.tsx",
+      "page": "apps/mobile-app/features/trade/pages/PayPage.tsx"
+    },
+    {
+      "key": "payResult",
+      "path": "/pay-result",
+      "isDev": false,
+      "shell": "apps/mobile-app/app/pay-result.tsx",
+      "page": "apps/mobile-app/features/trade/pages/PayResultPage.tsx"
+    },
+    {
+      "key": "refund",
+      "path": "/refund",
+      "isDev": false,
+      "shell": "apps/mobile-app/app/refund.tsx",
+      "page": "apps/mobile-app/features/trade/pages/RefundPage.tsx"
+    },
+    {
+      "key": "review",
+      "path": "/review",
+      "isDev": false,
+      "shell": "apps/mobile-app/app/review.tsx",
+      "page": "apps/mobile-app/features/trade/pages/ReviewPage.tsx"
+    },
+    {
+      "key": "chat",
+      "path": "/chat",
+      "isDev": false,
+      "shell": "apps/mobile-app/app/chat.tsx",
+      "page": "apps/mobile-app/features/conversation/pages/ChatPage.tsx"
+    },
+    {
+      "key": "home",
+      "path": "/home",
+      "isDev": false,
+      "shell": "apps/mobile-app/app/(tabs)/home.tsx",
+      "page": "apps/mobile-app/features/home/pages/HomePage.tsx"
+    },
+    {
+      "key": "articles",
+      "path": "/articles",
+      "isDev": false,
+      "shell": "apps/mobile-app/app/articles.tsx",
+      "page": "apps/mobile-app/features/content/pages/ArticleListPage.tsx"
+    },
+    {
+      "key": "article",
+      "path": "/article",
+      "isDev": false,
+      "shell": "apps/mobile-app/app/article.tsx",
+      "page": "apps/mobile-app/features/content/pages/ArticleDetailPage.tsx"
+    },
+    {
+      "key": "messages",
+      "path": "/messages",
+      "isDev": false,
+      "shell": "apps/mobile-app/app/messages.tsx",
+      "page": "apps/mobile-app/features/content/pages/MessagesPage.tsx"
+    },
+    {
+      "key": "messageDetail",
+      "path": "/message-detail",
+      "isDev": false,
+      "shell": "apps/mobile-app/app/message-detail.tsx",
+      "page": "apps/mobile-app/features/content/pages/MessageDetailPage.tsx"
+    },
+    {
+      "key": "search",
+      "path": "/search",
+      "isDev": false,
+      "shell": "apps/mobile-app/app/search.tsx",
+      "page": "apps/mobile-app/features/content/pages/SearchPage.tsx"
+    },
+    {
+      "key": "lawyerList",
+      "path": "/lawyer-list",
+      "isDev": false,
+      "shell": "apps/mobile-app/app/lawyer-list.tsx",
+      "page": "apps/mobile-app/features/lawyer/pages/LawyerListPage.tsx"
+    },
+    {
+      "key": "lawyerDetail",
+      "path": "/lawyer-detail",
+      "isDev": false,
+      "shell": "apps/mobile-app/app/lawyer-detail.tsx",
+      "page": "apps/mobile-app/features/lawyer/pages/LawyerDetailPage.tsx"
+    },
+    {
+      "key": "lawyerOrders",
+      "path": "/lawyer-orders",
+      "isDev": false,
+      "shell": "apps/mobile-app/app/lawyer-orders.tsx",
+      "page": "apps/mobile-app/features/lawyer/pages/LawyerOrdersPage.tsx"
+    },
+    {
+      "key": "lawyerWorkbench",
+      "path": "/lawyer-workbench",
+      "isDev": false,
+      "shell": "apps/mobile-app/app/lawyer-workbench.tsx",
+      "page": "apps/mobile-app/features/lawyer/pages/WorkbenchPage.tsx"
+    },
+    {
+      "key": "agent",
+      "path": "/agent",
+      "isDev": false,
+      "shell": "apps/mobile-app/app/(tabs)/agent.tsx",
+      "page": "apps/mobile-app/features/ai/pages/AiChatPage.tsx"
+    },
+    {
+      "key": "case",
+      "path": "/case",
+      "isDev": false,
+      "shell": "apps/mobile-app/app/(tabs)/case.tsx",
+      "page": "apps/mobile-app/features/content/pages/CaseListPage.tsx"
+    },
+    {
+      "key": "lawyerTab",
+      "path": "/lawyer",
+      "isDev": false,
+      "shell": "apps/mobile-app/app/(tabs)/lawyer.tsx",
+      "page": "apps/mobile-app/features/lawyer/pages/LawyerListPage.tsx"
+    },
+    {
+      "key": "aiHistory",
+      "path": "/ai-history",
+      "isDev": false,
+      "shell": "apps/mobile-app/app/ai-history.tsx",
+      "page": "apps/mobile-app/features/ai/pages/AiHistoryPage.tsx"
+    },
+    {
+      "key": "caseFiling",
+      "path": "/case-filing",
+      "isDev": false,
+      "shell": "apps/mobile-app/app/case-filing.tsx",
+      "page": "apps/mobile-app/features/case/pages/FilingPage.tsx"
+    },
+    {
+      "key": "caseFilingDone",
+      "path": "/case-filing-done",
+      "isDev": false,
+      "shell": "apps/mobile-app/app/case-filing-done.tsx",
+      "page": "apps/mobile-app/features/case/pages/FilingDonePage.tsx"
+    },
+    {
+      "key": "caseMy",
+      "path": "/case-my",
+      "isDev": false,
+      "shell": "apps/mobile-app/app/case-my.tsx",
+      "page": "apps/mobile-app/features/case/pages/MyCasesPage.tsx"
+    },
+    {
+      "key": "caseProgress",
+      "path": "/case-progress",
+      "isDev": false,
+      "shell": "apps/mobile-app/app/case-progress.tsx",
+      "page": "apps/mobile-app/features/case/pages/CaseProgressPage.tsx"
+    },
+    {
+      "key": "caseDelivery",
+      "path": "/case-delivery",
+      "isDev": false,
+      "shell": "apps/mobile-app/app/case-delivery.tsx",
+      "page": "apps/mobile-app/features/case/pages/CaseDeliveryPage.tsx"
+    },
+    {
+      "key": "workbenchConsultations",
+      "path": "/workbench-consultations",
+      "isDev": false,
+      "shell": "apps/mobile-app/app/workbench-consultations.tsx",
+      "page": "apps/mobile-app/features/workbench/pages/ConsultationsPage.tsx"
+    },
+    {
+      "key": "workbenchDocs",
+      "path": "/workbench-docs",
+      "isDev": false,
+      "shell": "apps/mobile-app/app/workbench-docs.tsx",
+      "page": "apps/mobile-app/features/workbench/pages/LawyerDocsPage.tsx"
+    },
+    {
+      "key": "workbenchIncome",
+      "path": "/workbench-income",
+      "isDev": false,
+      "shell": "apps/mobile-app/app/workbench-income.tsx",
+      "page": "apps/mobile-app/features/workbench/pages/IncomePage.tsx"
+    },
+    {
+      "key": "workbenchSettings",
+      "path": "/workbench-settings",
+      "isDev": false,
+      "shell": "apps/mobile-app/app/workbench-settings.tsx",
+      "page": "apps/mobile-app/features/workbench/pages/ServiceSettingsPage.tsx"
+    },
+    {
+      "key": "workbenchProfile",
+      "path": "/workbench-profile",
+      "isDev": false,
+      "shell": "apps/mobile-app/app/workbench-profile.tsx",
+      "page": "apps/mobile-app/features/workbench/pages/LawyerProfilePage.tsx"
+    },
+    {
+      "key": "docTemplates",
+      "path": "/doc/templates",
+      "isDev": false,
+      "shell": "apps/mobile-app/app/doc/templates.tsx",
+      "page": "apps/mobile-app/features/document/pages/DocTemplatesPage.tsx"
+    },
+    {
+      "key": "docMine",
+      "path": "/doc/mine",
+      "isDev": false,
+      "shell": "apps/mobile-app/app/doc/mine.tsx",
+      "page": "apps/mobile-app/features/document/pages/DocMinePage.tsx"
+    },
+    {
+      "key": "docSeals",
+      "path": "/doc/seals",
+      "isDev": false,
+      "shell": "apps/mobile-app/app/doc/seals.tsx",
+      "page": "apps/mobile-app/features/document/pages/DocSealPage.tsx"
+    },
+    {
+      "key": "docForm",
+      "path": "/doc/form",
+      "isDev": false,
+      "shell": "apps/mobile-app/app/doc/form.tsx",
+      "page": "apps/mobile-app/features/document/pages/DocFormPage.tsx"
+    },
+    {
+      "key": "docPreview",
+      "path": "/doc/preview",
+      "isDev": false,
+      "shell": "apps/mobile-app/app/doc/preview.tsx",
+      "page": "apps/mobile-app/features/document/pages/DocPreviewPage.tsx"
+    },
+    {
+      "key": "docLawsuit",
+      "path": "/doc/lawsuit",
+      "isDev": false,
+      "shell": "apps/mobile-app/app/doc/lawsuit.tsx",
+      "page": "apps/mobile-app/features/document/pages/DocLawsuitFormPage.tsx"
+    },
+    {
+      "key": "support",
+      "path": "/support",
+      "isDev": false,
+      "shell": "apps/mobile-app/app/support.tsx",
+      "page": "apps/mobile-app/features/ops/pages/SupportPage.tsx"
+    },
+    {
+      "key": "faq",
+      "path": "/faq",
+      "isDev": false,
+      "shell": "apps/mobile-app/app/faq.tsx",
+      "page": "apps/mobile-app/features/ops/pages/FaqPage.tsx"
+    },
+    {
+      "key": "complaint",
+      "path": "/complaint",
+      "isDev": false,
+      "shell": "apps/mobile-app/app/complaint.tsx",
+      "page": "apps/mobile-app/features/ops/pages/ComplaintPage.tsx"
+    },
+    {
+      "key": "feedback",
+      "path": "/feedback",
+      "isDev": false,
+      "shell": "apps/mobile-app/app/feedback.tsx",
+      "page": "apps/mobile-app/features/ops/pages/FeedbackPage.tsx"
+    },
+    {
+      "key": "settings",
+      "path": "/settings",
+      "isDev": false,
+      "shell": "apps/mobile-app/app/settings.tsx",
+      "page": "apps/mobile-app/features/settings/pages/SettingsPage.tsx"
+    },
+    {
+      "key": "about",
+      "path": "/about",
+      "isDev": false,
+      "shell": "apps/mobile-app/app/about.tsx",
+      "page": "apps/mobile-app/features/settings/pages/AboutPage.tsx"
+    },
+    {
+      "key": "allFeatures",
+      "path": "/all-features",
+      "isDev": false,
+      "shell": "apps/mobile-app/app/all-features.tsx",
+      "page": "apps/mobile-app/features/settings/pages/AllFeaturesPage.tsx"
+    },
+    {
+      "key": "verifyCompany",
+      "path": "/verify-company",
+      "isDev": false,
+      "shell": "apps/mobile-app/app/verify-company.tsx",
+      "page": "apps/mobile-app/features/account/pages/EnterpriseAuthPage.tsx"
+    },
+    {
+      "key": "favorites",
+      "path": "/favorites",
+      "isDev": false,
+      "shell": "apps/mobile-app/app/favorites.tsx",
+      "page": "apps/mobile-app/features/social/pages/FavoritesPage.tsx"
+    },
+    {
+      "key": "following",
+      "path": "/following",
+      "isDev": false,
+      "shell": "apps/mobile-app/app/following.tsx",
+      "page": "apps/mobile-app/features/social/pages/FollowingPage.tsx"
+    },
+    {
+      "key": "complaintList",
+      "path": "/complaint-list",
+      "isDev": false,
+      "shell": "apps/mobile-app/app/complaint-list.tsx",
+      "page": "apps/mobile-app/features/ops/pages/ComplaintListPage.tsx"
+    }
+  ],
+  "pages": [
+    {
+      "file": "apps/mobile-app/features/account/pages/EnterpriseAuthPage.tsx",
+      "name": "EnterpriseAuthPage",
+      "domain": "features",
+      "route": "/verify-company",
+      "routeKey": "verifyCompany",
+      "isDevProbe": false,
+      "lines": 640,
+      "testIdCount": 0,
+      "testIds": [],
+      "localizedTextCount": 18,
+      "rawTextCount": 0,
+      "navigations": [
+        {
+          "kind": "routeKey",
+          "value": "verifyRealname"
+        }
+      ],
+      "imports": [
+        "@/features/account/api/enterprise",
+        "@/features/account/api/enterprise",
+        "@/features/account/api/realname",
+        "@/features/account/api/upload",
+        "@/shared/api/types",
+        "@/shared/components/ActionBar",
+        "@/shared/components/AppHeader",
+        "@/shared/components/AppToast",
+        "@/shared/components/AsyncBoundary",
+        "@/shared/components/FormField",
+        "@/shared/components/SettingRow",
+        "@/shared/components/LocalizedText",
+        "@/shared/components/PrimaryButton",
+        "@/shared/components/Screen",
+        "@/shared/components/StatusHero",
+        "@/shared/components/WebFileButton",
+        "@/shared/i18n",
+        "@/shared/hooks/useAsyncResource",
+        "@/shared/hooks/useErrorMessage",
+        "@/shared/navigation/routes",
+        "@/shared/theme",
+        "@/shared/utils/serverTime"
+      ]
+    },
+    {
+      "file": "apps/mobile-app/features/account/pages/PayPasswordPage.tsx",
+      "name": "PayPasswordPage",
+      "domain": "features",
+      "route": "/pay-password",
+      "routeKey": "payPassword",
+      "isDevProbe": false,
+      "lines": 661,
+      "testIdCount": 0,
+      "testIds": [],
+      "localizedTextCount": 16,
+      "rawTextCount": 0,
+      "navigations": [],
+      "imports": [
+        "@/features/auth/api/register",
+        "@/features/account/api/payPassword",
+        "@/features/profile/api/profile",
+        "@/shared/components/AppHeader",
+        "@/shared/components/AppToast",
+        "@/shared/components/AsyncBoundary",
+        "@/shared/components/CodeTimerButton",
+        "@/shared/components/FormField",
+        "@/shared/components/LocalizedText",
+        "@/shared/components/PinField",
+        "@/shared/components/PrimaryButton",
+        "@/shared/components/Screen",
+        "@/shared/i18n",
+        "@/shared/hooks/useAsyncResource",
+        "@/shared/hooks/useErrorMessage",
+        "@/shared/theme",
+        "@/shared/api/types"
+      ]
+    },
+    {
+      "file": "apps/mobile-app/features/account/pages/RealnamePage.tsx",
+      "name": "RealnamePage",
+      "domain": "features",
+      "route": "/verify-realname",
+      "routeKey": "verifyRealname",
+      "isDevProbe": false,
+      "lines": 484,
+      "testIdCount": 0,
+      "testIds": [],
+      "localizedTextCount": 12,
+      "rawTextCount": 0,
+      "navigations": [
+        {
+          "kind": "routeKey",
+          "value": "privacy"
+        }
+      ],
+      "imports": [
+        "@/features/account/api/realname",
+        "@/features/account/api/realname",
+        "@/features/account/api/upload",
+        "@/shared/components/AppHeader",
+        "@/shared/components/AppToast",
+        "@/shared/components/ActionBar",
+        "@/shared/components/AsyncBoundary",
+        "@/shared/components/CheckRow",
+        "@/shared/components/FormField",
+        "@/shared/components/SettingRow",
+        "@/shared/components/LocalizedText",
+        "@/shared/components/PrimaryButton",
+        "@/shared/components/Screen",
+        "@/shared/components/StatusHero",
+        "@/shared/components/WebFileButton",
+        "@/shared/i18n",
+        "@/shared/hooks/useAsyncResource",
+        "@/shared/hooks/useErrorMessage",
+        "@/shared/navigation/routes",
+        "@/shared/theme",
+        "@/shared/utils/serverTime"
+      ]
+    },
+    {
+      "file": "apps/mobile-app/features/ai/pages/AiChatPage.tsx",
+      "name": "AiChatPage",
+      "domain": "features",
+      "route": "/agent",
+      "routeKey": "agent",
+      "isDevProbe": false,
+      "lines": 482,
+      "testIdCount": 10,
+      "testIds": [
+        "ai-chat-history",
+        "ai-chat-clear",
+        "offline-bar",
+        "ai-retry-button",
+        "ai-transfer-button",
+        "ai-quota-text",
+        "ai-quota-exhausted",
+        "ai-chat-input",
+        "ai-stop-button",
+        "ai-chat-send"
+      ],
+      "localizedTextCount": 8,
+      "rawTextCount": 0,
+      "navigations": [
+        {
+          "kind": "routeKey",
+          "value": "aiHistory"
+        },
+        {
+          "kind": "routeKey",
+          "value": "lawyerTab"
+        }
+      ],
+      "imports": [
+        "@/features/ai/hooks/useAiQuota",
+        "@/features/ai/hooks/useAiStream",
+        "@/features/ai/hooks/useAiStream",
+        "@/features/ai/hooks/useOnlineStatus",
+        "@/features/ai/pages/AiLawSearchView",
+        "@/shared/components/AiGeneratedLabel",
+        "@/shared/components/AppToast",
+        "@/shared/components/ConfirmDialog",
+        "@/shared/components/icons/AiIcons",
+        "@/shared/components/LawRefCard",
+        "@/shared/components/LoadingState",
+        "@/shared/components/LocalizedText",
+        "@/shared/components/MessageBubble",
+        "@/shared/components/OfflineBar",
+        "@/shared/components/Screen",
+        "@/shared/i18n",
+        "@/shared/i18n",
+        "@/shared/navigation/routes",
+        "@/shared/theme"
+      ]
+    },
+    {
+      "file": "apps/mobile-app/features/ai/pages/AiHistoryPage.tsx",
+      "name": "AiHistoryPage",
+      "domain": "features",
+      "route": "/ai-history",
+      "routeKey": "aiHistory",
+      "isDevProbe": false,
+      "lines": 508,
+      "testIdCount": 1,
+      "testIds": [
+        "ai-history-empty"
+      ],
+      "localizedTextCount": 5,
+      "rawTextCount": 0,
+      "navigations": [],
+      "imports": [
+        "@/features/ai/api/ai",
+        "@/features/ai/api/ai",
+        "@/shared/api/types",
+        "@/shared/components/AppHeader",
+        "@/shared/components/AppToast",
+        "@/shared/components/ConfirmDialog",
+        "@/shared/components/EmptyState",
+        "@/shared/components/ErrorState",
+        "@/shared/components/LoadingState",
+        "@/shared/components/LocalizedText",
+        "@/shared/components/LtrText",
+        "@/shared/components/Screen",
+        "@/shared/i18n",
+        "@/shared/i18n",
+        "@/shared/hooks/useRefreshOnFocus",
+        "@/shared/navigation/routes",
+        "@/shared/theme",
+        "@/shared/utils/serverTime"
+      ]
+    },
+    {
+      "file": "apps/mobile-app/features/auth/pages/AgreementPage.tsx",
+      "name": "AgreementPage",
+      "domain": "features",
+      "route": "/agreement",
+      "routeKey": "agreement",
+      "isDevProbe": false,
+      "lines": 37,
+      "testIdCount": 0,
+      "testIds": [],
+      "localizedTextCount": 0,
+      "rawTextCount": 0,
+      "navigations": [],
+      "imports": [
+        "@/shared/components/AppHeader",
+        "@/shared/components/Screen",
+        "@/shared/i18n"
+      ]
+    },
+    {
+      "file": "apps/mobile-app/features/auth/pages/ForgotPasswordPage.tsx",
+      "name": "ForgotPasswordPage",
+      "domain": "features",
+      "route": "/forgot-password",
+      "routeKey": "forgotPassword",
+      "isDevProbe": false,
+      "lines": 369,
+      "testIdCount": 0,
+      "testIds": [],
+      "localizedTextCount": 11,
+      "rawTextCount": 0,
+      "navigations": [
+        {
+          "kind": "routeKey",
+          "value": "login"
+        },
+        {
+          "kind": "routeKey",
+          "value": "login"
+        }
+      ],
+      "imports": [
+        "@/features/auth/api/resetPassword",
+        "@/features/auth/api/register",
+        "@/shared/components/AppHeader",
+        "@/shared/components/AppToast",
+        "@/shared/components/CodeTimerButton",
+        "@/shared/components/FormField",
+        "@/shared/components/LocalizedText",
+        "@/shared/components/PrimaryButton",
+        "@/shared/components/Screen",
+        "@/shared/i18n",
+        "@/shared/hooks/useErrorMessage",
+        "@/shared/navigation/routes",
+        "@/shared/theme"
+      ]
+    },
+    {
+      "file": "apps/mobile-app/features/auth/pages/LoginPage.tsx",
+      "name": "LoginPage",
+      "domain": "features",
+      "route": "/login",
+      "routeKey": "login",
+      "isDevProbe": false,
+      "lines": 304,
+      "testIdCount": 0,
+      "testIds": [],
+      "localizedTextCount": 9,
+      "rawTextCount": 0,
+      "navigations": [
+        {
+          "kind": "routeKey",
+          "value": "register"
+        },
+        {
+          "kind": "routeKey",
+          "value": "forgotPassword"
+        }
+      ],
+      "imports": [
+        "@/features/auth/api/login",
+        "@/features/auth/api/login",
+        "@/shared/api/pendingIntent",
+        "@/shared/api/types",
+        "@/shared/components/LocalizedText",
+        "@/shared/components/PrimaryButton",
+        "@/shared/components/Screen",
+        "@/shared/navigation/routes",
+        "@/shared/i18n",
+        "@/shared/theme"
+      ]
+    },
+    {
+      "file": "apps/mobile-app/features/auth/pages/PrivacyPage.tsx",
+      "name": "PrivacyPage",
+      "domain": "features",
+      "route": "/privacy",
+      "routeKey": "privacy",
+      "isDevProbe": false,
+      "lines": 36,
+      "testIdCount": 0,
+      "testIds": [],
+      "localizedTextCount": 0,
+      "rawTextCount": 0,
+      "navigations": [],
+      "imports": [
+        "@/shared/components/AppHeader",
+        "@/shared/components/Screen",
+        "@/shared/i18n"
+      ]
+    },
+    {
+      "file": "apps/mobile-app/features/auth/pages/RegisterPage.tsx",
+      "name": "RegisterPage",
+      "domain": "features",
+      "route": "/register",
+      "routeKey": "register",
+      "isDevProbe": false,
+      "lines": 428,
+      "testIdCount": 0,
+      "testIds": [],
+      "localizedTextCount": 7,
+      "rawTextCount": 0,
+      "navigations": [
+        {
+          "kind": "routeKey",
+          "value": "profile"
+        },
+        {
+          "kind": "routeKey",
+          "value": "agreement"
+        },
+        {
+          "kind": "routeKey",
+          "value": "login"
+        }
+      ],
+      "imports": [
+        "@/features/auth/api/regions",
+        "@/features/auth/api/register",
+        "@/features/auth/components/RegionPicker",
+        "@/shared/api/types",
+        "@/shared/components/AppHeader",
+        "@/shared/components/AppToast",
+        "@/shared/components/CheckRow",
+        "@/shared/components/CodeTimerButton",
+        "@/shared/components/FormField",
+        "@/shared/components/LocalizedText",
+        "@/shared/components/PrimaryButton",
+        "@/shared/components/Screen",
+        "@/shared/i18n",
+        "@/shared/hooks/useErrorMessage",
+        "@/shared/navigation/routes",
+        "@/shared/theme"
+      ]
+    },
+    {
+      "file": "apps/mobile-app/features/auth/pages/SplashPage.tsx",
+      "name": "SplashPage",
+      "domain": "features",
+      "route": "/",
+      "routeKey": "root",
+      "isDevProbe": false,
+      "lines": 164,
+      "testIdCount": 0,
+      "testIds": [],
+      "localizedTextCount": 4,
+      "rawTextCount": 0,
+      "navigations": [],
+      "imports": [
+        "@/shared/api/tokenStore",
+        "@/shared/components/LocalizedText",
+        "@/shared/components/Screen",
+        "@/shared/i18n",
+        "@/shared/theme"
+      ]
+    },
+    {
+      "file": "apps/mobile-app/features/case/pages/CaseDeliveryPage.tsx",
+      "name": "CaseDeliveryPage",
+      "domain": "features",
+      "route": "/case-delivery",
+      "routeKey": "caseDelivery",
+      "isDevProbe": false,
+      "lines": 710,
+      "testIdCount": 8,
+      "testIds": [
+        "delivery-screen",
+        "delivery-banner",
+        "delivery-loading",
+        "delivery-error",
+        "delivery-empty",
+        "delivery-confirm-modal",
+        "delivery-confirm-cancel",
+        "delivery-confirm-ok"
+      ],
+      "localizedTextCount": 24,
+      "rawTextCount": 0,
+      "navigations": [
+        {
+          "kind": "routeKey",
+          "value": "case"
+        }
+      ],
+      "imports": [
+        "@/features/case/api/delivery",
+        "@/features/case/api/delivery",
+        "@/shared/components/AppHeader",
+        "@/shared/components/EmptyState",
+        "@/shared/components/ErrorState",
+        "@/shared/components/LoadingState",
+        "@/shared/components/LocalizedText",
+        "@/shared/components/PrimaryButton",
+        "@/shared/components/Screen",
+        "@/shared/i18n",
+        "@/shared/i18n",
+        "@/shared/hooks/useRefreshOnFocus",
+        "@/shared/navigation/routes",
+        "@/shared/api/types",
+        "@/shared/theme"
+      ]
+    },
+    {
+      "file": "apps/mobile-app/features/case/pages/CaseProgressPage.tsx",
+      "name": "CaseProgressPage",
+      "domain": "features",
+      "route": "/case-progress",
+      "routeKey": "caseProgress",
+      "isDevProbe": false,
+      "lines": 877,
+      "testIdCount": 18,
+      "testIds": [
+        "caseProgress-loading",
+        "caseProgress-error",
+        "caseProgress-screen",
+        "caseProgress-caseNo",
+        "caseProgress-status",
+        "caseProgress-courtCaseNo",
+        "caseProgress-rejectReason",
+        "caseProgress-resubmitRemaining",
+        "caseProgress-timeline",
+        "caseProgress-numberNote",
+        "caseProgress-advance",
+        "caseProgress-contactLawyer",
+        "caseProgress-resubmit",
+        "caseProgress-supplement",
+        "caseProgress-deliveries",
+        "caseProgress-advance-modal",
+        "caseProgress-advance-courtCaseNo",
+        "caseProgress-advance-submit"
+      ],
+      "localizedTextCount": 26,
+      "rawTextCount": 0,
+      "navigations": [],
+      "imports": [
+        "@/features/case/api/client",
+        "@/features/case/api/client",
+        "@/features/case/components/CaseStatusPill",
+        "@/shared/components/AppHeader",
+        "@/shared/components/AppToast",
+        "@/shared/components/ErrorState",
+        "@/shared/components/LoadingState",
+        "@/shared/components/LocalizedText",
+        "@/shared/components/PrimaryButton",
+        "@/shared/components/Screen",
+        "@/shared/i18n",
+        "@/shared/i18n",
+        "@/shared/navigation/routes",
+        "@/shared/api/types",
+        "@/shared/theme"
+      ]
+    },
+    {
+      "file": "apps/mobile-app/features/case/pages/FilingDonePage.tsx",
+      "name": "FilingDonePage",
+      "domain": "features",
+      "route": "/case-filing-done",
+      "routeKey": "caseFilingDone",
+      "isDevProbe": false,
+      "lines": 375,
+      "testIdCount": 8,
+      "testIds": [
+        "filingDone-screen",
+        "filingDone-caseNo",
+        "filingDone-copy",
+        "filingDone-numberNote",
+        "filingDone-info",
+        "filingDone-timeline",
+        "filingDone-viewProgress",
+        "filingDone-backHome"
+      ],
+      "localizedTextCount": 13,
+      "rawTextCount": 0,
+      "navigations": [
+        {
+          "kind": "routeKey",
+          "value": "case"
+        },
+        {
+          "kind": "routeKey",
+          "value": "home"
+        }
+      ],
+      "imports": [
+        "@/shared/components/AppHeader",
+        "@/shared/components/LocalizedText",
+        "@/shared/components/PrimaryButton",
+        "@/shared/components/Screen",
+        "@/shared/i18n",
+        "@/shared/i18n",
+        "@/shared/navigation/routes",
+        "@/shared/theme"
+      ]
+    },
+    {
+      "file": "apps/mobile-app/features/case/pages/FilingPage.tsx",
+      "name": "FilingPage",
+      "domain": "features",
+      "route": "/case-filing",
+      "routeKey": "caseFiling",
+      "isDevProbe": false,
+      "lines": 1019,
+      "testIdCount": 11,
+      "testIds": [
+        "filing-screen",
+        "filing-step-1",
+        "filing-compliance",
+        "filing-resubmitBanner",
+        "filing-step-2",
+        "filing-step-3",
+        "filing-counter",
+        "filing-step-4",
+        "filing-summary",
+        "filing-error",
+        "filing-prev"
+      ],
+      "localizedTextCount": 22,
+      "rawTextCount": 0,
+      "navigations": [],
+      "imports": [
+        "@/features/case/api/client",
+        "@/features/case/api/client",
+        "@/shared/components/AppHeader",
+        "@/shared/components/ConfirmDialog",
+        "@/shared/components/ErrorState",
+        "@/shared/components/LoadingState",
+        "@/shared/components/LocalizedText",
+        "@/shared/components/PrimaryButton",
+        "@/shared/components/Screen",
+        "@/shared/i18n",
+        "@/shared/i18n",
+        "@/shared/navigation/routes",
+        "@/shared/api/types",
+        "@/shared/theme"
+      ]
+    },
+    {
+      "file": "apps/mobile-app/features/case/pages/MyCasesPage.tsx",
+      "name": "MyCasesPage",
+      "domain": "features",
+      "route": "/case-my",
+      "routeKey": "caseMy",
+      "isDevProbe": false,
+      "lines": 408,
+      "testIdCount": 8,
+      "testIds": [
+        "myCases-redDot",
+        "myCases-file",
+        "myCases-screen",
+        "myCases-loading",
+        "myCases-error",
+        "myCases-empty",
+        "myCases-emptyFindLawyer",
+        "myCases-list"
+      ],
+      "localizedTextCount": 8,
+      "rawTextCount": 0,
+      "navigations": [
+        {
+          "kind": "routeKey",
+          "value": "caseFiling"
+        },
+        {
+          "kind": "routeKey",
+          "value": "lawyerTab"
+        }
+      ],
+      "imports": [
+        "@/features/case/api/client",
+        "@/features/case/api/client",
+        "@/features/case/components/CaseStatusPill",
+        "@/shared/components/AppHeader",
+        "@/shared/components/EmptyState",
+        "@/shared/components/ErrorState",
+        "@/shared/components/LoadingState",
+        "@/shared/components/LocalizedText",
+        "@/shared/components/Screen",
+        "@/shared/i18n",
+        "@/shared/i18n",
+        "@/shared/hooks/useRefreshOnFocus",
+        "@/shared/navigation/routes",
+        "@/shared/api/types",
+        "@/shared/theme"
+      ]
+    },
+    {
+      "file": "apps/mobile-app/features/content/pages/ArticleDetailPage.tsx",
+      "name": "ArticleDetailPage",
+      "domain": "features",
+      "route": "/article",
+      "routeKey": "article",
+      "isDevProbe": false,
+      "lines": 303,
+      "testIdCount": 0,
+      "testIds": [],
+      "localizedTextCount": 11,
+      "rawTextCount": 0,
+      "navigations": [],
+      "imports": [
+        "@/features/content/api/articles",
+        "@/features/content/api/articles",
+        "@/shared/api/types",
+        "@/shared/components/AppCard",
+        "@/shared/components/AppHeader",
+        "@/shared/components/ErrorState",
+        "@/shared/components/LoadingState",
+        "@/shared/components/LocalizedText",
+        "@/shared/components/LtrText",
+        "@/shared/components/Screen",
+        "@/shared/components/TagChip",
+        "@/shared/i18n",
+        "@/shared/theme",
+        "@/shared/utils/serverTime"
+      ]
+    },
+    {
+      "file": "apps/mobile-app/features/content/pages/ArticleListPage.tsx",
+      "name": "ArticleListPage",
+      "domain": "features",
+      "route": "/articles",
+      "routeKey": "articles",
+      "isDevProbe": false,
+      "lines": 297,
+      "testIdCount": 0,
+      "testIds": [],
+      "localizedTextCount": 5,
+      "rawTextCount": 0,
+      "navigations": [],
+      "imports": [
+        "@/features/content/api/articles",
+        "@/features/content/api/articles",
+        "@/shared/api/types",
+        "@/shared/components/AppCard",
+        "@/shared/components/AppHeader",
+        "@/shared/components/ErrorState",
+        "@/shared/components/LoadingState",
+        "@/shared/components/LocalizedText",
+        "@/shared/components/LtrText",
+        "@/shared/components/PrimaryButton",
+        "@/shared/components/Screen",
+        "@/shared/components/TagChip",
+        "@/shared/i18n",
+        "@/shared/i18n",
+        "@/shared/hooks/useRefreshOnFocus",
+        "@/shared/navigation/routes",
+        "@/shared/theme",
+        "@/shared/utils/serverTime"
+      ]
+    },
+    {
+      "file": "apps/mobile-app/features/content/pages/CaseDetailPage.tsx",
+      "name": "CaseDetailPage",
+      "domain": "features",
+      "route": "/case-detail",
+      "routeKey": null,
+      "isDevProbe": false,
+      "lines": 369,
+      "testIdCount": 11,
+      "testIds": [
+        "case-detail-screen",
+        "case-error",
+        "case-offline",
+        "case-lang-fallback",
+        "case-title",
+        "case-meta",
+        "case-laws",
+        "case-disclaimer",
+        "case-favorite",
+        "case-ask",
+        "law-popup"
+      ],
+      "localizedTextCount": 10,
+      "rawTextCount": 0,
+      "navigations": [
+        {
+          "kind": "literal",
+          "value": "/agent"
+        }
+      ],
+      "imports": [
+        "@/features/content/api/caseLibrary",
+        "@/features/content/api/caseLibrary",
+        "@/features/content/api/search",
+        "@/shared/components/AppHeader",
+        "@/shared/components/EmptyState",
+        "@/shared/components/ErrorState",
+        "@/shared/components/LoadingState",
+        "@/shared/components/LocalizedText",
+        "@/shared/components/LtrText",
+        "@/shared/components/PrimaryButton",
+        "@/shared/components/Screen",
+        "@/features/content/api/favorite",
+        "@/shared/i18n",
+        "@/shared/i18n",
+        "@/shared/api/types",
+        "@/shared/theme"
+      ]
+    },
+    {
+      "file": "apps/mobile-app/features/content/pages/CaseListPage.tsx",
+      "name": "CaseListPage",
+      "domain": "features",
+      "route": "/case",
+      "routeKey": "case",
+      "isDevProbe": false,
+      "lines": 325,
+      "testIdCount": 5,
+      "testIds": [
+        "case-list-screen",
+        "case-search-entry",
+        "case-banner",
+        "case-error",
+        "case-empty"
+      ],
+      "localizedTextCount": 8,
+      "rawTextCount": 0,
+      "navigations": [
+        {
+          "kind": "routeKey",
+          "value": "search"
+        },
+        {
+          "kind": "literal",
+          "value": "/case-detail?id=${item.id}"
+        }
+      ],
+      "imports": [
+        "@/features/content/api/caseLibrary",
+        "@/features/content/api/caseLibrary",
+        "@/shared/components/AppHeader",
+        "@/shared/components/EmptyState",
+        "@/shared/components/ErrorState",
+        "@/shared/components/LoadingState",
+        "@/shared/components/LocalizedText",
+        "@/shared/components/Screen",
+        "@/shared/i18n",
+        "@/shared/hooks/useRefreshOnFocus",
+        "@/shared/i18n",
+        "@/shared/navigation/routes",
+        "@/shared/api/types",
+        "@/shared/theme"
+      ]
+    },
+    {
+      "file": "apps/mobile-app/features/content/pages/MessageDetailPage.tsx",
+      "name": "MessageDetailPage",
+      "domain": "features",
+      "route": "/message-detail",
+      "routeKey": "messageDetail",
+      "isDevProbe": false,
+      "lines": 84,
+      "testIdCount": 0,
+      "testIds": [],
+      "localizedTextCount": 2,
+      "rawTextCount": 0,
+      "navigations": [
+        {
+          "kind": "routeKey",
+          "value": "messages"
+        }
+      ],
+      "imports": [
+        "@/shared/components/AppHeader",
+        "@/shared/components/LocalizedText",
+        "@/shared/components/PrimaryButton",
+        "@/shared/components/Screen",
+        "@/shared/i18n",
+        "@/shared/navigation/routes",
+        "@/shared/theme"
+      ]
+    },
+    {
+      "file": "apps/mobile-app/features/content/pages/MessagesPage.tsx",
+      "name": "MessagesPage",
+      "domain": "features",
+      "route": "/messages",
+      "routeKey": "messages",
+      "isDevProbe": false,
+      "lines": 117,
+      "testIdCount": 0,
+      "testIds": [],
+      "localizedTextCount": 4,
+      "rawTextCount": 0,
+      "navigations": [
+        {
+          "kind": "routeKey",
+          "value": "lawyerTab"
+        },
+        {
+          "kind": "literal",
+          "value": "/home"
+        }
+      ],
+      "imports": [
+        "@/shared/components/AppHeader",
+        "@/shared/components/LocalizedText",
+        "@/shared/components/PrimaryButton",
+        "@/shared/components/Screen",
+        "@/shared/i18n",
+        "@/shared/navigation/routes",
+        "@/shared/theme"
+      ]
+    },
+    {
+      "file": "apps/mobile-app/features/content/pages/SearchPage.tsx",
+      "name": "SearchPage",
+      "domain": "features",
+      "route": "/search",
+      "routeKey": "search",
+      "isDevProbe": false,
+      "lines": 547,
+      "testIdCount": 9,
+      "testIds": [
+        "search-screen",
+        "search-input",
+        "search-cancel",
+        "search-idle",
+        "search-history",
+        "search-history-clear",
+        "search-hot",
+        "search-error",
+        "search-empty"
+      ],
+      "localizedTextCount": 20,
+      "rawTextCount": 0,
+      "navigations": [
+        {
+          "kind": "literal",
+          "value": "/lawyer-detail?id=${item.id}"
+        },
+        {
+          "kind": "literal",
+          "value": "/article?id=${item.id}"
+        },
+        {
+          "kind": "literal",
+          "value": "/case-detail?id=${item.id}"
+        }
+      ],
+      "imports": [
+        "@/features/content/api/search",
+        "@/features/content/api/search",
+        "@/shared/components/AppHeader",
+        "@/shared/components/EmptyState",
+        "@/shared/components/ErrorState",
+        "@/shared/components/LoadingState",
+        "@/shared/components/LocalizedText",
+        "@/shared/components/Screen",
+        "@/shared/i18n",
+        "@/shared/i18n",
+        "@/shared/navigation/routes",
+        "@/shared/utils/prefStore",
+        "@/shared/api/types",
+        "@/shared/theme"
+      ]
+    },
+    {
+      "file": "apps/mobile-app/features/conversation/pages/ChatPage.tsx",
+      "name": "ChatPage",
+      "domain": "features",
+      "route": "/chat",
+      "routeKey": "chat",
+      "isDevProbe": false,
+      "lines": 1151,
+      "testIdCount": 0,
+      "testIds": [],
+      "localizedTextCount": 16,
+      "rawTextCount": 0,
+      "navigations": [],
+      "imports": [
+        "@/features/account/api/upload",
+        "@/features/conversation/api/conversations",
+        "@/features/conversation/api/conversations",
+        "@/features/conversation/components/AttachSheet",
+        "@/features/conversation/components/MessageFile",
+        "@/features/conversation/components/MessageImage",
+        "@/features/conversation/hooks/useChatSocket",
+        "@/shared/api/types",
+        "@/shared/components/AppCard",
+        "@/shared/components/AppHeader",
+        "@/shared/components/AppToast",
+        "@/shared/components/ConfirmDialog",
+        "@/shared/components/ErrorState",
+        "@/shared/components/LoadingState",
+        "@/shared/components/LocalizedText",
+        "@/shared/components/LtrText",
+        "@/shared/components/PrimaryButton",
+        "@/shared/components/Screen",
+        "@/shared/i18n",
+        "@/shared/i18n",
+        "@/shared/i18n/datetime",
+        "@/shared/navigation/routes",
+        "@/shared/theme",
+        "@/shared/utils/money",
+        "@/shared/utils/serverTime"
+      ]
+    },
+    {
+      "file": "apps/mobile-app/features/dev/pages/ProbePage.tsx",
+      "name": "ProbePage",
+      "domain": "features",
+      "route": "/dev/probe",
+      "routeKey": "devProbe",
+      "isDevProbe": true,
+      "lines": 265,
+      "testIdCount": 0,
+      "testIds": [],
+      "localizedTextCount": 11,
+      "rawTextCount": 0,
+      "navigations": [],
+      "imports": [
+        "@/shared/api/client",
+        "@/shared/api/sse",
+        "@/shared/api/sse",
+        "@/shared/components/LocalizedText",
+        "@/shared/components/Screen",
+        "@/shared/theme"
+      ]
+    },
+    {
+      "file": "apps/mobile-app/features/dev/pages/RtlProbePage.tsx",
+      "name": "RtlProbePage",
+      "domain": "features",
+      "route": "/dev/rtl",
+      "routeKey": "devRtl",
+      "isDevProbe": true,
+      "lines": 210,
+      "testIdCount": 0,
+      "testIds": [],
+      "localizedTextCount": 15,
+      "rawTextCount": 0,
+      "navigations": [],
+      "imports": [
+        "@/shared/components/DirectionalIcon",
+        "@/shared/components/LocalizedText",
+        "@/shared/components/Screen",
+        "@/shared/i18n/rtl",
+        "@/shared/theme"
+      ]
+    },
+    {
+      "file": "apps/mobile-app/features/document/pages/DocFormPage.tsx",
+      "name": "DocFormPage",
+      "domain": "features",
+      "route": "/doc/form",
+      "routeKey": "docForm",
+      "isDevProbe": false,
+      "lines": 53,
+      "testIdCount": 0,
+      "testIds": [],
+      "localizedTextCount": 0,
+      "rawTextCount": 0,
+      "navigations": [],
+      "imports": [
+        "@/features/document/components/DynamicForm",
+        "@/features/document/components/DynamicForm",
+        "@/shared/i18n"
+      ]
+    },
+    {
+      "file": "apps/mobile-app/features/document/pages/DocLawsuitFormPage.tsx",
+      "name": "DocLawsuitFormPage",
+      "domain": "features",
+      "route": "/doc/lawsuit",
+      "routeKey": "docLawsuit",
+      "isDevProbe": false,
+      "lines": 55,
+      "testIdCount": 0,
+      "testIds": [],
+      "localizedTextCount": 0,
+      "rawTextCount": 0,
+      "navigations": [],
+      "imports": [
+        "@/features/document/components/DynamicForm",
+        "@/features/document/components/DynamicForm",
+        "@/shared/i18n"
+      ]
+    },
+    {
+      "file": "apps/mobile-app/features/document/pages/DocMinePage.tsx",
+      "name": "DocMinePage",
+      "domain": "features",
+      "route": "/doc/mine",
+      "routeKey": "docMine",
+      "isDevProbe": false,
+      "lines": 789,
+      "testIdCount": 9,
+      "testIds": [
+        "mine-screen",
+        "mine-list",
+        "mine-type-all",
+        "mine-loading",
+        "mine-error",
+        "mine-empty",
+        "mine-empty-action",
+        "mine-load-more",
+        "mine-no-more"
+      ],
+      "localizedTextCount": 10,
+      "rawTextCount": 0,
+      "navigations": [
+        {
+          "kind": "routeKey",
+          "value": "docTemplates"
+        },
+        {
+          "kind": "routeKey",
+          "value": "docTemplates"
+        }
+      ],
+      "imports": [
+        "@/features/document/api/client",
+        "@/features/document/api/client",
+        "@/shared/api/types",
+        "@/shared/components/AppHeader",
+        "@/shared/components/AppToast",
+        "@/shared/components/EmptyState",
+        "@/shared/components/ErrorState",
+        "@/shared/components/LoadingState",
+        "@/shared/components/LocalizedText",
+        "@/shared/components/LtrText",
+        "@/shared/components/PrimaryButton",
+        "@/shared/components/Screen",
+        "@/shared/i18n",
+        "@/shared/i18n",
+        "@/shared/hooks/useRefreshOnFocus",
+        "@/shared/navigation/routes",
+        "@/shared/theme",
+        "@/shared/utils/serverTime"
+      ]
+    },
+    {
+      "file": "apps/mobile-app/features/document/pages/DocPreviewPage.tsx",
+      "name": "DocPreviewPage",
+      "domain": "features",
+      "route": "/doc/preview",
+      "routeKey": "docPreview",
+      "isDevProbe": false,
+      "lines": 1314,
+      "testIdCount": 27,
+      "testIds": [
+        "docPreview.preview.page",
+        "docPreview.state.loading",
+        "docPreview.state.error",
+        "docPreview.state.draft",
+        "docPreview.action.generate",
+        "docPreview.state.generating",
+        "docPreview.state.timeout",
+        "docPreview.action.generate",
+        "docPreview.state.retry",
+        "docPreview.state.failed",
+        "docPreview.action.generate",
+        "docPreview.preview.list",
+        "docPreview.sign.cancelPlace",
+        "docPreview.action.export",
+        "docPreview.action.seal",
+        "docPreview.action.backToForm",
+        "docPreview.root",
+        "docPreview.export.sheet",
+        "docPreview.export.download",
+        "docPreview.export.share",
+        "docPreview.export.print",
+        "docPreview.export.gallery",
+        "docPreview.sign.sheet",
+        "docPreview.sign.retry",
+        "docPreview.sign.manage",
+        "docPreview.sign.signature",
+        "docPreview.sign.confirm"
+      ],
+      "localizedTextCount": 25,
+      "rawTextCount": 0,
+      "navigations": [
+        {
+          "kind": "routeKey",
+          "value": "docLawsuit"
+        },
+        {
+          "kind": "routeKey",
+          "value": "docSeals"
+        }
+      ],
+      "imports": [
+        "@/shared/api/types",
+        "@/shared/components/ActionBar",
+        "@/shared/components/AppHeader",
+        "@/shared/components/AppToast",
+        "@/shared/components/ErrorState",
+        "@/shared/components/LoadingState",
+        "@/shared/components/LocalizedText",
+        "@/shared/components/PrimaryButton",
+        "@/shared/components/Screen",
+        "@/shared/components/TagChip",
+        "@/shared/hooks/useErrorMessage",
+        "@/shared/i18n",
+        "@/shared/navigation/routes",
+        "@/shared/theme",
+        "@/shared/utils/serverTime"
+      ]
+    },
+    {
+      "file": "apps/mobile-app/features/document/pages/DocSealPage.tsx",
+      "name": "DocSealPage",
+      "domain": "features",
+      "route": "/doc/seals",
+      "routeKey": "docSeals",
+      "isDevProbe": false,
+      "lines": 647,
+      "testIdCount": 15,
+      "testIds": [
+        "docSeal.item",
+        "docSeal.item.delete",
+        "docSeal.state.loading",
+        "docSeal.state.error",
+        "docSeal.state.empty",
+        "docSeal.action.create",
+        "docSeal.list",
+        "docSeal.root",
+        "docSeal.limit.hint",
+        "docSeal.action.create",
+        "docSeal.new.sheet",
+        "docSeal.new.cancel",
+        "docSeal.new.handwrite",
+        "docSeal.new.upload",
+        "docSeal.new.pickImage"
+      ],
+      "localizedTextCount": 18,
+      "rawTextCount": 0,
+      "navigations": [],
+      "imports": [
+        "@/shared/components/ActionBar",
+        "@/shared/components/AppHeader",
+        "@/shared/components/AppToast",
+        "@/shared/components/ConfirmDialog",
+        "@/shared/components/EmptyState",
+        "@/shared/components/ErrorState",
+        "@/shared/components/LoadingState",
+        "@/shared/components/LocalizedText",
+        "@/shared/components/PrimaryButton",
+        "@/shared/components/Screen",
+        "@/shared/hooks/useAsyncResource",
+        "@/shared/hooks/useErrorMessage",
+        "@/shared/i18n",
+        "@/shared/theme",
+        "@/shared/utils/serverTime"
+      ]
+    },
+    {
+      "file": "apps/mobile-app/features/document/pages/DocTemplatesPage.tsx",
+      "name": "DocTemplatesPage",
+      "domain": "features",
+      "route": "/doc/templates",
+      "routeKey": "docTemplates",
+      "isDevProbe": false,
+      "lines": 430,
+      "testIdCount": 8,
+      "testIds": [
+        "templates-screen",
+        "templates-filter-all",
+        "templates-loading",
+        "templates-error",
+        "templates-empty",
+        "templates-empty",
+        "templates-grid",
+        "templates-tip"
+      ],
+      "localizedTextCount": 9,
+      "rawTextCount": 0,
+      "navigations": [],
+      "imports": [
+        "@/features/document/api/client",
+        "@/features/document/api/client",
+        "@/shared/components/AppHeader",
+        "@/shared/components/DirectionalIcon",
+        "@/shared/components/EmptyState",
+        "@/shared/components/ErrorState",
+        "@/shared/components/LoadingState",
+        "@/shared/components/LocalizedText",
+        "@/shared/components/Screen",
+        "@/shared/components/TagChip",
+        "@/shared/i18n",
+        "@/shared/i18n",
+        "@/shared/hooks/useAsyncResource",
+        "@/shared/hooks/useRefreshOnFocus",
+        "@/shared/navigation/routes",
+        "@/shared/theme"
+      ]
+    },
+    {
+      "file": "apps/mobile-app/features/home/pages/HomePage.tsx",
+      "name": "HomePage",
+      "domain": "features",
+      "route": "/home",
+      "routeKey": "home",
+      "isDevProbe": false,
+      "lines": 474,
+      "testIdCount": 0,
+      "testIds": [],
+      "localizedTextCount": 13,
+      "rawTextCount": 0,
+      "navigations": [
+        {
+          "kind": "routeKey",
+          "value": "docTemplates"
+        },
+        {
+          "kind": "routeKey",
+          "value": "messages"
+        },
+        {
+          "kind": "routeKey",
+          "value": "search"
+        },
+        {
+          "kind": "routeKey",
+          "value": "agent"
+        }
+      ],
+      "imports": [
+        "@/features/content/api/articles",
+        "@/features/content/api/articles",
+        "@/features/document/api/client",
+        "@/shared/components/AppCard",
+        "@/shared/components/AppToast",
+        "@/shared/components/LoadingState",
+        "@/shared/components/LocalizedText",
+        "@/shared/components/LtrText",
+        "@/shared/components/Screen",
+        "@/shared/components/SectionTitle",
+        "@/shared/i18n",
+        "@/shared/i18n",
+        "@/shared/hooks/useRefreshOnFocus",
+        "@/shared/navigation/routes",
+        "@/shared/theme",
+        "@/shared/utils/serverTime"
+      ]
+    },
+    {
+      "file": "apps/mobile-app/features/lawyer/pages/LawyerDetailPage.tsx",
+      "name": "LawyerDetailPage",
+      "domain": "features",
+      "route": "/lawyer-detail",
+      "routeKey": "lawyerDetail",
+      "isDevProbe": false,
+      "lines": 687,
+      "testIdCount": 0,
+      "testIds": [],
+      "localizedTextCount": 29,
+      "rawTextCount": 0,
+      "navigations": [],
+      "imports": [
+        "@/features/lawyer/api/lawyers",
+        "@/features/lawyer/api/lawyers",
+        "@/features/trade/api/orders",
+        "@/shared/components/ActionBar",
+        "@/shared/components/AppCard",
+        "@/shared/components/AppHeader",
+        "@/shared/components/AppToast",
+        "@/shared/components/AsyncBoundary",
+        "@/shared/components/LocalizedText",
+        "@/shared/components/MoneyText",
+        "@/shared/components/PrimaryButton",
+        "@/shared/components/Screen",
+        "@/shared/i18n",
+        "@/shared/i18n",
+        "@/shared/hooks/useAsyncResource",
+        "@/shared/hooks/useRefreshOnFocus",
+        "@/shared/navigation/routes",
+        "@/shared/theme",
+        "@/shared/utils/money",
+        "@/shared/utils/serverTime"
+      ]
+    },
+    {
+      "file": "apps/mobile-app/features/lawyer/pages/LawyerJoinPage.tsx",
+      "name": "LawyerJoinPage",
+      "domain": "features",
+      "route": "/lawyer-join",
+      "routeKey": "lawyerJoin",
+      "isDevProbe": false,
+      "lines": 652,
+      "testIdCount": 0,
+      "testIds": [],
+      "localizedTextCount": 10,
+      "rawTextCount": 0,
+      "navigations": [
+        {
+          "kind": "routeKey",
+          "value": "lawyerJoinStatus"
+        },
+        {
+          "kind": "routeKey",
+          "value": "lawyerJoinStatus"
+        }
+      ],
+      "imports": [
+        "@/features/account/api/upload",
+        "@/features/lawyer/api/application",
+        "@/features/lawyer/api/application",
+        "@/shared/components/AppHeader",
+        "@/shared/components/AppToast",
+        "@/shared/components/ActionBar",
+        "@/shared/components/AsyncBoundary",
+        "@/shared/components/FormField",
+        "@/shared/components/LocalizedText",
+        "@/shared/components/PrimaryButton",
+        "@/shared/components/Screen",
+        "@/shared/components/StatusHero",
+        "@/shared/components/WebFileButton",
+        "@/shared/i18n",
+        "@/shared/i18n",
+        "@/shared/hooks/useAsyncResource",
+        "@/shared/hooks/useErrorMessage",
+        "@/shared/navigation/routes",
+        "@/shared/theme"
+      ]
+    },
+    {
+      "file": "apps/mobile-app/features/lawyer/pages/LawyerJoinStatusPage.tsx",
+      "name": "LawyerJoinStatusPage",
+      "domain": "features",
+      "route": "/lawyer-join-status",
+      "routeKey": "lawyerJoinStatus",
+      "isDevProbe": false,
+      "lines": 235,
+      "testIdCount": 0,
+      "testIds": [],
+      "localizedTextCount": 2,
+      "rawTextCount": 0,
+      "navigations": [
+        {
+          "kind": "routeKey",
+          "value": "lawyerJoin"
+        },
+        {
+          "kind": "routeKey",
+          "value": "lawyerJoin"
+        },
+        {
+          "kind": "routeKey",
+          "value": "lawyerJoin"
+        },
+        {
+          "kind": "routeKey",
+          "value": "profile"
+        }
+      ],
+      "imports": [
+        "@/features/lawyer/api/application",
+        "@/shared/components/AppHeader",
+        "@/shared/components/AppToast",
+        "@/shared/components/AsyncBoundary",
+        "@/shared/components/LocalizedText",
+        "@/shared/components/PrimaryButton",
+        "@/shared/components/Screen",
+        "@/shared/components/SettingRow",
+        "@/shared/components/StatusHero",
+        "@/shared/i18n",
+        "@/shared/hooks/useAsyncResource",
+        "@/shared/hooks/useRefreshOnFocus",
+        "@/shared/navigation/routes",
+        "@/shared/theme",
+        "@/shared/utils/serverTime"
+      ]
+    },
+    {
+      "file": "apps/mobile-app/features/lawyer/pages/LawyerListPage.tsx",
+      "name": "LawyerListPage",
+      "domain": "features",
+      "route": "/lawyer",
+      "routeKey": "lawyerTab",
+      "isDevProbe": false,
+      "lines": 542,
+      "testIdCount": 0,
+      "testIds": [],
+      "localizedTextCount": 12,
+      "rawTextCount": 0,
+      "navigations": [],
+      "imports": [
+        "@/features/lawyer/api/lawyers",
+        "@/features/lawyer/api/lawyers",
+        "@/shared/api/types",
+        "@/shared/components/AppHeader",
+        "@/shared/components/EmptyState",
+        "@/shared/components/ErrorState",
+        "@/shared/components/LocalizedText",
+        "@/shared/components/LoadingState",
+        "@/shared/components/MoneyText",
+        "@/shared/components/PrimaryButton",
+        "@/shared/components/Screen",
+        "@/shared/components/SearchBar",
+        "@/shared/i18n",
+        "@/shared/i18n",
+        "@/shared/hooks/useRefreshOnFocus",
+        "@/shared/navigation/routes",
+        "@/shared/theme",
+        "@/shared/utils/money"
+      ]
+    },
+    {
+      "file": "apps/mobile-app/features/lawyer/pages/LawyerOrdersPage.tsx",
+      "name": "LawyerOrdersPage",
+      "domain": "features",
+      "route": "/lawyer-orders",
+      "routeKey": "lawyerOrders",
+      "isDevProbe": false,
+      "lines": 559,
+      "testIdCount": 0,
+      "testIds": [],
+      "localizedTextCount": 9,
+      "rawTextCount": 0,
+      "navigations": [
+        {
+          "kind": "literal",
+          "value": "/lawyer-workbench"
+        }
+      ],
+      "imports": [
+        "@/features/lawyer/api/workbench",
+        "@/features/lawyer/api/workbench",
+        "@/shared/api/types",
+        "@/shared/components/AppHeader",
+        "@/shared/components/AppToast",
+        "@/shared/components/ConfirmDialog",
+        "@/shared/components/EmptyState",
+        "@/shared/components/ErrorState",
+        "@/shared/components/LoadingState",
+        "@/shared/components/LocalizedText",
+        "@/shared/components/LtrText",
+        "@/shared/components/MoneyText",
+        "@/shared/components/PrimaryButton",
+        "@/shared/components/Screen",
+        "@/shared/i18n",
+        "@/shared/i18n",
+        "@/shared/hooks/useRefreshOnFocus",
+        "@/shared/theme",
+        "@/shared/utils/money",
+        "@/shared/utils/serverTime"
+      ]
+    },
+    {
+      "file": "apps/mobile-app/features/lawyer/pages/WorkbenchPage.tsx",
+      "name": "WorkbenchPage",
+      "domain": "features",
+      "route": "/lawyer-workbench",
+      "routeKey": "lawyerWorkbench",
+      "isDevProbe": false,
+      "lines": 523,
+      "testIdCount": 1,
+      "testIds": [
+        "workbench-grid"
+      ],
+      "localizedTextCount": 14,
+      "rawTextCount": 0,
+      "navigations": [
+        {
+          "kind": "routeKey",
+          "value": "lawyerOrders"
+        }
+      ],
+      "imports": [
+        "@/features/lawyer/api/workbench",
+        "@/features/lawyer/api/workbench",
+        "@/shared/components/AppCard",
+        "@/shared/components/AppHeader",
+        "@/shared/components/AppToast",
+        "@/shared/components/AsyncBoundary",
+        "@/shared/components/DirectionalIcon",
+        "@/shared/components/FormField",
+        "@/shared/components/LocalizedText",
+        "@/shared/components/MoneyText",
+        "@/shared/components/PrimaryButton",
+        "@/shared/components/Screen",
+        "@/shared/components/ToggleRow",
+        "@/shared/i18n",
+        "@/shared/i18n",
+        "@/shared/hooks/useAsyncResource",
+        "@/shared/navigation/routes",
+        "@/shared/theme",
+        "@/shared/utils/money"
+      ]
+    },
+    {
+      "file": "apps/mobile-app/features/ops/pages/ComplaintListPage.tsx",
+      "name": "ComplaintListPage",
+      "domain": "features",
+      "route": "/complaint-list",
+      "routeKey": "complaintList",
+      "isDevProbe": false,
+      "lines": 516,
+      "testIdCount": 0,
+      "testIds": [],
+      "localizedTextCount": 11,
+      "rawTextCount": 0,
+      "navigations": [
+        {
+          "kind": "routeKey",
+          "value": "complaint"
+        }
+      ],
+      "imports": [
+        "@/shared/api/types",
+        "@/shared/components/AppHeader",
+        "@/shared/components/AppToast",
+        "@/shared/components/EmptyState",
+        "@/shared/components/ErrorState",
+        "@/shared/components/LoadingState",
+        "@/shared/components/LocalizedText",
+        "@/shared/components/PrimaryButton",
+        "@/shared/components/Screen",
+        "@/shared/i18n",
+        "@/shared/i18n",
+        "@/shared/hooks/useErrorMessage",
+        "@/shared/hooks/useRefreshOnFocus",
+        "@/shared/navigation/routes",
+        "@/shared/theme",
+        "@/shared/utils/serverTime",
+        "@/features/account/api/upload"
+      ]
+    },
+    {
+      "file": "apps/mobile-app/features/ops/pages/ComplaintPage.tsx",
+      "name": "ComplaintPage",
+      "domain": "features",
+      "route": "/complaint",
+      "routeKey": "complaint",
+      "isDevProbe": false,
+      "lines": 655,
+      "testIdCount": 0,
+      "testIds": [],
+      "localizedTextCount": 24,
+      "rawTextCount": 0,
+      "navigations": [
+        {
+          "kind": "routeKey",
+          "value": "complaintList"
+        },
+        {
+          "kind": "routeKey",
+          "value": "complaintList"
+        }
+      ],
+      "imports": [
+        "@/shared/components/AppHeader",
+        "@/shared/components/AppCard",
+        "@/shared/components/ActionBar",
+        "@/shared/components/LocalizedText",
+        "@/shared/components/PrimaryButton",
+        "@/shared/components/Screen",
+        "@/shared/components/AppToast",
+        "@/shared/components/WebFileButton",
+        "@/shared/i18n/datetime",
+        "@/shared/i18n",
+        "@/shared/i18n",
+        "@/features/profile/api/profile",
+        "@/shared/navigation/routes",
+        "@/features/trade/api/orders",
+        "@/features/trade/api/orders",
+        "@/features/account/api/upload",
+        "@/shared/theme"
+      ]
+    },
+    {
+      "file": "apps/mobile-app/features/ops/pages/FaqPage.tsx",
+      "name": "FaqPage",
+      "domain": "features",
+      "route": "/faq",
+      "routeKey": "faq",
+      "isDevProbe": false,
+      "lines": 320,
+      "testIdCount": 0,
+      "testIds": [],
+      "localizedTextCount": 6,
+      "rawTextCount": 0,
+      "navigations": [
+        {
+          "kind": "routeKey",
+          "value": "support"
+        }
+      ],
+      "imports": [
+        "@/shared/components/AppHeader",
+        "@/shared/components/AsyncBoundary",
+        "@/shared/components/AsyncBoundary",
+        "@/shared/components/LocalizedText",
+        "@/shared/components/Screen",
+        "@/shared/i18n",
+        "@/shared/i18n",
+        "@/shared/navigation/routes",
+        "@/shared/theme"
+      ]
+    },
+    {
+      "file": "apps/mobile-app/features/ops/pages/FeedbackPage.tsx",
+      "name": "FeedbackPage",
+      "domain": "features",
+      "route": "/feedback",
+      "routeKey": "feedback",
+      "isDevProbe": false,
+      "lines": 438,
+      "testIdCount": 0,
+      "testIds": [],
+      "localizedTextCount": 14,
+      "rawTextCount": 0,
+      "navigations": [],
+      "imports": [
+        "@/shared/components/ActionBar",
+        "@/shared/components/AppCard",
+        "@/shared/components/AppHeader",
+        "@/shared/components/LocalizedText",
+        "@/shared/components/PrimaryButton",
+        "@/shared/components/Screen",
+        "@/shared/components/AppToast",
+        "@/shared/components/WebFileButton",
+        "@/shared/i18n",
+        "@/shared/i18n",
+        "@/features/account/api/upload",
+        "@/shared/theme"
+      ]
+    },
+    {
+      "file": "apps/mobile-app/features/ops/pages/SupportPage.tsx",
+      "name": "SupportPage",
+      "domain": "features",
+      "route": "/support",
+      "routeKey": "support",
+      "isDevProbe": false,
+      "lines": 395,
+      "testIdCount": 0,
+      "testIds": [],
+      "localizedTextCount": 12,
+      "rawTextCount": 0,
+      "navigations": [
+        {
+          "kind": "routeKey",
+          "value": "faq"
+        },
+        {
+          "kind": "routeKey",
+          "value": "faq"
+        }
+      ],
+      "imports": [
+        "@/shared/components/AppHeader",
+        "@/shared/components/AsyncBoundary",
+        "@/shared/components/AsyncBoundary",
+        "@/shared/components/LocalizedText",
+        "@/shared/components/Screen",
+        "@/shared/components/SectionTitle",
+        "@/shared/components/AppToast",
+        "@/shared/i18n",
+        "@/shared/navigation/routes",
+        "@/shared/theme"
+      ]
+    },
+    {
+      "file": "apps/mobile-app/features/profile/pages/MyPage.tsx",
+      "name": "MyPage",
+      "domain": "features",
+      "route": "/profile",
+      "routeKey": "profile",
+      "isDevProbe": false,
+      "lines": 661,
+      "testIdCount": 0,
+      "testIds": [],
+      "localizedTextCount": 13,
+      "rawTextCount": 0,
+      "navigations": [
+        {
+          "kind": "routeKey",
+          "value": "login"
+        },
+        {
+          "kind": "routeKey",
+          "value": "lawyerWorkbench"
+        },
+        {
+          "kind": "routeKey",
+          "value": "balance"
+        },
+        {
+          "kind": "routeKey",
+          "value": "recharge"
+        },
+        {
+          "kind": "routeKey",
+          "value": "verifyRealname"
+        },
+        {
+          "kind": "routeKey",
+          "value": "verifyRealname"
+        },
+        {
+          "kind": "routeKey",
+          "value": "editProfile"
+        },
+        {
+          "kind": "routeKey",
+          "value": "verifyCompany"
+        },
+        {
+          "kind": "routeKey",
+          "value": "favorites"
+        },
+        {
+          "kind": "routeKey",
+          "value": "following"
+        },
+        {
+          "kind": "routeKey",
+          "value": "payPassword"
+        },
+        {
+          "kind": "routeKey",
+          "value": "balance"
+        },
+        {
+          "kind": "routeKey",
+          "value": "orders"
+        },
+        {
+          "kind": "routeKey",
+          "value": "docMine"
+        },
+        {
+          "kind": "routeKey",
+          "value": "docSeals"
+        },
+        {
+          "kind": "routeKey",
+          "value": "accountSecurity"
+        },
+        {
+          "kind": "routeKey",
+          "value": "notifySettings"
+        },
+        {
+          "kind": "routeKey",
+          "value": "privacySettings"
+        },
+        {
+          "kind": "routeKey",
+          "value": "language"
+        },
+        {
+          "kind": "routeKey",
+          "value": "settings"
+        },
+        {
+          "kind": "routeKey",
+          "value": "allFeatures"
+        },
+        {
+          "kind": "routeKey",
+          "value": "support"
+        },
+        {
+          "kind": "routeKey",
+          "value": "complaint"
+        },
+        {
+          "kind": "routeKey",
+          "value": "complaintList"
+        },
+        {
+          "kind": "routeKey",
+          "value": "feedback"
+        }
+      ],
+      "imports": [
+        "@/features/lawyer/api/application",
+        "@/features/lawyer/api/application",
+        "@/features/profile/api/profile",
+        "@/features/profile/api/profile",
+        "@/features/profile/api/profile",
+        "@/features/profile/components/UserAvatar",
+        "@/features/trade/api/wallet",
+        "@/shared/api/types",
+        "@/shared/components/AsyncBoundary",
+        "@/shared/components/ConfirmDialog",
+        "@/shared/components/LocalizedText",
+        "@/shared/components/MoneyText",
+        "@/shared/components/Screen",
+        "@/shared/components/SectionTitle",
+        "@/shared/components/SettingRow",
+        "@/shared/i18n",
+        "@/shared/hooks/useAsyncResource",
+        "@/shared/hooks/useRefreshOnFocus",
+        "@/shared/navigation/routes",
+        "@/shared/theme",
+        "@/shared/utils/money"
+      ]
+    },
+    {
+      "file": "apps/mobile-app/features/settings/pages/AboutPage.tsx",
+      "name": "AboutPage",
+      "domain": "features",
+      "route": "/about",
+      "routeKey": "about",
+      "isDevProbe": false,
+      "lines": 361,
+      "testIdCount": 0,
+      "testIds": [],
+      "localizedTextCount": 16,
+      "rawTextCount": 0,
+      "navigations": [
+        {
+          "kind": "routeKey",
+          "value": "support"
+        }
+      ],
+      "imports": [
+        "@/features/ops/api/support",
+        "@/features/settings/api/version",
+        "@/shared/components/AppHeader",
+        "@/shared/components/LocalizedText",
+        "@/shared/components/Screen",
+        "@/shared/i18n",
+        "@/shared/i18n",
+        "@/shared/navigation/routes",
+        "@/shared/theme"
+      ]
+    },
+    {
+      "file": "apps/mobile-app/features/settings/pages/AccountSecurityPage.tsx",
+      "name": "AccountSecurityPage",
+      "domain": "features",
+      "route": "/account-security",
+      "routeKey": "accountSecurity",
+      "isDevProbe": false,
+      "lines": 151,
+      "testIdCount": 0,
+      "testIds": [],
+      "localizedTextCount": 1,
+      "rawTextCount": 0,
+      "navigations": [
+        {
+          "kind": "routeKey",
+          "value": "changePassword"
+        },
+        {
+          "kind": "routeKey",
+          "value": "payPassword"
+        },
+        {
+          "kind": "routeKey",
+          "value": "changePhone"
+        },
+        {
+          "kind": "routeKey",
+          "value": "verifyRealname"
+        },
+        {
+          "kind": "routeKey",
+          "value": "deactivate"
+        }
+      ],
+      "imports": [
+        "@/features/profile/api/profile",
+        "@/shared/components/AppHeader",
+        "@/shared/components/AsyncBoundary",
+        "@/shared/components/LocalizedText",
+        "@/shared/components/Screen",
+        "@/shared/components/SectionTitle",
+        "@/shared/components/SettingRow",
+        "@/shared/i18n",
+        "@/shared/hooks/useAsyncResource",
+        "@/shared/hooks/useRefreshOnFocus",
+        "@/shared/navigation/routes",
+        "@/shared/theme"
+      ]
+    },
+    {
+      "file": "apps/mobile-app/features/settings/pages/AllFeaturesPage.tsx",
+      "name": "AllFeaturesPage",
+      "domain": "features",
+      "route": "/all-features",
+      "routeKey": "allFeatures",
+      "isDevProbe": false,
+      "lines": 212,
+      "testIdCount": 0,
+      "testIds": [],
+      "localizedTextCount": 3,
+      "rawTextCount": 0,
+      "navigations": [],
+      "imports": [
+        "@/shared/components/AppHeader",
+        "@/shared/components/LocalizedText",
+        "@/shared/components/Screen",
+        "@/shared/i18n",
+        "@/shared/i18n",
+        "@/shared/navigation/routes",
+        "@/shared/theme"
+      ]
+    },
+    {
+      "file": "apps/mobile-app/features/settings/pages/ChangePasswordPage.tsx",
+      "name": "ChangePasswordPage",
+      "domain": "features",
+      "route": "/change-password",
+      "routeKey": "changePassword",
+      "isDevProbe": false,
+      "lines": 265,
+      "testIdCount": 0,
+      "testIds": [],
+      "localizedTextCount": 3,
+      "rawTextCount": 0,
+      "navigations": [
+        {
+          "kind": "literal",
+          "value": "/account-security"
+        }
+      ],
+      "imports": [
+        "@/shared/components/AppHeader",
+        "@/shared/components/AppToast",
+        "@/shared/components/ActionBar",
+        "@/shared/components/FormField",
+        "@/shared/components/LocalizedText",
+        "@/shared/components/PrimaryButton",
+        "@/shared/components/Screen",
+        "@/shared/i18n",
+        "@/shared/hooks/useErrorMessage",
+        "@/features/settings/api/security",
+        "@/shared/theme"
+      ]
+    },
+    {
+      "file": "apps/mobile-app/features/settings/pages/ChangePhonePage.tsx",
+      "name": "ChangePhonePage",
+      "domain": "features",
+      "route": "/change-phone",
+      "routeKey": "changePhone",
+      "isDevProbe": false,
+      "lines": 343,
+      "testIdCount": 0,
+      "testIds": [],
+      "localizedTextCount": 9,
+      "rawTextCount": 0,
+      "navigations": [
+        {
+          "kind": "routeKey",
+          "value": "login"
+        }
+      ],
+      "imports": [
+        "@/features/auth/api/register",
+        "@/features/profile/api/profile",
+        "@/features/settings/api/security",
+        "@/shared/components/AppHeader",
+        "@/shared/components/AppToast",
+        "@/shared/components/ActionBar",
+        "@/shared/components/AsyncBoundary",
+        "@/shared/components/CodeTimerButton",
+        "@/shared/components/FormField",
+        "@/shared/components/LocalizedText",
+        "@/shared/components/PrimaryButton",
+        "@/shared/components/Screen",
+        "@/shared/i18n",
+        "@/shared/hooks/useAsyncResource",
+        "@/shared/hooks/useErrorMessage",
+        "@/shared/navigation/routes",
+        "@/shared/theme"
+      ]
+    },
+    {
+      "file": "apps/mobile-app/features/settings/pages/DeactivatePage.tsx",
+      "name": "DeactivatePage",
+      "domain": "features",
+      "route": "/deactivate",
+      "routeKey": "deactivate",
+      "isDevProbe": false,
+      "lines": 263,
+      "testIdCount": 0,
+      "testIds": [],
+      "localizedTextCount": 7,
+      "rawTextCount": 0,
+      "navigations": [
+        {
+          "kind": "routeKey",
+          "value": "login"
+        },
+        {
+          "kind": "routeKey",
+          "value": "balance"
+        },
+        {
+          "kind": "routeKey",
+          "value": "profile"
+        }
+      ],
+      "imports": [
+        "@/features/trade/api/wallet",
+        "@/features/settings/api/security",
+        "@/shared/components/AppHeader",
+        "@/shared/components/AppToast",
+        "@/shared/components/ActionBar",
+        "@/shared/components/AsyncBoundary",
+        "@/shared/components/ConfirmDialog",
+        "@/shared/components/LocalizedText",
+        "@/shared/components/MoneyText",
+        "@/shared/components/PrimaryButton",
+        "@/shared/components/Screen",
+        "@/shared/i18n",
+        "@/shared/hooks/useAsyncResource",
+        "@/shared/hooks/useErrorMessage",
+        "@/shared/navigation/routes",
+        "@/shared/theme",
+        "@/shared/utils/money"
+      ]
+    },
+    {
+      "file": "apps/mobile-app/features/settings/pages/EditProfilePage.tsx",
+      "name": "EditProfilePage",
+      "domain": "features",
+      "route": "/edit-profile",
+      "routeKey": "editProfile",
+      "isDevProbe": false,
+      "lines": 360,
+      "testIdCount": 0,
+      "testIds": [],
+      "localizedTextCount": 10,
+      "rawTextCount": 0,
+      "navigations": [
+        {
+          "kind": "routeKey",
+          "value": "profile"
+        },
+        {
+          "kind": "routeKey",
+          "value": "accountSecurity"
+        }
+      ],
+      "imports": [
+        "@/features/account/api/upload",
+        "@/features/profile/api/profile",
+        "@/features/profile/components/UserAvatar",
+        "@/shared/components/AppHeader",
+        "@/shared/components/AppToast",
+        "@/shared/components/ActionBar",
+        "@/shared/components/AsyncBoundary",
+        "@/shared/components/FormField",
+        "@/shared/components/LocalizedText",
+        "@/shared/components/PrimaryButton",
+        "@/shared/components/Screen",
+        "@/shared/components/WebFileButton",
+        "@/shared/i18n",
+        "@/shared/hooks/useAsyncResource",
+        "@/shared/hooks/useErrorMessage",
+        "@/shared/navigation/routes",
+        "@/shared/theme"
+      ]
+    },
+    {
+      "file": "apps/mobile-app/features/settings/pages/LanguagePage.tsx",
+      "name": "LanguagePage",
+      "domain": "features",
+      "route": "/language",
+      "routeKey": "language",
+      "isDevProbe": false,
+      "lines": 160,
+      "testIdCount": 0,
+      "testIds": [],
+      "localizedTextCount": 4,
+      "rawTextCount": 0,
+      "navigations": [],
+      "imports": [
+        "@/shared/components/AppHeader",
+        "@/shared/components/LocalizedText",
+        "@/shared/components/Screen",
+        "@/shared/i18n",
+        "@/shared/i18n",
+        "@/shared/i18n/lang",
+        "@/shared/theme"
+      ]
+    },
+    {
+      "file": "apps/mobile-app/features/settings/pages/NotifySettingsPage.tsx",
+      "name": "NotifySettingsPage",
+      "domain": "features",
+      "route": "/notify-settings",
+      "routeKey": "notifySettings",
+      "isDevProbe": false,
+      "lines": 139,
+      "testIdCount": 0,
+      "testIds": [],
+      "localizedTextCount": 1,
+      "rawTextCount": 0,
+      "navigations": [],
+      "imports": [
+        "@/shared/components/AppHeader",
+        "@/shared/components/LocalizedText",
+        "@/shared/components/Screen",
+        "@/shared/components/SectionTitle",
+        "@/shared/components/ToggleRow",
+        "@/shared/i18n",
+        "@/shared/theme",
+        "@/shared/utils/prefStore"
+      ]
+    },
+    {
+      "file": "apps/mobile-app/features/settings/pages/PrivacySettingsPage.tsx",
+      "name": "PrivacySettingsPage",
+      "domain": "features",
+      "route": "/privacy-settings",
+      "routeKey": "privacySettings",
+      "isDevProbe": false,
+      "lines": 144,
+      "testIdCount": 0,
+      "testIds": [],
+      "localizedTextCount": 1,
+      "rawTextCount": 0,
+      "navigations": [],
+      "imports": [
+        "@/shared/components/AppHeader",
+        "@/shared/components/LocalizedText",
+        "@/shared/components/Screen",
+        "@/shared/components/SectionTitle",
+        "@/shared/components/ToggleRow",
+        "@/shared/i18n",
+        "@/shared/theme",
+        "@/shared/utils/prefStore"
+      ]
+    },
+    {
+      "file": "apps/mobile-app/features/settings/pages/SettingsPage.tsx",
+      "name": "SettingsPage",
+      "domain": "features",
+      "route": "/settings",
+      "routeKey": "settings",
+      "isDevProbe": false,
+      "lines": 706,
+      "testIdCount": 0,
+      "testIds": [],
+      "localizedTextCount": 12,
+      "rawTextCount": 0,
+      "navigations": [
+        {
+          "kind": "routeKey",
+          "value": "login"
+        },
+        {
+          "kind": "routeKey",
+          "value": "accountSecurity"
+        },
+        {
+          "kind": "routeKey",
+          "value": "payPassword"
+        },
+        {
+          "kind": "routeKey",
+          "value": "notifySettings"
+        },
+        {
+          "kind": "routeKey",
+          "value": "privacySettings"
+        },
+        {
+          "kind": "routeKey",
+          "value": "verifyCompany"
+        },
+        {
+          "kind": "routeKey",
+          "value": "language"
+        },
+        {
+          "kind": "routeKey",
+          "value": "about"
+        },
+        {
+          "kind": "routeKey",
+          "value": "allFeatures"
+        },
+        {
+          "kind": "routeKey",
+          "value": "feedback"
+        }
+      ],
+      "imports": [
+        "@/features/account/api/enterprise",
+        "@/features/profile/api/profile",
+        "@/features/profile/api/profile",
+        "@/features/settings/api/version",
+        "@/features/settings/api/version",
+        "@/features/settings/storage",
+        "@/features/settings/storage",
+        "@/shared/components/AppHeader",
+        "@/shared/components/AppToast",
+        "@/shared/components/ConfirmDialog",
+        "@/shared/components/LocalizedText",
+        "@/shared/components/Screen",
+        "@/shared/components/UpdateModal",
+        "@/shared/i18n",
+        "@/shared/i18n",
+        "@/shared/navigation/routes",
+        "@/shared/theme",
+        "@/shared/theme/fontScale",
+        "@/shared/theme/fontScale"
+      ]
+    },
+    {
+      "file": "apps/mobile-app/features/social/pages/FavoritesPage.tsx",
+      "name": "FavoritesPage",
+      "domain": "features",
+      "route": "/favorites",
+      "routeKey": "favorites",
+      "isDevProbe": false,
+      "lines": 454,
+      "testIdCount": 0,
+      "testIds": [],
+      "localizedTextCount": 11,
+      "rawTextCount": 0,
+      "navigations": [
+        {
+          "kind": "routeKey",
+          "value": "home"
+        }
+      ],
+      "imports": [
+        "@/shared/components/AsyncBoundary",
+        "@/shared/components/AsyncBoundary",
+        "@/shared/components/AppHeader",
+        "@/shared/components/AppToast",
+        "@/shared/components/LocalizedText",
+        "@/shared/components/PrimaryButton",
+        "@/shared/components/Screen",
+        "@/shared/i18n",
+        "@/shared/hooks/useErrorMessage",
+        "@/shared/hooks/useRefreshOnFocus",
+        "@/shared/navigation/routes",
+        "@/shared/theme"
+      ]
+    },
+    {
+      "file": "apps/mobile-app/features/social/pages/FollowingPage.tsx",
+      "name": "FollowingPage",
+      "domain": "features",
+      "route": "/following",
+      "routeKey": "following",
+      "isDevProbe": false,
+      "lines": 503,
+      "testIdCount": 0,
+      "testIds": [],
+      "localizedTextCount": 14,
+      "rawTextCount": 0,
+      "navigations": [
+        {
+          "kind": "routeKey",
+          "value": "lawyerTab"
+        }
+      ],
+      "imports": [
+        "@/shared/components/AsyncBoundary",
+        "@/shared/components/AsyncBoundary",
+        "@/shared/components/AppHeader",
+        "@/shared/components/AppToast",
+        "@/shared/components/LocalizedText",
+        "@/shared/components/PrimaryButton",
+        "@/shared/components/Screen",
+        "@/shared/i18n",
+        "@/shared/hooks/useErrorMessage",
+        "@/shared/hooks/useRefreshOnFocus",
+        "@/shared/navigation/routes",
+        "@/shared/theme",
+        "@/shared/utils/serverTime"
+      ]
+    },
+    {
+      "file": "apps/mobile-app/features/trade/pages/BalancePage.tsx",
+      "name": "BalancePage",
+      "domain": "features",
+      "route": "/balance",
+      "routeKey": "balance",
+      "isDevProbe": false,
+      "lines": 538,
+      "testIdCount": 0,
+      "testIds": [],
+      "localizedTextCount": 9,
+      "rawTextCount": 0,
+      "navigations": [
+        {
+          "kind": "routeKey",
+          "value": "recharge"
+        }
+      ],
+      "imports": [
+        "@/features/trade/api/wallet",
+        "@/features/trade/api/wallet",
+        "@/shared/api/types",
+        "@/shared/components/AppHeader",
+        "@/shared/components/AppToast",
+        "@/shared/components/AsyncBoundary",
+        "@/shared/components/EmptyState",
+        "@/shared/components/ErrorState",
+        "@/shared/components/LocalizedText",
+        "@/shared/components/LoadingState",
+        "@/shared/components/LtrText",
+        "@/shared/components/MoneyText",
+        "@/shared/components/PrimaryButton",
+        "@/shared/components/Screen",
+        "@/shared/i18n",
+        "@/shared/i18n",
+        "@/shared/i18n/datetime",
+        "@/shared/hooks/useAsyncResource",
+        "@/shared/hooks/useRefreshOnFocus",
+        "@/shared/navigation/routes",
+        "@/shared/theme",
+        "@/shared/utils/money",
+        "@/shared/utils/serverTime"
+      ]
+    },
+    {
+      "file": "apps/mobile-app/features/trade/pages/OrderDetailPage.tsx",
+      "name": "OrderDetailPage",
+      "domain": "features",
+      "route": "/order-detail",
+      "routeKey": "orderDetail",
+      "isDevProbe": false,
+      "lines": 524,
+      "testIdCount": 0,
+      "testIds": [],
+      "localizedTextCount": 15,
+      "rawTextCount": 0,
+      "navigations": [],
+      "imports": [
+        "@/features/trade/api/orders",
+        "@/features/trade/api/orders",
+        "@/features/trade/components/PayCountdown",
+        "@/shared/components/ActionBar",
+        "@/shared/components/AppCard",
+        "@/shared/components/AppHeader",
+        "@/shared/components/AsyncBoundary",
+        "@/shared/components/AppToast",
+        "@/shared/components/ConfirmDialog",
+        "@/shared/components/LocalizedText",
+        "@/shared/components/LtrText",
+        "@/shared/components/MoneyText",
+        "@/shared/components/PrimaryButton",
+        "@/shared/components/Screen",
+        "@/shared/components/SettingRow",
+        "@/shared/i18n",
+        "@/shared/i18n",
+        "@/shared/hooks/useAsyncResource",
+        "@/shared/hooks/useRefreshOnFocus",
+        "@/shared/navigation/routes",
+        "@/shared/theme",
+        "@/shared/utils/money",
+        "@/shared/utils/serverTime"
+      ]
+    },
+    {
+      "file": "apps/mobile-app/features/trade/pages/OrderListPage.tsx",
+      "name": "OrderListPage",
+      "domain": "features",
+      "route": "/orders",
+      "routeKey": "orders",
+      "isDevProbe": false,
+      "lines": 479,
+      "testIdCount": 0,
+      "testIds": [],
+      "localizedTextCount": 6,
+      "rawTextCount": 0,
+      "navigations": [
+        {
+          "kind": "routeKey",
+          "value": "lawyerTab"
+        }
+      ],
+      "imports": [
+        "@/features/trade/api/orders",
+        "@/features/trade/api/orders",
+        "@/features/trade/components/OrderStatusPill",
+        "@/features/trade/components/PayCountdown",
+        "@/shared/api/types",
+        "@/shared/components/AppHeader",
+        "@/shared/components/EmptyState",
+        "@/shared/components/ErrorState",
+        "@/shared/components/LocalizedText",
+        "@/shared/components/LoadingState",
+        "@/shared/components/LtrText",
+        "@/shared/components/MoneyText",
+        "@/shared/components/PrimaryButton",
+        "@/shared/components/Screen",
+        "@/shared/i18n",
+        "@/shared/i18n",
+        "@/shared/hooks/useRefreshOnFocus",
+        "@/shared/navigation/routes",
+        "@/shared/theme",
+        "@/shared/utils/money",
+        "@/shared/utils/serverTime"
+      ]
+    },
+    {
+      "file": "apps/mobile-app/features/trade/pages/PayPage.tsx",
+      "name": "PayPage",
+      "domain": "features",
+      "route": "/pay",
+      "routeKey": "pay",
+      "isDevProbe": false,
+      "lines": 510,
+      "testIdCount": 0,
+      "testIds": [],
+      "localizedTextCount": 13,
+      "rawTextCount": 0,
+      "navigations": [
+        {
+          "kind": "routeKey",
+          "value": "recharge"
+        },
+        {
+          "kind": "routeKey",
+          "value": "payPassword"
+        }
+      ],
+      "imports": [
+        "@/features/trade/api/orders",
+        "@/features/trade/api/orders",
+        "@/features/trade/api/wallet",
+        "@/shared/api/types",
+        "@/shared/components/ActionBar",
+        "@/shared/components/AppCard",
+        "@/shared/components/AppHeader",
+        "@/shared/components/AsyncBoundary",
+        "@/shared/components/LocalizedText",
+        "@/shared/components/LtrText",
+        "@/shared/components/MoneyText",
+        "@/shared/components/PinField",
+        "@/shared/components/PrimaryButton",
+        "@/shared/components/Screen",
+        "@/shared/components/SettingRow",
+        "@/shared/i18n",
+        "@/shared/i18n",
+        "@/shared/i18n/datetime",
+        "@/shared/hooks/useAsyncResource",
+        "@/shared/navigation/routes",
+        "@/shared/theme",
+        "@/shared/utils/money",
+        "@/shared/utils/serverTime"
+      ]
+    },
+    {
+      "file": "apps/mobile-app/features/trade/pages/PayResultPage.tsx",
+      "name": "PayResultPage",
+      "domain": "features",
+      "route": "/pay-result",
+      "routeKey": "payResult",
+      "isDevProbe": false,
+      "lines": 342,
+      "testIdCount": 0,
+      "testIds": [],
+      "localizedTextCount": 8,
+      "rawTextCount": 0,
+      "navigations": [],
+      "imports": [
+        "@/features/trade/api/orders",
+        "@/features/trade/api/orders",
+        "@/features/trade/api/wallet",
+        "@/shared/api/types",
+        "@/shared/components/ActionBar",
+        "@/shared/components/AppCard",
+        "@/shared/components/AppHeader",
+        "@/shared/components/AsyncBoundary",
+        "@/shared/components/LocalizedText",
+        "@/shared/components/LtrText",
+        "@/shared/components/MoneyText",
+        "@/shared/components/PrimaryButton",
+        "@/shared/components/Screen",
+        "@/shared/components/SettingRow",
+        "@/shared/i18n",
+        "@/shared/i18n",
+        "@/shared/i18n/datetime",
+        "@/shared/hooks/useAsyncResource",
+        "@/shared/hooks/useRefreshOnFocus",
+        "@/shared/navigation/routes",
+        "@/shared/theme",
+        "@/shared/utils/money",
+        "@/shared/utils/serverTime"
+      ]
+    },
+    {
+      "file": "apps/mobile-app/features/trade/pages/RechargePage.tsx",
+      "name": "RechargePage",
+      "domain": "features",
+      "route": "/recharge",
+      "routeKey": "recharge",
+      "isDevProbe": false,
+      "lines": 871,
+      "testIdCount": 0,
+      "testIds": [],
+      "localizedTextCount": 27,
+      "rawTextCount": 0,
+      "navigations": [
+        {
+          "kind": "routeKey",
+          "value": "balance"
+        },
+        {
+          "kind": "routeKey",
+          "value": "verifyRealname"
+        }
+      ],
+      "imports": [
+        "@/features/trade/api/recharge",
+        "@/features/trade/types",
+        "@/shared/components/AppHeader",
+        "@/shared/components/AppToast",
+        "@/shared/components/AsyncBoundary",
+        "@/shared/components/ConfirmDialog",
+        "@/shared/components/LocalizedText",
+        "@/shared/components/PrimaryButton",
+        "@/shared/components/Screen",
+        "@/shared/hooks/useAsyncResource",
+        "@/shared/i18n",
+        "@/shared/i18n",
+        "@/shared/i18n/datetime",
+        "@/shared/navigation/routes",
+        "@/shared/theme",
+        "@/shared/utils/money"
+      ]
+    },
+    {
+      "file": "apps/mobile-app/features/trade/pages/RefundPage.tsx",
+      "name": "RefundPage",
+      "domain": "features",
+      "route": "/refund",
+      "routeKey": "refund",
+      "isDevProbe": false,
+      "lines": 384,
+      "testIdCount": 0,
+      "testIds": [],
+      "localizedTextCount": 10,
+      "rawTextCount": 0,
+      "navigations": [],
+      "imports": [
+        "@/features/trade/api/orders",
+        "@/features/trade/api/orders",
+        "@/features/trade/api/refunds",
+        "@/features/trade/api/refunds",
+        "@/shared/api/types",
+        "@/shared/components/AppCard",
+        "@/shared/components/AppHeader",
+        "@/shared/components/AppToast",
+        "@/shared/components/ErrorState",
+        "@/shared/components/FormField",
+        "@/shared/components/LoadingState",
+        "@/shared/components/LocalizedText",
+        "@/shared/components/LtrText",
+        "@/shared/components/MoneyText",
+        "@/shared/components/PrimaryButton",
+        "@/shared/components/Screen",
+        "@/shared/i18n",
+        "@/shared/i18n",
+        "@/shared/navigation/routes",
+        "@/shared/theme",
+        "@/shared/utils/money"
+      ]
+    },
+    {
+      "file": "apps/mobile-app/features/trade/pages/ReviewPage.tsx",
+      "name": "ReviewPage",
+      "domain": "features",
+      "route": "/review",
+      "routeKey": "review",
+      "isDevProbe": false,
+      "lines": 533,
+      "testIdCount": 0,
+      "testIds": [],
+      "localizedTextCount": 19,
+      "rawTextCount": 0,
+      "navigations": [],
+      "imports": [
+        "@/features/trade/api/orders",
+        "@/features/trade/api/orders",
+        "@/features/trade/api/reviews",
+        "@/features/trade/api/reviews",
+        "@/shared/api/types",
+        "@/shared/components/ActionBar",
+        "@/shared/components/AppCard",
+        "@/shared/components/AppHeader",
+        "@/shared/components/AppToast",
+        "@/shared/components/ErrorState",
+        "@/shared/components/FormField",
+        "@/shared/components/LoadingState",
+        "@/shared/components/LocalizedText",
+        "@/shared/components/LtrText",
+        "@/shared/components/PrimaryButton",
+        "@/shared/components/Screen",
+        "@/shared/components/TagChip",
+        "@/shared/components/ToggleRow",
+        "@/shared/i18n",
+        "@/shared/i18n",
+        "@/shared/navigation/routes",
+        "@/shared/theme",
+        "@/shared/utils/serverTime"
+      ]
+    },
+    {
+      "file": "apps/mobile-app/features/workbench/pages/ConsultationsPage.tsx",
+      "name": "ConsultationsPage",
+      "domain": "features",
+      "route": "/workbench-consultations",
+      "routeKey": "workbenchConsultations",
+      "isDevProbe": false,
+      "lines": 290,
+      "testIdCount": 5,
+      "testIds": [
+        "consultations-screen",
+        "consultations-loading",
+        "consultations-error",
+        "consultations-empty",
+        "consultations-list"
+      ],
+      "localizedTextCount": 7,
+      "rawTextCount": 0,
+      "navigations": [],
+      "imports": [
+        "@/features/workbench/api/client",
+        "@/features/workbench/api/client",
+        "@/shared/components/AppHeader",
+        "@/shared/components/EmptyState",
+        "@/shared/components/ErrorState",
+        "@/shared/components/LoadingState",
+        "@/shared/components/LocalizedText",
+        "@/shared/components/Screen",
+        "@/shared/i18n",
+        "@/shared/hooks/useRefreshOnFocus",
+        "@/shared/navigation/routes",
+        "@/shared/api/types",
+        "@/shared/theme"
+      ]
+    },
+    {
+      "file": "apps/mobile-app/features/workbench/pages/IncomePage.tsx",
+      "name": "IncomePage",
+      "domain": "features",
+      "route": "/workbench-income",
+      "routeKey": "workbenchIncome",
+      "isDevProbe": false,
+      "lines": 527,
+      "testIdCount": 12,
+      "testIds": [
+        "income-screen",
+        "income-available",
+        "income-pending",
+        "income-loading",
+        "income-error",
+        "income-empty",
+        "income-list",
+        "income-more",
+        "income-rules",
+        "income-withdraw",
+        "income-withdraw-btn",
+        "income-withdraw-records"
+      ],
+      "localizedTextCount": 21,
+      "rawTextCount": 0,
+      "navigations": [],
+      "imports": [
+        "@/features/workbench/api/client",
+        "@/features/workbench/api/client",
+        "@/features/workbench/components/WithdrawPanel",
+        "@/shared/components/AppHeader",
+        "@/shared/components/EmptyState",
+        "@/shared/components/ErrorState",
+        "@/shared/components/LoadingState",
+        "@/shared/components/LocalizedText",
+        "@/shared/components/PrimaryButton",
+        "@/shared/components/Screen",
+        "@/shared/i18n",
+        "@/shared/i18n",
+        "@/shared/hooks/useRefreshOnFocus",
+        "@/shared/api/types",
+        "@/shared/theme"
+      ]
+    },
+    {
+      "file": "apps/mobile-app/features/workbench/pages/LawyerDocsPage.tsx",
+      "name": "LawyerDocsPage",
+      "domain": "features",
+      "route": "/workbench-docs",
+      "routeKey": "workbenchDocs",
+      "isDevProbe": false,
+      "lines": 420,
+      "testIdCount": 9,
+      "testIds": [
+        "lawyerDocs-screen",
+        "lawyerDocs-new",
+        "lawyerDocs-loading",
+        "lawyerDocs-error",
+        "lawyerDocs-empty",
+        "lawyerDocs-list",
+        "lawyerDocs-tip",
+        "lawyerDocs-confirm",
+        "lawyerDocs-confirm-ok"
+      ],
+      "localizedTextCount": 16,
+      "rawTextCount": 0,
+      "navigations": [
+        {
+          "kind": "routeKey",
+          "value": "docTemplates"
+        }
+      ],
+      "imports": [
+        "@/features/workbench/api/client",
+        "@/features/workbench/api/client",
+        "@/shared/components/AppHeader",
+        "@/shared/components/EmptyState",
+        "@/shared/components/ErrorState",
+        "@/shared/components/LoadingState",
+        "@/shared/components/LocalizedText",
+        "@/shared/components/PrimaryButton",
+        "@/shared/components/Screen",
+        "@/shared/i18n",
+        "@/shared/hooks/useRefreshOnFocus",
+        "@/shared/i18n",
+        "@/shared/navigation/routes",
+        "@/shared/api/types",
+        "@/shared/theme"
+      ]
+    },
+    {
+      "file": "apps/mobile-app/features/workbench/pages/LawyerProfilePage.tsx",
+      "name": "LawyerProfilePage",
+      "domain": "features",
+      "route": "/workbench-profile",
+      "routeKey": "workbenchProfile",
+      "isDevProbe": false,
+      "lines": 347,
+      "testIdCount": 13,
+      "testIds": [
+        "profile-screen",
+        "profile-loading",
+        "profile-error",
+        "profile-avatar",
+        "profile-name",
+        "profile-bio",
+        "profile-bioCounter",
+        "profile-lawFirm",
+        "profile-license",
+        "profile-audit",
+        "profile-error-text",
+        "profile-saved",
+        "profile-save"
+      ],
+      "localizedTextCount": 16,
+      "rawTextCount": 0,
+      "navigations": [],
+      "imports": [
+        "@/features/workbench/api/client",
+        "@/features/workbench/api/client",
+        "@/shared/components/AppHeader",
+        "@/shared/components/ErrorState",
+        "@/shared/components/LoadingState",
+        "@/shared/components/LocalizedText",
+        "@/shared/components/PrimaryButton",
+        "@/shared/components/Screen",
+        "@/shared/i18n",
+        "@/shared/i18n",
+        "@/shared/api/types",
+        "@/shared/theme"
+      ]
+    },
+    {
+      "file": "apps/mobile-app/features/workbench/pages/ServiceSettingsPage.tsx",
+      "name": "ServiceSettingsPage",
+      "domain": "features",
+      "route": "/workbench-settings",
+      "routeKey": "workbenchSettings",
+      "isDevProbe": false,
+      "lines": 342,
+      "testIdCount": 8,
+      "testIds": [
+        "settings-screen",
+        "settings-loading",
+        "settings-error",
+        "settings-autoAccept",
+        "settings-region",
+        "settings-note",
+        "settings-error-text",
+        "settings-save"
+      ],
+      "localizedTextCount": 15,
+      "rawTextCount": 0,
+      "navigations": [],
+      "imports": [
+        "@/features/lawyer/api/workbench",
+        "@/features/workbench/api/client",
+        "@/features/workbench/api/client",
+        "@/shared/components/AppHeader",
+        "@/shared/components/ErrorState",
+        "@/shared/components/LoadingState",
+        "@/shared/components/LocalizedText",
+        "@/shared/components/PrimaryButton",
+        "@/shared/components/Screen",
+        "@/shared/i18n",
+        "@/shared/i18n",
+        "@/shared/api/types",
+        "@/shared/theme"
+      ]
+    }
+  ],
+  "shells": [
+    {
+      "file": "apps/mobile-app/app/(tabs)/agent.tsx",
+      "fileUnderApp": "(tabs)/agent.tsx",
+      "url": "/agent",
+      "routeKey": "agent",
+      "exportName": "AiChatPage",
+      "modulePath": "@/features/ai/pages/AiChatPage",
+      "page": "apps/mobile-app/features/ai/pages/AiChatPage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/(tabs)/case.tsx",
+      "fileUnderApp": "(tabs)/case.tsx",
+      "url": "/case",
+      "routeKey": "case",
+      "exportName": "CaseListPage",
+      "modulePath": "@/features/content/pages/CaseListPage",
+      "page": "apps/mobile-app/features/content/pages/CaseListPage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/(tabs)/home.tsx",
+      "fileUnderApp": "(tabs)/home.tsx",
+      "url": "/home",
+      "routeKey": "home",
+      "exportName": "HomePage",
+      "modulePath": "@/features/home/pages/HomePage",
+      "page": "apps/mobile-app/features/home/pages/HomePage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/(tabs)/lawyer.tsx",
+      "fileUnderApp": "(tabs)/lawyer.tsx",
+      "url": "/lawyer",
+      "routeKey": "lawyerTab",
+      "exportName": "LawyerListPage",
+      "modulePath": "@/features/lawyer/pages/LawyerListPage",
+      "page": "apps/mobile-app/features/lawyer/pages/LawyerListPage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/(tabs)/profile.tsx",
+      "fileUnderApp": "(tabs)/profile.tsx",
+      "url": "/profile",
+      "routeKey": "profile",
+      "exportName": "MyPage",
+      "modulePath": "@/features/profile/pages/MyPage",
+      "page": "apps/mobile-app/features/profile/pages/MyPage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/about.tsx",
+      "fileUnderApp": "about.tsx",
+      "url": "/about",
+      "routeKey": "about",
+      "exportName": "AboutPage",
+      "modulePath": "@/features/settings/pages/AboutPage",
+      "page": "apps/mobile-app/features/settings/pages/AboutPage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/account-security.tsx",
+      "fileUnderApp": "account-security.tsx",
+      "url": "/account-security",
+      "routeKey": "accountSecurity",
+      "exportName": "AccountSecurityPage",
+      "modulePath": "@/features/settings/pages/AccountSecurityPage",
+      "page": "apps/mobile-app/features/settings/pages/AccountSecurityPage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/agreement.tsx",
+      "fileUnderApp": "agreement.tsx",
+      "url": "/agreement",
+      "routeKey": "agreement",
+      "exportName": "AgreementPage",
+      "modulePath": "@/features/auth/pages/AgreementPage",
+      "page": "apps/mobile-app/features/auth/pages/AgreementPage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/ai-history.tsx",
+      "fileUnderApp": "ai-history.tsx",
+      "url": "/ai-history",
+      "routeKey": "aiHistory",
+      "exportName": "AiHistoryPage",
+      "modulePath": "@/features/ai/pages/AiHistoryPage",
+      "page": "apps/mobile-app/features/ai/pages/AiHistoryPage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/all-features.tsx",
+      "fileUnderApp": "all-features.tsx",
+      "url": "/all-features",
+      "routeKey": "allFeatures",
+      "exportName": "AllFeaturesPage",
+      "modulePath": "@/features/settings/pages/AllFeaturesPage",
+      "page": "apps/mobile-app/features/settings/pages/AllFeaturesPage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/article.tsx",
+      "fileUnderApp": "article.tsx",
+      "url": "/article",
+      "routeKey": "article",
+      "exportName": "ArticleDetailPage",
+      "modulePath": "@/features/content/pages/ArticleDetailPage",
+      "page": "apps/mobile-app/features/content/pages/ArticleDetailPage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/articles.tsx",
+      "fileUnderApp": "articles.tsx",
+      "url": "/articles",
+      "routeKey": "articles",
+      "exportName": "ArticleListPage",
+      "modulePath": "@/features/content/pages/ArticleListPage",
+      "page": "apps/mobile-app/features/content/pages/ArticleListPage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/balance.tsx",
+      "fileUnderApp": "balance.tsx",
+      "url": "/balance",
+      "routeKey": "balance",
+      "exportName": "BalancePage",
+      "modulePath": "@/features/trade/pages/BalancePage",
+      "page": "apps/mobile-app/features/trade/pages/BalancePage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/case-delivery.tsx",
+      "fileUnderApp": "case-delivery.tsx",
+      "url": "/case-delivery",
+      "routeKey": "caseDelivery",
+      "exportName": "CaseDeliveryPage",
+      "modulePath": "@/features/case/pages/CaseDeliveryPage",
+      "page": "apps/mobile-app/features/case/pages/CaseDeliveryPage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/case-detail.tsx",
+      "fileUnderApp": "case-detail.tsx",
+      "url": "/case-detail",
+      "routeKey": null,
+      "exportName": "CaseDetailPage",
+      "modulePath": "@/features/content/pages/CaseDetailPage",
+      "page": "apps/mobile-app/features/content/pages/CaseDetailPage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/case-filing-done.tsx",
+      "fileUnderApp": "case-filing-done.tsx",
+      "url": "/case-filing-done",
+      "routeKey": "caseFilingDone",
+      "exportName": "FilingDonePage",
+      "modulePath": "@/features/case/pages/FilingDonePage",
+      "page": "apps/mobile-app/features/case/pages/FilingDonePage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/case-filing.tsx",
+      "fileUnderApp": "case-filing.tsx",
+      "url": "/case-filing",
+      "routeKey": "caseFiling",
+      "exportName": "FilingPage",
+      "modulePath": "@/features/case/pages/FilingPage",
+      "page": "apps/mobile-app/features/case/pages/FilingPage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/case-my.tsx",
+      "fileUnderApp": "case-my.tsx",
+      "url": "/case-my",
+      "routeKey": "caseMy",
+      "exportName": "MyCasesPage",
+      "modulePath": "@/features/case/pages/MyCasesPage",
+      "page": "apps/mobile-app/features/case/pages/MyCasesPage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/case-progress.tsx",
+      "fileUnderApp": "case-progress.tsx",
+      "url": "/case-progress",
+      "routeKey": "caseProgress",
+      "exportName": "CaseProgressPage",
+      "modulePath": "@/features/case/pages/CaseProgressPage",
+      "page": "apps/mobile-app/features/case/pages/CaseProgressPage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/change-password.tsx",
+      "fileUnderApp": "change-password.tsx",
+      "url": "/change-password",
+      "routeKey": "changePassword",
+      "exportName": "ChangePasswordPage",
+      "modulePath": "@/features/settings/pages/ChangePasswordPage",
+      "page": "apps/mobile-app/features/settings/pages/ChangePasswordPage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/change-phone.tsx",
+      "fileUnderApp": "change-phone.tsx",
+      "url": "/change-phone",
+      "routeKey": "changePhone",
+      "exportName": "ChangePhonePage",
+      "modulePath": "@/features/settings/pages/ChangePhonePage",
+      "page": "apps/mobile-app/features/settings/pages/ChangePhonePage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/chat.tsx",
+      "fileUnderApp": "chat.tsx",
+      "url": "/chat",
+      "routeKey": "chat",
+      "exportName": "ChatPage",
+      "modulePath": "@/features/conversation/pages/ChatPage",
+      "page": "apps/mobile-app/features/conversation/pages/ChatPage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/complaint-list.tsx",
+      "fileUnderApp": "complaint-list.tsx",
+      "url": "/complaint-list",
+      "routeKey": "complaintList",
+      "exportName": "ComplaintListPage",
+      "modulePath": "@/features/ops/pages/ComplaintListPage",
+      "page": "apps/mobile-app/features/ops/pages/ComplaintListPage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/complaint.tsx",
+      "fileUnderApp": "complaint.tsx",
+      "url": "/complaint",
+      "routeKey": "complaint",
+      "exportName": "ComplaintPage",
+      "modulePath": "@/features/ops/pages/ComplaintPage",
+      "page": "apps/mobile-app/features/ops/pages/ComplaintPage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/deactivate.tsx",
+      "fileUnderApp": "deactivate.tsx",
+      "url": "/deactivate",
+      "routeKey": "deactivate",
+      "exportName": "DeactivatePage",
+      "modulePath": "@/features/settings/pages/DeactivatePage",
+      "page": "apps/mobile-app/features/settings/pages/DeactivatePage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/dev/probe.tsx",
+      "fileUnderApp": "dev/probe.tsx",
+      "url": "/dev/probe",
+      "routeKey": "devProbe",
+      "exportName": "default",
+      "modulePath": "@/features/dev/pages/ProbePage",
+      "page": "apps/mobile-app/features/dev/pages/ProbePage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/dev/rtl.tsx",
+      "fileUnderApp": "dev/rtl.tsx",
+      "url": "/dev/rtl",
+      "routeKey": "devRtl",
+      "exportName": "default",
+      "modulePath": "@/features/dev/pages/RtlProbePage",
+      "page": "apps/mobile-app/features/dev/pages/RtlProbePage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/doc/form.tsx",
+      "fileUnderApp": "doc/form.tsx",
+      "url": "/doc/form",
+      "routeKey": "docForm",
+      "exportName": "DocFormPage",
+      "modulePath": "@/features/document/pages/DocFormPage",
+      "page": "apps/mobile-app/features/document/pages/DocFormPage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/doc/lawsuit.tsx",
+      "fileUnderApp": "doc/lawsuit.tsx",
+      "url": "/doc/lawsuit",
+      "routeKey": "docLawsuit",
+      "exportName": "DocLawsuitFormPage",
+      "modulePath": "@/features/document/pages/DocLawsuitFormPage",
+      "page": "apps/mobile-app/features/document/pages/DocLawsuitFormPage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/doc/mine.tsx",
+      "fileUnderApp": "doc/mine.tsx",
+      "url": "/doc/mine",
+      "routeKey": "docMine",
+      "exportName": "DocMinePage",
+      "modulePath": "@/features/document/pages/DocMinePage",
+      "page": "apps/mobile-app/features/document/pages/DocMinePage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/doc/preview.tsx",
+      "fileUnderApp": "doc/preview.tsx",
+      "url": "/doc/preview",
+      "routeKey": "docPreview",
+      "exportName": "DocPreviewPage",
+      "modulePath": "@/features/document/pages/DocPreviewPage",
+      "page": "apps/mobile-app/features/document/pages/DocPreviewPage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/doc/seals.tsx",
+      "fileUnderApp": "doc/seals.tsx",
+      "url": "/doc/seals",
+      "routeKey": "docSeals",
+      "exportName": "DocSealPage",
+      "modulePath": "@/features/document/pages/DocSealPage",
+      "page": "apps/mobile-app/features/document/pages/DocSealPage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/doc/templates.tsx",
+      "fileUnderApp": "doc/templates.tsx",
+      "url": "/doc/templates",
+      "routeKey": "docTemplates",
+      "exportName": "DocTemplatesPage",
+      "modulePath": "@/features/document/pages/DocTemplatesPage",
+      "page": "apps/mobile-app/features/document/pages/DocTemplatesPage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/edit-profile.tsx",
+      "fileUnderApp": "edit-profile.tsx",
+      "url": "/edit-profile",
+      "routeKey": "editProfile",
+      "exportName": "EditProfilePage",
+      "modulePath": "@/features/settings/pages/EditProfilePage",
+      "page": "apps/mobile-app/features/settings/pages/EditProfilePage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/faq.tsx",
+      "fileUnderApp": "faq.tsx",
+      "url": "/faq",
+      "routeKey": "faq",
+      "exportName": "FaqPage",
+      "modulePath": "@/features/ops/pages/FaqPage",
+      "page": "apps/mobile-app/features/ops/pages/FaqPage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/favorites.tsx",
+      "fileUnderApp": "favorites.tsx",
+      "url": "/favorites",
+      "routeKey": "favorites",
+      "exportName": "FavoritesPage",
+      "modulePath": "@/features/social/pages/FavoritesPage",
+      "page": "apps/mobile-app/features/social/pages/FavoritesPage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/feedback.tsx",
+      "fileUnderApp": "feedback.tsx",
+      "url": "/feedback",
+      "routeKey": "feedback",
+      "exportName": "FeedbackPage",
+      "modulePath": "@/features/ops/pages/FeedbackPage",
+      "page": "apps/mobile-app/features/ops/pages/FeedbackPage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/following.tsx",
+      "fileUnderApp": "following.tsx",
+      "url": "/following",
+      "routeKey": "following",
+      "exportName": "FollowingPage",
+      "modulePath": "@/features/social/pages/FollowingPage",
+      "page": "apps/mobile-app/features/social/pages/FollowingPage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/forgot-password.tsx",
+      "fileUnderApp": "forgot-password.tsx",
+      "url": "/forgot-password",
+      "routeKey": "forgotPassword",
+      "exportName": "ForgotPasswordPage",
+      "modulePath": "@/features/auth/pages/ForgotPasswordPage",
+      "page": "apps/mobile-app/features/auth/pages/ForgotPasswordPage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/index.tsx",
+      "fileUnderApp": "index.tsx",
+      "url": "/",
+      "routeKey": "root",
+      "exportName": "SplashPage",
+      "modulePath": "@/features/auth/pages/SplashPage",
+      "page": "apps/mobile-app/features/auth/pages/SplashPage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/language.tsx",
+      "fileUnderApp": "language.tsx",
+      "url": "/language",
+      "routeKey": "language",
+      "exportName": "LanguagePage",
+      "modulePath": "@/features/settings/pages/LanguagePage",
+      "page": "apps/mobile-app/features/settings/pages/LanguagePage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/lawyer-detail.tsx",
+      "fileUnderApp": "lawyer-detail.tsx",
+      "url": "/lawyer-detail",
+      "routeKey": "lawyerDetail",
+      "exportName": "LawyerDetailPage",
+      "modulePath": "@/features/lawyer/pages/LawyerDetailPage",
+      "page": "apps/mobile-app/features/lawyer/pages/LawyerDetailPage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/lawyer-join-status.tsx",
+      "fileUnderApp": "lawyer-join-status.tsx",
+      "url": "/lawyer-join-status",
+      "routeKey": "lawyerJoinStatus",
+      "exportName": "LawyerJoinStatusPage",
+      "modulePath": "@/features/lawyer/pages/LawyerJoinStatusPage",
+      "page": "apps/mobile-app/features/lawyer/pages/LawyerJoinStatusPage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/lawyer-join.tsx",
+      "fileUnderApp": "lawyer-join.tsx",
+      "url": "/lawyer-join",
+      "routeKey": "lawyerJoin",
+      "exportName": "LawyerJoinPage",
+      "modulePath": "@/features/lawyer/pages/LawyerJoinPage",
+      "page": "apps/mobile-app/features/lawyer/pages/LawyerJoinPage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/lawyer-list.tsx",
+      "fileUnderApp": "lawyer-list.tsx",
+      "url": "/lawyer-list",
+      "routeKey": "lawyerList",
+      "exportName": "LawyerListPage",
+      "modulePath": "@/features/lawyer/pages/LawyerListPage",
+      "page": "apps/mobile-app/features/lawyer/pages/LawyerListPage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/lawyer-orders.tsx",
+      "fileUnderApp": "lawyer-orders.tsx",
+      "url": "/lawyer-orders",
+      "routeKey": "lawyerOrders",
+      "exportName": "LawyerOrdersPage",
+      "modulePath": "@/features/lawyer/pages/LawyerOrdersPage",
+      "page": "apps/mobile-app/features/lawyer/pages/LawyerOrdersPage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/lawyer-workbench.tsx",
+      "fileUnderApp": "lawyer-workbench.tsx",
+      "url": "/lawyer-workbench",
+      "routeKey": "lawyerWorkbench",
+      "exportName": "WorkbenchPage",
+      "modulePath": "@/features/lawyer/pages/WorkbenchPage",
+      "page": "apps/mobile-app/features/lawyer/pages/WorkbenchPage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/login.tsx",
+      "fileUnderApp": "login.tsx",
+      "url": "/login",
+      "routeKey": "login",
+      "exportName": "LoginPage",
+      "modulePath": "@/features/auth/pages/LoginPage",
+      "page": "apps/mobile-app/features/auth/pages/LoginPage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/message-detail.tsx",
+      "fileUnderApp": "message-detail.tsx",
+      "url": "/message-detail",
+      "routeKey": "messageDetail",
+      "exportName": "MessageDetailPage",
+      "modulePath": "@/features/content/pages/MessageDetailPage",
+      "page": "apps/mobile-app/features/content/pages/MessageDetailPage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/messages.tsx",
+      "fileUnderApp": "messages.tsx",
+      "url": "/messages",
+      "routeKey": "messages",
+      "exportName": "MessagesPage",
+      "modulePath": "@/features/content/pages/MessagesPage",
+      "page": "apps/mobile-app/features/content/pages/MessagesPage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/notify-settings.tsx",
+      "fileUnderApp": "notify-settings.tsx",
+      "url": "/notify-settings",
+      "routeKey": "notifySettings",
+      "exportName": "NotifySettingsPage",
+      "modulePath": "@/features/settings/pages/NotifySettingsPage",
+      "page": "apps/mobile-app/features/settings/pages/NotifySettingsPage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/order-detail.tsx",
+      "fileUnderApp": "order-detail.tsx",
+      "url": "/order-detail",
+      "routeKey": "orderDetail",
+      "exportName": "OrderDetailPage",
+      "modulePath": "@/features/trade/pages/OrderDetailPage",
+      "page": "apps/mobile-app/features/trade/pages/OrderDetailPage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/orders.tsx",
+      "fileUnderApp": "orders.tsx",
+      "url": "/orders",
+      "routeKey": "orders",
+      "exportName": "OrderListPage",
+      "modulePath": "@/features/trade/pages/OrderListPage",
+      "page": "apps/mobile-app/features/trade/pages/OrderListPage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/pay-password.tsx",
+      "fileUnderApp": "pay-password.tsx",
+      "url": "/pay-password",
+      "routeKey": "payPassword",
+      "exportName": "PayPasswordPage",
+      "modulePath": "@/features/account/pages/PayPasswordPage",
+      "page": "apps/mobile-app/features/account/pages/PayPasswordPage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/pay-result.tsx",
+      "fileUnderApp": "pay-result.tsx",
+      "url": "/pay-result",
+      "routeKey": "payResult",
+      "exportName": "PayResultPage",
+      "modulePath": "@/features/trade/pages/PayResultPage",
+      "page": "apps/mobile-app/features/trade/pages/PayResultPage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/pay.tsx",
+      "fileUnderApp": "pay.tsx",
+      "url": "/pay",
+      "routeKey": "pay",
+      "exportName": "PayPage",
+      "modulePath": "@/features/trade/pages/PayPage",
+      "page": "apps/mobile-app/features/trade/pages/PayPage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/privacy-settings.tsx",
+      "fileUnderApp": "privacy-settings.tsx",
+      "url": "/privacy-settings",
+      "routeKey": "privacySettings",
+      "exportName": "PrivacySettingsPage",
+      "modulePath": "@/features/settings/pages/PrivacySettingsPage",
+      "page": "apps/mobile-app/features/settings/pages/PrivacySettingsPage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/privacy.tsx",
+      "fileUnderApp": "privacy.tsx",
+      "url": "/privacy",
+      "routeKey": "privacy",
+      "exportName": "PrivacyPage",
+      "modulePath": "@/features/auth/pages/PrivacyPage",
+      "page": "apps/mobile-app/features/auth/pages/PrivacyPage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/recharge.tsx",
+      "fileUnderApp": "recharge.tsx",
+      "url": "/recharge",
+      "routeKey": "recharge",
+      "exportName": "RechargePage",
+      "modulePath": "@/features/trade/pages/RechargePage",
+      "page": "apps/mobile-app/features/trade/pages/RechargePage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/refund.tsx",
+      "fileUnderApp": "refund.tsx",
+      "url": "/refund",
+      "routeKey": "refund",
+      "exportName": "RefundPage",
+      "modulePath": "@/features/trade/pages/RefundPage",
+      "page": "apps/mobile-app/features/trade/pages/RefundPage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/register.tsx",
+      "fileUnderApp": "register.tsx",
+      "url": "/register",
+      "routeKey": "register",
+      "exportName": "RegisterPage",
+      "modulePath": "@/features/auth/pages/RegisterPage",
+      "page": "apps/mobile-app/features/auth/pages/RegisterPage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/review.tsx",
+      "fileUnderApp": "review.tsx",
+      "url": "/review",
+      "routeKey": "review",
+      "exportName": "ReviewPage",
+      "modulePath": "@/features/trade/pages/ReviewPage",
+      "page": "apps/mobile-app/features/trade/pages/ReviewPage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/search.tsx",
+      "fileUnderApp": "search.tsx",
+      "url": "/search",
+      "routeKey": "search",
+      "exportName": "SearchPage",
+      "modulePath": "@/features/content/pages/SearchPage",
+      "page": "apps/mobile-app/features/content/pages/SearchPage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/settings.tsx",
+      "fileUnderApp": "settings.tsx",
+      "url": "/settings",
+      "routeKey": "settings",
+      "exportName": "SettingsPage",
+      "modulePath": "@/features/settings/pages/SettingsPage",
+      "page": "apps/mobile-app/features/settings/pages/SettingsPage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/support.tsx",
+      "fileUnderApp": "support.tsx",
+      "url": "/support",
+      "routeKey": "support",
+      "exportName": "SupportPage",
+      "modulePath": "@/features/ops/pages/SupportPage",
+      "page": "apps/mobile-app/features/ops/pages/SupportPage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/verify-company.tsx",
+      "fileUnderApp": "verify-company.tsx",
+      "url": "/verify-company",
+      "routeKey": "verifyCompany",
+      "exportName": "EnterpriseAuthPage",
+      "modulePath": "@/features/account/pages/EnterpriseAuthPage",
+      "page": "apps/mobile-app/features/account/pages/EnterpriseAuthPage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/verify-realname.tsx",
+      "fileUnderApp": "verify-realname.tsx",
+      "url": "/verify-realname",
+      "routeKey": "verifyRealname",
+      "exportName": "RealnamePage",
+      "modulePath": "@/features/account/pages/RealnamePage",
+      "page": "apps/mobile-app/features/account/pages/RealnamePage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/workbench-consultations.tsx",
+      "fileUnderApp": "workbench-consultations.tsx",
+      "url": "/workbench-consultations",
+      "routeKey": "workbenchConsultations",
+      "exportName": "ConsultationsPage",
+      "modulePath": "@/features/workbench/pages/ConsultationsPage",
+      "page": "apps/mobile-app/features/workbench/pages/ConsultationsPage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/workbench-docs.tsx",
+      "fileUnderApp": "workbench-docs.tsx",
+      "url": "/workbench-docs",
+      "routeKey": "workbenchDocs",
+      "exportName": "LawyerDocsPage",
+      "modulePath": "@/features/workbench/pages/LawyerDocsPage",
+      "page": "apps/mobile-app/features/workbench/pages/LawyerDocsPage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/workbench-income.tsx",
+      "fileUnderApp": "workbench-income.tsx",
+      "url": "/workbench-income",
+      "routeKey": "workbenchIncome",
+      "exportName": "IncomePage",
+      "modulePath": "@/features/workbench/pages/IncomePage",
+      "page": "apps/mobile-app/features/workbench/pages/IncomePage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/workbench-profile.tsx",
+      "fileUnderApp": "workbench-profile.tsx",
+      "url": "/workbench-profile",
+      "routeKey": "workbenchProfile",
+      "exportName": "LawyerProfilePage",
+      "modulePath": "@/features/workbench/pages/LawyerProfilePage",
+      "page": "apps/mobile-app/features/workbench/pages/LawyerProfilePage.tsx",
+      "shellIsPureReexport": true
+    },
+    {
+      "file": "apps/mobile-app/app/workbench-settings.tsx",
+      "fileUnderApp": "workbench-settings.tsx",
+      "url": "/workbench-settings",
+      "routeKey": "workbenchSettings",
+      "exportName": "ServiceSettingsPage",
+      "modulePath": "@/features/workbench/pages/ServiceSettingsPage",
+      "page": "apps/mobile-app/features/workbench/pages/ServiceSettingsPage.tsx",
+      "shellIsPureReexport": true
+    }
+  ],
+  "design": {
+    "mainScreens": [
+      "01-home.html",
+      "02-lawyer.html",
+      "03-agent.html",
+      "04-case.html",
+      "05-profile.html",
+      "06-login.html",
+      "07-splash.html",
+      "08-register.html",
+      "09-forgot.html",
+      "10-agreement.html",
+      "11-privacy.html",
+      "12-articles.html",
+      "13-article.html",
+      "14-lawyer-detail.html",
+      "15-lawyer-join.html",
+      "16-join-status.html",
+      "17-chat.html",
+      "18-ai-history.html",
+      "19-case-detail.html",
+      "20-filing.html",
+      "21-filing-done.html",
+      "22-service.html",
+      "23-doc-templates.html",
+      "24-doc-lawsuit.html",
+      "25-doc-other.html",
+      "26-doc-preview.html",
+      "27-doc-mine.html",
+      "28-doc-seal.html",
+      "29-orders.html",
+      "30-order-detail.html",
+      "31-pay.html",
+      "32-pay-result.html",
+      "33-refund.html",
+      "34-review.html",
+      "35-balance.html",
+      "36-recharge.html",
+      "37-pay-password.html",
+      "38-messages.html",
+      "39-message-detail.html",
+      "40-search.html",
+      "41-settings.html",
+      "42-account-security.html",
+      "43-change-password.html",
+      "44-change-phone.html",
+      "45-deactivate.html",
+      "46-notify-settings.html",
+      "47-privacy-settings.html",
+      "48-verify-real.html",
+      "49-verify-company.html",
+      "50-edit-profile.html",
+      "51-favorites.html",
+      "52-following.html",
+      "53-my-cases.html",
+      "54-case-progress.html",
+      "55-support.html",
+      "56-faq.html",
+      "57-complaint.html",
+      "58-feedback.html",
+      "59-about.html",
+      "60-language.html",
+      "61-all-features.html",
+      "62-workbench.html",
+      "63-consultations.html",
+      "64-lawyer-orders.html",
+      "65-lawyer-docs.html",
+      "66-income.html",
+      "67-service-settings.html",
+      "68-lawyer-profile.html"
+    ],
+    "supplementScreens": [
+      "07b-privacy-prompt.html",
+      "07c-language-picker.html",
+      "41b-version-update.html"
+    ],
+    "adminScreens": [
+      "00-login.html",
+      "01-dashboard.html",
+      "02-user-list.html",
+      "03-verify-audit.html",
+      "04-lawyer-audit.html",
+      "05-lawyer-list.html",
+      "06-balance-recharge.html",
+      "07-sys-config.html",
+      "08-reconcile.html",
+      "09-withdraw-audit.html",
+      "10-order-list.html",
+      "11-order-detail.html",
+      "12-lawyer-settle.html",
+      "13-article-list.html",
+      "14-article-edit.html",
+      "15-case-library.html",
+      "16-translation.html",
+      "17-doc-template.html",
+      "18-case-manage.html",
+      "19-review-queue.html",
+      "20-ticket-list.html",
+      "21-ticket-detail.html",
+      "22-announcement.html",
+      "23-notify-template.html",
+      "24-sensitive-word.html",
+      "25-logs.html",
+      "26-law-library.html",
+      "27-ai-retrieval.html"
+    ]
+  }
+}

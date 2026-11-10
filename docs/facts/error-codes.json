@@ -1,6 +1,6 @@
 {
   "_comment": "本文件由 scripts/facts/error-codes.mjs 从 ErrorCode.java 生成，禁止手改。口径见 docs/standards/说辞一致与真相源规范.md §四。",
-  "generatedAt": "2026-11-10",
+  "sourceDigest": "b064bdc5b5f64289",
   "source": "services/faze-api/src/main/java/com/faze/common/exception/ErrorCode.java",
   "totals": {
     "codes": 94,
