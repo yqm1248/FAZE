@@ -1,0 +1,1607 @@
+{
+  "_comment": "本文件由 scripts/facts/tables.mjs 从 information_schema + flyway_schema_history 生成，禁止手改。口径见 docs/standards/说辞一致与真相源规范.md §四。",
+  "generatedAt": "2026-11-10",
+  "database": "faze",
+  "totals": {
+    "tables": 53,
+    "columns": 687,
+    "indexes": 188,
+    "flywayApplied": 48,
+    "flywayLatest": "711"
+  },
+  "flyway": {
+    "applied": [
+      {
+        "version": "1",
+        "description": "baseline"
+      },
+      {
+        "version": "2",
+        "description": "init law items"
+      },
+      {
+        "version": "3",
+        "description": "account auth"
+      },
+      {
+        "version": "4",
+        "description": "lawyer"
+      },
+      {
+        "version": "5",
+        "description": "wallet"
+      },
+      {
+        "version": "6",
+        "description": "ops config"
+      },
+      {
+        "version": "7",
+        "description": "account b group"
+      },
+      {
+        "version": "8",
+        "description": "cancel phone width"
+      },
+      {
+        "version": "9",
+        "description": "realname mask"
+      },
+      {
+        "version": "10",
+        "description": "realname cipher width"
+      },
+      {
+        "version": "11",
+        "description": "pay password"
+      },
+      {
+        "version": "12",
+        "description": "ops config value text"
+      },
+      {
+        "version": "200",
+        "description": "seg2 tables"
+      },
+      {
+        "version": "201",
+        "description": "seg2 refund flow biz id"
+      },
+      {
+        "version": "300",
+        "description": "create ai tables"
+      },
+      {
+        "version": "301",
+        "description": "alter law item"
+      },
+      {
+        "version": "302",
+        "description": "import law items"
+      },
+      {
+        "version": "303",
+        "description": "init i18n glossary"
+      },
+      {
+        "version": "304",
+        "description": "import law items batch2"
+      },
+      {
+        "version": "305",
+        "description": "import law items golden30"
+      },
+      {
+        "version": "400",
+        "description": "create document tables"
+      },
+      {
+        "version": "500",
+        "description": "create legal case"
+      },
+      {
+        "version": "501",
+        "description": "create case progress"
+      },
+      {
+        "version": "502",
+        "description": "create case delivery"
+      },
+      {
+        "version": "503",
+        "description": "create case library"
+      },
+      {
+        "version": "504",
+        "description": "create case library translation"
+      },
+      {
+        "version": "505",
+        "description": "create withdraw record"
+      },
+      {
+        "version": "506",
+        "description": "create lawyer income settlement"
+      },
+      {
+        "version": "507",
+        "description": "create reconciliation diff"
+      },
+      {
+        "version": "508",
+        "description": "seg5 config"
+      },
+      {
+        "version": "509",
+        "description": "alter document sent at"
+      },
+      {
+        "version": "510",
+        "description": "seg5 case library and recon fix"
+      },
+      {
+        "version": "600",
+        "description": "recharge record"
+      },
+      {
+        "version": "601",
+        "description": "seg6 pay config"
+      },
+      {
+        "version": "602",
+        "description": "seg6 reconcile config"
+      },
+      {
+        "version": "603",
+        "description": "seg6 recharge rate limit"
+      },
+      {
+        "version": "700",
+        "description": "seg7 tables"
+      },
+      {
+        "version": "701",
+        "description": "create announcement"
+      },
+      {
+        "version": "702",
+        "description": "create sensitive word appeal"
+      },
+      {
+        "version": "703",
+        "description": "seg7 seed"
+      },
+      {
+        "version": "704",
+        "description": "seg7 sensitive switch"
+      },
+      {
+        "version": "705",
+        "description": "seg7 risk config"
+      },
+      {
+        "version": "706",
+        "description": "seg7 ticket type id"
+      },
+      {
+        "version": "707",
+        "description": "seg7 region and service phone"
+      },
+      {
+        "version": "708",
+        "description": "seg7 app version and alert url"
+      },
+      {
+        "version": "709",
+        "description": "seg7 user region options"
+      },
+      {
+        "version": "710",
+        "description": "fix law item 722 733"
+      },
+      {
+        "version": "711",
+        "description": "seg7 service phone hours"
+      }
+    ]
+  },
+  "tables": [
+    {
+      "name": "ai_conversation",
+      "comment": "AI 会话；用户删除为软删，A-28 仍可查到已软删会话\r",
+      "columnCount": 7,
+      "primaryKey": [
+        "id\r"
+      ],
+      "uniqueKeys": [],
+      "indexCount": 2,
+      "columns": [
+        "id:bigint",
+        "user_id:bigint",
+        "title:varchar(200)",
+        "lang:varchar(20)",
+        "created_at:datetime",
+        "updated_at:datetime",
+        "deleted_at:datetime"
+      ]
+    },
+    {
+      "name": "ai_message",
+      "comment": "AI 消息（C 状态机）；content 为 L4 级敏感字段；一段流式回答 = 一行\r",
+      "columnCount": 16,
+      "primaryKey": [
+        "id\r"
+      ],
+      "uniqueKeys": [
+        "uk_ai_message_content_id"
+      ],
+      "indexCount": 4,
+      "columns": [
+        "id:bigint",
+        "conversation_id:bigint",
+        "user_id:bigint",
+        "role:varchar(10)",
+        "content:mediumtext",
+        "model:varchar(50)",
+        "prompt_tokens:int",
+        "complete_tokens:int",
+        "refs:json",
+        "lang:varchar(20)",
+        "is_safety_passed:tinyint",
+        "content_id:varchar(64)",
+        "is_exported:tinyint",
+        "export_urls:json",
+        "created_at:datetime",
+        "updated_at:datetime"
+      ]
+    },
+    {
+      "name": "announcement",
+      "comment": "公告批次主表；一条公告一行，触达/打开数在此累计\r",
+      "columnCount": 15,
+      "primaryKey": [
+        "id\r"
+      ],
+      "uniqueKeys": [
+        "uk_announcement_no"
+      ],
+      "indexCount": 4,
+      "columns": [
+        "id:bigint",
+        "announcement_no:varchar(32)",
+        "title:varchar(200)",
+        "content:text",
+        "target_type:varchar(20)",
+        "target_value:json",
+        "channels:json",
+        "status:varchar(20)",
+        "scheduled_at:datetime",
+        "sent_at:datetime",
+        "reach_count:int",
+        "open_count:int",
+        "created_by:bigint",
+        "created_at:datetime",
+        "updated_at:datetime"
+      ]
+    },
+    {
+      "name": "app_user",
+      "comment": "C 端用户表；PC 后台管理员见 sys_user，两者不混用\r",
+      "columnCount": 23,
+      "primaryKey": [
+        "id\r"
+      ],
+      "uniqueKeys": [
+        "uk_app_user_phone"
+      ],
+      "indexCount": 4,
+      "columns": [
+        "id:bigint",
+        "phone:varchar(40)",
+        "original_phone:varchar(40)",
+        "password_hash:varchar(100)",
+        "pay_password:varchar(100)",
+        "nickname:varchar(50)",
+        "avatar_url:varchar(500)",
+        "gender:tinyint",
+        "birth_date:date",
+        "role:varchar(20)",
+        "lang:varchar(20)",
+        "realname_status:varchar(20)",
+        "is_minor:tinyint",
+        "guardian_phone:varchar(20)",
+        "guardian_consent_at:datetime",
+        "region:varchar(64)",
+        "status:varchar(20)",
+        "token_version:int",
+        "last_login_at:datetime",
+        "last_login_ip:varchar(50)",
+        "created_at:datetime",
+        "updated_at:datetime",
+        "deleted_at:datetime"
+      ]
+    },
+    {
+      "name": "article",
+      "comment": "文章主表，存简体中文源内容；是否可见只看本表 status\r",
+      "columnCount": 14,
+      "primaryKey": [
+        "id\r"
+      ],
+      "uniqueKeys": [],
+      "indexCount": 4,
+      "columns": [
+        "id:bigint",
+        "title:varchar(200)",
+        "summary:varchar(500)",
+        "content:json",
+        "category:varchar(30)",
+        "cover_oss_key:varchar(500)",
+        "sort_order:int",
+        "status:varchar(20)",
+        "published_at:datetime",
+        "source_updated_at:datetime",
+        "view_count:int",
+        "created_at:datetime",
+        "updated_at:datetime",
+        "deleted_at:datetime"
+      ]
+    },
+    {
+      "name": "article_translation",
+      "comment": "非中文译文；zh-Hans 不在此表；译文未完成时回退显示中文\r",
+      "columnCount": 12,
+      "primaryKey": [
+        "id\r"
+      ],
+      "uniqueKeys": [
+        "uk_art_trans"
+      ],
+      "indexCount": 3,
+      "columns": [
+        "id:bigint",
+        "article_id:bigint",
+        "lang:varchar(20)",
+        "title:varchar(200)",
+        "summary:varchar(500)",
+        "content:json",
+        "status:varchar(20)",
+        "translator:varchar(100)",
+        "translation_engine:varchar(50)",
+        "translated_from:datetime",
+        "created_at:datetime",
+        "updated_at:datetime"
+      ]
+    },
+    {
+      "name": "balance_flow",
+      "comment": "资金流水，唯一真相；只追加，不修改不删除\r",
+      "columnCount": 10,
+      "primaryKey": [
+        "id\r"
+      ],
+      "uniqueKeys": [
+        "uk_flow_biz"
+      ],
+      "indexCount": 5,
+      "columns": [
+        "id:bigint",
+        "owner_type:varchar(10)",
+        "owner_id:bigint",
+        "biz_type:varchar(20)",
+        "biz_id:bigint",
+        "delta_cents:bigint",
+        "balance_after:bigint",
+        "frozen_until:datetime",
+        "remark:varchar(200)",
+        "created_at:datetime"
+      ]
+    },
+    {
+      "name": "case_delivery",
+      "comment": "文书送达记录；只送平台自有文书，不做法院转达；回执号是平台凭证\r",
+      "columnCount": 13,
+      "primaryKey": [
+        "id\r"
+      ],
+      "uniqueKeys": [
+        "uk_delivery_receipt"
+      ],
+      "indexCount": 5,
+      "columns": [
+        "id:bigint",
+        "case_id:bigint",
+        "document_id:bigint",
+        "user_id:bigint",
+        "method:varchar(20)",
+        "sent_at:datetime",
+        "signed_at:datetime",
+        "receipt_no:varchar(32)",
+        "sign_device:varchar(100)",
+        "ip:varchar(45)",
+        "status:varchar(20)",
+        "created_at:datetime",
+        "updated_at:datetime"
+      ]
+    },
+    {
+      "name": "case_library",
+      "comment": "案例库主表，存简体中文源内容；译文见 case_library_translation；court_case_no 不对 App 展示\r",
+      "columnCount": 24,
+      "primaryKey": [
+        "id\r"
+      ],
+      "uniqueKeys": [
+        "uk_case_library_no"
+      ],
+      "indexCount": 4,
+      "columns": [
+        "id:bigint",
+        "case_no:varchar(50)",
+        "court_case_no:varchar(64)",
+        "title:varchar(200)",
+        "plaintiff_name:varchar(50)",
+        "defendant_name:varchar(50)",
+        "court_name:varchar(100)",
+        "case_type:varchar(30)",
+        "category:varchar(30)",
+        "judgment_date:date",
+        "keywords:varchar(500)",
+        "summary:text",
+        "dispute_focus:text",
+        "judgment:text",
+        "insight:text",
+        "law_refs:json",
+        "source:varchar(100)",
+        "view_count:int",
+        "status:varchar(20)",
+        "published_at:datetime",
+        "source_updated_at:datetime",
+        "created_at:datetime",
+        "updated_at:datetime",
+        "deleted_at:datetime"
+      ]
+    },
+    {
+      "name": "case_library_translation",
+      "comment": "案例译文；与主表 case_library 是 1:N（每条案例每种语言至多一条译文）\r",
+      "columnCount": 14,
+      "primaryKey": [
+        "id\r"
+      ],
+      "uniqueKeys": [
+        "uk_case_trans"
+      ],
+      "indexCount": 3,
+      "columns": [
+        "id:bigint",
+        "case_id:bigint",
+        "lang:varchar(20)",
+        "title:varchar(200)",
+        "summary:text",
+        "dispute_focus:text",
+        "judgment:text",
+        "insight:text",
+        "status:varchar(20)",
+        "translator:varchar(100)",
+        "translation_engine:varchar(50)",
+        "translated_from:datetime",
+        "created_at:datetime",
+        "updated_at:datetime"
+      ]
+    },
+    {
+      "name": "case_progress",
+      "comment": "案件进度节点，只追加；本表即案件状态迁移日志（不另建 case_status_log）\r",
+      "columnCount": 9,
+      "primaryKey": [
+        "id\r"
+      ],
+      "uniqueKeys": [
+        "uk_progress_case_step"
+      ],
+      "indexCount": 3,
+      "columns": [
+        "id:bigint",
+        "case_id:bigint",
+        "step:int",
+        "node_code:varchar(30)",
+        "title:varchar(100)",
+        "description:text",
+        "operator_id:bigint",
+        "operator_role:varchar(20)",
+        "created_at:datetime"
+      ]
+    },
+    {
+      "name": "complaint",
+      "comment": "用户投诉；提交时同事务生成 service_ticket（裁决 23）\r",
+      "columnCount": 12,
+      "primaryKey": [
+        "id\r"
+      ],
+      "uniqueKeys": [],
+      "indexCount": 3,
+      "columns": [
+        "id:bigint",
+        "user_id:bigint",
+        "target_type:varchar(20)",
+        "target_id:bigint",
+        "reason:varchar(500)",
+        "images:json",
+        "status:varchar(20)",
+        "handler_id:bigint",
+        "result:varchar(500)",
+        "created_at:datetime",
+        "updated_at:datetime",
+        "deleted_at:datetime"
+      ]
+    },
+    {
+      "name": "content_review",
+      "comment": "内容审核命中记录；原文不修改，只做标注\r",
+      "columnCount": 12,
+      "primaryKey": [
+        "id\r"
+      ],
+      "uniqueKeys": [],
+      "indexCount": 4,
+      "columns": [
+        "id:bigint",
+        "biz_type:varchar(30)",
+        "biz_id:bigint",
+        "hit_words:json",
+        "hit_snippet:varchar(500)",
+        "level:varchar(20)",
+        "engine:varchar(30)",
+        "biz_user_id:bigint",
+        "reviewer_id:bigint",
+        "review_result:varchar(20)",
+        "reviewed_at:datetime",
+        "created_at:datetime"
+      ]
+    },
+    {
+      "name": "conversation",
+      "comment": "IM 会话；UNIQUE(user_id,lawyer_id) 保证一个律师一个会话、跨订单复用\r",
+      "columnCount": 10,
+      "primaryKey": [
+        "id\r"
+      ],
+      "uniqueKeys": [
+        "uk_conversation_user_lawyer"
+      ],
+      "indexCount": 4,
+      "columns": [
+        "id:bigint",
+        "user_id:bigint",
+        "lawyer_id:bigint",
+        "last_message:varchar(200)",
+        "last_msg_at:datetime",
+        "unread_user:int",
+        "unread_lawyer:int",
+        "created_at:datetime",
+        "updated_at:datetime",
+        "deleted_at:datetime"
+      ]
+    },
+    {
+      "name": "conversation_message",
+      "comment": "IM 消息，只追加；离线补推与断线重连都按 seq 增量拉取\r",
+      "columnCount": 15,
+      "primaryKey": [
+        "id\r"
+      ],
+      "uniqueKeys": [
+        "uk_msg_client_id",
+        "uk_msg_conversation_seq"
+      ],
+      "indexCount": 4,
+      "columns": [
+        "id:bigint",
+        "conversation_id:bigint",
+        "seq:bigint",
+        "client_msg_id:varchar(64)",
+        "sender_role:varchar(10)",
+        "sender_id:bigint",
+        "msg_type:varchar(15)",
+        "content:text",
+        "file_url:varchar(500)",
+        "file_name:varchar(200)",
+        "file_size:bigint",
+        "read_by_user_at:datetime",
+        "read_by_lawyer_at:datetime",
+        "recalled_at:datetime",
+        "created_at:datetime"
+      ]
+    },
+    {
+      "name": "doc_template",
+      "comment": "文书模板；HTML 存库不存 OSS；改版插新版本行、旧行置 inactive，历史文书按 template_version 复现\r",
+      "columnCount": 13,
+      "primaryKey": [
+        "id\r"
+      ],
+      "uniqueKeys": [
+        "uk_template_code_lang_version"
+      ],
+      "indexCount": 3,
+      "columns": [
+        "id:bigint",
+        "code:varchar(50)",
+        "name:varchar(100)",
+        "category:varchar(50)",
+        "template_html:mediumtext",
+        "preview_oss_key:varchar(500)",
+        "field_schema:json",
+        "lang:varchar(20)",
+        "version:int",
+        "sort_order:int",
+        "status:varchar(20)",
+        "created_at:datetime",
+        "updated_at:datetime"
+      ]
+    },
+    {
+      "name": "document",
+      "comment": "文书记录；失败落 status=failed 且两个 *_oss_key 为 NULL（失败不留半成品）\r",
+      "columnCount": 17,
+      "primaryKey": [
+        "id\r"
+      ],
+      "uniqueKeys": [],
+      "indexCount": 3,
+      "columns": [
+        "id:bigint",
+        "user_id:bigint",
+        "template_id:bigint",
+        "template_version:int",
+        "lang:varchar(20)",
+        "title:varchar(200)",
+        "doc_type:varchar(30)",
+        "form_data:json",
+        "form_snapshot:json",
+        "status:varchar(20)",
+        "sent_at:datetime",
+        "pdf_oss_key:varchar(500)",
+        "signed_pdf_oss_key:varchar(500)",
+        "lawyer_id:bigint",
+        "created_at:datetime",
+        "updated_at:datetime",
+        "deleted_at:datetime"
+      ]
+    },
+    {
+      "name": "enterprise_auth",
+      "comment": "企业认证；营业执照走私有 OSS\r",
+      "columnCount": 13,
+      "primaryKey": [
+        "id\r"
+      ],
+      "uniqueKeys": [
+        "uk_enterprise_user"
+      ],
+      "indexCount": 2,
+      "columns": [
+        "id:bigint",
+        "user_id:bigint",
+        "company_name:varchar(100)",
+        "credit_code:varchar(30)",
+        "legal_person:varchar(50)",
+        "license_image:varchar(500)",
+        "contact_phone:varchar(20)",
+        "status:varchar(20)",
+        "reject_reason:varchar(500)",
+        "audited_by:bigint",
+        "audited_at:datetime",
+        "created_at:datetime",
+        "updated_at:datetime"
+      ]
+    },
+    {
+      "name": "faq",
+      "comment": "常见问题；APP 55/56 两页的数据源，改库即生效\r",
+      "columnCount": 9,
+      "primaryKey": [
+        "id\r"
+      ],
+      "uniqueKeys": [],
+      "indexCount": 2,
+      "columns": [
+        "id:bigint",
+        "category:varchar(30)",
+        "question:varchar(200)",
+        "answer:text",
+        "lang:varchar(20)",
+        "sort_order:int",
+        "status:varchar(20)",
+        "created_at:datetime",
+        "updated_at:datetime"
+      ]
+    },
+    {
+      "name": "feedback",
+      "comment": "意见反馈；提交时同事务生成 service_ticket（裁决 23）\r",
+      "columnCount": 10,
+      "primaryKey": [
+        "id\r"
+      ],
+      "uniqueKeys": [],
+      "indexCount": 2,
+      "columns": [
+        "id:bigint",
+        "user_id:bigint",
+        "type:varchar(30)",
+        "content:varchar(500)",
+        "images:json",
+        "contact:varchar(50)",
+        "status:varchar(20)",
+        "created_at:datetime",
+        "updated_at:datetime",
+        "deleted_at:datetime"
+      ]
+    },
+    {
+      "name": "file_record",
+      "comment": "上传文件登记；业务表存 oss_key，不存完整 URL\r",
+      "columnCount": 14,
+      "primaryKey": [
+        "id\r"
+      ],
+      "uniqueKeys": [
+        "uk_file_oss_key"
+      ],
+      "indexCount": 5,
+      "columns": [
+        "id:bigint",
+        "oss_key:varchar(500)",
+        "bucket:varchar(100)",
+        "original_name:varchar(255)",
+        "content_type:varchar(100)",
+        "size_bytes:bigint",
+        "md5:varchar(32)",
+        "biz_type:varchar(30)",
+        "biz_id:bigint",
+        "uploader_id:bigint",
+        "is_private:tinyint",
+        "status:varchar(20)",
+        "created_at:datetime",
+        "deleted_at:datetime"
+      ]
+    },
+    {
+      "name": "i18n_glossary",
+      "comment": "法律术语对照表；段 3 只灌中文源术语，译文留段 8 母语译者\r",
+      "columnCount": 10,
+      "primaryKey": [
+        "id\r"
+      ],
+      "uniqueKeys": [
+        "uk_i18n_glossary_term_lang"
+      ],
+      "indexCount": 3,
+      "columns": [
+        "id:bigint",
+        "term_key:varchar(100)",
+        "source_text:varchar(200)",
+        "lang:varchar(20)",
+        "target_text:varchar(200)",
+        "note:varchar(500)",
+        "status:varchar(20)",
+        "is_enabled:tinyint",
+        "created_at:datetime",
+        "updated_at:datetime"
+      ]
+    },
+    {
+      "name": "law_item",
+      "comment": "法条库；AI 只能引用本表存在的条文\r",
+      "columnCount": 15,
+      "primaryKey": [
+        "id\r"
+      ],
+      "uniqueKeys": [
+        "uk_law_article"
+      ],
+      "indexCount": 5,
+      "columns": [
+        "id:bigint",
+        "law_code:varchar(50)",
+        "law_name:varchar(100)",
+        "article_no:varchar(50)",
+        "article_seq:int",
+        "content:mediumtext",
+        "effective_date:date",
+        "expire_date:date",
+        "status:varchar(20)",
+        "is_enabled:tinyint",
+        "keywords:varchar(500)",
+        "created_at:datetime",
+        "updated_at:datetime",
+        "created_by:bigint",
+        "created_by_type:varchar(20)"
+      ]
+    },
+    {
+      "name": "lawyer",
+      "comment": "律师资料；余额权威在 lawyer_balance，balance_cents 仅历史缓存\r",
+      "columnCount": 29,
+      "primaryKey": [
+        "id\r"
+      ],
+      "uniqueKeys": [
+        "uk_lawyer_license",
+        "uk_lawyer_user"
+      ],
+      "indexCount": 3,
+      "columns": [
+        "id:bigint",
+        "user_id:bigint",
+        "real_name:varchar(50)",
+        "license_number:varchar(50)",
+        "license_image:varchar(500)",
+        "law_firm:varchar(100)",
+        "practice_years:int",
+        "region:varchar(100)",
+        "specialties:json",
+        "bio:text",
+        "avatar_url:varchar(500)",
+        "consult_price_cents:bigint",
+        "phone_price_cents:bigint",
+        "document_price_cents:bigint",
+        "service_text_on:tinyint",
+        "service_phone_on:tinyint",
+        "service_doc_on:tinyint",
+        "auto_accept:tinyint",
+        "rating:decimal(2,1)",
+        "review_count:int",
+        "order_count:int",
+        "online_status:varchar(20)",
+        "audit_status:varchar(20)",
+        "withdraw_bank_name:varchar(50)",
+        "withdraw_bank_account:varchar(100)",
+        "balance_cents:bigint",
+        "created_at:datetime",
+        "updated_at:datetime",
+        "deleted_at:datetime"
+      ]
+    },
+    {
+      "name": "lawyer_application",
+      "comment": "律师入驻申请；四步流程，驳回历史见 lawyer_application_log\r",
+      "columnCount": 16,
+      "primaryKey": [
+        "id\r"
+      ],
+      "uniqueKeys": [],
+      "indexCount": 3,
+      "columns": [
+        "id:bigint",
+        "user_id:bigint",
+        "step:int",
+        "form_data:json",
+        "real_name:varchar(50)",
+        "license_number:varchar(50)",
+        "license_image:varchar(500)",
+        "law_firm:varchar(100)",
+        "specialties:json",
+        "bio:text",
+        "audit_status:varchar(20)",
+        "reject_reason:varchar(500)",
+        "audited_by:bigint",
+        "audited_at:datetime",
+        "created_at:datetime",
+        "updated_at:datetime"
+      ]
+    },
+    {
+      "name": "lawyer_application_log",
+      "comment": "入驻审核流水，只追加不修改\r",
+      "columnCount": 10,
+      "primaryKey": [
+        "id\r"
+      ],
+      "uniqueKeys": [],
+      "indexCount": 2,
+      "columns": [
+        "id:bigint",
+        "application_id:bigint",
+        "action:varchar(20)",
+        "from_status:varchar(20)",
+        "to_status:varchar(20)",
+        "operator_type:varchar(20)",
+        "operator_id:bigint",
+        "reason:varchar(500)",
+        "snapshot:json",
+        "created_at:datetime"
+      ]
+    },
+    {
+      "name": "lawyer_balance",
+      "comment": "律师余额缓存；权威是 balance_flow\r",
+      "columnCount": 8,
+      "primaryKey": [
+        "id\r"
+      ],
+      "uniqueKeys": [
+        "uk_lawyer_balance_lawyer"
+      ],
+      "indexCount": 2,
+      "columns": [
+        "id:bigint",
+        "lawyer_id:bigint",
+        "available_cents:bigint",
+        "frozen_cents:bigint",
+        "total_income_cents:bigint",
+        "version:int",
+        "created_at:datetime",
+        "updated_at:datetime"
+      ]
+    },
+    {
+      "name": "lawyer_income_settlement",
+      "comment": "结算批次状态记录，非资金真相；确认只改状态，不动余额、不写流水\r",
+      "columnCount": 14,
+      "primaryKey": [
+        "id\r"
+      ],
+      "uniqueKeys": [
+        "uk_settlement_lawyer_period",
+        "uk_settlement_no"
+      ],
+      "indexCount": 4,
+      "columns": [
+        "id:bigint",
+        "settlement_no:varchar(32)",
+        "lawyer_id:bigint",
+        "period:varchar(7)",
+        "order_count:int",
+        "income_cents:bigint",
+        "fee_cents:bigint",
+        "settle_cents:bigint",
+        "status:varchar(20)",
+        "settled_by:bigint",
+        "settled_at:datetime",
+        "remark:varchar(500)",
+        "created_at:datetime",
+        "updated_at:datetime"
+      ]
+    },
+    {
+      "name": "legal_case",
+      "comment": "案件主表；状态 5 态由服务端状态机校验（客户端只发意图）；单号 CS 应用层生成\r",
+      "columnCount": 17,
+      "primaryKey": [
+        "id\r"
+      ],
+      "uniqueKeys": [
+        "uk_legal_case_no"
+      ],
+      "indexCount": 5,
+      "columns": [
+        "id:bigint",
+        "case_no:varchar(32)",
+        "user_id:bigint",
+        "lawyer_id:bigint",
+        "title:varchar(200)",
+        "case_type:varchar(30)",
+        "description:text",
+        "evidence_urls:json",
+        "status:varchar(20)",
+        "court_name:varchar(100)",
+        "court_case_no:varchar(64)",
+        "form_snapshot:json",
+        "reject_reason:varchar(500)",
+        "amount_cents:bigint",
+        "created_at:datetime",
+        "updated_at:datetime",
+        "deleted_at:datetime"
+      ]
+    },
+    {
+      "name": "login_log",
+      "comment": "登录日志，仅追加，留存 6 个月以上\r",
+      "columnCount": 10,
+      "primaryKey": [
+        "id\r"
+      ],
+      "uniqueKeys": [],
+      "indexCount": 4,
+      "columns": [
+        "id:bigint",
+        "user_id:bigint",
+        "account:varchar(50)",
+        "login_type:varchar(20)",
+        "result:varchar(20)",
+        "fail_reason:varchar(100)",
+        "ip:varchar(50)",
+        "user_agent:varchar(500)",
+        "device_id:varchar(128)",
+        "created_at:datetime"
+      ]
+    },
+    {
+      "name": "message_offline",
+      "comment": "离线消息队列；重连后补推，推送成功即清理\r",
+      "columnCount": 6,
+      "primaryKey": [
+        "id\r"
+      ],
+      "uniqueKeys": [],
+      "indexCount": 4,
+      "columns": [
+        "id:bigint",
+        "user_id:bigint",
+        "conversation_id:bigint",
+        "message_id:bigint",
+        "seq:bigint",
+        "created_at:datetime"
+      ]
+    },
+    {
+      "name": "notification",
+      "comment": "站内通知；每人一行，公告批次统计在 announcement 上累计\r",
+      "columnCount": 12,
+      "primaryKey": [
+        "id\r"
+      ],
+      "uniqueKeys": [],
+      "indexCount": 2,
+      "columns": [
+        "id:bigint",
+        "user_id:bigint",
+        "type:varchar(30)",
+        "title:varchar(100)",
+        "content:varchar(500)",
+        "biz_type:varchar(30)",
+        "biz_id:bigint",
+        "is_read:tinyint",
+        "read_at:datetime",
+        "created_at:datetime",
+        "updated_at:datetime",
+        "deleted_at:datetime"
+      ]
+    },
+    {
+      "name": "notify_template",
+      "comment": "通知模板，按语言分条；删除为软停用，避免已发通知断链\r",
+      "columnCount": 9,
+      "primaryKey": [
+        "id\r"
+      ],
+      "uniqueKeys": [
+        "uk_notify_tpl"
+      ],
+      "indexCount": 3,
+      "columns": [
+        "id:bigint",
+        "template_code:varchar(50)",
+        "lang:varchar(20)",
+        "title:varchar(200)",
+        "content:varchar(1000)",
+        "channel:varchar(50)",
+        "status:varchar(20)",
+        "created_at:datetime",
+        "updated_at:datetime"
+      ]
+    },
+    {
+      "name": "operation_log",
+      "comment": "敏感操作审计，仅追加\r",
+      "columnCount": 11,
+      "primaryKey": [
+        "id\r"
+      ],
+      "uniqueKeys": [],
+      "indexCount": 4,
+      "columns": [
+        "id:bigint",
+        "operator_id:bigint",
+        "operator_type:varchar(20)",
+        "module:varchar(50)",
+        "action:varchar(50)",
+        "target_type:varchar(30)",
+        "target_id:bigint",
+        "detail:json",
+        "ip:varchar(50)",
+        "result:varchar(20)",
+        "created_at:datetime"
+      ]
+    },
+    {
+      "name": "order_status_log",
+      "comment": "订单状态迁移流水，只追加；状态可追溯的唯一依据\r",
+      "columnCount": 8,
+      "primaryKey": [
+        "id\r"
+      ],
+      "uniqueKeys": [],
+      "indexCount": 2,
+      "columns": [
+        "id:bigint",
+        "order_id:bigint",
+        "from_status:varchar(20)",
+        "to_status:varchar(20)",
+        "operator_type:varchar(20)",
+        "operator_id:bigint",
+        "reason:varchar(200)",
+        "created_at:datetime"
+      ]
+    },
+    {
+      "name": "orders",
+      "comment": "订单主表；状态迁移只由服务端做，每次迁移写 order_status_log\r",
+      "columnCount": 17,
+      "primaryKey": [
+        "id\r"
+      ],
+      "uniqueKeys": [
+        "uk_orders_no"
+      ],
+      "indexCount": 6,
+      "columns": [
+        "id:bigint",
+        "order_no:varchar(32)",
+        "user_id:bigint",
+        "lawyer_id:bigint",
+        "service_type:varchar(20)",
+        "amount_cents:bigint",
+        "platform_fee_cents:bigint",
+        "lawyer_income_cents:bigint",
+        "status:varchar(20)",
+        "paid_at:datetime",
+        "accepted_at:datetime",
+        "finished_at:datetime",
+        "cancelled_at:datetime",
+        "remark:varchar(500)",
+        "created_at:datetime",
+        "updated_at:datetime",
+        "deleted_at:datetime"
+      ]
+    },
+    {
+      "name": "payment_record",
+      "comment": "支付记录；正数收款、负数退款，SUM(amount_cents)=净收款\r",
+      "columnCount": 9,
+      "primaryKey": [
+        "id\r"
+      ],
+      "uniqueKeys": [
+        "uk_payment_order_channel_txn"
+      ],
+      "indexCount": 2,
+      "columns": [
+        "id:bigint",
+        "order_id:bigint",
+        "channel:varchar(20)",
+        "transaction_id:varchar(64)",
+        "amount_cents:bigint",
+        "status:varchar(20)",
+        "raw_payload:text",
+        "paid_at:datetime",
+        "created_at:datetime"
+      ]
+    },
+    {
+      "name": "realname_auth",
+      "comment": "实名认证；L1 加密 + L2 脱敏，影像走私有 OSS\r",
+      "columnCount": 13,
+      "primaryKey": [
+        "id\r"
+      ],
+      "uniqueKeys": [
+        "uk_realname_user"
+      ],
+      "indexCount": 3,
+      "columns": [
+        "id:bigint",
+        "user_id:bigint",
+        "real_name:varchar(50)",
+        "id_card_number:varchar(255)",
+        "id_card_masked:varchar(20)",
+        "id_card_front:varchar(500)",
+        "id_card_back:varchar(500)",
+        "status:varchar(20)",
+        "reject_reason:varchar(500)",
+        "audited_by:bigint",
+        "audited_at:datetime",
+        "created_at:datetime",
+        "updated_at:datetime"
+      ]
+    },
+    {
+      "name": "recharge_record",
+      "comment": "充值记录（段 6）。财务凭证，只追加状态机、不软删、不物理删；渠道信息全部落本表，不写 payment_record\r",
+      "columnCount": 13,
+      "primaryKey": [
+        "id\r"
+      ],
+      "uniqueKeys": [
+        "uk_recharge_channel_txn",
+        "uk_recharge_order_no"
+      ],
+      "indexCount": 5,
+      "columns": [
+        "id:bigint",
+        "user_id:bigint",
+        "order_no:varchar(32)",
+        "channel:varchar(20)",
+        "channel_txn_id:varchar(64)",
+        "channel_prepay_id:varchar(64)",
+        "amount_cents:bigint",
+        "status:varchar(20)",
+        "paid_at:datetime",
+        "expire_at:datetime",
+        "raw_payload:text",
+        "created_at:datetime",
+        "updated_at:datetime"
+      ]
+    },
+    {
+      "name": "reconciliation_diff",
+      "comment": "对账差错工单；段 5 只写不展示（段 6 在 A-09 加「渠道对账」Tab）\r",
+      "columnCount": 21,
+      "primaryKey": [
+        "id\r"
+      ],
+      "uniqueKeys": [
+        "uk_diff_day_channel_txn_type"
+      ],
+      "indexCount": 4,
+      "columns": [
+        "id:bigint",
+        "bill_date:date",
+        "channel:varchar(20)",
+        "diff_type:varchar(30)",
+        "check_type:varchar(30)",
+        "biz_type:varchar(30)",
+        "biz_id:bigint",
+        "expected_cents:bigint",
+        "actual_cents:bigint",
+        "diff_cents:bigint",
+        "found_at:datetime",
+        "channel_txn_id:varchar(64)",
+        "recharge_id:bigint",
+        "amount_cents:bigint",
+        "detail:json",
+        "status:varchar(20)",
+        "handler_id:bigint",
+        "handle_note:varchar(500)",
+        "handled_at:datetime",
+        "created_at:datetime",
+        "updated_at:datetime"
+      ]
+    },
+    {
+      "name": "refund_record",
+      "comment": "退款单；审核通过才写 balance_flow，退款必须走流水\r",
+      "columnCount": 12,
+      "primaryKey": [
+        "id\r"
+      ],
+      "uniqueKeys": [],
+      "indexCount": 2,
+      "columns": [
+        "id:bigint",
+        "order_id:bigint",
+        "reason:varchar(500)",
+        "amount_cents:bigint",
+        "status:varchar(20)",
+        "transaction_id:varchar(64)",
+        "audit_remark:varchar(500)",
+        "audited_by:bigint",
+        "audited_at:datetime",
+        "refunded_at:datetime",
+        "created_at:datetime",
+        "updated_at:datetime"
+      ]
+    },
+    {
+      "name": "review",
+      "comment": "评价；一单一次，评分即时写回 lawyer.rating / review_count\r",
+      "columnCount": 11,
+      "primaryKey": [
+        "id\r"
+      ],
+      "uniqueKeys": [
+        "uk_review_order"
+      ],
+      "indexCount": 4,
+      "columns": [
+        "id:bigint",
+        "order_id:bigint",
+        "user_id:bigint",
+        "lawyer_id:bigint",
+        "rating:int",
+        "tags:json",
+        "content:varchar(500)",
+        "lawyer_reply:varchar(500)",
+        "is_anonymous:tinyint",
+        "created_at:datetime",
+        "updated_at:datetime"
+      ]
+    },
+    {
+      "name": "sensitive_word",
+      "comment": "本地敏感词库；Trie 引擎启动时全量加载 enabled=1 的词\r",
+      "columnCount": 12,
+      "primaryKey": [
+        "id\r"
+      ],
+      "uniqueKeys": [
+        "uk_word_lang"
+      ],
+      "indexCount": 4,
+      "columns": [
+        "id:bigint",
+        "word:varchar(100)",
+        "category:varchar(30)",
+        "level:varchar(20)",
+        "lang:varchar(20)",
+        "source:varchar(50)",
+        "enabled:tinyint",
+        "hit_count:bigint",
+        "last_hit_at:datetime",
+        "created_by:bigint",
+        "created_at:datetime",
+        "updated_at:datetime"
+      ]
+    },
+    {
+      "name": "sensitive_word_appeal",
+      "comment": "敏感词误判申诉；一条命中记录只能申诉一次\r",
+      "columnCount": 10,
+      "primaryKey": [
+        "id\r"
+      ],
+      "uniqueKeys": [
+        "uk_appeal_review"
+      ],
+      "indexCount": 3,
+      "columns": [
+        "id:bigint",
+        "user_id:bigint",
+        "content_review_id:bigint",
+        "appeal_reason:varchar(500)",
+        "status:varchar(20)",
+        "handler_id:bigint",
+        "handle_reason:varchar(500)",
+        "handled_at:datetime",
+        "created_at:datetime",
+        "updated_at:datetime"
+      ]
+    },
+    {
+      "name": "service_ticket",
+      "comment": "客服工单；投诉/反馈提交时同事务生成\r",
+      "columnCount": 14,
+      "primaryKey": [
+        "id\r"
+      ],
+      "uniqueKeys": [
+        "uk_ticket_no"
+      ],
+      "indexCount": 6,
+      "columns": [
+        "id:bigint",
+        "ticket_no:varchar(32)",
+        "user_id:bigint",
+        "agent_id:bigint",
+        "conversation_id:bigint",
+        "category:varchar(30)",
+        "title:varchar(200)",
+        "priority:varchar(10)",
+        "status:varchar(20)",
+        "sla_due_at:datetime",
+        "closed_at:datetime",
+        "created_at:datetime",
+        "updated_at:datetime",
+        "type_id:bigint"
+      ]
+    },
+    {
+      "name": "signature",
+      "comment": "电子签章；document_id 空=签名库、非空=文书上的签名，查询必须显式区分\r",
+      "columnCount": 15,
+      "primaryKey": [
+        "id\r"
+      ],
+      "uniqueKeys": [],
+      "indexCount": 3,
+      "columns": [
+        "id:bigint",
+        "user_id:bigint",
+        "image_oss_key:varchar(500)",
+        "document_id:bigint",
+        "page_no:int",
+        "pos_x_pt:int",
+        "pos_y_pt:int",
+        "width_pt:int",
+        "height_pt:int",
+        "base_page_w_pt:int",
+        "base_page_h_pt:int",
+        "document_hash:varchar(128)",
+        "hash_algo:varchar(20)",
+        "signed_at:datetime",
+        "created_at:datetime"
+      ]
+    },
+    {
+      "name": "social_action",
+      "comment": "社交动作表；跨域只存 ID，列表由 API 层协调多个域的 Service 组装\r",
+      "columnCount": 8,
+      "primaryKey": [
+        "id\r"
+      ],
+      "uniqueKeys": [
+        "uk_social_user_action_target"
+      ],
+      "indexCount": 5,
+      "columns": [
+        "id:bigint",
+        "user_id:bigint",
+        "action_type:varchar(20)",
+        "target_type:varchar(20)",
+        "target_id:bigint",
+        "created_at:datetime",
+        "updated_at:datetime",
+        "deleted_at:datetime"
+      ]
+    },
+    {
+      "name": "sys_config",
+      "comment": "平台参数配置\r",
+      "columnCount": 9,
+      "primaryKey": [
+        "id\r"
+      ],
+      "uniqueKeys": [
+        "uk_config_key"
+      ],
+      "indexCount": 3,
+      "columns": [
+        "id:bigint",
+        "config_key:varchar(100)",
+        "config_value:text",
+        "value_type:varchar(20)",
+        "category:varchar(30)",
+        "remark:varchar(200)",
+        "editable:tinyint",
+        "created_at:datetime",
+        "updated_at:datetime"
+      ]
+    },
+    {
+      "name": "task_queue",
+      "comment": "异步任务表：CAS 领取 + 租约回收 + 指数退避 + 死信；替代 MQ\r",
+      "columnCount": 12,
+      "primaryKey": [
+        "id\r"
+      ],
+      "uniqueKeys": [],
+      "indexCount": 4,
+      "columns": [
+        "id:bigint",
+        "task_type:varchar(40)",
+        "biz_no:varchar(64)",
+        "status:varchar(20)",
+        "retry_count:int",
+        "next_retry_at:datetime",
+        "last_error:varchar(500)",
+        "lock_owner:varchar(64)",
+        "lock_expire_at:datetime",
+        "trace_id:varchar(64)",
+        "created_at:datetime",
+        "updated_at:datetime"
+      ]
+    },
+    {
+      "name": "user_balance",
+      "comment": "用户余额缓存；权威是 balance_flow，禁止业务代码直接加减\r",
+      "columnCount": 7,
+      "primaryKey": [
+        "id\r"
+      ],
+      "uniqueKeys": [
+        "uk_user_balance_user"
+      ],
+      "indexCount": 2,
+      "columns": [
+        "id:bigint",
+        "user_id:bigint",
+        "balance_cents:bigint",
+        "frozen_cents:bigint",
+        "version:int",
+        "created_at:datetime",
+        "updated_at:datetime"
+      ]
+    },
+    {
+      "name": "user_device",
+      "comment": "用户设备与推送标识\r",
+      "columnCount": 12,
+      "primaryKey": [
+        "id\r"
+      ],
+      "uniqueKeys": [
+        "uk_device_user_device"
+      ],
+      "indexCount": 4,
+      "columns": [
+        "id:bigint",
+        "user_id:bigint",
+        "device_id:varchar(128)",
+        "platform:varchar(10)",
+        "push_cid:varchar(128)",
+        "device_model:varchar(100)",
+        "os_version:varchar(50)",
+        "app_version:varchar(20)",
+        "last_active_at:datetime",
+        "created_at:datetime",
+        "updated_at:datetime",
+        "deleted_at:datetime"
+      ]
+    },
+    {
+      "name": "user_violation",
+      "comment": "违规与处罚记录；只追加，撤销置 revoked_at 不删行\r",
+      "columnCount": 14,
+      "primaryKey": [
+        "id\r"
+      ],
+      "uniqueKeys": [],
+      "indexCount": 3,
+      "columns": [
+        "id:bigint",
+        "user_id:bigint",
+        "user_type:varchar(10)",
+        "violation_type:varchar(30)",
+        "level:varchar(20)",
+        "reason:varchar(500)",
+        "evidence:json",
+        "start_at:datetime",
+        "end_at:datetime",
+        "operator_id:bigint",
+        "revoked_at:datetime",
+        "revoke_reason:varchar(500)",
+        "created_at:datetime",
+        "updated_at:datetime"
+      ]
+    },
+    {
+      "name": "withdraw_record",
+      "comment": "律师提现单；只记状态，动钱在 balance_flow（freeze/withdraw/unfreeze）；完整卡号不对任何接口返回\r",
+      "columnCount": 21,
+      "primaryKey": [
+        "id\r"
+      ],
+      "uniqueKeys": [
+        "uk_withdraw_no"
+      ],
+      "indexCount": 4,
+      "columns": [
+        "id:bigint",
+        "withdraw_no:varchar(32)",
+        "lawyer_id:bigint",
+        "amount_cents:bigint",
+        "fee_cents:bigint",
+        "actual_cents:bigint",
+        "channel:varchar(20)",
+        "bank_name:varchar(50)",
+        "account_name:varchar(50)",
+        "account_number:varchar(100)",
+        "bank_account_tail:varchar(4)",
+        "status:varchar(20)",
+        "transaction_id:varchar(64)",
+        "voucher_file_id:bigint",
+        "audited_by:bigint",
+        "audited_at:datetime",
+        "paid_at:datetime",
+        "reject_reason:varchar(500)",
+        "created_at:datetime",
+        "updated_at:datetime",
+        "deleted_at:datetime"
+      ]
+    }
+  ]
+}

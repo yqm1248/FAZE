@@ -1,0 +1,695 @@
+{
+  "_comment": "本文件由 scripts/facts/error-codes.mjs 从 ErrorCode.java 生成，禁止手改。口径见 docs/standards/说辞一致与真相源规范.md §四。",
+  "generatedAt": "2026-11-10",
+  "source": "services/faze-api/src/main/java/com/faze/common/exception/ErrorCode.java",
+  "totals": {
+    "codes": 94,
+    "duplicates": 0,
+    "emptyMsgKey": 0
+  },
+  "byPrefix": {
+    "401": 8,
+    "402": 9,
+    "404": 3,
+    "405": 29,
+    "406": 7,
+    "407": 9,
+    "408": 5,
+    "409": 3,
+    "410": 11,
+    "501": 4,
+    "502": 1,
+    "506": 3,
+    "508": 2
+  },
+  "byHttpStatus": {
+    "200": 81,
+    "400": 1,
+    "401": 2,
+    "403": 6,
+    "409": 3,
+    "429": 1
+  },
+  "duplicates": [],
+  "emptyMsgKey": [],
+  "codes": [
+    {
+      "name": "COMMON_PARAM_INVALID",
+      "code": 401001,
+      "httpStatus": 200,
+      "msgKey": "error.common.param-invalid",
+      "msg": "参数校验失败"
+    },
+    {
+      "name": "COMMON_PARAM_MISSING",
+      "code": 401002,
+      "httpStatus": 200,
+      "msgKey": "error.common.param-missing",
+      "msg": "缺少必填参数"
+    },
+    {
+      "name": "COMMON_PARAM_FORMAT",
+      "code": 401003,
+      "httpStatus": 200,
+      "msgKey": "error.common.param-format",
+      "msg": "参数格式错误"
+    },
+    {
+      "name": "COMMON_NOT_FOUND",
+      "code": 401004,
+      "httpStatus": 200,
+      "msgKey": "error.common.not-found",
+      "msg": "资源不存在"
+    },
+    {
+      "name": "COMMON_ALREADY_EXISTS",
+      "code": 401005,
+      "httpStatus": 200,
+      "msgKey": "error.common.already-exists",
+      "msg": "资源已存在"
+    },
+    {
+      "name": "COMMON_ILLEGAL_STATE",
+      "code": 401006,
+      "httpStatus": 200,
+      "msgKey": "error.common.illegal-state",
+      "msg": "状态非法，当前操作不允许"
+    },
+    {
+      "name": "COMMON_RATE_LIMITED",
+      "code": 401007,
+      "httpStatus": 200,
+      "msgKey": "error.common.rate-limited",
+      "msg": "请求过于频繁"
+    },
+    {
+      "name": "COMMON_FORBIDDEN",
+      "code": 401008,
+      "httpStatus": 403,
+      "msgKey": "error.common.forbidden",
+      "msg": "无权限访问该资源"
+    },
+    {
+      "name": "AUTH_LOGIN_FAILED",
+      "code": 402001,
+      "httpStatus": 200,
+      "msgKey": "error.auth.login-failed",
+      "msg": "手机号或密码错误"
+    },
+    {
+      "name": "AUTH_TOKEN_EXPIRED",
+      "code": 402002,
+      "httpStatus": 401,
+      "msgKey": "error.auth.token-expired",
+      "msg": "登录已过期，请重新登录"
+    },
+    {
+      "name": "AUTH_TOKEN_INVALID",
+      "code": 402003,
+      "httpStatus": 401,
+      "msgKey": "error.auth.token-invalid",
+      "msg": "登录凭证无效，请重新登录"
+    },
+    {
+      "name": "AUTH_ACCOUNT_BLOCKED",
+      "code": 402004,
+      "httpStatus": 403,
+      "msgKey": "error.auth.account-blocked",
+      "msg": "账号已被封禁"
+    },
+    {
+      "name": "AUTH_CODE_INVALID",
+      "code": 402005,
+      "httpStatus": 200,
+      "msgKey": "error.auth.code-invalid",
+      "msg": "验证码错误或已过期"
+    },
+    {
+      "name": "AUTH_PHONE_TAKEN",
+      "code": 402006,
+      "httpStatus": 200,
+      "msgKey": "error.auth.phone-taken",
+      "msg": "手机号已注册"
+    },
+    {
+      "name": "AUTH_ACCOUNT_CANCELLED",
+      "code": 402008,
+      "httpStatus": 200,
+      "msgKey": "error.auth.account-cancelled",
+      "msg": "账号已注销"
+    },
+    {
+      "name": "AUTH_GUARDIAN_REQUIRED",
+      "code": 402009,
+      "httpStatus": 200,
+      "msgKey": "error.auth.guardian-required",
+      "msg": "未成年人需填写监护人手机号"
+    },
+    {
+      "name": "AUTH_PASSWORD_WEAK",
+      "code": 402010,
+      "httpStatus": 200,
+      "msgKey": "error.auth.password-weak",
+      "msg": "密码强度不足"
+    },
+    {
+      "name": "CONVERSATION_NOT_FOUND",
+      "code": 404001,
+      "httpStatus": 200,
+      "msgKey": "error.conversation.not-found",
+      "msg": "会话不存在"
+    },
+    {
+      "name": "CONVERSATION_FORBIDDEN",
+      "code": 404002,
+      "httpStatus": 403,
+      "msgKey": "error.conversation.forbidden",
+      "msg": "无权访问该会话"
+    },
+    {
+      "name": "CONVERSATION_NOT_PURCHASED",
+      "code": 404005,
+      "httpStatus": 200,
+      "msgKey": "error.conversation.not-purchased",
+      "msg": "未购买该律师的咨询服务，不能发起会话"
+    },
+    {
+      "name": "TRADE_BALANCE_INSUFFICIENT",
+      "code": 405001,
+      "httpStatus": 200,
+      "msgKey": "error.trade.balance-insufficient",
+      "msg": "账户余额不足"
+    },
+    {
+      "name": "TRADE_ORDER_NOT_FOUND",
+      "code": 405002,
+      "httpStatus": 200,
+      "msgKey": "error.trade.order-not-found",
+      "msg": "订单不存在"
+    },
+    {
+      "name": "TRADE_ORDER_STATE_INVALID",
+      "code": 405003,
+      "httpStatus": 200,
+      "msgKey": "error.trade.order-state-invalid",
+      "msg": "订单状态非法，当前操作不允许"
+    },
+    {
+      "name": "TRADE_DUPLICATE_SUBMIT",
+      "code": 405004,
+      "httpStatus": 200,
+      "msgKey": "error.trade.duplicate-submit",
+      "msg": "请勿重复提交"
+    },
+    {
+      "name": "TRADE_REFUND_EXCEEDS",
+      "code": 405005,
+      "httpStatus": 200,
+      "msgKey": "error.trade.refund-exceeds",
+      "msg": "退款金额超出可退上限"
+    },
+    {
+      "name": "TRADE_AMOUNT_INVALID",
+      "code": 405006,
+      "httpStatus": 200,
+      "msgKey": "error.trade.amount-invalid",
+      "msg": "金额非法"
+    },
+    {
+      "name": "TRADE_NOT_ORDER_OWNER",
+      "code": 405007,
+      "httpStatus": 403,
+      "msgKey": "error.trade.not-order-owner",
+      "msg": "非本人订单，无权访问"
+    },
+    {
+      "name": "TRADE_LAWYER_UNAVAILABLE",
+      "code": 405008,
+      "httpStatus": 200,
+      "msgKey": "error.trade.lawyer-unavailable",
+      "msg": "该律师当前不可接单"
+    },
+    {
+      "name": "TRADE_SERVICE_UNAVAILABLE",
+      "code": 405009,
+      "httpStatus": 200,
+      "msgKey": "error.trade.service-unavailable",
+      "msg": "该律师未开通此服务"
+    },
+    {
+      "name": "TRADE_LAWYER_OFFLINE",
+      "code": 405010,
+      "httpStatus": 200,
+      "msgKey": "error.trade.lawyer-offline",
+      "msg": "该律师当前不在线"
+    },
+    {
+      "name": "TRADE_REFUND_NOT_FOUND",
+      "code": 405011,
+      "httpStatus": 200,
+      "msgKey": "error.trade.refund-not-found",
+      "msg": "退款单不存在"
+    },
+    {
+      "name": "TRADE_CHANNEL_DISABLED",
+      "code": 405013,
+      "httpStatus": 200,
+      "msgKey": "error.trade.channel-disabled",
+      "msg": "该支付渠道未启用"
+    },
+    {
+      "name": "TRADE_RECHARGE_AMOUNT_INVALID",
+      "code": 405014,
+      "httpStatus": 200,
+      "msgKey": "error.trade.recharge-amount-invalid",
+      "msg": "充值金额超出允许区间"
+    },
+    {
+      "name": "TRADE_RECHARGE_STATE_INVALID",
+      "code": 405015,
+      "httpStatus": 200,
+      "msgKey": "error.trade.recharge-state-invalid",
+      "msg": "充值单状态非法，当前操作不允许"
+    },
+    {
+      "name": "TRADE_RECHARGE_DAILY_LIMIT",
+      "code": 405016,
+      "httpStatus": 200,
+      "msgKey": "error.trade.recharge-daily-limit",
+      "msg": "超出单日充值限额"
+    },
+    {
+      "name": "TRADE_CALLBACK_SIGN_INVALID",
+      "code": 405017,
+      "httpStatus": 200,
+      "msgKey": "error.trade.callback-sign-invalid",
+      "msg": "支付回调验签失败"
+    },
+    {
+      "name": "TRADE_RECONCILE_DIFF_PENDING",
+      "code": 405018,
+      "httpStatus": 200,
+      "msgKey": "error.trade.reconcile-diff-pending",
+      "msg": "对账存在未处理差异"
+    },
+    {
+      "name": "TRADE_CHANNEL_PREPAY_FAILED",
+      "code": 405019,
+      "httpStatus": 200,
+      "msgKey": "error.trade.channel-prepay-failed",
+      "msg": "渠道下单失败"
+    },
+    {
+      "name": "TRADE_RECHARGE_REALNAME_REQUIRED",
+      "code": 405020,
+      "httpStatus": 200,
+      "msgKey": "error.trade.recharge-realname-required",
+      "msg": "未实名认证，不能充值"
+    },
+    {
+      "name": "TRADE_REVIEW_NOT_FOUND",
+      "code": 405021,
+      "httpStatus": 200,
+      "msgKey": "error.trade.review-not-found",
+      "msg": "评价不存在"
+    },
+    {
+      "name": "TRADE_REVIEW_DUPLICATE",
+      "code": 405022,
+      "httpStatus": 200,
+      "msgKey": "error.trade.review-duplicate",
+      "msg": "该订单已评价，不能重复评价"
+    },
+    {
+      "name": "TRADE_WITHDRAW_BELOW_MIN",
+      "code": 405023,
+      "httpStatus": 200,
+      "msgKey": "error.trade.withdraw-below-min",
+      "msg": "提现金额低于最低限额"
+    },
+    {
+      "name": "TRADE_WITHDRAW_INSUFFICIENT",
+      "code": 405024,
+      "httpStatus": 200,
+      "msgKey": "error.trade.withdraw-insufficient",
+      "msg": "可提现余额不足"
+    },
+    {
+      "name": "TRADE_WITHDRAW_STATE_INVALID",
+      "code": 405025,
+      "httpStatus": 200,
+      "msgKey": "error.trade.withdraw-state-invalid",
+      "msg": "提现单状态非法，当前操作不允许"
+    },
+    {
+      "name": "TRADE_SETTLEMENT_MISMATCH",
+      "code": 405026,
+      "httpStatus": 200,
+      "msgKey": "error.trade.settlement-mismatch",
+      "msg": "结算数据不一致，已停止生成"
+    },
+    {
+      "name": "TRADE_WITHDRAW_TOO_FREQUENT",
+      "code": 405027,
+      "httpStatus": 200,
+      "msgKey": "error.trade.withdraw-too-frequent",
+      "msg": "提现过于频繁"
+    },
+    {
+      "name": "TRADE_RECONCILE_BILL_INVALID",
+      "code": 405028,
+      "httpStatus": 200,
+      "msgKey": "error.trade.reconcile-bill-invalid",
+      "msg": "渠道对账单格式非法"
+    },
+    {
+      "name": "TRADE_RECHARGE_NOT_FOUND",
+      "code": 405029,
+      "httpStatus": 200,
+      "msgKey": "error.trade.recharge-not-found",
+      "msg": "充值单不存在"
+    },
+    {
+      "name": "TRADE_RECHARGE_RATE_LIMITED",
+      "code": 405030,
+      "httpStatus": 429,
+      "msgKey": "error.trade.recharge-rate-limited",
+      "msg": "充值操作过于频繁，请稍后重试"
+    },
+    {
+      "name": "DOCUMENT_TEMPLATE_NOT_FOUND",
+      "code": 406001,
+      "httpStatus": 200,
+      "msgKey": "error.document.template-not-found",
+      "msg": "模板不存在或已停用"
+    },
+    {
+      "name": "DOCUMENT_FORM_INVALID",
+      "code": 406002,
+      "httpStatus": 200,
+      "msgKey": "error.document.form-invalid",
+      "msg": "表单校验失败"
+    },
+    {
+      "name": "DOCUMENT_NOT_FOUND",
+      "code": 406003,
+      "httpStatus": 200,
+      "msgKey": "error.document.not-found",
+      "msg": "文书不存在"
+    },
+    {
+      "name": "DOCUMENT_FORBIDDEN",
+      "code": 406004,
+      "httpStatus": 403,
+      "msgKey": "error.document.forbidden",
+      "msg": "无权访问该文书"
+    },
+    {
+      "name": "SIGNATURE_LIMIT_EXCEEDED",
+      "code": 406005,
+      "httpStatus": 200,
+      "msgKey": "error.document.signature-limit",
+      "msg": "签名数量已达上限（最多 5 个）"
+    },
+    {
+      "name": "SIGNATURE_IN_USE",
+      "code": 406006,
+      "httpStatus": 200,
+      "msgKey": "error.document.signature-in-use",
+      "msg": "该签名已用于文书，不能删除"
+    },
+    {
+      "name": "SIGNATURE_NOT_FOUND",
+      "code": 406007,
+      "httpStatus": 200,
+      "msgKey": "error.document.signature-not-found",
+      "msg": "签名不存在"
+    },
+    {
+      "name": "CASE_NOT_FOUND",
+      "code": 407001,
+      "httpStatus": 200,
+      "msgKey": "error.case.not-found",
+      "msg": "案件不存在"
+    },
+    {
+      "name": "CASE_STATE_INVALID",
+      "code": 407002,
+      "httpStatus": 200,
+      "msgKey": "error.case.state-invalid",
+      "msg": "案件状态非法，当前操作不允许"
+    },
+    {
+      "name": "CASE_FORBIDDEN",
+      "code": 407003,
+      "httpStatus": 403,
+      "msgKey": "error.case.forbidden",
+      "msg": "无权访问该案件"
+    },
+    {
+      "name": "CASE_ALREADY_FILED",
+      "code": 407004,
+      "httpStatus": 200,
+      "msgKey": "error.case.already-filed",
+      "msg": "该案件已立案，不能重复提交"
+    },
+    {
+      "name": "CASE_NO_DOCUMENT",
+      "code": 407005,
+      "httpStatus": 200,
+      "msgKey": "error.case.no-document",
+      "msg": "本案没有可送达的文书"
+    },
+    {
+      "name": "CASE_DELIVERY_NOT_FOUND",
+      "code": 407006,
+      "httpStatus": 200,
+      "msgKey": "error.case.delivery-not-found",
+      "msg": "送达记录不存在"
+    },
+    {
+      "name": "CASE_DELIVERY_ALREADY_SIGNED",
+      "code": 407007,
+      "httpStatus": 200,
+      "msgKey": "error.case.delivery-already-signed",
+      "msg": "该文书已签收，不能重复签收"
+    },
+    {
+      "name": "CASE_DELIVERY_METHOD_INVALID",
+      "code": 407008,
+      "httpStatus": 200,
+      "msgKey": "error.case.delivery-method-invalid",
+      "msg": "送达方式非法"
+    },
+    {
+      "name": "CASE_RESUBMIT_LIMIT",
+      "code": 407009,
+      "httpStatus": 200,
+      "msgKey": "error.case.resubmit-limit",
+      "msg": "补正次数已用完，请联系平台"
+    },
+    {
+      "name": "AI_NO_LAW_MATCHED",
+      "code": 408001,
+      "httpStatus": 200,
+      "msgKey": "error.ai.no-law-matched",
+      "msg": "未在法条库检索到相关条文"
+    },
+    {
+      "name": "AI_QUOTA_EXCEEDED",
+      "code": 408002,
+      "httpStatus": 200,
+      "msgKey": "error.ai.quota-exceeded",
+      "msg": "AI 调用次数超限"
+    },
+    {
+      "name": "AI_CONTENT_BLOCKED",
+      "code": 408003,
+      "httpStatus": 200,
+      "msgKey": "error.ai.content-blocked",
+      "msg": "内容被安全策略拦截"
+    },
+    {
+      "name": "AI_OUT_OF_SCOPE",
+      "code": 408004,
+      "httpStatus": 200,
+      "msgKey": "error.ai.out-of-scope",
+      "msg": "超出可咨询范围"
+    },
+    {
+      "name": "AI_PROMPT_INJECTED",
+      "code": 408005,
+      "httpStatus": 200,
+      "msgKey": "error.ai.prompt-injected",
+      "msg": "检测到 Prompt 注入企图"
+    },
+    {
+      "name": "CONTENT_CASE_NO_LAW_REF",
+      "code": 409005,
+      "httpStatus": 200,
+      "msgKey": "error.content.case-no-law-ref",
+      "msg": "案例未填写法条引用，不能上线"
+    },
+    {
+      "name": "CONTENT_CASE_LANG_INCOMPLETE",
+      "code": 409006,
+      "httpStatus": 200,
+      "msgKey": "error.content.case-lang-incomplete",
+      "msg": "案例语言版本不齐"
+    },
+    {
+      "name": "CONTENT_CASE_PUBLISHED",
+      "code": 409007,
+      "httpStatus": 200,
+      "msgKey": "error.content.case-published",
+      "msg": "案例已上线，须先下架再删除"
+    },
+    {
+      "name": "OPS_SENSITIVE_WORD_EXISTS",
+      "code": 410005,
+      "httpStatus": 200,
+      "msgKey": "error.ops.sensitive-word-exists",
+      "msg": "该词条已存在"
+    },
+    {
+      "name": "OPS_CONTENT_BLOCKED",
+      "code": 410006,
+      "httpStatus": 200,
+      "msgKey": "error.ops.content-blocked",
+      "msg": "内容含违规信息，未发送"
+    },
+    {
+      "name": "OPS_REVIEW_NOT_FOUND",
+      "code": 410007,
+      "httpStatus": 200,
+      "msgKey": "error.ops.review-not-found",
+      "msg": "审核记录不存在"
+    },
+    {
+      "name": "OPS_REVIEW_ALREADY_HANDLED",
+      "code": 410008,
+      "httpStatus": 409,
+      "msgKey": "error.ops.review-already-handled",
+      "msg": "该条已处置过"
+    },
+    {
+      "name": "OPS_APPEAL_EXISTS",
+      "code": 410009,
+      "httpStatus": 200,
+      "msgKey": "error.ops.appeal-exists",
+      "msg": "该条已申诉过，请勿重复提交"
+    },
+    {
+      "name": "OPS_APPEAL_HANDLED",
+      "code": 410010,
+      "httpStatus": 409,
+      "msgKey": "error.ops.appeal-handled",
+      "msg": "该申诉已处置"
+    },
+    {
+      "name": "OPS_TICKET_NOT_FOUND",
+      "code": 410011,
+      "httpStatus": 200,
+      "msgKey": "error.ops.ticket-not-found",
+      "msg": "工单不存在"
+    },
+    {
+      "name": "OPS_TICKET_STATUS_INVALID",
+      "code": 410012,
+      "httpStatus": 409,
+      "msgKey": "error.ops.ticket-status-invalid",
+      "msg": "工单状态不允许该操作"
+    },
+    {
+      "name": "OPS_ANNOUNCEMENT_SENT",
+      "code": 410013,
+      "httpStatus": 200,
+      "msgKey": "error.ops.announcement-sent",
+      "msg": "公告已发出，不可撤回"
+    },
+    {
+      "name": "OPS_IMPORT_FORMAT",
+      "code": 410014,
+      "httpStatus": 400,
+      "msgKey": "error.ops.import-format",
+      "msg": "导入文件格式错误"
+    },
+    {
+      "name": "OPS_EXPORT_TOO_LARGE",
+      "code": 410015,
+      "httpStatus": 200,
+      "msgKey": "error.ops.export-too-large",
+      "msg": "导出行数超限，已转后台任务"
+    },
+    {
+      "name": "COMMON_INTERNAL",
+      "code": 501001,
+      "httpStatus": 200,
+      "msgKey": "error.common.internal",
+      "msg": "服务器内部错误"
+    },
+    {
+      "name": "COMMON_THIRD_PARTY_DOWN",
+      "code": 501002,
+      "httpStatus": 200,
+      "msgKey": "error.common.third-party-down",
+      "msg": "第三方服务不可用"
+    },
+    {
+      "name": "COMMON_DB_ERROR",
+      "code": 501003,
+      "httpStatus": 200,
+      "msgKey": "error.common.db-error",
+      "msg": "数据库操作失败"
+    },
+    {
+      "name": "COMMON_IDEMPOTENT_CONFLICT",
+      "code": 501005,
+      "httpStatus": 200,
+      "msgKey": "error.common.idempotent-conflict",
+      "msg": "重复请求，请勿重复提交"
+    },
+    {
+      "name": "AUTH_SMS_SEND_FAILED",
+      "code": 502001,
+      "httpStatus": 200,
+      "msgKey": "error.auth.sms-send-failed",
+      "msg": "短信发送失败"
+    },
+    {
+      "name": "DOCUMENT_GENERATE_FAILED",
+      "code": 506001,
+      "httpStatus": 200,
+      "msgKey": "error.document.generate-failed",
+      "msg": "文书生成失败"
+    },
+    {
+      "name": "DOCUMENT_PDF_FAILED",
+      "code": 506002,
+      "httpStatus": 200,
+      "msgKey": "error.document.pdf-failed",
+      "msg": "PDF 转换失败"
+    },
+    {
+      "name": "DOCUMENT_FONT_MISSING",
+      "code": 506003,
+      "httpStatus": 200,
+      "msgKey": "error.document.font-missing",
+      "msg": "渲染所需字体缺失"
+    },
+    {
+      "name": "AI_SERVICE_DOWN",
+      "code": 508001,
+      "httpStatus": 200,
+      "msgKey": "error.ai.service-down",
+      "msg": "AI 服务暂不可用"
+    },
+    {
+      "name": "AI_OUTPUT_INVALID",
+      "code": 508002,
+      "httpStatus": 200,
+      "msgKey": "error.ai.output-invalid",
+      "msg": "AI 输出校验失败，请重试"
+    }
+  ]
+}
