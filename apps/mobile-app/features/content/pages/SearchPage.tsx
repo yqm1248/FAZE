@@ -14,6 +14,8 @@
  *   4. 「文书」域搜的是**模板**，条目不显示价格（V1 不作文书付费）。
  *   5. 搜索有 400ms 防抖：每敲一个字就请求会把法条检索的限流额度打满
  *      （`/pub/law-items` 在详情页也用，是同一个 IP 限流）。
+ *   6. 空态文案带占位符（`content.search.emptyTitle` 的 `{{kw}}`），**必须传 `vars`**，
+ *      否则 `{{kw}}` 原样上屏。
  *
  * testID 清单：search-screen / search-input / search-cancel / search-tab-{all|lawyer|article|case|document} /
  *              search-idle / search-history / search-history-clear / search-hot /
@@ -355,7 +357,7 @@ export function SearchPage() {
 
           {phase === 'empty' ? (
             <View testID="search-empty">
-              <EmptyState i18nKey="content.search.emptyTitle" />
+              <EmptyState i18nKey="content.search.emptyTitle" vars={{ kw: keyword }} />
               <LocalizedText numberOfLines={2} style={styles.emptyHint}>
                 {t('content.search.emptyHint')}
               </LocalizedText>

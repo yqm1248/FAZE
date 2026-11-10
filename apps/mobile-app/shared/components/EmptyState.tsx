@@ -6,12 +6,13 @@
  * 注意：
  *   1. 文案默认取 `common.state.empty`，调用方可覆盖（`i18nKey`）。
  *   2. **空态不是错误态**：不要在这一层给「重试」按钮（重试属于错误态）。
+ *   3. 带占位符的文案必须传 `vars`，否则 `{{…}}` 会原样上屏（例：搜索空态的 `{{kw}}`）。
  */
 
 import { StyleSheet, View } from 'react-native';
 
 import { useI18n } from '@/shared/i18n';
-import type { MessageKey } from '@/shared/i18n';
+import type { MessageKey, TranslationVars } from '@/shared/i18n';
 import { color, spacing, typography } from '@/shared/theme';
 
 import { LocalizedText } from './LocalizedText';
@@ -20,6 +21,8 @@ import { LocalizedText } from './LocalizedText';
 export type EmptyStateProps = {
   /** 覆盖默认文案的 key（可选）。 */
   i18nKey?: MessageKey;
+  /** 文案里的 `{{占位符}}` 变量（可选；文案带占位符时必须传）。 */
+  vars?: TranslationVars;
 };
 
 /**
@@ -27,15 +30,15 @@ export type EmptyStateProps = {
  *
  * 副作用：无。
  *
- * @param props 可选文案 key
+ * @param props 可选文案 key 与占位符变量
  * @returns 居中的一行说明
  */
-export function EmptyState({ i18nKey }: EmptyStateProps) {
+export function EmptyState({ i18nKey, vars }: EmptyStateProps) {
   const { t } = useI18n();
   return (
     <View style={styles.container} accessibilityRole="text">
       <LocalizedText numberOfLines={2} style={styles.text}>
-        {t(i18nKey ?? 'common.state.empty')}
+        {t(i18nKey ?? 'common.state.empty', vars)}
       </LocalizedText>
     </View>
   );
