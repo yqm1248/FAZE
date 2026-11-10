@@ -192,6 +192,13 @@ jobs:
         working-directory: .
         run: node scripts/facts/check-baseline.mjs
 
+      # 设计稿 ↔ 页面映射：设计稿不缺项、页面无漏登记、diverged 必须挂真实 DRIFT 行。
+      # 这一道回答的是「设计稿有但没实现」和「实现了但设计稿没有」——这次 68 条里至少 12 条属于这两类，
+      # 以前每轮都要靠人一屏一屏点出来。
+      - name: 设计稿与页面映射完整
+        working-directory: .
+        run: node scripts/facts/check-pages.mjs
+
   # ── PC 后台：能构建即可（RuoYi 前端没有 lint script） ──────────────
   admin-web:
     name: PC 后台构建

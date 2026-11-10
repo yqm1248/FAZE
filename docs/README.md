@@ -59,6 +59,7 @@
 | **哪一页属于哪一段** | 总纲 §4.1（APP 69 页归属）+ §4.2（PC 28 页归属），这是唯一权威表 |
 | **第 0 段要建哪两张表** | [architecture/法泽FAZE_V1基线表结构_v1.0.md](architecture/法泽FAZE_V1基线表结构_v1.0.md) |
 | **错误码怎么编号** | [architecture/法泽FAZE_错误码规范_v1.0.md](architecture/法泽FAZE_错误码规范_v1.0.md)（号段规则 + HTTP 状态码规则；**全量码表由文档内受控区块从 [facts/error-codes.json](facts/error-codes.json) 生成，当前 94 个**） |
+| **哪张设计稿对应哪一页 / 稿有码无有哪些** | [`design/PAGE-MAP.json`](../design/PAGE-MAP.json) —— 71 份设计稿与 71 个页面实现的映射，含 `implemented` / `diverged` / `design-only` / `impl-only` 四态。**校验用 `npm run check:pages`**（CI 已接）。判断「哪张稿配哪页」是人做的，脚本只保证不缺项 |
 | 为什么是这个顺序、能不能调 | 总纲 §3.2「依赖关系」+ §3.3「严格串行到底约束什么」+ §4.3「归属差异」 |
 | 哪些外部资质会卡住我 | 同上，§九「并行轨道」 |
 | 每一段开工前要检查什么、结束时交什么 | 同上，§六「段的门禁」 |
