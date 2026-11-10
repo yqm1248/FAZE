@@ -61,7 +61,11 @@ function query(sql) {
     env: { ...process.env, MYSQL_PWD: DB.password },
     maxBuffer: 32 * 1024 * 1024,
   });
+  // mysql 客户端在 Windows 上输出 CRLF，`split('\n')` 后**每行最后一个字段会带 `\r`**。
+  // 不清掉的话表注释、主键列名等全都以 `\r` 结尾（实测 469 处），json 里混进控制字符，
+  // 而且 `"id\r" !== "id"` 会让后续任何按列名比对的地方莫名不等。
   return out
+    .replace(/\r\n/g, '\n')
     .split('\n')
     .filter((l) => l.length > 0)
     .map((l) => l.split('\t'));

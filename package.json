@@ -13,6 +13,8 @@
     "check:facts:nodb": "node scripts/facts/check-facts.mjs --skip-db",
     "check:baseline": "node scripts/facts/check-baseline.mjs",
     "check:pages": "node scripts/facts/check-pages.mjs",
+    "check:page-inventory": "node scripts/facts/page-inventory.mjs",
+    "check:render": "node scripts/facts/render-docs.mjs --check",
     "check:drift": "node scripts/facts/check-drift.mjs",
     "check:contracts": "node scripts/facts/check-contracts.mjs",
     "render:docs": "node scripts/facts/render-docs.mjs"

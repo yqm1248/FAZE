@@ -512,6 +512,72 @@ COMMENT='订单主表；状态枚举：created/paid/accepted/completed/cancelled
 
 # 附录 A：表清单（**55 张**，v1.27 补正：原 49 张 + 段 2 的 `order_status_log` / `task_queue`；v1.30 补：段 5 的 `lawyer_income_settlement` / `case_delivery`；v1.34 补：段 7 的 `sensitive_word_appeal` / `announcement`）
 
+<!-- FACTS:schema-tables -->
+> 本区块由 `scripts/facts/render-docs.mjs` 从 `docs/facts/*.json` 生成，**禁止手改**；要改先改代码再跑 `npm run facts`。
+
+已建 **53** 张业务表 / 687 列 / 188 个索引；Flyway 已应用 48 个迁移，最新 **V711**。
+
+| 表 | 列 | 主键 | 唯一键 | 表注释 |
+|---|---|---|---|---|
+| `ai_conversation` | 7 | id | — | AI 会话；用户删除为软删，A-28 仍可查到已软删会话 |
+| `ai_message` | 16 | id | uk_ai_message_content_id | AI 消息（C 状态机）；content 为 L4 级敏感字段；一段流式回答 = 一行 |
+| `announcement` | 15 | id | uk_announcement_no | 公告批次主表；一条公告一行，触达/打开数在此累计 |
+| `app_user` | 23 | id | uk_app_user_phone | C 端用户表；PC 后台管理员见 sys_user，两者不混用 |
+| `article` | 14 | id | — | 文章主表，存简体中文源内容；是否可见只看本表 status |
+| `article_translation` | 12 | id | uk_art_trans | 非中文译文；zh-Hans 不在此表；译文未完成时回退显示中文 |
+| `balance_flow` | 10 | id | uk_flow_biz | 资金流水，唯一真相；只追加，不修改不删除 |
+| `case_delivery` | 13 | id | uk_delivery_receipt | 文书送达记录；只送平台自有文书，不做法院转达；回执号是平台凭证 |
+| `case_library` | 24 | id | uk_case_library_no | 案例库主表，存简体中文源内容；译文见 case_library_translation；court_case_no 不对 App 展示 |
+| `case_library_translation` | 14 | id | uk_case_trans | 案例译文；与主表 case_library 是 1:N（每条案例每种语言至多一条译文） |
+| `case_progress` | 9 | id | uk_progress_case_step | 案件进度节点，只追加；本表即案件状态迁移日志（不另建 case_status_log） |
+| `complaint` | 12 | id | — | 用户投诉；提交时同事务生成 service_ticket（裁决 23） |
+| `content_review` | 12 | id | — | 内容审核命中记录；原文不修改，只做标注 |
+| `conversation` | 10 | id | uk_conversation_user_lawyer | IM 会话；UNIQUE(user_id,lawyer_id) 保证一个律师一个会话、跨订单复用 |
+| `conversation_message` | 15 | id | uk_msg_client_id、uk_msg_conversation_seq | IM 消息，只追加；离线补推与断线重连都按 seq 增量拉取 |
+| `doc_template` | 13 | id | uk_template_code_lang_version | 文书模板；HTML 存库不存 OSS；改版插新版本行、旧行置 inactive，历史文书按 template_version 复现 |
+| `document` | 17 | id | — | 文书记录；失败落 status=failed 且两个 *_oss_key 为 NULL（失败不留半成品） |
+| `enterprise_auth` | 13 | id | uk_enterprise_user | 企业认证；营业执照走私有 OSS |
+| `faq` | 9 | id | — | 常见问题；APP 55/56 两页的数据源，改库即生效 |
+| `feedback` | 10 | id | — | 意见反馈；提交时同事务生成 service_ticket（裁决 23） |
+| `file_record` | 14 | id | uk_file_oss_key | 上传文件登记；业务表存 oss_key，不存完整 URL |
+| `i18n_glossary` | 10 | id | uk_i18n_glossary_term_lang | 法律术语对照表；段 3 只灌中文源术语，译文留段 8 母语译者 |
+| `law_item` | 15 | id | uk_law_article | 法条库；AI 只能引用本表存在的条文 |
+| `lawyer` | 29 | id | uk_lawyer_license、uk_lawyer_user | 律师资料；余额权威在 lawyer_balance，balance_cents 仅历史缓存 |
+| `lawyer_application` | 16 | id | — | 律师入驻申请；四步流程，驳回历史见 lawyer_application_log |
+| `lawyer_application_log` | 10 | id | — | 入驻审核流水，只追加不修改 |
+| `lawyer_balance` | 8 | id | uk_lawyer_balance_lawyer | 律师余额缓存；权威是 balance_flow |
+| `lawyer_income_settlement` | 14 | id | uk_settlement_lawyer_period、uk_settlement_no | 结算批次状态记录，非资金真相；确认只改状态，不动余额、不写流水 |
+| `legal_case` | 17 | id | uk_legal_case_no | 案件主表；状态 5 态由服务端状态机校验（客户端只发意图）；单号 CS 应用层生成 |
+| `login_log` | 10 | id | — | 登录日志，仅追加，留存 6 个月以上 |
+| `message_offline` | 6 | id | — | 离线消息队列；重连后补推，推送成功即清理 |
+| `notification` | 12 | id | — | 站内通知；每人一行，公告批次统计在 announcement 上累计 |
+| `notify_template` | 9 | id | uk_notify_tpl | 通知模板，按语言分条；删除为软停用，避免已发通知断链 |
+| `operation_log` | 11 | id | — | 敏感操作审计，仅追加 |
+| `order_status_log` | 8 | id | — | 订单状态迁移流水，只追加；状态可追溯的唯一依据 |
+| `orders` | 17 | id | uk_orders_no | 订单主表；状态迁移只由服务端做，每次迁移写 order_status_log |
+| `payment_record` | 9 | id | uk_payment_order_channel_txn | 支付记录；正数收款、负数退款，SUM(amount_cents)=净收款 |
+| `realname_auth` | 13 | id | uk_realname_user | 实名认证；L1 加密 + L2 脱敏，影像走私有 OSS |
+| `recharge_record` | 13 | id | uk_recharge_channel_txn、uk_recharge_order_no | 充值记录（段 6）。财务凭证，只追加状态机、不软删、不物理删；渠道信息全部落本表，不写 payment_record |
+| `reconciliation_diff` | 21 | id | uk_diff_day_channel_txn_type | 对账差错工单；段 5 只写不展示（段 6 在 A-09 加「渠道对账」Tab） |
+| `refund_record` | 12 | id | — | 退款单；审核通过才写 balance_flow，退款必须走流水 |
+| `review` | 11 | id | uk_review_order | 评价；一单一次，评分即时写回 lawyer.rating / review_count |
+| `sensitive_word` | 12 | id | uk_word_lang | 本地敏感词库；Trie 引擎启动时全量加载 enabled=1 的词 |
+| `sensitive_word_appeal` | 10 | id | uk_appeal_review | 敏感词误判申诉；一条命中记录只能申诉一次 |
+| `service_ticket` | 14 | id | uk_ticket_no | 客服工单；投诉/反馈提交时同事务生成 |
+| `signature` | 15 | id | — | 电子签章；document_id 空=签名库、非空=文书上的签名，查询必须显式区分 |
+| `social_action` | 8 | id | uk_social_user_action_target | 社交动作表；跨域只存 ID，列表由 API 层协调多个域的 Service 组装 |
+| `sys_config` | 9 | id | uk_config_key | 平台参数配置 |
+| `task_queue` | 12 | id | — | 异步任务表：CAS 领取 + 租约回收 + 指数退避 + 死信；替代 MQ |
+| `user_balance` | 7 | id | uk_user_balance_user | 用户余额缓存；权威是 balance_flow，禁止业务代码直接加减 |
+| `user_device` | 12 | id | uk_device_user_device | 用户设备与推送标识 |
+| `user_violation` | 14 | id | — | 违规与处罚记录；只追加，撤销置 revoked_at 不删行 |
+| `withdraw_record` | 21 | id | uk_withdraw_no | 律师提现单；只记状态，动钱在 balance_flow（freeze/withdraw/unfreeze）；完整卡号不对任何接口返回 |
+<!-- /FACTS:schema-tables -->
+
+> **上面这张表读的是运行中的数据库**（`information_schema` + `flyway_schema_history`），不是手写的。
+> 与下面手写计划清单的差异不是笔误，是**计划与实际**：手写清单 55 张是计划，实际已建 **53 张**
+> （`invoice` / `share_poster` 未建，见 DRIFT-030）。**要查某张表实际几列、主键是什么，以上表为准。**
+
 > 「建表段」是这张表在哪一段交付（与《开发计划总纲》§五 的段边界一致）。`invoice` 按总纲「V1 明确不做」不建表。
 > 类别：A 业务实体 / B 追加型 / C 状态机 / D 基础数据。
 

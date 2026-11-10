@@ -1,4 +1,4 @@
-# 法泽 FAZE 文档基线 v1.69
+# 法泽 FAZE 文档基线 v1.70
 
 > # 后续一切文档从这里开始
 
@@ -112,7 +112,7 @@
 |---|---|---|---|---|
 | 1 | `AGENTS.md` | 199 | 18372 | `d5e9177ec844e022` 📝 |
 | 2 | `README.md` | 127 | 6650 | `e73e69e54d114ac0` |
- | 3 | `docs/README.md` | 342 | 42711 | `708c953a4c8925e3` 📝 | 
+ | 3 | `docs/README.md` | 344 | 43095 | `d3e021e52f4208e2` 📝 | 
 
 ### 2.2 架构与实施（★ 核心）
 
@@ -121,11 +121,11 @@
 | 4 | `docs/architecture/法泽FAZE_开发计划总纲_v1.0.md` | 999 | 89170 | `a471ede6d1a1a0f0` 📝 |
 | 5 | `docs/architecture/法泽FAZE_技术路线_v2.3.md` | 4276 | 214132 | `18711c99521b09b5` 📝 |
 | 6 | `docs/architecture/法泽FAZE_V1基线表结构_v1.0.md` | 232 | 15858 | `3569f83f4ba74328` 📝 |
-| 7 | `docs/architecture/法泽FAZE_错误码规范_v1.0.md` | 338 | 22960 | `9cbd70beb70f8486` 📝 |
- | 24 | `docs/architecture/法泽FAZE_数据表规范_v1.0.md` | 664 | 47774 | `748b50ff3c2b594a` 📝 | 
-| 25 | `docs/architecture/法泽FAZE_接口规范_v1.0.md` | 1147 | 80130 | `8c02fac60907fc4f` 📝 |
+| 7 | `docs/architecture/法泽FAZE_错误码规范_v1.0.md` | 445 | 31176 | `578ba78f6576c0c7` 📝 |
+ | 24 | `docs/architecture/法泽FAZE_数据表规范_v1.0.md` | 730 | 55107 | `548c2481d0d5f40b` 📝 | 
+| 25 | `docs/architecture/法泽FAZE_接口规范_v1.0.md` | 1176 | 81487 | `75dd17227b216a27` 📝 |
 | 26 | `docs/architecture/法泽FAZE_后端代码规范_v1.0.md` | 1608 | 93985 | `03573f955af80606` 🆕 |
-| 27 | `docs/architecture/法泽FAZE_i18n规范_v1.0.md` | 566 | 26414 | `bc719c258591b94c` 📝 |
+| 27 | `docs/architecture/法泽FAZE_i18n规范_v1.0.md` | 610 | 28293 | `6db40a25005a7ae5` 📝 |
 | 28 | `docs/architecture/法泽FAZE_审计与日志规范_v1.0.md` | 391 | 23320 | `375aa774e73e6f0b` 📝 |
 | 29 | `docs/architecture/法泽FAZE_第0段工作流_v1.0.md` | 2995 | 274718 | `d03d3e6da992a72f` 📝 |
 | 30 | `docs/architecture/法泽FAZE_第1段工作流_v1.0.md` | 1320 | 89373 | `b7220240433d93b8` 📝 |
@@ -157,9 +157,9 @@
 
 | # | 文件 | 行数 | 字节 | SHA256 前 16 位 |
 |---|---|---|---|---|
-| 8 | `docs/design/法泽APP_页面导航树_v1.4.md` | 746 | 38690 | `9320bd48b51db721` |
+| 8 | `docs/design/法泽APP_页面导航树_v1.4.md` | 832 | 45366 | `b54df4f78073f9a5` |
 | 9 | `docs/design/法泽APP_UI设计顺序_v1.0.md` | 1921 | 136753 | `81f2c17fe42255ae` 📝 |
-| 10 | `docs/design/页面清单与信息架构.md` | 174 | 14945 | `bd2453389a7e71fb` |
+| 10 | `docs/design/页面清单与信息架构.md` | 261 | 21551 | `b990ad4d85e3b559` |
 | 11 | `docs/design/设计令牌.md` | 156 | 11343 | `7d36fb2aae479160` |
 | 12 | `docs/design/组件清单.md` | 89 | 5374 | `07b41a5d37138251` |
 | 13 | `docs/design/README.md` | 76 | 5114 | `c658713ae7156da3` 📝 |
@@ -188,10 +188,10 @@
 | # | 文件 | 行数 | 字节 | SHA256 前 16 位 | 是什么 |
 |---|---|---|---|---|---|
 | 46 | `docs/standards/说辞一致与真相源规范.md` | 297 | 15598 | `9d11a58b3ca8b879` 🆕 | **同一个事实在代码 / 文档 / 设计稿三处说法不同时听谁的**：真相源分级（P0 运行中的代码与库 / P1 Flyway / P2 文档 / P3 设计稿）、三类不一致的分界（DRIFT 漂移 / GAP 缺口 / DIRT 脏数据）、5 种处置值的裁决规则、数字口径必须机器算 |
-| 47 | `docs/facts/DRIFT.md` | 178 | 25526 | `5e6a8adcfdbe38cf` 📝 | **说辞漂移登记表**：同一事物、说法不同。D1 组 25 条（逐条核查）、D2 组 17 条（全仓盘点批量登记）、D3 组 **5 条**（跑脚本量出来的）。每行给「代码实际（P0）」+ 证据强度（实测 / 通读 / 待复核） |
+| 47 | `docs/facts/DRIFT.md` | 179 | 26777 | `e1640138c236e0d2` 📝 | **说辞漂移登记表**：同一事物、说法不同。D1 组 25 条（逐条核查）、D2 组 17 条（全仓盘点批量登记）、D3 组 **5 条**（跑脚本量出来的）。每行给「代码实际（P0）」+ 证据强度（实测 / 通读 / 待复核） |
 | 48 | `docs/facts/DEFERRED.md` | 129 | 10054 | `af7f9c83f1fc6cc0` 🆕 | **段八挂账汇总索引**：计划有、代码无。**不是待办清单，是真相声明**。含负责人点名的 4 项、最容易被误当已做的 8 项、118 条的分类索引、以及「18 条其实是文档落后于代码」的反向提醒 |
 | 49 | `docs/facts/api.json` | 2128 | 54232 | `1392225726aba5a7` 🆕 | **接口清单**：`scripts/facts/api.mjs` 从 78 个 Controller 生成，260 个端点（admin 123 / app 114 / pub 22 / dev 1）。**v1.67 首次登记时漏算本文件，v1.68 补正** |
-| 50 | `docs/facts/tables.json` | 1607 | 41839 | `73bf7d45a154918c` 🆕 | **表结构**：`scripts/facts/tables.mjs` 从 information_schema + flyway_schema_history 生成，53 张业务表 / 687 列 / 188 索引 / Flyway 48 个到 V711 |
+| 50 | `docs/facts/tables.json` | 1607 | 41627 | `1792c116ada0ad42` 🆕 | **表结构**：`scripts/facts/tables.mjs` 从 information_schema + flyway_schema_history 生成，53 张业务表 / 687 列 / 188 索引 / Flyway 48 个到 V711 |
 | 51 | `docs/facts/error-codes.json` | 695 | 18518 | `2d4ebd86a2472e55` 🆕 | **错误码清单**：`scripts/facts/error-codes.mjs` 从 ErrorCode 枚举生成，94 个码，无重复。文档里同时写着 78 和 91（DRIFT-045） |
 | 52 | `docs/facts/i18n-keys.json` | 152 | 3362 | `54aaafaa18ee83d1` 🆕 | **i18n 事实**：`scripts/facts/extract-i18n.mjs` 从 56 个 json 生成。**三个口径同时给出**（总节点 1965 / 叶子条目 1880 / 带 namespace 前缀去重 1880），四语言覆盖各 100%。DRIFT-046、DRIFT-047 都是这张表抓出来的 |
 | 53 | `docs/facts/pages.json` | 4283 | 133344 | `38d1eb5c3a401819` 🆕 | **页面事实**：`scripts/facts/extract-pages.mjs` 逐页抽取「文件 / 路由 / testID 锚点 / LocalizedText / 写死路由」。四种页面数口径的**唯一解析实现**（`page-inventory.mjs` 只 import 它打印）。抓出 6 处写死路由与 `/case-detail` 壳无对应常量 |
@@ -2480,3 +2480,61 @@ v1.67 头部写「本版新增 3 份」，指的是《说辞一致与真相源�
 1. **`check-facts` 还没接进 CI**。脚本已能跑（`npm run check:facts`），CI 接线在 G3。
 2. **DRIFT-044/045 依然没有改数字**。归因没做完之前不换数字，理由见 DRIFT 表尾注。
 3. **49 页没有 `testID`** 本版只登记不整改——它是 G7 的输入，不是本版的工作量。
+
+---
+
+## §7.73 v1.70 G3：受控表格替换 + 三道门禁接进 CI
+
+**本版动因**：G2 把事实生成了，但事实只躺在 json 里——文档里那 164 份手写表格照旧会过期。G3 把这些最容易漂的数字改成「由脚本渲染进文档」。
+
+### 一、六处受控区块（`<!-- FACTS:key -->` … `<!-- /FACTS:key -->`）
+
+| 区块 | 落位文档 | 内容 |
+|---|---|---|
+| `FACTS:error-codes` | 《错误码规范》§三 | 全量 94 个码（码 / HTTP / msgKey / 中文） |
+| `FACTS:schema-tables` | 《数据表规范》附录 A | 53 张表的列数 / 主键 / 唯一键 / 注释 |
+| `FACTS:pages` | 《页面导航树》§页面数量统计、《页面清单与信息架构》§2.1 | 71 个页面实现的路由 / 文件 / testID |
+| `FACTS:i18n-stats` | 《i18n 规范》§1.1.1 | 四语言覆盖率 + 每 namespace 矩阵 |
+| `FACTS:api-endpoints` | 《接口规范》§1.1.1 | 260 个端点按「域 × 访问面」分布 |
+
+**手写表全部保留**，但用途变了：写成「设计意图 / 计划」，生成表写成「当前事实」，并在区块前后各写一句**谁是准据**。不删手写表的原因：它记录了「当初为什么这样设计」，删了就只剩结果没有理由。
+
+### 二、第一次渲染就抓出 DRIFT-048
+
+把生成表放进《错误码规范》§三、与手写表并列之后，两表一比对就出来了：**规范手写表列 130 个码，枚举只有 94 个**，而且方向是单向的——**代码有、文档无 = 0**，文档有、代码无 = 36（去重后 30 个真码）。
+
+拆开看：4 个是技术路线里的示例码（400401/500501/500502/510001）、1 个已明确标作废（402011）、1 个语义被别的码覆盖（402007 未实名 → 代码抛 `405020 TRADE_RECHARGE_REALNAME_REQUIRED`），**其余 30 个是「规范规划了、代码没落」**。
+
+这正是受控表格的价值：**不是让文档变准，是让不准变得看得见**。在 G2 之前，这 30 个码没有任何地方会报警。
+
+### 三、三道门禁接进 CI（`mobile` job）
+
+```yaml
+node scripts/facts/check-facts.mjs --skip-db   # 事实 json 与源码同步
+node scripts/facts/render-docs.mjs --check     # 文档受控区块与事实同步
+node scripts/facts/check-baseline.mjs          # 基线登记与实测指纹一致
+```
+
+三道都只读文件系统，不需要 MySQL。**顺序有意义**：事实变了文档就该变，文档变了指纹就该变。
+
+### 四、为什么 `tables.json` 的校验**没有**接进 CI（这一条是主动选择，不是遗漏）
+
+`tables.mjs` 连真实库，而 CI 的库是 Flyway 从空库现建的。两个库在 `information_schema` 的 `column_type` 表述上可能存在版本/字符集差异（典型如 `int` 与 `int(11)`），一旦不同，`check-facts` 就会报红——**而那是环境差异，不是漂移**。
+
+引入一个每天红、且红得有道理说不清的门禁，比没有门禁更糟：它训练人忽略红灯。所以先不接，由开发者在本地 `npm run check:facts` 覆盖；接之前必须先证明两个库的 `information_schema` 输出逐字节一致。
+
+### 五、顺带修一个 facts 自身的脏数据
+
+`tables.mjs` 的 SQL 结果按 `split('\n')` 切行，而 **mysql 客户端在 Windows 上输出 CRLF**，于是每行最后一个字段都带着 `\r`：表注释、主键列名全部以 `\r` 结尾，实测 **469 处**。后果是 json 里混入控制字符，而且 `"id\r" !== "id"` 会让任何按列名比对的地方莫名不等。本版先 `replace(/\r\n/g, '\n')` 再切分。
+
+### 六、DRIFT-045 处置完成，DRIFT-044 仍未处置
+
+`docs/README.md` 两处（91 个码 / 78 个错误码）已改为指向 `facts/error-codes.json` 并写明当前 94——**归因完成了**：94 是枚举里真实存在的数，78 是 2026-10-28 冻结时的快照，91 来源不明。
+
+**DRIFT-044（87 → 123）仍然不改数字**：多出来的 36 个管理端接口还没有逐条归因，换成 123 只是把错的数换成一个新的数。
+
+### 七、本版没做的事
+
+1. **30 个「规范有、代码无」的码没有逐个处置**——先登记，等归因后再决定是删表还是补码。
+2. **`tables.json` 不进 CI**，理由见上。
+3. **设计稿映射（G4）未做**。

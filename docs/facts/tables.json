@@ -208,10 +208,10 @@
   "tables": [
     {
       "name": "ai_conversation",
-      "comment": "AI 会话；用户删除为软删，A-28 仍可查到已软删会话\r",
+      "comment": "AI 会话；用户删除为软删，A-28 仍可查到已软删会话",
       "columnCount": 7,
       "primaryKey": [
-        "id\r"
+        "id"
       ],
       "uniqueKeys": [],
       "indexCount": 2,
@@ -227,10 +227,10 @@
     },
     {
       "name": "ai_message",
-      "comment": "AI 消息（C 状态机）；content 为 L4 级敏感字段；一段流式回答 = 一行\r",
+      "comment": "AI 消息（C 状态机）；content 为 L4 级敏感字段；一段流式回答 = 一行",
       "columnCount": 16,
       "primaryKey": [
-        "id\r"
+        "id"
       ],
       "uniqueKeys": [
         "uk_ai_message_content_id"
@@ -257,10 +257,10 @@
     },
     {
       "name": "announcement",
-      "comment": "公告批次主表；一条公告一行，触达/打开数在此累计\r",
+      "comment": "公告批次主表；一条公告一行，触达/打开数在此累计",
       "columnCount": 15,
       "primaryKey": [
-        "id\r"
+        "id"
       ],
       "uniqueKeys": [
         "uk_announcement_no"
@@ -286,10 +286,10 @@
     },
     {
       "name": "app_user",
-      "comment": "C 端用户表；PC 后台管理员见 sys_user，两者不混用\r",
+      "comment": "C 端用户表；PC 后台管理员见 sys_user，两者不混用",
       "columnCount": 23,
       "primaryKey": [
-        "id\r"
+        "id"
       ],
       "uniqueKeys": [
         "uk_app_user_phone"
@@ -323,10 +323,10 @@
     },
     {
       "name": "article",
-      "comment": "文章主表，存简体中文源内容；是否可见只看本表 status\r",
+      "comment": "文章主表，存简体中文源内容；是否可见只看本表 status",
       "columnCount": 14,
       "primaryKey": [
-        "id\r"
+        "id"
       ],
       "uniqueKeys": [],
       "indexCount": 4,
@@ -349,10 +349,10 @@
     },
     {
       "name": "article_translation",
-      "comment": "非中文译文；zh-Hans 不在此表；译文未完成时回退显示中文\r",
+      "comment": "非中文译文；zh-Hans 不在此表；译文未完成时回退显示中文",
       "columnCount": 12,
       "primaryKey": [
-        "id\r"
+        "id"
       ],
       "uniqueKeys": [
         "uk_art_trans"
@@ -375,10 +375,10 @@
     },
     {
       "name": "balance_flow",
-      "comment": "资金流水，唯一真相；只追加，不修改不删除\r",
+      "comment": "资金流水，唯一真相；只追加，不修改不删除",
       "columnCount": 10,
       "primaryKey": [
-        "id\r"
+        "id"
       ],
       "uniqueKeys": [
         "uk_flow_biz"
@@ -399,10 +399,10 @@
     },
     {
       "name": "case_delivery",
-      "comment": "文书送达记录；只送平台自有文书，不做法院转达；回执号是平台凭证\r",
+      "comment": "文书送达记录；只送平台自有文书，不做法院转达；回执号是平台凭证",
       "columnCount": 13,
       "primaryKey": [
-        "id\r"
+        "id"
       ],
       "uniqueKeys": [
         "uk_delivery_receipt"
@@ -426,10 +426,10 @@
     },
     {
       "name": "case_library",
-      "comment": "案例库主表，存简体中文源内容；译文见 case_library_translation；court_case_no 不对 App 展示\r",
+      "comment": "案例库主表，存简体中文源内容；译文见 case_library_translation；court_case_no 不对 App 展示",
       "columnCount": 24,
       "primaryKey": [
-        "id\r"
+        "id"
       ],
       "uniqueKeys": [
         "uk_case_library_no"
@@ -464,10 +464,10 @@
     },
     {
       "name": "case_library_translation",
-      "comment": "案例译文；与主表 case_library 是 1:N（每条案例每种语言至多一条译文）\r",
+      "comment": "案例译文；与主表 case_library 是 1:N（每条案例每种语言至多一条译文）",
       "columnCount": 14,
       "primaryKey": [
-        "id\r"
+        "id"
       ],
       "uniqueKeys": [
         "uk_case_trans"
@@ -492,10 +492,10 @@
     },
     {
       "name": "case_progress",
-      "comment": "案件进度节点，只追加；本表即案件状态迁移日志（不另建 case_status_log）\r",
+      "comment": "案件进度节点，只追加；本表即案件状态迁移日志（不另建 case_status_log）",
       "columnCount": 9,
       "primaryKey": [
-        "id\r"
+        "id"
       ],
       "uniqueKeys": [
         "uk_progress_case_step"
@@ -515,10 +515,10 @@
     },
     {
       "name": "complaint",
-      "comment": "用户投诉；提交时同事务生成 service_ticket（裁决 23）\r",
+      "comment": "用户投诉；提交时同事务生成 service_ticket（裁决 23）",
       "columnCount": 12,
       "primaryKey": [
-        "id\r"
+        "id"
       ],
       "uniqueKeys": [],
       "indexCount": 3,
@@ -539,10 +539,10 @@
     },
     {
       "name": "content_review",
-      "comment": "内容审核命中记录；原文不修改，只做标注\r",
+      "comment": "内容审核命中记录；原文不修改，只做标注",
       "columnCount": 12,
       "primaryKey": [
-        "id\r"
+        "id"
       ],
       "uniqueKeys": [],
       "indexCount": 4,
@@ -563,10 +563,10 @@
     },
     {
       "name": "conversation",
-      "comment": "IM 会话；UNIQUE(user_id,lawyer_id) 保证一个律师一个会话、跨订单复用\r",
+      "comment": "IM 会话；UNIQUE(user_id,lawyer_id) 保证一个律师一个会话、跨订单复用",
       "columnCount": 10,
       "primaryKey": [
-        "id\r"
+        "id"
       ],
       "uniqueKeys": [
         "uk_conversation_user_lawyer"
@@ -587,10 +587,10 @@
     },
     {
       "name": "conversation_message",
-      "comment": "IM 消息，只追加；离线补推与断线重连都按 seq 增量拉取\r",
+      "comment": "IM 消息，只追加；离线补推与断线重连都按 seq 增量拉取",
       "columnCount": 15,
       "primaryKey": [
-        "id\r"
+        "id"
       ],
       "uniqueKeys": [
         "uk_msg_client_id",
@@ -617,10 +617,10 @@
     },
     {
       "name": "doc_template",
-      "comment": "文书模板；HTML 存库不存 OSS；改版插新版本行、旧行置 inactive，历史文书按 template_version 复现\r",
+      "comment": "文书模板；HTML 存库不存 OSS；改版插新版本行、旧行置 inactive，历史文书按 template_version 复现",
       "columnCount": 13,
       "primaryKey": [
-        "id\r"
+        "id"
       ],
       "uniqueKeys": [
         "uk_template_code_lang_version"
@@ -644,10 +644,10 @@
     },
     {
       "name": "document",
-      "comment": "文书记录；失败落 status=failed 且两个 *_oss_key 为 NULL（失败不留半成品）\r",
+      "comment": "文书记录；失败落 status=failed 且两个 *_oss_key 为 NULL（失败不留半成品）",
       "columnCount": 17,
       "primaryKey": [
-        "id\r"
+        "id"
       ],
       "uniqueKeys": [],
       "indexCount": 3,
@@ -673,10 +673,10 @@
     },
     {
       "name": "enterprise_auth",
-      "comment": "企业认证；营业执照走私有 OSS\r",
+      "comment": "企业认证；营业执照走私有 OSS",
       "columnCount": 13,
       "primaryKey": [
-        "id\r"
+        "id"
       ],
       "uniqueKeys": [
         "uk_enterprise_user"
@@ -700,10 +700,10 @@
     },
     {
       "name": "faq",
-      "comment": "常见问题；APP 55/56 两页的数据源，改库即生效\r",
+      "comment": "常见问题；APP 55/56 两页的数据源，改库即生效",
       "columnCount": 9,
       "primaryKey": [
-        "id\r"
+        "id"
       ],
       "uniqueKeys": [],
       "indexCount": 2,
@@ -721,10 +721,10 @@
     },
     {
       "name": "feedback",
-      "comment": "意见反馈；提交时同事务生成 service_ticket（裁决 23）\r",
+      "comment": "意见反馈；提交时同事务生成 service_ticket（裁决 23）",
       "columnCount": 10,
       "primaryKey": [
-        "id\r"
+        "id"
       ],
       "uniqueKeys": [],
       "indexCount": 2,
@@ -743,10 +743,10 @@
     },
     {
       "name": "file_record",
-      "comment": "上传文件登记；业务表存 oss_key，不存完整 URL\r",
+      "comment": "上传文件登记；业务表存 oss_key，不存完整 URL",
       "columnCount": 14,
       "primaryKey": [
-        "id\r"
+        "id"
       ],
       "uniqueKeys": [
         "uk_file_oss_key"
@@ -771,10 +771,10 @@
     },
     {
       "name": "i18n_glossary",
-      "comment": "法律术语对照表；段 3 只灌中文源术语，译文留段 8 母语译者\r",
+      "comment": "法律术语对照表；段 3 只灌中文源术语，译文留段 8 母语译者",
       "columnCount": 10,
       "primaryKey": [
-        "id\r"
+        "id"
       ],
       "uniqueKeys": [
         "uk_i18n_glossary_term_lang"
@@ -795,10 +795,10 @@
     },
     {
       "name": "law_item",
-      "comment": "法条库；AI 只能引用本表存在的条文\r",
+      "comment": "法条库；AI 只能引用本表存在的条文",
       "columnCount": 15,
       "primaryKey": [
-        "id\r"
+        "id"
       ],
       "uniqueKeys": [
         "uk_law_article"
@@ -824,10 +824,10 @@
     },
     {
       "name": "lawyer",
-      "comment": "律师资料；余额权威在 lawyer_balance，balance_cents 仅历史缓存\r",
+      "comment": "律师资料；余额权威在 lawyer_balance，balance_cents 仅历史缓存",
       "columnCount": 29,
       "primaryKey": [
-        "id\r"
+        "id"
       ],
       "uniqueKeys": [
         "uk_lawyer_license",
@@ -868,10 +868,10 @@
     },
     {
       "name": "lawyer_application",
-      "comment": "律师入驻申请；四步流程，驳回历史见 lawyer_application_log\r",
+      "comment": "律师入驻申请；四步流程，驳回历史见 lawyer_application_log",
       "columnCount": 16,
       "primaryKey": [
-        "id\r"
+        "id"
       ],
       "uniqueKeys": [],
       "indexCount": 3,
@@ -896,10 +896,10 @@
     },
     {
       "name": "lawyer_application_log",
-      "comment": "入驻审核流水，只追加不修改\r",
+      "comment": "入驻审核流水，只追加不修改",
       "columnCount": 10,
       "primaryKey": [
-        "id\r"
+        "id"
       ],
       "uniqueKeys": [],
       "indexCount": 2,
@@ -918,10 +918,10 @@
     },
     {
       "name": "lawyer_balance",
-      "comment": "律师余额缓存；权威是 balance_flow\r",
+      "comment": "律师余额缓存；权威是 balance_flow",
       "columnCount": 8,
       "primaryKey": [
-        "id\r"
+        "id"
       ],
       "uniqueKeys": [
         "uk_lawyer_balance_lawyer"
@@ -940,10 +940,10 @@
     },
     {
       "name": "lawyer_income_settlement",
-      "comment": "结算批次状态记录，非资金真相；确认只改状态，不动余额、不写流水\r",
+      "comment": "结算批次状态记录，非资金真相；确认只改状态，不动余额、不写流水",
       "columnCount": 14,
       "primaryKey": [
-        "id\r"
+        "id"
       ],
       "uniqueKeys": [
         "uk_settlement_lawyer_period",
@@ -969,10 +969,10 @@
     },
     {
       "name": "legal_case",
-      "comment": "案件主表；状态 5 态由服务端状态机校验（客户端只发意图）；单号 CS 应用层生成\r",
+      "comment": "案件主表；状态 5 态由服务端状态机校验（客户端只发意图）；单号 CS 应用层生成",
       "columnCount": 17,
       "primaryKey": [
-        "id\r"
+        "id"
       ],
       "uniqueKeys": [
         "uk_legal_case_no"
@@ -1000,10 +1000,10 @@
     },
     {
       "name": "login_log",
-      "comment": "登录日志，仅追加，留存 6 个月以上\r",
+      "comment": "登录日志，仅追加，留存 6 个月以上",
       "columnCount": 10,
       "primaryKey": [
-        "id\r"
+        "id"
       ],
       "uniqueKeys": [],
       "indexCount": 4,
@@ -1022,10 +1022,10 @@
     },
     {
       "name": "message_offline",
-      "comment": "离线消息队列；重连后补推，推送成功即清理\r",
+      "comment": "离线消息队列；重连后补推，推送成功即清理",
       "columnCount": 6,
       "primaryKey": [
-        "id\r"
+        "id"
       ],
       "uniqueKeys": [],
       "indexCount": 4,
@@ -1040,10 +1040,10 @@
     },
     {
       "name": "notification",
-      "comment": "站内通知；每人一行，公告批次统计在 announcement 上累计\r",
+      "comment": "站内通知；每人一行，公告批次统计在 announcement 上累计",
       "columnCount": 12,
       "primaryKey": [
-        "id\r"
+        "id"
       ],
       "uniqueKeys": [],
       "indexCount": 2,
@@ -1064,10 +1064,10 @@
     },
     {
       "name": "notify_template",
-      "comment": "通知模板，按语言分条；删除为软停用，避免已发通知断链\r",
+      "comment": "通知模板，按语言分条；删除为软停用，避免已发通知断链",
       "columnCount": 9,
       "primaryKey": [
-        "id\r"
+        "id"
       ],
       "uniqueKeys": [
         "uk_notify_tpl"
@@ -1087,10 +1087,10 @@
     },
     {
       "name": "operation_log",
-      "comment": "敏感操作审计，仅追加\r",
+      "comment": "敏感操作审计，仅追加",
       "columnCount": 11,
       "primaryKey": [
-        "id\r"
+        "id"
       ],
       "uniqueKeys": [],
       "indexCount": 4,
@@ -1110,10 +1110,10 @@
     },
     {
       "name": "order_status_log",
-      "comment": "订单状态迁移流水，只追加；状态可追溯的唯一依据\r",
+      "comment": "订单状态迁移流水，只追加；状态可追溯的唯一依据",
       "columnCount": 8,
       "primaryKey": [
-        "id\r"
+        "id"
       ],
       "uniqueKeys": [],
       "indexCount": 2,
@@ -1130,10 +1130,10 @@
     },
     {
       "name": "orders",
-      "comment": "订单主表；状态迁移只由服务端做，每次迁移写 order_status_log\r",
+      "comment": "订单主表；状态迁移只由服务端做，每次迁移写 order_status_log",
       "columnCount": 17,
       "primaryKey": [
-        "id\r"
+        "id"
       ],
       "uniqueKeys": [
         "uk_orders_no"
@@ -1161,10 +1161,10 @@
     },
     {
       "name": "payment_record",
-      "comment": "支付记录；正数收款、负数退款，SUM(amount_cents)=净收款\r",
+      "comment": "支付记录；正数收款、负数退款，SUM(amount_cents)=净收款",
       "columnCount": 9,
       "primaryKey": [
-        "id\r"
+        "id"
       ],
       "uniqueKeys": [
         "uk_payment_order_channel_txn"
@@ -1184,10 +1184,10 @@
     },
     {
       "name": "realname_auth",
-      "comment": "实名认证；L1 加密 + L2 脱敏，影像走私有 OSS\r",
+      "comment": "实名认证；L1 加密 + L2 脱敏，影像走私有 OSS",
       "columnCount": 13,
       "primaryKey": [
-        "id\r"
+        "id"
       ],
       "uniqueKeys": [
         "uk_realname_user"
@@ -1211,10 +1211,10 @@
     },
     {
       "name": "recharge_record",
-      "comment": "充值记录（段 6）。财务凭证，只追加状态机、不软删、不物理删；渠道信息全部落本表，不写 payment_record\r",
+      "comment": "充值记录（段 6）。财务凭证，只追加状态机、不软删、不物理删；渠道信息全部落本表，不写 payment_record",
       "columnCount": 13,
       "primaryKey": [
-        "id\r"
+        "id"
       ],
       "uniqueKeys": [
         "uk_recharge_channel_txn",
@@ -1239,10 +1239,10 @@
     },
     {
       "name": "reconciliation_diff",
-      "comment": "对账差错工单；段 5 只写不展示（段 6 在 A-09 加「渠道对账」Tab）\r",
+      "comment": "对账差错工单；段 5 只写不展示（段 6 在 A-09 加「渠道对账」Tab）",
       "columnCount": 21,
       "primaryKey": [
-        "id\r"
+        "id"
       ],
       "uniqueKeys": [
         "uk_diff_day_channel_txn_type"
@@ -1274,10 +1274,10 @@
     },
     {
       "name": "refund_record",
-      "comment": "退款单；审核通过才写 balance_flow，退款必须走流水\r",
+      "comment": "退款单；审核通过才写 balance_flow，退款必须走流水",
       "columnCount": 12,
       "primaryKey": [
-        "id\r"
+        "id"
       ],
       "uniqueKeys": [],
       "indexCount": 2,
@@ -1298,10 +1298,10 @@
     },
     {
       "name": "review",
-      "comment": "评价；一单一次，评分即时写回 lawyer.rating / review_count\r",
+      "comment": "评价；一单一次，评分即时写回 lawyer.rating / review_count",
       "columnCount": 11,
       "primaryKey": [
-        "id\r"
+        "id"
       ],
       "uniqueKeys": [
         "uk_review_order"
@@ -1323,10 +1323,10 @@
     },
     {
       "name": "sensitive_word",
-      "comment": "本地敏感词库；Trie 引擎启动时全量加载 enabled=1 的词\r",
+      "comment": "本地敏感词库；Trie 引擎启动时全量加载 enabled=1 的词",
       "columnCount": 12,
       "primaryKey": [
-        "id\r"
+        "id"
       ],
       "uniqueKeys": [
         "uk_word_lang"
@@ -1349,10 +1349,10 @@
     },
     {
       "name": "sensitive_word_appeal",
-      "comment": "敏感词误判申诉；一条命中记录只能申诉一次\r",
+      "comment": "敏感词误判申诉；一条命中记录只能申诉一次",
       "columnCount": 10,
       "primaryKey": [
-        "id\r"
+        "id"
       ],
       "uniqueKeys": [
         "uk_appeal_review"
@@ -1373,10 +1373,10 @@
     },
     {
       "name": "service_ticket",
-      "comment": "客服工单；投诉/反馈提交时同事务生成\r",
+      "comment": "客服工单；投诉/反馈提交时同事务生成",
       "columnCount": 14,
       "primaryKey": [
-        "id\r"
+        "id"
       ],
       "uniqueKeys": [
         "uk_ticket_no"
@@ -1401,10 +1401,10 @@
     },
     {
       "name": "signature",
-      "comment": "电子签章；document_id 空=签名库、非空=文书上的签名，查询必须显式区分\r",
+      "comment": "电子签章；document_id 空=签名库、非空=文书上的签名，查询必须显式区分",
       "columnCount": 15,
       "primaryKey": [
-        "id\r"
+        "id"
       ],
       "uniqueKeys": [],
       "indexCount": 3,
@@ -1428,10 +1428,10 @@
     },
     {
       "name": "social_action",
-      "comment": "社交动作表；跨域只存 ID，列表由 API 层协调多个域的 Service 组装\r",
+      "comment": "社交动作表；跨域只存 ID，列表由 API 层协调多个域的 Service 组装",
       "columnCount": 8,
       "primaryKey": [
-        "id\r"
+        "id"
       ],
       "uniqueKeys": [
         "uk_social_user_action_target"
@@ -1450,10 +1450,10 @@
     },
     {
       "name": "sys_config",
-      "comment": "平台参数配置\r",
+      "comment": "平台参数配置",
       "columnCount": 9,
       "primaryKey": [
-        "id\r"
+        "id"
       ],
       "uniqueKeys": [
         "uk_config_key"
@@ -1473,10 +1473,10 @@
     },
     {
       "name": "task_queue",
-      "comment": "异步任务表：CAS 领取 + 租约回收 + 指数退避 + 死信；替代 MQ\r",
+      "comment": "异步任务表：CAS 领取 + 租约回收 + 指数退避 + 死信；替代 MQ",
       "columnCount": 12,
       "primaryKey": [
-        "id\r"
+        "id"
       ],
       "uniqueKeys": [],
       "indexCount": 4,
@@ -1497,10 +1497,10 @@
     },
     {
       "name": "user_balance",
-      "comment": "用户余额缓存；权威是 balance_flow，禁止业务代码直接加减\r",
+      "comment": "用户余额缓存；权威是 balance_flow，禁止业务代码直接加减",
       "columnCount": 7,
       "primaryKey": [
-        "id\r"
+        "id"
       ],
       "uniqueKeys": [
         "uk_user_balance_user"
@@ -1518,10 +1518,10 @@
     },
     {
       "name": "user_device",
-      "comment": "用户设备与推送标识\r",
+      "comment": "用户设备与推送标识",
       "columnCount": 12,
       "primaryKey": [
-        "id\r"
+        "id"
       ],
       "uniqueKeys": [
         "uk_device_user_device"
@@ -1544,10 +1544,10 @@
     },
     {
       "name": "user_violation",
-      "comment": "违规与处罚记录；只追加，撤销置 revoked_at 不删行\r",
+      "comment": "违规与处罚记录；只追加，撤销置 revoked_at 不删行",
       "columnCount": 14,
       "primaryKey": [
-        "id\r"
+        "id"
       ],
       "uniqueKeys": [],
       "indexCount": 3,
@@ -1570,10 +1570,10 @@
     },
     {
       "name": "withdraw_record",
-      "comment": "律师提现单；只记状态，动钱在 balance_flow（freeze/withdraw/unfreeze）；完整卡号不对任何接口返回\r",
+      "comment": "律师提现单；只记状态，动钱在 balance_flow（freeze/withdraw/unfreeze）；完整卡号不对任何接口返回",
       "columnCount": 21,
       "primaryKey": [
-        "id\r"
+        "id"
       ],
       "uniqueKeys": [
         "uk_withdraw_no"

@@ -74,6 +74,113 @@ NNN = 3 位：域内序号，从 001 起
 
 # 三、完整错误码表
 
+<!-- FACTS:error-codes -->
+> 本区块由 `scripts/facts/render-docs.mjs` 从 `docs/facts/*.json` 生成，**禁止手改**；要改先改代码再跑 `npm run facts`。
+
+共 **94** 个码（重复 0 组、`msgKey` 为空 0 个）。号段分布：401:8 / 402:9 / 404:3 / 405:29 / 406:7 / 407:9 / 408:5 / 409:3 / 410:11 / 501:4 / 502:1 / 506:3 / 508:2。
+
+| 码 | HTTP | msgKey | 中文 |
+|---|---|---|---|
+| 401001 | 200 | `error.common.param-invalid` | 参数校验失败 |
+| 401002 | 200 | `error.common.param-missing` | 缺少必填参数 |
+| 401003 | 200 | `error.common.param-format` | 参数格式错误 |
+| 401004 | 200 | `error.common.not-found` | 资源不存在 |
+| 401005 | 200 | `error.common.already-exists` | 资源已存在 |
+| 401006 | 200 | `error.common.illegal-state` | 状态非法，当前操作不允许 |
+| 401007 | 200 | `error.common.rate-limited` | 请求过于频繁 |
+| 401008 | 403 | `error.common.forbidden` | 无权限访问该资源 |
+| 402001 | 200 | `error.auth.login-failed` | 手机号或密码错误 |
+| 402002 | 401 | `error.auth.token-expired` | 登录已过期，请重新登录 |
+| 402003 | 401 | `error.auth.token-invalid` | 登录凭证无效，请重新登录 |
+| 402004 | 403 | `error.auth.account-blocked` | 账号已被封禁 |
+| 402005 | 200 | `error.auth.code-invalid` | 验证码错误或已过期 |
+| 402006 | 200 | `error.auth.phone-taken` | 手机号已注册 |
+| 402008 | 200 | `error.auth.account-cancelled` | 账号已注销 |
+| 402009 | 200 | `error.auth.guardian-required` | 未成年人需填写监护人手机号 |
+| 402010 | 200 | `error.auth.password-weak` | 密码强度不足 |
+| 404001 | 200 | `error.conversation.not-found` | 会话不存在 |
+| 404002 | 403 | `error.conversation.forbidden` | 无权访问该会话 |
+| 404005 | 200 | `error.conversation.not-purchased` | 未购买该律师的咨询服务，不能发起会话 |
+| 405001 | 200 | `error.trade.balance-insufficient` | 账户余额不足 |
+| 405002 | 200 | `error.trade.order-not-found` | 订单不存在 |
+| 405003 | 200 | `error.trade.order-state-invalid` | 订单状态非法，当前操作不允许 |
+| 405004 | 200 | `error.trade.duplicate-submit` | 请勿重复提交 |
+| 405005 | 200 | `error.trade.refund-exceeds` | 退款金额超出可退上限 |
+| 405006 | 200 | `error.trade.amount-invalid` | 金额非法 |
+| 405007 | 403 | `error.trade.not-order-owner` | 非本人订单，无权访问 |
+| 405008 | 200 | `error.trade.lawyer-unavailable` | 该律师当前不可接单 |
+| 405009 | 200 | `error.trade.service-unavailable` | 该律师未开通此服务 |
+| 405010 | 200 | `error.trade.lawyer-offline` | 该律师当前不在线 |
+| 405011 | 200 | `error.trade.refund-not-found` | 退款单不存在 |
+| 405013 | 200 | `error.trade.channel-disabled` | 该支付渠道未启用 |
+| 405014 | 200 | `error.trade.recharge-amount-invalid` | 充值金额超出允许区间 |
+| 405015 | 200 | `error.trade.recharge-state-invalid` | 充值单状态非法，当前操作不允许 |
+| 405016 | 200 | `error.trade.recharge-daily-limit` | 超出单日充值限额 |
+| 405017 | 200 | `error.trade.callback-sign-invalid` | 支付回调验签失败 |
+| 405018 | 200 | `error.trade.reconcile-diff-pending` | 对账存在未处理差异 |
+| 405019 | 200 | `error.trade.channel-prepay-failed` | 渠道下单失败 |
+| 405020 | 200 | `error.trade.recharge-realname-required` | 未实名认证，不能充值 |
+| 405021 | 200 | `error.trade.review-not-found` | 评价不存在 |
+| 405022 | 200 | `error.trade.review-duplicate` | 该订单已评价，不能重复评价 |
+| 405023 | 200 | `error.trade.withdraw-below-min` | 提现金额低于最低限额 |
+| 405024 | 200 | `error.trade.withdraw-insufficient` | 可提现余额不足 |
+| 405025 | 200 | `error.trade.withdraw-state-invalid` | 提现单状态非法，当前操作不允许 |
+| 405026 | 200 | `error.trade.settlement-mismatch` | 结算数据不一致，已停止生成 |
+| 405027 | 200 | `error.trade.withdraw-too-frequent` | 提现过于频繁 |
+| 405028 | 200 | `error.trade.reconcile-bill-invalid` | 渠道对账单格式非法 |
+| 405029 | 200 | `error.trade.recharge-not-found` | 充值单不存在 |
+| 405030 | 429 | `error.trade.recharge-rate-limited` | 充值操作过于频繁，请稍后重试 |
+| 406001 | 200 | `error.document.template-not-found` | 模板不存在或已停用 |
+| 406002 | 200 | `error.document.form-invalid` | 表单校验失败 |
+| 406003 | 200 | `error.document.not-found` | 文书不存在 |
+| 406004 | 403 | `error.document.forbidden` | 无权访问该文书 |
+| 406005 | 200 | `error.document.signature-limit` | 签名数量已达上限（最多 5 个） |
+| 406006 | 200 | `error.document.signature-in-use` | 该签名已用于文书，不能删除 |
+| 406007 | 200 | `error.document.signature-not-found` | 签名不存在 |
+| 407001 | 200 | `error.case.not-found` | 案件不存在 |
+| 407002 | 200 | `error.case.state-invalid` | 案件状态非法，当前操作不允许 |
+| 407003 | 403 | `error.case.forbidden` | 无权访问该案件 |
+| 407004 | 200 | `error.case.already-filed` | 该案件已立案，不能重复提交 |
+| 407005 | 200 | `error.case.no-document` | 本案没有可送达的文书 |
+| 407006 | 200 | `error.case.delivery-not-found` | 送达记录不存在 |
+| 407007 | 200 | `error.case.delivery-already-signed` | 该文书已签收，不能重复签收 |
+| 407008 | 200 | `error.case.delivery-method-invalid` | 送达方式非法 |
+| 407009 | 200 | `error.case.resubmit-limit` | 补正次数已用完，请联系平台 |
+| 408001 | 200 | `error.ai.no-law-matched` | 未在法条库检索到相关条文 |
+| 408002 | 200 | `error.ai.quota-exceeded` | AI 调用次数超限 |
+| 408003 | 200 | `error.ai.content-blocked` | 内容被安全策略拦截 |
+| 408004 | 200 | `error.ai.out-of-scope` | 超出可咨询范围 |
+| 408005 | 200 | `error.ai.prompt-injected` | 检测到 Prompt 注入企图 |
+| 409005 | 200 | `error.content.case-no-law-ref` | 案例未填写法条引用，不能上线 |
+| 409006 | 200 | `error.content.case-lang-incomplete` | 案例语言版本不齐 |
+| 409007 | 200 | `error.content.case-published` | 案例已上线，须先下架再删除 |
+| 410005 | 200 | `error.ops.sensitive-word-exists` | 该词条已存在 |
+| 410006 | 200 | `error.ops.content-blocked` | 内容含违规信息，未发送 |
+| 410007 | 200 | `error.ops.review-not-found` | 审核记录不存在 |
+| 410008 | 409 | `error.ops.review-already-handled` | 该条已处置过 |
+| 410009 | 200 | `error.ops.appeal-exists` | 该条已申诉过，请勿重复提交 |
+| 410010 | 409 | `error.ops.appeal-handled` | 该申诉已处置 |
+| 410011 | 200 | `error.ops.ticket-not-found` | 工单不存在 |
+| 410012 | 409 | `error.ops.ticket-status-invalid` | 工单状态不允许该操作 |
+| 410013 | 200 | `error.ops.announcement-sent` | 公告已发出，不可撤回 |
+| 410014 | 400 | `error.ops.import-format` | 导入文件格式错误 |
+| 410015 | 200 | `error.ops.export-too-large` | 导出行数超限，已转后台任务 |
+| 501001 | 200 | `error.common.internal` | 服务器内部错误 |
+| 501002 | 200 | `error.common.third-party-down` | 第三方服务不可用 |
+| 501003 | 200 | `error.common.db-error` | 数据库操作失败 |
+| 501005 | 200 | `error.common.idempotent-conflict` | 重复请求，请勿重复提交 |
+| 502001 | 200 | `error.auth.sms-send-failed` | 短信发送失败 |
+| 506001 | 200 | `error.document.generate-failed` | 文书生成失败 |
+| 506002 | 200 | `error.document.pdf-failed` | PDF 转换失败 |
+| 506003 | 200 | `error.document.font-missing` | 渲染所需字体缺失 |
+| 508001 | 200 | `error.ai.service-down` | AI 服务暂不可用 |
+| 508002 | 200 | `error.ai.output-invalid` | AI 输出校验失败，请重试 |
+<!-- /FACTS:error-codes -->
+
+> **上面这张全量表是机器生成的**（源：`ErrorCode.java` → `docs/facts/error-codes.json` → 本区块）。
+> 下面 3.1~3.10 的**分域手写表保留**，用途变了：它们讲的是「这个号段当初为什么这样分配」，
+> 属于设计意图；**要查某个码在不在、是多少，以上面那张表为准**。手写表会漏项，机器表不会。
+
 ## 3.1 通用域 `01`
 
 | code | HTTP | msgKey | 场景 |

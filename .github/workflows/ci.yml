@@ -170,6 +170,28 @@ jobs:
           fi
           echo "OK：.i18n-pending.json 与 scripts/check-i18n.ps1 的输出一致"
 
+      # ── 说辞一致三道门禁（G3 接入）──────────────────────────────────
+      # 三道都只读文件系统，不需要 MySQL，所以放 mobile job。
+      # 台词的顺序是「先数据、再文档、再基线」：事实变了文档就变，文档变了指纹就变。
+      #
+      # 为什么不在这里查 tables.json：
+      #   tables.mjs 连真实库。CI 的库是 Flyway 从空库现建的，与开发者本地库在
+      #   column_type 表述上可能有版本/字符集差异（如 int 与 int(11)），一旦不同就
+      #   `git diff --exit-code` 报红，而那是环境差异不是漂移——**引入一个每天红的
+      #   门禁，比没有门禁更糟**。接之前要先确认两库的 information_schema 输出逐字节一致；
+      #   确认之前它由开发者在本地 `npm run check:facts` 覆盖。
+      - name: 事实 json 与源码同步（不查表结构）
+        working-directory: .
+        run: node scripts/facts/check-facts.mjs --skip-db
+
+      - name: 文档里的受控区块与事实同步
+        working-directory: .
+        run: node scripts/facts/render-docs.mjs --check
+
+      - name: 基线登记的行数/字节/指纹与实测一致
+        working-directory: .
+        run: node scripts/facts/check-baseline.mjs
+
   # ── PC 后台：能构建即可（RuoYi 前端没有 lint script） ──────────────
   admin-web:
     name: PC 后台构建

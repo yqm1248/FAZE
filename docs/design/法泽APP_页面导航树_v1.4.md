@@ -653,6 +653,92 @@
 
 # 页面数量统计（与实际页面一一对应）
 
+<!-- FACTS:pages -->
+> 本区块由 `scripts/facts/render-docs.mjs` 从 `docs/facts/*.json` 生成，**禁止手改**；要改先改代码再跑 `npm run facts`。
+
+产品页 **69**（路由常量 71 − 开发探测 2）；路由壳 72；页面实现 71；设计稿主屏 68（HTML 71 − 补充屏 3）；PC 后台 28。
+
+四个数都对但**构成不同**，引用时必须连口径一起引。逐页明细（含 `testID` 锚点、`LocalizedText` 使用、写死路由）见 `docs/facts/pages.json`。
+
+| 路由 | 路由常量 key | 页面文件 | testID | 开发页 |
+|---|---|---|---|---|
+| /verify-company | verifyCompany | `features/account/pages/EnterpriseAuthPage.tsx` | 0 |  |
+| /pay-password | payPassword | `features/account/pages/PayPasswordPage.tsx` | 0 |  |
+| /verify-realname | verifyRealname | `features/account/pages/RealnamePage.tsx` | 0 |  |
+| /agent | agent | `features/ai/pages/AiChatPage.tsx` | 10 |  |
+| /ai-history | aiHistory | `features/ai/pages/AiHistoryPage.tsx` | 1 |  |
+| /agreement | agreement | `features/auth/pages/AgreementPage.tsx` | 0 |  |
+| /forgot-password | forgotPassword | `features/auth/pages/ForgotPasswordPage.tsx` | 0 |  |
+| /login | login | `features/auth/pages/LoginPage.tsx` | 0 |  |
+| /privacy | privacy | `features/auth/pages/PrivacyPage.tsx` | 0 |  |
+| /register | register | `features/auth/pages/RegisterPage.tsx` | 0 |  |
+| / | root | `features/auth/pages/SplashPage.tsx` | 0 |  |
+| /case-delivery | caseDelivery | `features/case/pages/CaseDeliveryPage.tsx` | 8 |  |
+| /case-progress | caseProgress | `features/case/pages/CaseProgressPage.tsx` | 18 |  |
+| /case-filing-done | caseFilingDone | `features/case/pages/FilingDonePage.tsx` | 8 |  |
+| /case-filing | caseFiling | `features/case/pages/FilingPage.tsx` | 11 |  |
+| /case-my | caseMy | `features/case/pages/MyCasesPage.tsx` | 8 |  |
+| /article | article | `features/content/pages/ArticleDetailPage.tsx` | 0 |  |
+| /articles | articles | `features/content/pages/ArticleListPage.tsx` | 0 |  |
+| /case-detail | — | `features/content/pages/CaseDetailPage.tsx` | 11 |  |
+| /case | case | `features/content/pages/CaseListPage.tsx` | 5 |  |
+| /message-detail | messageDetail | `features/content/pages/MessageDetailPage.tsx` | 0 |  |
+| /messages | messages | `features/content/pages/MessagesPage.tsx` | 0 |  |
+| /search | search | `features/content/pages/SearchPage.tsx` | 9 |  |
+| /chat | chat | `features/conversation/pages/ChatPage.tsx` | 0 |  |
+| /dev/probe | devProbe | `features/dev/pages/ProbePage.tsx` | 0 | 是 |
+| /dev/rtl | devRtl | `features/dev/pages/RtlProbePage.tsx` | 0 | 是 |
+| /doc/form | docForm | `features/document/pages/DocFormPage.tsx` | 0 |  |
+| /doc/lawsuit | docLawsuit | `features/document/pages/DocLawsuitFormPage.tsx` | 0 |  |
+| /doc/mine | docMine | `features/document/pages/DocMinePage.tsx` | 9 |  |
+| /doc/preview | docPreview | `features/document/pages/DocPreviewPage.tsx` | 27 |  |
+| /doc/seals | docSeals | `features/document/pages/DocSealPage.tsx` | 15 |  |
+| /doc/templates | docTemplates | `features/document/pages/DocTemplatesPage.tsx` | 8 |  |
+| /home | home | `features/home/pages/HomePage.tsx` | 0 |  |
+| /lawyer-detail | lawyerDetail | `features/lawyer/pages/LawyerDetailPage.tsx` | 0 |  |
+| /lawyer-join | lawyerJoin | `features/lawyer/pages/LawyerJoinPage.tsx` | 0 |  |
+| /lawyer-join-status | lawyerJoinStatus | `features/lawyer/pages/LawyerJoinStatusPage.tsx` | 0 |  |
+| /lawyer | lawyerTab | `features/lawyer/pages/LawyerListPage.tsx` | 0 |  |
+| /lawyer-orders | lawyerOrders | `features/lawyer/pages/LawyerOrdersPage.tsx` | 0 |  |
+| /lawyer-workbench | lawyerWorkbench | `features/lawyer/pages/WorkbenchPage.tsx` | 1 |  |
+| /complaint-list | complaintList | `features/ops/pages/ComplaintListPage.tsx` | 0 |  |
+| /complaint | complaint | `features/ops/pages/ComplaintPage.tsx` | 0 |  |
+| /faq | faq | `features/ops/pages/FaqPage.tsx` | 0 |  |
+| /feedback | feedback | `features/ops/pages/FeedbackPage.tsx` | 0 |  |
+| /support | support | `features/ops/pages/SupportPage.tsx` | 0 |  |
+| /profile | profile | `features/profile/pages/MyPage.tsx` | 0 |  |
+| /about | about | `features/settings/pages/AboutPage.tsx` | 0 |  |
+| /account-security | accountSecurity | `features/settings/pages/AccountSecurityPage.tsx` | 0 |  |
+| /all-features | allFeatures | `features/settings/pages/AllFeaturesPage.tsx` | 0 |  |
+| /change-password | changePassword | `features/settings/pages/ChangePasswordPage.tsx` | 0 |  |
+| /change-phone | changePhone | `features/settings/pages/ChangePhonePage.tsx` | 0 |  |
+| /deactivate | deactivate | `features/settings/pages/DeactivatePage.tsx` | 0 |  |
+| /edit-profile | editProfile | `features/settings/pages/EditProfilePage.tsx` | 0 |  |
+| /language | language | `features/settings/pages/LanguagePage.tsx` | 0 |  |
+| /notify-settings | notifySettings | `features/settings/pages/NotifySettingsPage.tsx` | 0 |  |
+| /privacy-settings | privacySettings | `features/settings/pages/PrivacySettingsPage.tsx` | 0 |  |
+| /settings | settings | `features/settings/pages/SettingsPage.tsx` | 0 |  |
+| /favorites | favorites | `features/social/pages/FavoritesPage.tsx` | 0 |  |
+| /following | following | `features/social/pages/FollowingPage.tsx` | 0 |  |
+| /balance | balance | `features/trade/pages/BalancePage.tsx` | 0 |  |
+| /order-detail | orderDetail | `features/trade/pages/OrderDetailPage.tsx` | 0 |  |
+| /orders | orders | `features/trade/pages/OrderListPage.tsx` | 0 |  |
+| /pay | pay | `features/trade/pages/PayPage.tsx` | 0 |  |
+| /pay-result | payResult | `features/trade/pages/PayResultPage.tsx` | 0 |  |
+| /recharge | recharge | `features/trade/pages/RechargePage.tsx` | 0 |  |
+| /refund | refund | `features/trade/pages/RefundPage.tsx` | 0 |  |
+| /review | review | `features/trade/pages/ReviewPage.tsx` | 0 |  |
+| /workbench-consultations | workbenchConsultations | `features/workbench/pages/ConsultationsPage.tsx` | 5 |  |
+| /workbench-income | workbenchIncome | `features/workbench/pages/IncomePage.tsx` | 12 |  |
+| /workbench-docs | workbenchDocs | `features/workbench/pages/LawyerDocsPage.tsx` | 9 |  |
+| /workbench-profile | workbenchProfile | `features/workbench/pages/LawyerProfilePage.tsx` | 13 |  |
+| /workbench-settings | workbenchSettings | `features/workbench/pages/ServiceSettingsPage.tsx` | 8 |  |
+<!-- /FACTS:pages -->
+
+> 上面这张表是**机器按路由与文件**数出来的（`features/**/*Page.tsx` + `PAGE_ROUTES` + `app/**`），
+> 一行一个页面实现。下面那张表是**按业务模块归类**的手写口径，两者**合计都是 69**，
+> 只是分组方式不同。要查「某页在哪个文件、路由是什么、有没有 `testID`」，看上面这张。
+
 | 模块 | 页面数 | 包含页面 |
 |---|---|---|
 | 0 启动与认证 | 6 | Splash、登录、注册、忘记密码、用户协议、隐私政策 |
