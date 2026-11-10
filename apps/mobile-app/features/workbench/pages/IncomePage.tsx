@@ -14,6 +14,9 @@
  *      （本页不显示具体费率，费率只在下单/结算页展示，避免两处不一致）。
  *   4. **提现动作属于 F 组**：本页只做展示 + 「去提现」按钮的占位说明，不发起提现。
  *   5. 四态齐全：加载 / 空（「还没有收入」）/ 错误 / 正常。
+ *   6. **提现记录的金额按状态分支展示**（P1-2）：只有 `paid` 才是「到账」，
+ *      `applying` / `approved` 是「预计到账」，`rejected` **不显示金额**（驳回理由单独一行）。
+ *      后端驳回时**不会清 `actual_cents`**，无条件渲染就会把「被驳回的 99.40」写成「已到账」。
  *
  * testID 清单：income-screen / income-available / income-pending / income-range-{week|month|total} /
  *              income-week / income-month / income-total / income-rules / income-list /
@@ -343,9 +346,15 @@ export function IncomePage() {
                       </LocalizedText>
                     ) : null}
                   </View>
-                  <LocalizedText numberOfLines={1} style={styles.rowMeta}>
-                    {`¥ ${yuan(row.actualCents)} 到账`}
-                  </LocalizedText>
+                  {row.status === 'rejected' ? null : (
+                    <LocalizedText numberOfLines={1} style={styles.rowMeta}>
+                      {row.status === 'paid'
+                        ? t('workbench.income.withdrawArrived', { amount: yuan(row.actualCents) })
+                        : t('workbench.income.withdrawExpectedAmount', {
+                            amount: yuan(row.actualCents),
+                          })}
+                    </LocalizedText>
+                  )}
                 </View>
               ))
             )}

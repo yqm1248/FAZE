@@ -75,6 +75,8 @@
     "withdrawAccount": "كېرىدىغان ھېسابات",
     "withdrawAccountName": "ھېسابات ئىسمى",
     "withdrawExpected": "تەخمىنەن كېرىش ۋاقتى",
+    "withdrawArrived": "¥ {{amount}} ھېساباتقا چۈشتى",
+    "withdrawExpectedAmount": "تەخمىنەن ¥ {{amount}} ھېساباتقا چۈشىدۇ",
     "withdrawFeeNote": "بۇ قېتىملىق ھەق ¥{{fee}} (1 فېندىن تۆۋەن بولسا 0 دەپ ھېسابلىنىدۇ)",
     "withdrawMinNote": "ئەڭ تۆۋەن ئېلىش ¥{{min}}",
     "withdrawSubmit": "¥{{amount}} ئېلىشنى جەزملەش",

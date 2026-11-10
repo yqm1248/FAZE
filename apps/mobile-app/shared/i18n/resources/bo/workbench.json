@@ -75,6 +75,8 @@
     "withdrawAccount": "འབྱོར་སའི་རྩིས་ཁྲ།",
     "withdrawAccountName": "རྩིས་ཁྲའི་མིང་།",
     "withdrawExpected": "འབྱོར་རྒྱུའི་དུས་ཚོད།",
+    "withdrawArrived": "¥ {{amount}} རྩིས་སུ་འབྱོར་ཟིན",
+    "withdrawExpectedAmount": "¥ {{amount}} འབྱོར་རྒྱུ་ཡིན",
     "withdrawFeeNote": "ད་རེའི་ལག་རྡོག་རིན ¥{{fee}} (ཕེན 1 ལས་ཉུང་ན་ 0 ལྟར་རྩིས།)",
     "withdrawMinNote": "དངུལ་བཏོན་པའི་ཉུང་མཐའ ¥{{min}}",
     "withdrawSubmit": "¥{{amount}} བཏོན་རྒྱུ་གཏན་འཁེལ།",

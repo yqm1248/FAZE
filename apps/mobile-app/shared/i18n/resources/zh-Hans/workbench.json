@@ -75,6 +75,8 @@
     "withdrawAccount": "到账账户",
     "withdrawAccountName": "账户姓名",
     "withdrawExpected": "预计到账",
+    "withdrawArrived": "¥ {{amount}} 到账",
+    "withdrawExpectedAmount": "预计到账 ¥ {{amount}}",
     "withdrawFeeNote": "本次手续费 ¥{{fee}}（不足 1 分按 0 计）",
     "withdrawMinNote": "最低提现 ¥{{min}}",
     "withdrawSubmit": "确认提现 ¥{{amount}}",

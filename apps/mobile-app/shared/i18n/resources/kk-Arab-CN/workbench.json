@@ -75,6 +75,8 @@
     "withdrawAccount": "ٴتۇسەتىن ەسەپ",
     "withdrawAccountName": "ەسەپ اتاۋى",
     "withdrawExpected": "بولجامدى ەسەپكە ٴتۇسۋ ۋاقىتى",
+    "withdrawArrived": "¥ {{amount}} ەسەپكە ٴتۇستى",
+    "withdrawExpectedAmount": "بولجامدى ¥ {{amount}} ەسەپكە ٴتۇسەدى",
     "withdrawFeeNote": "بۇ رەتتىك كوميسسيا ¥{{fee}} (1 فيندتەن از بولسا 0 دەپ ەسەپتەلەدى)",
     "withdrawMinNote": "ەڭ از شىعارۋ ¥{{min}}",
     "withdrawSubmit": "¥{{amount}} شىعارۋدى راستاۋ",
