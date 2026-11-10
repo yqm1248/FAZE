@@ -1,6 +1,6 @@
 {
   "_comment": "本文件由 scripts/facts/extract-pages.mjs 从 app/ + features/ + design/ 生成，禁止手改。口径见 docs/standards/说辞一致与真相源规范.md §四。与设计稿的映射关系另见 design/PAGE-MAP.json。",
-  "sourceDigest": "90ed465e7b72efc1",
+  "sourceDigest": "f6c0937b8f837255",
   "sources": {
     "routes": "apps/mobile-app/shared/navigation/routes.ts",
     "shells": "apps/mobile-app/app/**/*.tsx",
@@ -1109,7 +1109,7 @@
       "route": "/case-filing-done",
       "routeKey": "caseFilingDone",
       "isDevProbe": false,
-      "lines": 375,
+      "lines": 379,
       "testIdCount": 8,
       "testIds": [
         "filingDone-screen",
@@ -1151,7 +1151,7 @@
       "route": "/case-filing",
       "routeKey": "caseFiling",
       "isDevProbe": false,
-      "lines": 1019,
+      "lines": 1032,
       "testIdCount": 11,
       "testIds": [
         "filing-screen",
@@ -1180,6 +1180,7 @@
         "@/shared/components/PrimaryButton",
         "@/shared/components/Screen",
         "@/shared/i18n",
+        "@/shared/hooks/useIdempotencyKey",
         "@/shared/i18n",
         "@/shared/navigation/routes",
         "@/shared/api/types",
@@ -1306,7 +1307,7 @@
       "route": "/case-detail",
       "routeKey": null,
       "isDevProbe": false,
-      "lines": 369,
+      "lines": 395,
       "testIdCount": 11,
       "testIds": [
         "case-detail-screen",
@@ -1332,7 +1333,6 @@
       "imports": [
         "@/features/content/api/caseLibrary",
         "@/features/content/api/caseLibrary",
-        "@/features/content/api/search",
         "@/shared/components/AppHeader",
         "@/shared/components/EmptyState",
         "@/shared/components/ErrorState",
@@ -1342,6 +1342,9 @@
         "@/shared/components/PrimaryButton",
         "@/shared/components/Screen",
         "@/features/content/api/favorite",
+        "@/shared/hooks/useErrorMessage",
+        "@/shared/hooks/useLawItemByRef",
+        "@/shared/hooks/useOptimisticToggle",
         "@/shared/i18n",
         "@/shared/i18n",
         "@/shared/api/types",
@@ -1893,7 +1896,7 @@
       "route": "/lawyer-detail",
       "routeKey": "lawyerDetail",
       "isDevProbe": false,
-      "lines": 687,
+      "lines": 688,
       "testIdCount": 0,
       "testIds": [],
       "localizedTextCount": 29,
@@ -1915,6 +1918,9 @@
         "@/shared/i18n",
         "@/shared/i18n",
         "@/shared/hooks/useAsyncResource",
+        "@/shared/hooks/useErrorMessage",
+        "@/shared/hooks/useIdempotencyKey",
+        "@/shared/hooks/useOptimisticToggle",
         "@/shared/hooks/useRefreshOnFocus",
         "@/shared/navigation/routes",
         "@/shared/theme",
@@ -3135,7 +3141,7 @@
       "route": "/recharge",
       "routeKey": "recharge",
       "isDevProbe": false,
-      "lines": 871,
+      "lines": 860,
       "testIdCount": 0,
       "testIds": [],
       "localizedTextCount": 27,
@@ -3161,6 +3167,7 @@
         "@/shared/components/PrimaryButton",
         "@/shared/components/Screen",
         "@/shared/hooks/useAsyncResource",
+        "@/shared/hooks/useIdempotencyKey",
         "@/shared/i18n",
         "@/shared/i18n",
         "@/shared/i18n/datetime",
@@ -3287,7 +3294,7 @@
       "route": "/workbench-income",
       "routeKey": "workbenchIncome",
       "isDevProbe": false,
-      "lines": 527,
+      "lines": 526,
       "testIdCount": 12,
       "testIds": [
         "income-screen",
@@ -3319,9 +3326,11 @@
         "@/shared/components/Screen",
         "@/shared/i18n",
         "@/shared/i18n",
+        "@/shared/i18n/datetime",
         "@/shared/hooks/useRefreshOnFocus",
         "@/shared/api/types",
-        "@/shared/theme"
+        "@/shared/theme",
+        "@/shared/utils/money"
       ]
     },
     {

@@ -50,6 +50,7 @@ import { LocalizedText } from '@/shared/components/LocalizedText';
 import { PrimaryButton } from '@/shared/components/PrimaryButton';
 import { Screen } from '@/shared/components/Screen';
 import { useI18n } from '@/shared/i18n';
+import { useIdempotencyKey } from '@/shared/hooks/useIdempotencyKey';
 import type { MessageKey } from '@/shared/i18n';
 import { PAGE_ROUTES } from '@/shared/navigation/routes';
 import type { AppError } from '@/shared/api/types';
@@ -138,6 +139,12 @@ export function FilingPage() {
   const [claims, setClaims] = useState('');
   const [amountYuan, setAmountYuan] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  /**
+   * 提交幂等键：页面挂载时固定，成功后换新键，失败复用（见 `useIdempotencyKey` 注释）。
+   * 键由页面持有、传给 api 层——**不许在 api 层生成**，那里每次调用都新生成一个，
+   * 网络抖动后重试会建出第二个案件。
+   */
+  const submitIdem = useIdempotencyKey('case-submit');
   const [errorKey, setErrorKey] = useState<MessageKey | null>(null);
   /** 「离开将丢失已填内容」确认框是否可见。 */
   const [leaveVisible, setLeaveVisible] = useState(false);
@@ -364,8 +371,8 @@ export function FilingPage() {
     // 补正模式：同一份四步表单全量重填到原案件（P0-6），不新建第二张案件。
     const res =
       resubmitId === null
-        ? await createCase(payload)
-        : await resubmitCase(resubmitId, payload);
+        ? await createCase(payload, submitIdem.key)
+        : await resubmitCase(resubmitId, payload, submitIdem.key);
     setSubmitting(false);
     if (!res.ok) {
       setErrorKey(
@@ -373,6 +380,8 @@ export function FilingPage() {
       );
       return;
     }
+    // 提交成功 → 换新键：下一次提交是新操作，不能复用旧键（否则服务端回放上次结果）
+    submitIdem.reset();
     if (resubmitId !== null) {
       // 补正成功回「案件进度」页（不是「材料已提交」页）：用户补正后最想看的是案件状态变了没。
       // 先把「已提交」置位（不再拦离开），再由 doneHref 的 effect 执行 replace。
@@ -682,6 +691,10 @@ export function FilingPage() {
               />
               <SummaryRow
                 label={t('case.filing.field.amount')}
+                /* eslint-disable-next-line no-restricted-syntax --
+                   豁免理由：这里回显的是**用户在表单里输入的原始文本**，不是「分 → 元」的金额格式化。
+                   用 formatAmount 会补两位小数、加千分位，等于在确认页改变用户刚看到的值（行为变更，
+                   需要验收拍板）。真正的金额展示（列表/详情/流水）一律走 formatAmount / <MoneyText>。 */
                 value={amountYuan.trim() === '' ? '—' : `¥${amountYuan.trim()}`}
               />
               <SummaryRow

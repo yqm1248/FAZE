@@ -167,6 +167,10 @@ export function FilingDonePage() {
           />
           <InfoRow
             label={t('case.filingDone.infoAmount')}
+            /* eslint-disable-next-line no-restricted-syntax --
+               豁免理由：amountYuan 是从路由参数带过来的**用户输入原文**（提交页传过来，避免弱网下
+               再请求详情拿到空值）。它不是「分 → 元」的格式化，用 formatAmount 会改变用户填的数字外观。
+               同页其他金额展示仍走 formatAmount。 */
             value={amountYuan === '' ? '—' : `¥${amountYuan}`}
           />
           <InfoRow

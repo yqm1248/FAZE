@@ -178,27 +178,23 @@ export type CaseProgressNode = {
 export type CaseFilter = 'all' | 'pending' | 'in_progress' | 'closed';
 
 /**
- * 生成一个幂等键（提交时由客户端发一次性随机值）。
- *
- * @param prefix 幂等键前缀：新建立案用 `case-filing`，补正提交用 `case-resubmit`
- *               （与后端 Redis 键前缀一并区分，避免两条链路互串）
- * @returns 一次性幂等键
- */
-function newIdempotencyKey(prefix = 'case-filing'): string {
-  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-}
-
-/**
  * 提交立案（四步表单一次全量提交）。
  *
  * 幂等：同一个 `Idempotency-Key` 重复提交返回**首次**结果，不会发第二单。
  *
- * @param payload 四步表单数据
+ * **幂等键必须由页面传入**（用 `useIdempotencyKey`），不许在这里生成。
+ * 旧实现是每次调用现生成一个键，等于「每次都当新提交」——网络抖动后重试会建出第二个案件。
+ *
+ * @param payload        四步表单数据
+ * @param idempotencyKey 本次操作的幂等键（同一次提交的重试必须复用）
  * @returns 成功时含案件 id 与平台单号
  */
-export function createCase(payload: CaseCreatePayload): Promise<ApiResult<CaseSubmitResult>> {
+export function createCase(
+  payload: CaseCreatePayload,
+  idempotencyKey: string,
+): Promise<ApiResult<CaseSubmitResult>> {
   return post<CaseSubmitResult>('/api/v1/app/cases', payload, {
-    headers: { 'Idempotency-Key': newIdempotencyKey() },
+    headers: { 'Idempotency-Key': idempotencyKey },
   });
 }
 
@@ -255,16 +251,18 @@ export function fetchCaseForm(caseId: string): Promise<ApiResult<CaseFormSnapsho
  *
  * @param caseId 案件 id
  * @param payload 四步表单全量数据
+ * @param idempotencyKey 本次操作的幂等键（同一次提交的重试必须复用）
  * @returns 成功时含案件 id 与平台单号（单号沿用原案件）
  */
 export function resubmitCase(
   caseId: string,
   payload: CaseCreatePayload,
+  idempotencyKey: string,
 ): Promise<ApiResult<CaseSubmitResult>> {
   return post<CaseSubmitResult>(
     `/api/v1/app/cases/${encodeURIComponent(caseId)}/resubmit`,
     payload,
-    { headers: { 'Idempotency-Key': newIdempotencyKey('case-resubmit') } },
+    { headers: { 'Idempotency-Key': idempotencyKey } },
   );
 }
 

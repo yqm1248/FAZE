@@ -27,6 +27,17 @@ export type AsyncResourceOptions<T> = {
   emptyWhen?: (data: T) => boolean;
   /** 是否立即加载，默认 true。 */
   enabled?: boolean;
+  /**
+   * 额外依赖：这些值变化时重新加载。
+   *
+   * 为什么需要它：本 hook 原本只按「页面级单次加载」设计，loader 放 ref 里、
+   * 不参与依赖，所以 `useLawItemByRef(lawItemId)` 这种「参数变了要重新取」的场景
+   * 会拿不到新数据。加了这个字段就能在不改变原有行为的前提下按参数重载。
+   *
+   * **只接受原始值**（string / number / boolean / null / undefined）：对象每次渲染都是新引用，
+   * 会导致无限重载。多条依赖传多个元素。
+   */
+  deps?: ReadonlyArray<string | number | boolean | null | undefined>;
 };
 
 /** `useAsyncResource` 的返回值。 */
@@ -67,6 +78,9 @@ export function useAsyncResource<T>(
   const silentRef = useRef(false);
   const mountedRef = useRef(true);
   const enabled = options.enabled !== false;
+  // deps 拼成一个稳定字符串再进依赖数组：直接 spread 会被 react-hooks 规则告警，
+  // 而对象引用做依赖会每次渲染都变、导致无限重载。
+  const depKey = (options.deps ?? []).join('\u0001');
 
   useEffect(() => {
     mountedRef.current = true;
@@ -110,7 +124,7 @@ export function useAsyncResource<T>(
     return () => {
       cancelled = true;
     };
-  }, [nonce, enabled]);
+  }, [nonce, enabled, depKey]);
 
   const reload = useCallback(() => {
     setNonce((value) => value + 1);

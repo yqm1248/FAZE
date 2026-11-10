@@ -42,9 +42,11 @@ import { PrimaryButton } from '@/shared/components/PrimaryButton';
 import { Screen } from '@/shared/components/Screen';
 import { useI18n } from '@/shared/i18n';
 import type { MessageKey } from '@/shared/i18n';
+import { formatAmount } from '@/shared/i18n/datetime';
 import { useRefreshOnFocus } from '@/shared/hooks/useRefreshOnFocus';
 import type { AppError } from '@/shared/api/types';
 import { color, radius, size, spacing, typography } from '@/shared/theme';
+import { centsFromServer } from '@/shared/utils/money';
 
 /** 三档区间 chip。 */
 const RANGES: { code: 'week' | 'month' | 'total'; key: MessageKey }[] = [
@@ -102,20 +104,17 @@ function serviceTitleKey(serviceType: string | null): MessageKey {
 }
 
 /**
- * 分（字符串）→ 元（两位小数）。
+ * 分（字符串）→ 元（两位小数，**不带 ¥**）。
+ *
+ * 实现委托给 `formatAmount(cents, false)`——金额格式化全 App 只有一个入口。
+ * 这里保留薄包装只为调用点少改：`t()` 的占位符需要的是「元串」，不带货币符号。
+ * **不要再在这里写一遍除 100 与千分位**：那是同一件事的第二个实现（而且是浮点运算）。
  *
  * @param cents 金额（分），后端给字符串形式
- * @returns 形如 `8,640.00`；非法返回 `0.00`
+ * @returns 形如 `8,640.00`
  */
 function yuan(cents: string | null): string {
-  const value = Number(cents ?? '0');
-  if (!Number.isFinite(value)) {
-    return '0.00';
-  }
-  const text = (value / 100).toFixed(2);
-  const [intPart, fracPart] = text.split('.');
-  const grouped = (intPart ?? '0').replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-  return `${grouped}.${fracPart ?? '00'}`;
+  return formatAmount(centsFromServer(cents), false);
 }
 
 /**
@@ -267,7 +266,7 @@ export function IncomePage() {
                 {t('workbench.income.available')}
               </LocalizedText>
               <LocalizedText numberOfLines={1} style={styles.balanceValue} testID="income-available">
-                {`¥ ${yuan(overview?.availableCents ?? '0')}`}
+                {formatAmount(centsFromServer(overview?.availableCents ?? '0'))}
               </LocalizedText>
             </View>
             <View style={styles.balanceDivider} />
@@ -276,7 +275,7 @@ export function IncomePage() {
                 {t('workbench.income.pending')}
               </LocalizedText>
               <LocalizedText numberOfLines={1} style={styles.balanceValue} testID="income-pending">
-                {`¥ ${yuan(overview?.pendingSettleCents ?? '0')}`}
+                {formatAmount(centsFromServer(overview?.pendingSettleCents ?? '0'))}
               </LocalizedText>
             </View>
           </View>
@@ -307,7 +306,7 @@ export function IncomePage() {
 
           <View style={styles.statCard}>
             <LocalizedText numberOfLines={1} style={styles.statValue} testID={`income-${range}`}>
-              {`¥ ${yuan(overview?.totalIncomeCents ?? '0')}`}
+              {formatAmount(centsFromServer(overview?.totalIncomeCents ?? '0'))}
             </LocalizedText>
             <LocalizedText numberOfLines={1} style={styles.statLabel}>
               {t('workbench.income.orderCount', { count: overview?.orderCount ?? 0 })}
@@ -353,7 +352,7 @@ export function IncomePage() {
                     </LocalizedText>
                   </View>
                   <LocalizedText numberOfLines={1} style={styles.rowAmount}>
-                    {`${Number(flow.deltaCents) >= 0 ? '+' : ''}¥ ${yuan(flow.deltaCents)}`}
+                    {`${Number(flow.deltaCents) > 0 ? '+' : ''}${formatAmount(centsFromServer(flow.deltaCents))}`}
                   </LocalizedText>
                 </View>
               ))}
@@ -404,7 +403,7 @@ export function IncomePage() {
                 <View key={row.id} style={styles.withdrawRow} testID={`withdraw-row-${row.id}`}>
                   <View style={styles.rowBody}>
                     <LocalizedText numberOfLines={1} style={styles.rowTitle}>
-                      {`¥ ${yuan(row.amountCents)}`}
+                      {formatAmount(centsFromServer(row.amountCents))}
                     </LocalizedText>
                     <LocalizedText numberOfLines={1} style={styles.rowMeta} testID={`withdraw-status-${row.id}`}>
                       {t(WITHDRAW_STATUS_KEY[row.status])}

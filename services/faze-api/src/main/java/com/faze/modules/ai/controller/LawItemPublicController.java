@@ -24,12 +24,15 @@ import com.faze.common.exception.ErrorCode;
 import com.faze.common.pojo.PageResult;
 import com.faze.common.util.RequestUtils;
 import com.faze.modules.ai.dto.LawItemBrief;
+import com.faze.modules.ai.dto.LawItemPublicDetail;
 import com.faze.modules.ai.service.LawSearchService;
 import com.faze.modules.ai.support.LawSearchRateLimiter;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -70,6 +73,26 @@ public class LawItemPublicController {
         lawSearchRateLimiter.check(RequestUtils.clientIp(request));
         String keyword = normalizeKw(kw);
         return R.ok(lawSearchService.searchPage(keyword, lawCode, pageNum, pageSize));
+    }
+
+    /**
+     * 按主键查法条详情（含全文）。
+     *
+     * <p>与列表接口同样的限流口径：先限流再校验，非法参数同样消耗一次配额。
+     * 这个接口是给「案例详情 / AI 回答里引用的法条点开看原文」用的，
+     * 客户端手里只有 `lawItemId`，**必须能按 id 精确回查**，否则只能退化成关键词搜索，
+     * 而关键词搜索会在检索结果变化时显示另一条法条（那是内容错误）。</p>
+     *
+     * @param id      法条主键（必须为正）
+     * @param request 当前请求（取客户端 IP 用于限流）
+     * @return 法条详情（含全文）
+     * @throws BusinessException 401007 触发限流；401004 法条不存在
+     */
+    @GetMapping("/{id}")
+    public R<LawItemPublicDetail> detail(@PathVariable @Positive Long id,
+                                         HttpServletRequest request) {
+        lawSearchRateLimiter.check(RequestUtils.clientIp(request));
+        return R.ok(lawSearchService.detail(id));
     }
 
     /**

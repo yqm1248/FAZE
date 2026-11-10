@@ -1,4 +1,4 @@
-# 法泽 FAZE 文档基线 v1.71
+# 法泽 FAZE 文档基线 v1.72
 
 > # 后续一切文档从这里开始
 
@@ -98,7 +98,7 @@
 
 **第 4 段（文书中心）施工收口，把三件「文档欠账」一次性补齐**：①《数据表规范》加**附录 E**——`doc_template` 用 `status` 三态替代 `is_enabled`、`file_record` 不加 `updated_at`，这两处偏离是工作流裁决过的，不写下来下一个人会当漏做；②《PC 后台 UI 设计说明》加 **§5.8**——A-18 设计稿里「适用法条列 / 导入模板 / 批量导出 / 上传 .docx」四处本段明确不做（另有「语言版本列」与列数差异），不写下来会被当成实现遗漏；③`docs/README.md` 加**段 4 验收证据索引**——8 条锚点（`4-A1`~`4-A8`）、D/E/F 组证据与「遗留与挂账」都有了入口。本版**无新增基线资产、无删除**，只有 4 份内容变更（行数/字节/指纹已按 LF 口径重算）。
 
-## 二、已确定的文档清单（47 份 Markdown + 6 份 JSON = 53）
+## 二、已确定的文档清单（48 份 Markdown + 6 份 JSON = 54）
 
 > **行数口径（v1.69 改正）**：文件内 **LF 换行符个数**（等同 `wc -l`）。此前本行写的是「LF 个数 + 1」，但 §二 实际登记的数字一半按前者、一半按后者——**说明与数字不一致，错的是说明**。v1.69 用 `scripts/facts/check-baseline.mjs` 逐份实测，把 30 份按「+1」口径登记的减 1，统一到 `wc -l`，因为任何人都能用一行命令复核。
 > **指纹口径**：SHA256 取前 16 位小写十六进制，足以区分文件，不必逐位比对。
@@ -112,7 +112,7 @@
 |---|---|---|---|---|
 | 1 | `AGENTS.md` | 199 | 18372 | `d5e9177ec844e022` 📝 |
 | 2 | `README.md` | 127 | 6650 | `e73e69e54d114ac0` |
- | 3 | `docs/README.md` | 345 | 43459 | `1a19018abd7a780e` 📝 | 
+ | 3 | `docs/README.md` | 346 | 43601 | `6784b73719d438d1` 📝 | 
 
 ### 2.2 架构与实施（★ 核心）
 
@@ -123,7 +123,7 @@
 | 6 | `docs/architecture/法泽FAZE_V1基线表结构_v1.0.md` | 232 | 15858 | `3569f83f4ba74328` 📝 |
 | 7 | `docs/architecture/法泽FAZE_错误码规范_v1.0.md` | 445 | 31176 | `578ba78f6576c0c7` 📝 |
  | 24 | `docs/architecture/法泽FAZE_数据表规范_v1.0.md` | 730 | 55107 | `548c2481d0d5f40b` 📝 | 
-| 25 | `docs/architecture/法泽FAZE_接口规范_v1.0.md` | 1176 | 81487 | `75dd17227b216a27` 📝 |
+| 25 | `docs/architecture/法泽FAZE_接口规范_v1.0.md` | 1176 | 81487 | `f4f165ddbe7c4aaa` 📝 |
 | 26 | `docs/architecture/法泽FAZE_后端代码规范_v1.0.md` | 1608 | 93985 | `03573f955af80606` 🆕 |
 | 27 | `docs/architecture/法泽FAZE_i18n规范_v1.0.md` | 610 | 28293 | `6db40a25005a7ae5` 📝 |
 | 28 | `docs/architecture/法泽FAZE_审计与日志规范_v1.0.md` | 391 | 23320 | `375aa774e73e6f0b` 📝 |
@@ -179,22 +179,23 @@
 | 16 | `docs/standards/目录与命名规范.md` | 115 | 4986 | `cb0c73d18309ceaa` |
 | 17 | `docs/standards/代码注释规范.md` | 143 | 5676 | `48dfd0358a09be6e` |
 | 18 | `docs/standards/代码审查清单.md` | 65 | 3304 | `832447307fe8118b` 📝 |
-| 19 | `docs/standards/README.md` | 60 | 5119 | `9e8ea286ce3fe44f` 📝 |
+| 19 | `docs/standards/README.md` | 61 | 5496 | `8055690dc51dcf66` 📝 |
 | 44 | `docs/standards/法条数据录入规范.md` | 135 | 9159 | `c12c1b3f7d0e3cf1` 📝 |
 | 45 | `docs/standards/AI对话留存策略.md` | 103 | 5754 | `23d13a37832da248` 🆕 |
 
-### 2.5.2 说辞一致与事实登记（v1.67 新增 3 份 + v1.68 新增 3 份 + v1.69 新增 2 份，共 8 份）
+### 2.5.2 说辞一致与事实登记（v1.67 新增 3 份 + v1.68 新增 3 份 + v1.69 新增 2 份 + v1.72 新增 1 份，共 9 份）
 
 | # | 文件 | 行数 | 字节 | SHA256 前 16 位 | 是什么 |
 |---|---|---|---|---|---|
 | 46 | `docs/standards/说辞一致与真相源规范.md` | 297 | 15598 | `9d11a58b3ca8b879` 🆕 | **同一个事实在代码 / 文档 / 设计稿三处说法不同时听谁的**：真相源分级（P0 运行中的代码与库 / P1 Flyway / P2 文档 / P3 设计稿）、三类不一致的分界（DRIFT 漂移 / GAP 缺口 / DIRT 脏数据）、5 种处置值的裁决规则、数字口径必须机器算 |
 | 47 | `docs/facts/DRIFT.md` | 179 | 26777 | `e1640138c236e0d2` 📝 | **说辞漂移登记表**：同一事物、说法不同。D1 组 25 条（逐条核查）、D2 组 17 条（全仓盘点批量登记）、D3 组 **5 条**（跑脚本量出来的）。每行给「代码实际（P0）」+ 证据强度（实测 / 通读 / 待复核） |
 | 48 | `docs/facts/DEFERRED.md` | 144 | 11385 | `ee4660db9879b3cd` 🆕 | **段八挂账汇总索引**：计划有、代码无。**不是待办清单，是真相声明**。含负责人点名的 4 项、最容易被误当已做的 8 项、118 条的分类索引、以及「18 条其实是文档落后于代码」的反向提醒 |
-| 49 | `docs/facts/api.json` | 2128 | 54232 | `1392225726aba5a7` 🆕 | **接口清单**：`scripts/facts/api.mjs` 从 78 个 Controller 生成，260 个端点（admin 123 / app 114 / pub 22 / dev 1）。**v1.67 首次登记时漏算本文件，v1.68 补正** |
+| 49 | `docs/facts/api.json` | 2136 | 54429 | `1dd9f6af311dd592` 🆕 | **接口清单**：`scripts/facts/api.mjs` 从 78 个 Controller 生成，260 个端点（admin 123 / app 114 / pub 22 / dev 1）。**v1.67 首次登记时漏算本文件，v1.68 补正** |
 | 50 | `docs/facts/tables.json` | 1607 | 41627 | `1792c116ada0ad42` 🆕 | **表结构**：`scripts/facts/tables.mjs` 从 information_schema + flyway_schema_history 生成，53 张业务表 / 687 列 / 188 索引 / Flyway 48 个到 V711 |
 | 51 | `docs/facts/error-codes.json` | 695 | 18518 | `2d4ebd86a2472e55` 🆕 | **错误码清单**：`scripts/facts/error-codes.mjs` 从 ErrorCode 枚举生成，94 个码，无重复。文档里同时写着 78 和 91（DRIFT-045） |
 | 52 | `docs/facts/i18n-keys.json` | 152 | 3362 | `54aaafaa18ee83d1` 🆕 | **i18n 事实**：`scripts/facts/extract-i18n.mjs` 从 56 个 json 生成。**三个口径同时给出**（总节点 1965 / 叶子条目 1880 / 带 namespace 前缀去重 1880），四语言覆盖各 100%。DRIFT-046、DRIFT-047 都是这张表抓出来的 |
-| 53 | `docs/facts/pages.json` | 4283 | 133344 | `38d1eb5c3a401819` 🆕 | **页面事实**：`scripts/facts/extract-pages.mjs` 逐页抽取「文件 / 路由 / testID 锚点 / LocalizedText / 写死路由」。四种页面数口径的**唯一解析实现**（`page-inventory.mjs` 只 import 它打印）。抓出 6 处写死路由与 `/case-detail` 壳无对应常量 |
+| 53 | `docs/facts/pages.json` | 4292 | 133719 | `fae02c553b66f795` 🆕 | **页面事实**：`scripts/facts/extract-pages.mjs` 逐页抽取「文件 / 路由 / testID 锚点 / LocalizedText / 写死路由」。四种页面数口径的**唯一解析实现**（`page-inventory.mjs` 只 import 它打印）。抓出 6 处写死路由与 `/case-detail` 壳无对应常量 |
+| 54 | `docs/standards/公共构件与护栏规范.md` | 206 | 12369 | `7ff5f8ddff2a8001` 🆕 | **同类缺陷为什么反复出现、用什么拦住**：六个构件（幂等键 / 法条按 id 回查 / 乐观切换 / 金额展示 / 错误文案 / 归属校验）+ 3 条 ESLint 规则 + 豁免台账 + **三处「计划前提与仓库实际不符」的如实记录**（`useFavorite` 改签名、不建 `ErrorBanner`、先补后端接口） |
 
 ### 2.5 决策依据
 
@@ -2569,4 +2570,49 @@ node scripts/facts/check-baseline.mjs          # 基线登记与实测指纹一�
 
 1. **没有逐屏做视觉比对**。
 2. **没有把差异逐条登记成 `diverged`**——那需要一屏一屏比稿，是这张表之后的活。
+
+---
+
+## §7.75 v1.72 G5：公共构件 + 3 条 ESLint 规则（新增 1 份 / 内容变更若干）
+
+**本版动因**：这次 68 条里有 **5 类模式各出现 ≥2 次**——不是 5 个 bug，是 5 种复发机制。G5 把「同一件事只允许一个入口，入口之外的写法机器拦住」落到代码。
+
+### 一、新增《公共构件与护栏规范》（第 54 号资产）
+
+**六个构件**：
+
+| 构件 | 落地 | 关键结论 |
+|---|---|---|
+| `useIdempotencyKey` | `shared/hooks/` | 幂等键 5 处各写各的 → 收敛到 1 处。**api 层生成等于每次都当新提交**，网络抖动重试会建出第二单/第二案 |
+| `useLawItemByRef` | `shared/hooks/` | **先补了后端接口** `GET /pub/law-items/{id}`——原先 App 只有列表接口，「按 id 回查」根本无从实现 |
+| `useOptimisticToggle` | `shared/hooks/` | 收藏/关注统一「翻转+回滚+防重入」。改造前案例收藏失败不回滚、律师关注把任何失败都显示成「登录已过期」 |
+| `formatAmount` / `MoneyText` | 已有，清存量 6 处 | 顺带修掉 `yuan()` 的 `value / 100` **浮点运算** |
+| 错误文案 | **不新建 ErrorBanner** | 已有 `ErrorState` + `useErrorMessage` 覆盖同一职责，再建是第三套。改为修掉唯一 1 处硬编码 |
+| 归属校验模板 | 文档 + 盘点 | 后端 `LIMIT 1` 共 7 处，逐处判定；**唯一违规 `SocialQueryService:140`（DRIFT-015），目前只有 code review 在拦** |
+
+### 二、3 条 ESLint 规则
+
+`no-array-fallback`（静默兜底取首元素）/ `no-raw-money`（手拼 ¥）/ `no-idem-key-in-api`（自造幂等键 + api 层随机源）。
+
+**上线过程记了两个坑**：
+1. `no-raw-money` 第一版选择器 `TemplateElement[value.raw=/¥\$\{/]` **永远匹配不到**——`${` 是语法不在 `raw` 里。**规则写完必须拿一个已知违规文件验证它真会报。**
+2. 只拦 api 层会漏掉页面内联的 `Math.random()`；而 `Math.random` 在页面层是合法的（聊天页造 `clientMsgId`），所以拆成「全局禁标识符 + api 层禁随机源」两条。
+
+存量清零：`¥` 手拼 6 处已改 `formatAmount`；`?? arr[0]` 与 api 层随机源**本来就是 0**；2 处「输入原文回显」加带理由的 `eslint-disable`。
+
+### 三、这个版本最值得记的一件事：计划的三处前提与仓库实际不符
+
+| 计划写的 | 实际做的 | 为什么 |
+|---|---|---|
+| `useFavorite(targetType, targetId)` | `useOptimisticToggle({value,onChange,apply})` | 计划签名会让 `shared/` 反向 import `features/`（收藏在 content、关注在 lawyer），违反 AGENTS §3.1 |
+| 新建 `ErrorBanner` | 不建 | 已有两个错误展示入口，第三个就是「同一件事三种呈现」 |
+| `useLawItemByRef` 直接落地 | 先补后端接口 | 计划假设的接口不存在 |
+
+**三处都不是「简化」，是计划写的时候没核对仓库。** 记下来，否则下一个人会照计划再试一遍。
+
+### 四、本版没做的事
+
+1. **归属校验没有自动门禁**（只有 code review），文档里已明写，不假装它有。
+2. **PC 后台 0 条自定义 lint**——那边同类问题一条都拦不住，已列进「已知盲区」。
+3. **`SocialQueryService.unfavorite` 的 bug 没修**（DRIFT-015），它是业务修复，不属护栏建设。
 3. **DEF-013 没有实现**，只登记。

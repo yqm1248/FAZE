@@ -25,12 +25,16 @@
  */
 package com.faze.modules.ai.service;
 
+import com.faze.common.exception.BusinessException;
+import com.faze.common.exception.ErrorCode;
 import com.faze.common.pojo.PageResult;
+import com.faze.infra.law.entity.LawItem;
 import com.faze.infra.law.mapper.LawItemMapper;
 import com.faze.infra.law.mapper.LawItemSearchRow;
 import com.faze.infra.law.mapper.LawSearchRow;
 import com.faze.modules.ai.dto.LawHit;
 import com.faze.modules.ai.dto.LawItemBrief;
+import com.faze.modules.ai.dto.LawItemPublicDetail;
 import com.faze.modules.ai.util.ChineseNumberUtil;
 import com.faze.modules.ops.service.SysConfigQueryService;
 import java.util.ArrayList;
@@ -183,6 +187,38 @@ public class LawSearchService {
             result.setHasMore(candidates.size() > offset + size);
         }
         return result;
+    }
+
+    /**
+     * 按主键查法条详情（含全文），供「案例引用的法条点开看原文」用。
+     *
+     * <p>**为什么必须按 id 精确查，而不是拿条号去搜**：客户端手里是 `law_refs` 快照里的
+     * `lawItemId`。用关键词搜索再 `find(...) ?? list[0]` 兜底，一旦检索结果变化就会显示
+     * 另一条法条——那是**内容错误**，不是显示错误。这条链路是 2026-11-11 补的
+     * （此前 App 端只有列表接口，没得选，只能搜）。</p>
+     *
+     * <p>**不过滤 `status` / `isEnabled`**：案例可能引用后来被修正或废止的旧行，
+     * 那种情况恰恰要显示出来（由前端标注状态），过滤掉会让用户以为法条不存在。</p>
+     *
+     * @param id 法条主键
+     * @return 公开详情（含全文）
+     * @throws BusinessException 401004 法条不存在
+     */
+    public LawItemPublicDetail detail(Long id) {
+        LawItem item = id == null ? null : lawItemMapper.selectById(id);
+        if (item == null) {
+            throw new BusinessException(ErrorCode.COMMON_NOT_FOUND, "法条不存在");
+        }
+        LawItemPublicDetail vo = new LawItemPublicDetail();
+        vo.setId(String.valueOf(item.getId()));
+        vo.setLawCode(item.getLawCode());
+        vo.setLawName(item.getLawName());
+        vo.setArticleNo(item.getArticleNo());
+        vo.setContent(item.getContent());
+        vo.setStatus(item.getStatus());
+        vo.setEffectiveDate(item.getEffectiveDate());
+        vo.setExpireDate(item.getExpireDate());
+        return vo;
     }
 
     /**

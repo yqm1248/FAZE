@@ -26,7 +26,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   AppState,
   Pressable,
@@ -46,6 +46,7 @@ import { LocalizedText } from '@/shared/components/LocalizedText';
 import { PrimaryButton } from '@/shared/components/PrimaryButton';
 import { Screen } from '@/shared/components/Screen';
 import { useAsyncResource } from '@/shared/hooks/useAsyncResource';
+import { useIdempotencyKey } from '@/shared/hooks/useIdempotencyKey';
 import { useI18n } from '@/shared/i18n';
 import type { MessageKey } from '@/shared/i18n';
 import { formatAmount } from '@/shared/i18n/datetime';
@@ -87,19 +88,6 @@ function yuanToCents(input: string): number | null {
   const yuan = Number(matched[1]);
   const fraction = matched[2] === undefined ? 0 : Number(matched[2].padEnd(2, '0'));
   return yuan * 100 + fraction;
-}
-
-/**
- * 生成一次性幂等键。
- *
- * 不用 `crypto.randomUUID`（RN 的 polyfill 在部分安卓机型上缺）；本用途只要求
- * 「同一页面实例生成后不再变」，时间戳 + 随机串足够。
- *
- * @returns 幂等键（≤64 字符，服务端只接受 `[A-Za-z0-9_-]`）
- */
-function newIdempotencyKey(): string {
-  const random = Math.random().toString(36).slice(2).padEnd(10, '0');
-  return `rc-${Date.now().toString(36)}-${random}`.slice(0, 64);
 }
 
 /**
@@ -148,7 +136,8 @@ function RechargeBody({ data }: { data: WalletBalanceWithPanel }) {
   const [order, setOrder] = useState<RechargeCreateResult | null>(null);
   const [phase, setPhase] = useState<PayPhase>('idle');
   const [mockPayload, setMockPayload] = useState<string | null>(null);
-  const idempotencyKey = useRef(newIdempotencyKey());
+  /** 充值幂等键：挂载固定、成功后换新键、失败复用（见 useIdempotencyKey 注释）。 */
+  const rechargeIdem = useIdempotencyKey('trade-recharge');
 
   /** 面板里第一个启用渠道作为默认选中。 */
   useEffect(() => {
@@ -246,7 +235,7 @@ function RechargeBody({ data }: { data: WalletBalanceWithPanel }) {
       return;
     }
     setBusy(true);
-    const result = await createRecharge(amount.cents, channelCode, idempotencyKey.current);
+    const result = await createRecharge(amount.cents, channelCode, rechargeIdem.key);
     setBusy(false);
     if (!result.ok || result.data === null) {
       toast.show(t('trade.recharge.submitFailed'));
@@ -261,7 +250,7 @@ function RechargeBody({ data }: { data: WalletBalanceWithPanel }) {
       return;
     }
     toast.show(t('trade.recharge.sdkPending'));
-  }, [amount.cents, channelCode, t, toast]);
+  }, [amount.cents, channelCode, t, toast, rechargeIdem]);
 
   /**
    * 确认模拟支付：把预生成的回调报文打给平台，再轮询查单。
@@ -314,12 +303,12 @@ function RechargeBody({ data }: { data: WalletBalanceWithPanel }) {
 
   /** 「再充一笔」：清状态并换新幂等键（这是真正的下一笔，不能复用上一个 key）。 */
   const rechargeAgain = useCallback(() => {
-    idempotencyKey.current = newIdempotencyKey();
+    rechargeIdem.reset();
     setOrder(null);
     setPhase('idle');
     setSelectedCents(null);
     setCustomYuan('');
-  }, []);
+  }, [rechargeIdem]);
 
   const backToBalance = useCallback(() => {
     router.replace(PAGE_ROUTES.balance);

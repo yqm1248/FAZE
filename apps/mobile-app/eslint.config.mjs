@@ -115,7 +115,56 @@ export default tseslint.config(
           selector: "Property[key.name='transform'] Property[key.name='scaleX'][value.value=-1]",
           message: '图标镜像只能由 <DirectionalIcon> 统一处理（i18n 规范 §8.2）。',
         },
+
+        // ── ⑥ no-array-fallback：禁止静默兜底取首元素（R-02）─────────────
+        //
+        // 典型坏味道：`res.data.list.find(...) ?? res.data.list[0]`。
+        // 它把「没找到」伪装成「找到了」，用户看到的是**另一条数据**，而且没有任何报错。
+        // 2026-11-11 的实例：案例详情的法条弹层用 `find(...) ?? list[0]`，
+        // 检索结果一变就显示出别的法条——那是内容错误。
+        //
+        // 正确做法：匹配不到就走空态/错误态（`EmptyState` / `ErrorState` / 显式的「无法定位」文案）。
+        {
+          selector:
+            "LogicalExpression[operator='??'] > MemberExpression.computed[computed=true] > Literal[value=0]",
+          message:
+            '禁止静默兜底取首元素（如 `x ?? list[0]`）：匹配不到要显式报「暂无数据」，不要把另一条数据当结果（R-02）。',
+        },
+
+        // ── ⑦ no-raw-money：金额展示必须走 formatAmount / MoneyText（R-08 同源）──
+        //
+        // `` `¥${n}` `` 的问题不是格式丑，是**它绕过了唯一的金额格式化入口**：
+        // 负数、千分位、货币符号位置、阿拉伯系 RTL 下的符号方向全都各写各的。
+        // 合法例外只有「输入中的原始文本回显」（见 FilingPage 的 eslint-disable 与理由）。
+        {
+          // 注意选择器写法：`${` 是模板字面量的**语法**，不在 `TemplateElement.raw` 里。
+          // `\`¥${n}\`` 的 AST 是 TemplateElement(raw="¥") + Expression + TemplateElement(raw="")。
+          // 所以匹配「raw 里含 ¥ 的模板片段」，而不是去匹配 `${`。
+          selector: "TemplateLiteral > TemplateElement[value.raw=/¥/]",
+          message:
+            '金额必须走 formatAmount() / <MoneyText>，禁止模板字符串里手拼 ¥（金额是整数分，展示要统一）。',
+        },
+
+        // ── ⑧ no-idem-key-in-api：幂等键只能由 useIdempotencyKey 生成（R-01）──
+        //
+        // 幂等键的生命周期是「页面挂载固定 → 成功重置 → 失败复用」。
+        // 任何自造的 `newIdempotencyKey()` 都拿不到这个生命周期：写在 api 层就是「每次调用新键」，
+        // 等于每次都当新提交，网络抖动后重试会建出第二单/第二案。
+        {
+          selector: "Identifier[name='newIdempotencyKey']",
+          message:
+            '幂等键只能用 useIdempotencyKey（挂载固定 / 成功 reset / 失败复用），禁止自造生成函数（R-01）。',
+        },
       ],
+    },
+  },
+
+  {
+    // 幂等键生成的唯一合法落点（规则 ⑧ 的豁免）。
+    // 这个文件里除了生成函数就是 hook 本身，没有 JSX、没有颜色、没有 i18n，关掉整条规则代价可控。
+    files: ['shared/hooks/useIdempotencyKey.ts'],
+    rules: {
+      'no-restricted-syntax': 'off',
     },
   },
 
@@ -153,6 +202,33 @@ export default tseslint.config(
     files: ['shared/theme/**/*.ts', 'app.config.ts'],
     rules: {
       'no-restricted-syntax': 'off',
+    },
+  },
+
+  {
+    // api 层专属：禁止用「时间戳 + 随机数」现造标识。
+    //
+    // 为什么单独一块：这一条只在 api 层要，写在主规则里会误伤页面层的合法用法
+    // （聊天页用 `Date.now() + Math.random()` 造 clientMsgId、倒计时用 `Date.now()` 都合法）。
+    // api 层是「与后端对契约」的地方，任何「每次调用都不同」的随机值都会破坏幂等与重放。
+    //
+    // 注意：本块只覆盖这 3 个文件的 no-restricted-syntax，其他文件仍走主规则。
+    // api 层是纯 .ts（无 JSX），主规则里的裸文本/颜色条目对这里本来也不适用。
+    files: ['features/*/api/**/*.ts'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: "MemberExpression[object.name='Math'][property.name='random']",
+          message:
+            'api 层禁止生成随机值：幂等键等标识必须由页面用 useIdempotencyKey 传入，否则重试会被当成新请求（R-01）。',
+        },
+        {
+          selector: "MemberExpression[object.name='Date'][property.name='now']",
+          message:
+            'api 层禁止用 Date.now() 造标识：时间戳每次都不同，重试会被当成新请求（R-01）。要时间请由调用方传入。',
+        },
+      ],
     },
   },
 

@@ -43,6 +43,9 @@ import { Screen } from '@/shared/components/Screen';
 import { useI18n } from '@/shared/i18n';
 import type { MessageKey } from '@/shared/i18n';
 import { useAsyncResource } from '@/shared/hooks/useAsyncResource';
+import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
+import { useIdempotencyKey } from '@/shared/hooks/useIdempotencyKey';
+import { useOptimisticToggle } from '@/shared/hooks/useOptimisticToggle';
 import { useRefreshOnFocus } from '@/shared/hooks/useRefreshOnFocus';
 import { payHref } from '@/shared/navigation/routes';
 import { color, radius, size, spacing, typography } from '@/shared/theme';
@@ -161,8 +164,11 @@ export function LawyerDetailPage() {
   const [reviewPage, setReviewPage] = useState(0);
   const [reviewLoading, setReviewLoading] = useState(false);
   const [following, setFollowing] = useState(false);
-  const [followBusy, setFollowBusy] = useState(false);
   const [orderBusy, setOrderBusy] = useState(false);
+  /** 下单幂等键：页面挂载固定，成功后换新键，失败复用（见 useIdempotencyKey 注释）。 */
+  const orderIdem = useIdempotencyKey('trade-order');
+  /** 错误码 → 文案：不再把任何失败都显示成「登录已过期」或「原因未知」。 */
+  const errorText = useErrorMessage();
 
   // 详情加载成功后同步一次关注状态（服务端已返回 followed）
   useEffect(() => {
@@ -170,6 +176,16 @@ export function LawyerDetailPage() {
       setFollowing(resource.state.data.followed);
     }
   }, [resource.state]);
+
+  /** 关注 / 取关：翻转、失败回滚、防重入统一交给 useOptimisticToggle。 */
+  const follow = useOptimisticToggle({
+    value: following,
+    onChange: setFollowing,
+    apply: (next) => (next ? followLawyer(lawyerId) : unfollowLawyer(lawyerId)),
+    onSuccess: (next) => {
+      toast.show(t(next ? 'lawyer.detail.followOn' : 'lawyer.detail.followOff'));
+    },
+  });
 
   /**
    * 拉一页评价（追加）。
@@ -205,24 +221,11 @@ export function LawyerDetailPage() {
    * 关注 / 取关。
    *
    * 副作用：写 social_action 并切换按钮态。
+   *
+   * 实现已迁到 `useOptimisticToggle`（见上方 `follow`）：原来这里是「各写一遍」的版本，
+   * 问题有二——① 失败时按钮态不回滚；② 任何错误都 `toast` 成「登录已过期」
+   * （把某个特定错误码的文案当通用兜底，用户看到的信息是错的）。
    */
-  const toggleFollow = async (): Promise<void> => {
-    if (followBusy) {
-      return;
-    }
-    setFollowBusy(true);
-    try {
-      const result = following ? await unfollowLawyer(lawyerId) : await followLawyer(lawyerId);
-      if (!result.ok) {
-        toast.show(t('error.error.auth.token-invalid' as MessageKey));
-        return;
-      }
-      setFollowing(!following);
-      toast.show(t(following ? 'lawyer.detail.followOff' : 'lawyer.detail.followOn'));
-    } finally {
-      setFollowBusy(false);
-    }
-  };
 
   /**
    * 下单（立即咨询）。
@@ -237,17 +240,15 @@ export function LawyerDetailPage() {
     }
     setOrderBusy(true);
     try {
-      // 幂等键：一次点击一个 UUID，服务端据此保证连点只产生一单
-      const idempotencyKey = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-      const result = await createOrder({ lawyerId, serviceType }, idempotencyKey);
+      // 幂等键取自 hook：页面挂载时固定，成功后 reset，失败复用同一个键。
+      // 旧实现在这里现生成 `${Date.now()}-${Math.random()}`，等于「每次都当新提交」——
+      // 网络抖动后重试会建出第二单。这正是 DRIFT 记录的「幂等形同虚设」。
+      const result = await createOrder({ lawyerId, serviceType }, orderIdem.key);
       if (!result.ok) {
-        if (result.error.kind === 'business' && result.error.code === 402003) {
-          toast.show(t('lawyer.detail.loginRequired'));
-          return;
-        }
-        toast.show(t('trade.payResult.reasonUnknown'));
+        toast.show(errorText(result.error));
         return;
       }
+      orderIdem.reset();
       toast.show(t('lawyer.detail.orderCreated'));
       router.push(payHref(result.data.id));
     } finally {
@@ -433,9 +434,9 @@ export function LawyerDetailPage() {
                     label={following ? t('lawyer.detail.followed') : t('lawyer.detail.follow')}
                     variant="outline"
                     onPress={() => {
-                      void toggleFollow();
+                      void follow.toggle();
                     }}
-                    disabled={followBusy}
+                    disabled={follow.busy}
                     style={styles.actionGhost}
                   />
                   <PrimaryButton

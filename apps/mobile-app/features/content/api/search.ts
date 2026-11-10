@@ -93,7 +93,10 @@ export type LawItemBrief = {
 };
 
 /**
- * 按关键词检索法条（案例详情页「相关法条」点击时查原文）。
+ * 按关键词检索法条（法条检索页 / AI 降级检索用）。
+ *
+ * **不要拿它当「按条号取原文」的手段**——检索结果会随索引与排序变化，
+ * 按条号去搜再取首条，迟早会显示出另一条法条。按主键取原文用 {@link getLawItemById}。
  *
  * @param kw   关键词（法律名 + 条号）
  * @param size 每页条数
@@ -103,4 +106,30 @@ export function searchLawItems(kw: string, size = 5): Promise<ApiResult<{ list: 
   return get<{ list: LawItemBrief[] }>(
     `/api/v1/pub/law-items?kw=${encodeURIComponent(kw)}&pageSize=${size}`,
   );
+}
+
+/** 法条详情（后端 `LawItemPublicDetail` 形状，`content` 为**全文**，不截断）。 */
+export type LawItemDetail = {
+  id: string;
+  lawCode: string | null;
+  lawName: string | null;
+  articleNo: string | null;
+  content: string | null;
+  status: string | null;
+  effectiveDate: string | null;
+  expireDate: string | null;
+};
+
+/**
+ * 按**主键**取法条原文（含全文）。
+ *
+ * 来源：`GET /api/v1/pub/law-items/{id}`（2026-11-11 新增）。
+ * 此前 App 端只有列表接口，所以「案例引用的法条点开看原文」只能退化成关键词搜索——
+ * 那会在检索结果变化时显示另一条法条。这个接口补上之后，引用链路才真正精确。
+ *
+ * @param id 法条主键（字符串形式的 Long）
+ * @returns 法条详情；不存在时返回 401004
+ */
+export function getLawItemById(id: string): Promise<ApiResult<LawItemDetail>> {
+  return get<LawItemDetail>(`/api/v1/pub/law-items/${encodeURIComponent(id)}`);
 }

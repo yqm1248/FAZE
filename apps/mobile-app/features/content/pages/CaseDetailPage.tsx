@@ -29,7 +29,6 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { fetchCaseDetail } from '@/features/content/api/caseLibrary';
 import type { CaseDetail, CaseLawRef } from '@/features/content/api/caseLibrary';
-import { searchLawItems } from '@/features/content/api/search';
 import { AppHeader } from '@/shared/components/AppHeader';
 import { EmptyState } from '@/shared/components/EmptyState';
 import { ErrorState } from '@/shared/components/ErrorState';
@@ -39,6 +38,9 @@ import { LtrText } from '@/shared/components/LtrText';
 import { PrimaryButton } from '@/shared/components/PrimaryButton';
 import { Screen } from '@/shared/components/Screen';
 import { toggleCaseFavorite } from '@/features/content/api/favorite';
+import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
+import { useLawItemByRef } from '@/shared/hooks/useLawItemByRef';
+import { useOptimisticToggle } from '@/shared/hooks/useOptimisticToggle';
 import { useI18n } from '@/shared/i18n';
 import type { MessageKey } from '@/shared/i18n';
 import type { AppError } from '@/shared/api/types';
@@ -70,8 +72,10 @@ export function CaseDetailPage() {
   const [detail, setDetail] = useState<CaseDetail | null>(null);
   const [phase, setPhase] = useState<'loading' | 'success' | 'empty' | 'error'>('loading');
   const [error, setError] = useState<AppError | null>(null);
-  const [favoriting, setFavoriting] = useState(false);
-  const [lawPopup, setLawPopup] = useState<{ title: string; content: string } | null>(null);
+  /** 收藏真值（受控）：初始来自详情接口，之后由乐观切换维护。 */
+  const [favorited, setFavorited] = useState(false);
+  /** 当前打开的法条弹层；null = 未打开。内容按 `lawItemId` 精确回查，不做关键词搜索。 */
+  const [activeLawRef, setActiveLawRef] = useState<CaseLawRef | null>(null);
 
   /** 拉详情。 */
   const load = useCallback(async (): Promise<void> => {
@@ -92,6 +96,7 @@ export function CaseDetailPage() {
       return;
     }
     setDetail(res.data);
+    setFavorited(res.data.favorited === true);
     setError(null);
     setPhase('success');
   }, [caseId, lang]);
@@ -100,41 +105,62 @@ export function CaseDetailPage() {
     void load();
   }, [load]);
 
-  /** 切换收藏。 */
-  const handleFavorite = async (): Promise<void> => {
-    if (detail === null || favoriting) {
-      return;
-    }
-    setFavoriting(true);
-    const next = !(detail.favorited === true);
-    const res = await toggleCaseFavorite(detail.id, next);
-    setFavoriting(false);
-    if (res.ok) {
-      setDetail({ ...detail, favorited: next });
-    }
-  };
+  /** 法条原文：按 `lawItemId` 精确回查（后端 `GET /pub/law-items/{id}`）。 */
+  const lawItem = useLawItemByRef(activeLawRef?.lawItemId ?? null);
+  /** 错误码 → 文案（不硬编码，也不复用其他错误的文案）。 */
+  const errorText = useErrorMessage();
+
+  /** 收藏 / 取消收藏：翻转、失败回滚、防重入统一由 useOptimisticToggle 处理。 */
+  const favorite = useOptimisticToggle({
+    value: favorited,
+    onChange: setFavorited,
+    apply: (next) => toggleCaseFavorite(caseId, next),
+  });
 
   /**
-   * 点法条：查条文原文并弹层。
+   * 点法条：打开弹层，原文由 `useLawItemByRef` 按 `lawItemId` 精确回查。
+   *
+   * **不再用关键词搜索**：旧实现是「拿 lawName + articleNo 去搜，再 find(...) ?? list[0]」，
+   * 检索结果一变就会显示**另一条法条**——那是内容错误，不是显示错误。
+   * 没有 `lawItemId` 时诚实显示「无法定位条文」，而不是拿搜索首条充数。
    *
    * @param ref 法条引用
    */
-  const openLaw = async (ref: CaseLawRef): Promise<void> => {
-    const keyword = `${ref.lawName} ${ref.articleNo}`;
-    const res = await searchLawItems(keyword, 5);
-    if (!res.ok) {
-      setLawPopup({ title: `${ref.lawName} ${ref.articleNo}`, content: t('content.case.lawPopupEmpty') });
-      return;
-    }
-    const hit = res.data.list.find((item) => item.articleNo === ref.articleNo)
-      ?? res.data.list[0];
-    setLawPopup({
-      title: hit?.articleNo === null || hit?.articleNo === undefined
-        ? `${ref.lawName} ${ref.articleNo}`
-        : `${hit.lawName ?? ref.lawName} ${hit.articleNo}`,
-      content: hit?.content ?? t('content.case.lawPopupEmpty'),
-    });
+  const openLaw = (ref: CaseLawRef): void => {
+    setActiveLawRef(ref);
   };
+
+  /** 法条弹层标题：优先用回查到的条文信息，回查中/失败时退回引用本身的文字。 */
+  const lawTitle = ((): string => {
+    if (activeLawRef === null) {
+      return '';
+    }
+    if (lawItem.state.phase === 'success') {
+      const item = lawItem.state.data;
+      return `${item.lawName ?? activeLawRef.lawName} ${item.articleNo ?? activeLawRef.articleNo}`;
+    }
+    return `${activeLawRef.lawName} ${activeLawRef.articleNo}`;
+  })();
+
+  /** 法条弹层正文：四态各自处理，任何一种都不显示「别的法条」。 */
+  const lawBody = ((): string => {
+    if (activeLawRef === null) {
+      return '';
+    }
+    if (activeLawRef.lawItemId === null) {
+      return t('content.case.lawPopupEmpty');
+    }
+    switch (lawItem.state.phase) {
+      case 'loading':
+        return t('common.state.loading');
+      case 'error':
+        return errorText(lawItem.state.error);
+      case 'empty':
+        return t('content.case.lawPopupEmpty');
+      case 'success':
+        return lawItem.state.data.content ?? t('content.case.lawPopupEmpty');
+    }
+  })();
 
   /** 标题区的「来源 · 年份 · 阅读量」文案。 */
   const metaText = ((): string => {
@@ -234,12 +260,12 @@ export function CaseDetailPage() {
               <Pressable
                 testID="case-favorite"
                 accessibilityRole="button"
-                accessibilityState={{ selected: detail.favorited === true }}
-                onPress={() => void handleFavorite()}
+                accessibilityState={{ selected: favorited, disabled: favorite.busy }}
+                onPress={() => void favorite.toggle()}
                 style={({ pressed }) => [styles.ghostBtn, pressed ? styles.pressed : null]}
               >
                 <LocalizedText numberOfLines={1} style={styles.ghostText}>
-                  {detail.favorited === true
+                  {favorited
                     ? t('content.case.favorited')
                     : t('content.case.favorite')}
                 </LocalizedText>
@@ -257,26 +283,26 @@ export function CaseDetailPage() {
       </View>
 
       <Modal
-        visible={lawPopup !== null}
+        visible={activeLawRef !== null}
         transparent
         animationType="fade"
-        onRequestClose={() => setLawPopup(null)}
+        onRequestClose={() => setActiveLawRef(null)}
       >
         <View style={styles.mask}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => setLawPopup(null)} accessibilityRole="button" />
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setActiveLawRef(null)} accessibilityRole="button" />
           <View style={[styles.popup, shadow.cardRaised]} testID="law-popup">
             <LocalizedText numberOfLines={2} style={styles.popupTitle}>
-              {lawPopup?.title ?? t('content.case.lawPopupTitle')}
+              {lawTitle === '' ? t('content.case.lawPopupTitle') : lawTitle}
             </LocalizedText>
             <ScrollView style={styles.popupBody}>
               <LocalizedText numberOfLines={60} style={styles.popupText}>
-                {lawPopup?.content ?? ''}
+                {lawBody}
               </LocalizedText>
             </ScrollView>
             <PrimaryButton
               label={t('content.case.lawPopupClose')}
               variant="outline"
-              onPress={() => setLawPopup(null)}
+              onPress={() => setActiveLawRef(null)}
             />
           </View>
         </View>

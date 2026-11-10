@@ -33,6 +33,8 @@ import { FormField } from '@/shared/components/FormField';
 import { LocalizedText } from '@/shared/components/LocalizedText';
 import { PrimaryButton } from '@/shared/components/PrimaryButton';
 import { useI18n } from '@/shared/i18n';
+import { formatAmount } from '@/shared/i18n/datetime';
+import { useIdempotencyKey } from '@/shared/hooks/useIdempotencyKey';
 import { color, radius, shadow, spacing, typography } from '@/shared/theme';
 
 /** `WithdrawPanel` 的属性。 */
@@ -46,17 +48,6 @@ export type WithdrawPanelProps = {
   /** 提现成功后回调（父页刷新余额与记录）。 */
   onDone: () => void;
 };
-
-/**
- * 生成幂等键（服务端白名单 `[A-Za-z0-9_-]{1,64}`）。
- *
- * @returns 形如 `wlv8x2k9a1b2c3` 的键
- */
-function newIdempotencyKey(): string {
-  const time = Date.now().toString(36);
-  const rand = Math.random().toString(36).slice(2, 10);
-  return `w${time}${rand}`;
-}
 
 /**
  * 分 → 元文本（两位小数，无千分位；输入框回填用）。
@@ -88,16 +79,16 @@ function yuanTextToCents(text: string): number | null {
 }
 
 /**
- * 分 → 元展示文本（带千分位）。
+ * 分 → 元展示文本（带千分位，**不带 ¥**）。
+ *
+ * 实现委托给 `formatAmount(cents, false)`——金额格式化全 App 只有一个入口。
+ * 保留薄包装是因为调用点大多在 `t()` 的占位符里（需要不带货币符号的元串）。
  *
  * @param cents 金额（分）
  * @returns 形如 `1,234.00`
  */
 function formatCents(cents: number): string {
-  const text = centsToYuanText(cents);
-  const [intPart = '0', fracPart = '00'] = text.split('.');
-  const grouped = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-  return `${grouped}.${fracPart}`;
+  return formatAmount(cents, false);
 }
 
 /**
@@ -137,7 +128,13 @@ export function WithdrawPanel({ visible, availableCents, onClose, onDone }: With
   const [amountText, setAmountText] = useState('');
   const [errorText, setErrorText] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [idempotencyKey, setIdempotencyKey] = useState('');
+  /**
+   * 提现幂等键。
+   *
+   * 与「页面挂载固定」不同：提现面板是弹层，**每次打开 = 一次独立操作**，
+   * 所以打开时 `reset()` 换新键；失败重试仍复用同一个键（复用才能让服务端认出是重试）。
+   */
+  const withdrawIdem = useIdempotencyKey('lawyer-withdraw');
   const [bindForm, setBindForm] = useState({ bankName: '', accountName: '', bankAccount: '' });
   const [binding, setBinding] = useState(false);
 
@@ -170,9 +167,9 @@ export function WithdrawPanel({ visible, availableCents, onClose, onDone }: With
     }
     setErrorText(null);
     setAmountText('');
-    setIdempotencyKey(newIdempotencyKey());
+    withdrawIdem.reset();
     void loadPanel();
-  }, [visible, loadPanel]);
+  }, [visible, loadPanel, withdrawIdem]);
 
   /** 全部提现：把可提现余额填进输入框。 */
   const fillAll = (): void => {
@@ -197,12 +194,14 @@ export function WithdrawPanel({ visible, availableCents, onClose, onDone }: With
       return;
     }
     setSubmitting(true);
-    const res = await applyWithdraw(String(amountCents), idempotencyKey);
+    const res = await applyWithdraw(String(amountCents), withdrawIdem.key);
     setSubmitting(false);
     if (!res.ok) {
       setErrorText(t('workbench.income.withdrawFailed'));
       return;
     }
+    // 成功 → 换新键：下次提现是新操作，不能复用旧键（否则服务端回放上一次的结果）
+    withdrawIdem.reset();
     onDone();
     onClose();
   };
@@ -345,7 +344,7 @@ export function WithdrawPanel({ visible, availableCents, onClose, onDone }: With
                     {t('workbench.income.withdrawExpected')}
                   </LocalizedText>
                   <LocalizedText numberOfLines={1} style={styles.infoValue} testID="withdraw-expected">
-                    {`¥ ${formatCents(expectedCents)}`}
+                    {formatAmount(expectedCents)}
                   </LocalizedText>
                 </View>
                 <LocalizedText numberOfLines={2} style={styles.feeNote} testID="withdraw-fee-note">
