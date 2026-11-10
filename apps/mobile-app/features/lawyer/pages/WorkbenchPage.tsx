@@ -44,7 +44,6 @@ import { ToggleRow } from '@/shared/components/ToggleRow';
 import { useI18n } from '@/shared/i18n';
 import type { MessageKey } from '@/shared/i18n';
 import { useAsyncResource } from '@/shared/hooks/useAsyncResource';
-import { useRefreshOnFocus } from '@/shared/hooks/useRefreshOnFocus';
 import { PAGE_ROUTES } from '@/shared/navigation/routes';
 import { color, radius, size, spacing, typography } from '@/shared/theme';
 import { centsFromServer } from '@/shared/utils/money';
@@ -381,8 +380,11 @@ function WorkbenchBody({
 export function WorkbenchPage() {
   const { t } = useI18n();
   const resource = useAsyncResource<WorkbenchSummary>(getWorkbenchSummary);
-  // 从订单 / 收入 / 咨询等子页返回时静默刷新看板数字（不闪骨架）。
-  useRefreshOnFocus(resource.reloadSilently);
+  // **故意不接 useRefreshOnFocus**（P1-6 的例外，Lead 裁决）：
+  // WorkbenchBody 用 `useEffect([summary])` 把服务端值同步进本地的价格输入框与开关态，
+  // 聚焦静默刷新会换掉 `summary` 引用 → 律师「改价改到一半去子页再回来，未保存的输入被覆盖」，
+  // 且没有任何提示。丢输入比数字不新鲜更糟，所以这里不刷（本页也没有下拉刷新，
+  // 需要新数据时重进本页即可）。若要两者兼得，应给 WorkbenchBody 加 dirtyRef 守卫。
   const reload = useCallback(() => resource.reload(), [resource]);
   return (
     <Screen edges={['top', 'left', 'right', 'bottom']}>
