@@ -20,6 +20,13 @@ export type AppPublicConfig = {
   onlineHours: string;
   /** 客服电话，如 `002-00854967`；未配置为空串。 */
   phone: string;
+  /**
+   * 客服热线时段，如 `09:00-18:00`（V711 起由 `sys_config.service.phone_hours` 下发）。
+   *
+   * **永远有值**：键缺失时后端回退默认值，页面不需要自己写兜底。
+   * 与 `onlineHours` 是两条不同服务（在线客服 09:00-20:00 / 热线 09:00-18:00），不要混用。
+   */
+  phoneHours: string;
 };
 
 /** FAQ 分类（与后端 `faq.category` 的四类一一对应）。 */

@@ -3,7 +3,7 @@
  *
  * 职责：三个自助/求助入口（常见问题 → 在线客服 → 客服热线）+ 「大家常问」5 条直达 + 页尾说明。
  * 调用方：路由壳 `app/support.tsx`；入口在「我的」页的「我的与服务」分组。
- * 数据来源：`GET /api/v1/pub/app/config`（在线时段 + 电话，免登录）+
+ * 数据来源：`GET /api/v1/pub/app/config`（在线时段 + 热线时段 + 电话，免登录）+
  *           `GET /api/v1/pub/faq`（「大家常问」取前 5 条）。
  * 注意：
  *   1. **顺序是这一页最重要的设计决定**：常见问题在最上、占最大面积。人工客服是成本最高的
@@ -11,6 +11,11 @@
  *      （设计稿 55 的文件头原话）。
  *   2. **号码与时段一律从服务端读**，页面不许写死——工作流 §十 要求「改了 `sys_config`
  *      后页面跟着变」。配置读失败时电话区退化成「客服电话待配置」，入口不隐藏。
+ *      两条时段**各自独立配置**：在线客服 `onlineHours`（09:00-20:00）、
+ *      热线 `phoneHours`（09:00-18:00），值不同是设计意图（设计稿 55 热线原文
+ *      「工作日 9:00–18:00」），不要合并、也不要拿一条兜底另一条。
+ *      热线时段原先写死成 TS 常量，2026-11-10 起改由 `sys_config.service.phone_hours`
+ *      经 `config.phoneHours` 下发（P2-3）。
  *   3. **本段不做真人在线客服（IM）**（工作流 §零之二 第 7 条）：时段内点「在线客服」
  *      只提示「当前无在线客服，请留言或拨打 {电话}」；非时段直接去反馈页留言。
  *   4. 反馈页的 `type` 白名单只有 `feature/bug/experience/other`（后端 `FeedbackSubmitBO`），
@@ -45,9 +50,6 @@ const HOT_FAQ_LIMIT = 5;
 
 /** 时段刷新的间隔（毫秒）：每分钟重算一次在线状态。 */
 const CLOCK_REFRESH_MS = 60_000;
-
-/** 热线服务时段（稿面文案，固定值；只影响展示，不参与逻辑）。 */
-const PHONE_HOURS = '9:00–18:00';
 
 /**
  * 三个入口的图标与配色（图标名来自 Ionicons）。
@@ -228,7 +230,7 @@ export function SupportPage() {
                         {config.phone === '' ? t('ops.support.entryPhoneMissing') : config.phone}
                       </LocalizedText>
                       <LocalizedText numberOfLines={2} style={styles.entryDesc}>
-                        {t('ops.support.entryPhoneDesc', { hours: PHONE_HOURS })}
+                        {t('ops.support.entryPhoneDesc', { hours: config.phoneHours })}
                       </LocalizedText>
                     </View>
                     <Ionicons name="chevron-forward" size={16} color={color.text.muted} />

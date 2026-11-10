@@ -1,8 +1,8 @@
 /*
- * 职责：APP 端「聚合公开配置」接口——一次返回客服在线时段 + 客服电话，
+ * 职责：APP 端「聚合公开配置」接口——一次返回客服在线时段 + 客服电话 + 客服热线时段，
  *       供 APP 55（在线客服）/ 56（常见问题）/「关于」页直接渲染。
  * 调用方：apps/mobile-app 的客服域页面（C5 三页共用一份配置，见第 7 段 C5）。
- * 数据来源：faze.sys_config 的 `service.online_hours` / `service.phone`，
+ * 数据来源：faze.sys_config 的 `service.online_hours` / `service.phone` / `service.phone_hours`，
  *           经 SysConfigQueryService 只读查询（每次实时查库，不缓存）。
  * 注意：
  *   1. **为什么单独开聚合接口，不复用 `/pub/config/{configKey}`**（四个理由，缺一不可）：
@@ -48,6 +48,9 @@ public class PubAppConfigController {
     /** 客服电话的配置键（V707 起为正式号 `002-00854967`）。 */
     private static final String KEY_PHONE = "service.phone";
 
+    /** 客服热线时段的配置键（V711 种子，值形如 `09:00-18:00`）。 */
+    private static final String KEY_PHONE_HOURS = "service.phone_hours";
+
     /**
      * 在线时段的默认值。
      *
@@ -55,6 +58,18 @@ public class PubAppConfigController {
      * ——客服时段是稳定业务事实，不是可选内容。</p>
      */
     private static final String DEFAULT_ONLINE_HOURS = "09:00-20:00";
+
+    /**
+     * 热线时段的默认值。
+     *
+     * <p>与设计稿 `design/ui/55-support.html` 的「工作日 9:00–18:00」一致，也与 V711 种子一致。
+     * **和在线客服时段本来就是两条不同服务**（在线客服 `09:00-20:00`、热线 `09:00-18:00`），
+     * 两个值不同是设计意图，不要合并成一个键。</p>
+     *
+     * <p>格式必须是 `HH:mm-HH:mm`（补零 + 半角连字符）：APP 端 `isWithinServiceHours()`
+     * 的正则是 `/^(\d{2}):(\d{2})-(\d{2}):(\d{2})$/`，写成 `9:00–18:00` 会静默判成「不在服务时间」。</p>
+     */
+    private static final String DEFAULT_PHONE_HOURS = "09:00-18:00";
 
     /**
      * 电话的默认值：空串。
@@ -70,16 +85,17 @@ public class PubAppConfigController {
     /**
      * 取 APP 需要的公开配置。
      *
-     * <p>无副作用（只读 sys_config）。两个键都缺失时仍返回 200 + 默认值，
+     * <p>无副作用（只读 sys_config）。三个键都缺失时仍返回 200 + 默认值，
      * 不会因为配置没准备好让 APP 端启动即报错。</p>
      *
-     * @return 客服在线时段与客服电话
+     * @return 客服在线时段、客服电话与客服热线时段
      */
     @GetMapping("/config")
     public R<AppPublicConfigVO> config() {
         AppPublicConfigVO vo = new AppPublicConfigVO();
         vo.setOnlineHours(sysConfigQueryService.getString(KEY_ONLINE_HOURS, DEFAULT_ONLINE_HOURS));
         vo.setPhone(sysConfigQueryService.getString(KEY_PHONE, DEFAULT_PHONE));
+        vo.setPhoneHours(sysConfigQueryService.getString(KEY_PHONE_HOURS, DEFAULT_PHONE_HOURS));
         return R.ok(vo);
     }
 
@@ -96,6 +112,9 @@ public class PubAppConfigController {
 
         /** 客服电话；空串表示「未配置」，前端应隐藏电话行。 */
         private String phone;
+
+        /** 客服热线时段（如 `09:00-18:00`），永远有值；与在线客服时段是两条不同服务。 */
+        private String phoneHours;
 
         /**
          * 取在线时段。
@@ -131,6 +150,24 @@ public class PubAppConfigController {
          */
         public void setPhone(String phone) {
             this.phone = phone;
+        }
+
+        /**
+         * 取客服热线时段。
+         *
+         * @return 热线时段，如 `09:00-18:00`
+         */
+        public String getPhoneHours() {
+            return phoneHours;
+        }
+
+        /**
+         * 设置客服热线时段。
+         *
+         * @param phoneHours 热线时段（`HH:mm-HH:mm`）
+         */
+        public void setPhoneHours(String phoneHours) {
+            this.phoneHours = phoneHours;
         }
     }
 }
