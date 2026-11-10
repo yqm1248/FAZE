@@ -20,11 +20,13 @@
  *      首页给不出具体案件，直接跳会是错误页。
  *   6. 段 2 没有底部 tab 导航（全局导航属段 3）：本页顶部**消息图标**承担消息入口
  *      （工作流 G8.3 第 3 条），「我的」入口由底部 tab 承担，不在这里重复放头像。
- *   7. 未实现的功能（搜索）点按给「即将开放」提示，**不做成静默无反应的按钮**。
+ *   7. 搜索框**真跳 `/search`**（P1-8 修）：此前是「搜索功能即将开放」的 toast 占位；
+ *      现在搜索页已完整实现，点按必须真跳，不能做成静默无反应的按钮。
  */
 
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import type { Href } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
@@ -159,7 +161,7 @@ export function HomePage() {
       if (result.ok) {
         const template = result.data.find((item) => item.code.startsWith(LAWSUIT_CODE_PREFIX));
         if (template !== undefined) {
-          router.push(`/doc/lawsuit?templateId=${encodeURIComponent(template.id)}` as never);
+          router.push(`${String(PAGE_ROUTES.docLawsuit)}?templateId=${encodeURIComponent(template.id)}` as Href);
           return;
         }
       }

@@ -26,6 +26,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactElement } from 'react';
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import type { Href } from 'expo-router';
 
 import { searchAll } from '@/features/content/api/search';
 import type {
@@ -41,6 +42,7 @@ import { LocalizedText } from '@/shared/components/LocalizedText';
 import { Screen } from '@/shared/components/Screen';
 import { useI18n } from '@/shared/i18n';
 import type { MessageKey } from '@/shared/i18n';
+import { PAGE_ROUTES } from '@/shared/navigation/routes';
 import { readStringListPref, writeStringListPref } from '@/shared/utils/prefStore';
 import type { AppError } from '@/shared/api/types';
 import { color, radius, size, spacing, typography } from '@/shared/theme';
@@ -448,7 +450,7 @@ export function SearchPage() {
                   testID={`search-row-document-${item.id}`}
                   accessibilityRole="button"
                   accessibilityLabel={item.name ?? ''}
-                  onPress={() => router.push(`/doc/form?templateId=${item.id}`)}
+                  onPress={() => router.push(`${String(PAGE_ROUTES.docForm)}?templateId=${item.id}` as Href)}
                   style={({ pressed }) => [styles.row, pressed ? styles.pressed : null]}
                 >
                   <LocalizedText numberOfLines={1} style={styles.rowTitle}>
