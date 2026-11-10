@@ -17,6 +17,9 @@
  *   6. **提现记录的金额按状态分支展示**（P1-2）：只有 `paid` 才是「到账」，
  *      `applying` / `approved` 是「预计到账」，`rejected` **不显示金额**（驳回理由单独一行）。
  *      后端驳回时**不会清 `actual_cents`**，无条件渲染就会把「被驳回的 99.40」写成「已到账」。
+ *   7. 明细标题按 `serviceType` code 查 `SERVICE_KEYS`（P2-1）：后端下发的是
+ *      `orders.service_type` 的枚举 code，不是标题。原样上屏用户会看到 `consult_text`；
+ *      未映射 / 无关联订单的行统一显示「其他收入」，**任何分支都不显示 code**。
  *
  * testID 清单：income-screen / income-available / income-pending / income-range-{week|month|total} /
  *              income-week / income-month / income-total / income-rules / income-list /
@@ -65,6 +68,38 @@ const WITHDRAW_STATUS_KEY: Record<WithdrawRow['status'], MessageKey> = {
   rejected: 'workbench.income.withdrawStatusRejected',
   paid: 'workbench.income.withdrawStatusPaid',
 };
+
+/**
+ * 服务类型 → 文案 key。
+ *
+ * 后端 `IncomeFlowRowVO.serviceType` 下发的是 `orders.service_type` 的**枚举 code**，
+ * 不是标题；页面必须查表，**不许把 code 原样上屏**（P2-1：用户看到过 `consult_text`）。
+ * 这里用 `trade.order.service*` 这套 key（收入流水属交易语义，`trade.json` 已有这 4 条）。
+ *
+ * 全仓另有 5 处同样映射（OrderList / OrderDetail / PayPage / ReviewPage / LawyerOrders），
+ * 统一收口是另一笔债，本处先就地定义，别抄漏 `serviceConsultPhone`。
+ */
+const SERVICE_KEYS: Record<string, MessageKey> = {
+  consult_text: 'trade.order.serviceConsultText',
+  consult_phone: 'trade.order.serviceConsultPhone',
+  document: 'trade.order.serviceDocument',
+  case: 'trade.order.serviceCase',
+};
+
+/**
+ * 收入行标题：服务类型 code → 文案 key。
+ *
+ * 未映射的 code 与「无关联订单」的行都回落到「其他收入」，**任何分支都不返回 code 本身**。
+ *
+ * @param serviceType 后端下发的服务类型 code；`null` 表示该笔流水无关联订单
+ * @returns 标题的 i18n key
+ */
+function serviceTitleKey(serviceType: string | null): MessageKey {
+  if (serviceType === null) {
+    return 'workbench.income.otherTitle';
+  }
+  return SERVICE_KEYS[serviceType] ?? 'workbench.income.otherTitle';
+}
 
 /**
  * 分（字符串）→ 元（两位小数）。
@@ -306,7 +341,7 @@ export function IncomePage() {
                 <View key={flow.flowId} style={styles.row} testID={`income-row-${flow.flowId}`}>
                   <View style={styles.rowBody}>
                     <LocalizedText numberOfLines={1} style={styles.rowTitle}>
-                      {flow.orderTitle ?? t('workbench.income.otherTitle')}
+                      {t(serviceTitleKey(flow.serviceType))}
                     </LocalizedText>
                     <LocalizedText numberOfLines={1} style={styles.rowSub}>
                       {flow.orderNo === null

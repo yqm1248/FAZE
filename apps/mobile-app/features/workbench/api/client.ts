@@ -68,7 +68,13 @@ export type IncomeFlowRow = {
   deltaCents: string;
   balanceAfter: string | null;
   orderNo: string | null;
-  orderTitle: string | null;
+  /**
+   * 服务类型 code（`consult_text` / `consult_phone` / `document` / `case`），不是标题。
+   *
+   * 后端只下发 code，文案由页面按 i18n 表查；`null` 表示该笔流水无关联订单。
+   * 页面**不许把 code 原样上屏**（P2-1：用户看到过 `consult_text`）。
+   */
+  serviceType: string | null;
   remark: string | null;
   createdAt: string;
 };

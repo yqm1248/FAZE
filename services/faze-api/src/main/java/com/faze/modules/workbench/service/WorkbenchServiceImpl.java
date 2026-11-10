@@ -281,7 +281,8 @@ public class WorkbenchServiceImpl implements WorkbenchService {
             if (order != null) {
                 // 每行必须有订单号（§零之二 第 18 项）：用户能逐笔追到订单
                 row.setOrderNo(order.getOrderNo());
-                row.setOrderTitle(order.getServiceType());
+                // 下发 service_type 的 code（不是标题）：App 端按 code 查 i18n，见 IncomeFlowRowVO 第 4 条
+                row.setServiceType(order.getServiceType());
             }
             list.add(row);
         }
