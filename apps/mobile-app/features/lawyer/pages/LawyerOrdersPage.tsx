@@ -38,6 +38,7 @@ import { PrimaryButton } from '@/shared/components/PrimaryButton';
 import { Screen } from '@/shared/components/Screen';
 import { useI18n } from '@/shared/i18n';
 import type { MessageKey } from '@/shared/i18n';
+import { useRefreshOnFocus } from '@/shared/hooks/useRefreshOnFocus';
 import { color, radius, size, spacing, typography } from '@/shared/theme';
 import { centsFromServer } from '@/shared/utils/money';
 import { formatServerDateTime } from '@/shared/utils/serverTime';
@@ -215,26 +216,40 @@ export function LawyerOrdersPage() {
   const [rejectTarget, setRejectTarget] = useState<LawyerOrder | null>(null);
   const phaseRef = useRef(phase);
   phaseRef.current = phase;
+  /** 拉列表的 in-flight 守卫：轮询与聚焦刷新同时触发时只发一条请求。 */
+  const inFlightRef = useRef(false);
 
   /**
    * 拉列表（不闪现 loading：轮询时保持现有内容）。
    *
-   * @param silent 是否静默刷新（轮询用）
+   * @param silent 是否静默刷新（轮询 / 聚焦用）：失败时保留当前列表，不把页面打成错误态
    */
   const load = useCallback(
     async (silent: boolean): Promise<void> => {
-      if (!silent) {
-        setPhase('loading');
-      }
-      const result = await getLawyerOrders(FILTER_STATUS[filter], 1, PAGE_SIZE);
-      if (!result.ok) {
-        setError(result.error);
-        setPhase('error');
+      // 轮询与聚焦刷新可能同时触发：in-flight 守卫保证同一时刻只有一条请求。
+      if (inFlightRef.current) {
         return;
       }
-      setError(null);
-      setItems(result.data.list);
-      setPhase(result.data.list.length === 0 ? 'empty' : 'success');
+      inFlightRef.current = true;
+      try {
+        if (!silent) {
+          setPhase('loading');
+        }
+        const result = await getLawyerOrders(FILTER_STATUS[filter], 1, PAGE_SIZE);
+        if (!result.ok) {
+          if (silent) {
+            return;
+          }
+          setError(result.error);
+          setPhase('error');
+          return;
+        }
+        setError(null);
+        setItems(result.data.list);
+        setPhase(result.data.list.length === 0 ? 'empty' : 'success');
+      } finally {
+        inFlightRef.current = false;
+      }
     },
     [filter],
   );
@@ -242,6 +257,13 @@ export function LawyerOrdersPage() {
   useEffect(() => {
     void load(false);
   }, [load]);
+
+  // 从订单详情 / 会话返回时静默刷新（不闪骨架，也不与轮询打架）。
+  useRefreshOnFocus(
+    useCallback(() => {
+      void load(true);
+    }, [load]),
+  );
 
   // 轮询：10 秒一次，页面卸载自动清理
   useEffect(() => {

@@ -24,7 +24,7 @@
  *              income-retry / income-loading / income-withdraw
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 
 import { fetchIncomeFlows, fetchIncomeOverview, fetchWithdrawals } from '@/features/workbench/api/client';
@@ -39,6 +39,7 @@ import { PrimaryButton } from '@/shared/components/PrimaryButton';
 import { Screen } from '@/shared/components/Screen';
 import { useI18n } from '@/shared/i18n';
 import type { MessageKey } from '@/shared/i18n';
+import { useRefreshOnFocus } from '@/shared/hooks/useRefreshOnFocus';
 import type { AppError } from '@/shared/api/types';
 import { color, radius, size, spacing, typography } from '@/shared/theme';
 
@@ -123,42 +124,74 @@ export function IncomePage() {
   const [panelVisible, setPanelVisible] = useState(false);
   const [withdrawals, setWithdrawals] = useState<WithdrawRow[]>([]);
 
-  /** 拉概览 + 首屏明细 + 提现记录。 */
-  const load = useCallback(async (next: 'week' | 'month' | 'total', isRefresh = false): Promise<void> => {
-    if (!isRefresh) {
-      setPhase('loading');
-    }
-    const [overviewRes, flowsRes, withdrawalsRes] = await Promise.all([
-      fetchIncomeOverview(next),
-      fetchIncomeFlows(next, null),
-      fetchWithdrawals(1, 10),
-    ]);
-    if (!overviewRes.ok) {
-      setError(overviewRes.error);
-      setPhase('error');
+  /** 是否已经用「加载更多」翻过流水：翻过就不做聚焦刷新，避免把列表打回第 1 页。 */
+  const flowsPagedRef = useRef(false);
+
+  /**
+   * 拉概览 + 首屏明细 + 提现记录。
+   *
+   * @param next      统计区间
+   * @param isRefresh 下拉刷新（不置 loading）
+   * @param silent    静默刷新（聚焦用）：不置 loading、失败保留已有数据
+   */
+  const load = useCallback(
+    async (
+      next: 'week' | 'month' | 'total',
+      isRefresh = false,
+      silent = false,
+    ): Promise<void> => {
+      if (!isRefresh && !silent) {
+        setPhase('loading');
+      }
+      const [overviewRes, flowsRes, withdrawalsRes] = await Promise.all([
+        fetchIncomeOverview(next),
+        fetchIncomeFlows(next, null),
+        fetchWithdrawals(1, 10),
+      ]);
+      if (!overviewRes.ok) {
+        if (silent) {
+          return;
+        }
+        setError(overviewRes.error);
+        setPhase('error');
+        setRefreshing(false);
+        return;
+      }
+      if (!flowsRes.ok) {
+        if (silent) {
+          return;
+        }
+        setError(flowsRes.error);
+        setPhase('error');
+        setRefreshing(false);
+        return;
+      }
+      setError(null);
+      setOverview(overviewRes.data);
+      setFlows(flowsRes.data.list);
+      setCursor(flowsRes.data.nextCursor);
+      setHasMore(flowsRes.data.hasMore);
+      // 提现记录失败不阻断收入页主体：区块自己走空态
+      setWithdrawals(withdrawalsRes.ok ? withdrawalsRes.data.list : []);
+      setPhase(flowsRes.data.list.length === 0 ? 'empty' : 'success');
       setRefreshing(false);
-      return;
-    }
-    if (!flowsRes.ok) {
-      setError(flowsRes.error);
-      setPhase('error');
-      setRefreshing(false);
-      return;
-    }
-    setError(null);
-    setOverview(overviewRes.data);
-    setFlows(flowsRes.data.list);
-    setCursor(flowsRes.data.nextCursor);
-    setHasMore(flowsRes.data.hasMore);
-    // 提现记录失败不阻断收入页主体：区块自己走空态
-    setWithdrawals(withdrawalsRes.ok ? withdrawalsRes.data.list : []);
-    setPhase(flowsRes.data.list.length === 0 ? 'empty' : 'success');
-    setRefreshing(false);
-  }, []);
+    },
+    [],
+  );
 
   useEffect(() => {
     void load(range);
   }, [load, range]);
+
+  // 回到本页时静默刷新（从提现面板 / 订单页返回后，余额与记录应是新的）。
+  useRefreshOnFocus(
+    useCallback(() => {
+      if (flowsPagedRef.current) {
+        return;
+      }
+      void load(range, false, true);
+    }, [load, range]),
+  );
 
   /** 加载更多（游标追加）。 */
   const loadMore = async (): Promise<void> => {
@@ -166,6 +199,7 @@ export function IncomePage() {
       return;
     }
     setLoadingMore(true);
+    flowsPagedRef.current = true;
     const res = await fetchIncomeFlows(range, cursor);
     setLoadingMore(false);
     if (!res.ok) {

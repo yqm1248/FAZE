@@ -44,6 +44,7 @@ import { ToggleRow } from '@/shared/components/ToggleRow';
 import { useI18n } from '@/shared/i18n';
 import type { MessageKey } from '@/shared/i18n';
 import { useAsyncResource } from '@/shared/hooks/useAsyncResource';
+import { useRefreshOnFocus } from '@/shared/hooks/useRefreshOnFocus';
 import { PAGE_ROUTES } from '@/shared/navigation/routes';
 import { color, radius, size, spacing, typography } from '@/shared/theme';
 import { centsFromServer } from '@/shared/utils/money';
@@ -380,6 +381,8 @@ function WorkbenchBody({
 export function WorkbenchPage() {
   const { t } = useI18n();
   const resource = useAsyncResource<WorkbenchSummary>(getWorkbenchSummary);
+  // 从订单 / 收入 / 咨询等子页返回时静默刷新看板数字（不闪骨架）。
+  useRefreshOnFocus(resource.reloadSilently);
   const reload = useCallback(() => resource.reload(), [resource]);
   return (
     <Screen edges={['top', 'left', 'right', 'bottom']}>

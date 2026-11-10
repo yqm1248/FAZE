@@ -29,6 +29,7 @@ import { LoadingState } from '@/shared/components/LoadingState';
 import { LocalizedText } from '@/shared/components/LocalizedText';
 import { Screen } from '@/shared/components/Screen';
 import { useI18n } from '@/shared/i18n';
+import { useRefreshOnFocus } from '@/shared/hooks/useRefreshOnFocus';
 import { chatByConversationHref } from '@/shared/navigation/routes';
 import type { AppError } from '@/shared/api/types';
 import { color, radius, size, spacing, typography } from '@/shared/theme';
@@ -82,13 +83,22 @@ export function ConsultationsPage() {
   const [error, setError] = useState<AppError | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
-  /** 拉列表。 */
-  const load = useCallback(async (isRefresh = false): Promise<void> => {
-    if (!isRefresh) {
+  /**
+   * 拉列表。
+   *
+   * @param isRefresh 下拉刷新（不置 loading）
+   * @param silent    静默刷新（聚焦用）：不置 loading、失败保留已有列表
+   */
+  const load = useCallback(async (isRefresh = false, silent = false): Promise<void> => {
+    if (!isRefresh && !silent) {
       setPhase('loading');
     }
     const res = await fetchConsultations();
     if (!res.ok) {
+      if (silent) {
+        setRefreshing(false);
+        return;
+      }
       setError(res.error);
       setPhase('error');
       setRefreshing(false);
@@ -104,6 +114,13 @@ export function ConsultationsPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // 从聊天页返回时静默刷新未读与排序（不闪骨架）。
+  useRefreshOnFocus(
+    useCallback(() => {
+      void load(true, true);
+    }, [load]),
+  );
 
   return (
     <Screen edges={['top', 'left', 'right']}>

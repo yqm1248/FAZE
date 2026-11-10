@@ -34,6 +34,7 @@ import { LocalizedText } from '@/shared/components/LocalizedText';
 import { PrimaryButton } from '@/shared/components/PrimaryButton';
 import { Screen } from '@/shared/components/Screen';
 import { useI18n } from '@/shared/i18n';
+import { useRefreshOnFocus } from '@/shared/hooks/useRefreshOnFocus';
 import type { MessageKey } from '@/shared/i18n';
 import { PAGE_ROUTES } from '@/shared/navigation/routes';
 import type { AppError } from '@/shared/api/types';
@@ -84,13 +85,22 @@ export function LawyerDocsPage() {
   const [sending, setSending] = useState(false);
   const [actionError, setActionError] = useState<MessageKey | null>(null);
 
-  /** 拉列表。 */
-  const load = useCallback(async (isRefresh = false): Promise<void> => {
-    if (!isRefresh) {
+  /**
+   * 拉列表。
+   *
+   * @param isRefresh 下拉刷新（不置 loading）
+   * @param silent    静默刷新（聚焦用）：不置 loading、失败保留已有列表
+   */
+  const load = useCallback(async (isRefresh = false, silent = false): Promise<void> => {
+    if (!isRefresh && !silent) {
       setPhase('loading');
     }
     const res = await fetchLawyerDocs(null);
     if (!res.ok) {
+      if (silent) {
+        setRefreshing(false);
+        return;
+      }
       setError(res.error);
       setPhase('error');
       setRefreshing(false);
@@ -105,6 +115,13 @@ export function LawyerDocsPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // 从文书详情返回时静默刷新状态（不闪骨架）。
+  useRefreshOnFocus(
+    useCallback(() => {
+      void load(true, true);
+    }, [load]),
+  );
 
   /** 发送给委托人。 */
   const doSend = async (): Promise<void> => {
