@@ -88,6 +88,7 @@
 | 代码怎么写注释 | [standards/代码注释规范.md](standards/代码注释规范.md) |
 | 文件放哪个目录、怎么命名 | [standards/目录与命名规范.md](standards/目录与命名规范.md) |
 | 合并前要检查什么 | [standards/代码审查清单.md](standards/代码审查清单.md) |
+| **同一个事实在代码 / 文档 / 设计稿三处说法不同时听谁的** | [standards/说辞一致与真相源规范.md](standards/说辞一致与真相源规范.md) —— P0/P1/P2/P3 真相源分级、DRIFT/GAP/DIRT 三类不一致的分界、5 种处置值；**已知漂移逐条见 [facts/DRIFT.md](facts/DRIFT.md)**，**计划有但代码没有的见 [facts/DEFERRED.md](facts/DEFERRED.md)** |
 | 网络请求怎么写（唯一出口、8 个请求头、401 单飞） | [standards/网络层约定.md](standards/网络层约定.md) |
 | 页面加载/空/错误/正常四态怎么写 | [standards/页面四态约定.md](standards/页面四态约定.md) |
 | 怎么打一个能装到手机的 APK（换机器怎么重建） | [standards/构建路径.md](standards/构建路径.md) |
@@ -139,6 +140,14 @@ docs/
     目录与命名规范.md
     代码注释规范.md
     代码审查清单.md
+    说辞一致与真相源规范.md                ★ 同一个事实三处说法不同时听谁的（本版新增）
+    （另 7 份：网络层约定 / 页面四态约定 / 构建路径 / 字体选型 / 探针与流式约定 /
+      法条数据录入规范 / AI对话留存策略，见 standards/README.md）
+  facts/                                 事实登记表（长期记忆，不是待办清单）
+    DRIFT.md                              说辞漂移：同一事物、说法不同
+    DEFERRED.md                           段八挂账汇总索引：计划有、代码无
+    （本目录不设 README —— 怎么用、什么该进哪张表，只在
+      standards/说辞一致与真相源规范.md §二、§五 写一份，避免第二份副本腐坏）
   analysis/                              决策依据与背景
     原项目技术债清单.md
     参考项目规范提取.md

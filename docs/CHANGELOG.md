@@ -4,6 +4,168 @@
 
 ---
 
+## 2026-11-11（二）· 清理 DIRT：删 5 个违规订单、修 1 处乱码、固化巡检 SQL；并启动 G2 事实生成
+
+**背景**：G1 建了三类不一致的分界（DRIFT / GAP / DIRT），但只登记了前两类。本轮按负责人指示「**先把脏数据清掉，再去开始 g2**」，先处理 DIRT，再启动 G2 的第一片（接口事实生成）。
+
+**先盘后清**：跑完 20 项体检才动手。关键结论——**账务恒等式全过**（A08/A09/A10 = 0），说明钱是干净的，脏的只有状态与编码。
+
+### 一、体检结果（清理前）
+
+| 检查 | 命中 | 说明 |
+|---|---|---|
+| A02 已支付却无 `payment_record` | **3** | 订单 14 / 15 / 16 |
+| A03 `completed` 但状态日志 < 2 条 | **2** | 订单 14（0 条）、16（1 条） |
+| A05 自下单 | **2** | 订单 22 / 28（`user_id=1` 同时是 `lawyer.id=2` 的 `user_id`） |
+| A12 实名两列矛盾 | **1** | user 3：`realname_auth=rejected` 但 `app_user.realname_status=approved` |
+| A20 案例引用快照自相矛盾 | **1** | `law_refs` 写「第七百三十三条」，其 `lawItemId=23` 经 V710 已正名为「第七百二十二条」 |
+| 其余 15 项 | 0 | 含账务恒等式、孤儿行、编码 |
+
+### 二、清了的（有整库备份）
+
+备份：`logs/purge-backup/faze-before-dirt-clean-20261111-011930.sql`（847 KB，`mysqldump` 整库，cmd 重定向避免 PowerShell 二次编码）。
+
+| 动作 | 规模 | 依据 |
+|---|---|---|
+| 删订单 14 / 15 / 16 | 3 单 + 1 条状态日志 | 状态到了 `completed`/`paid` 却既无支付记录也无完整状态日志，是手工造数（`OR20261109009001~003`） |
+| 删订单 22 / 28 | 2 单 + 4 条状态日志 | 自下单：下单人就是该律师本人 |
+| 修 `doc_template.id=7` 的 `field_schema` | 1 行 | 中文被双重编码成 `åçæ³é¢`，还原为「受理法院」等 6 个字段名 |
+
+**删除前逐项预检**：`payment_record=0`、`refund_record=0`、`review=0`，只有 5 条 `order_status_log` 需连带删。删除后 A06 孤儿检查 = 0，无新增孤儿。
+
+### 三、没清的三条及原因（**不是漏做**）
+
+| 项 | 为什么不清 |
+|---|---|
+| **A12 user 3 实名矛盾** | 根因是代码（DRIFT-015 两套真相），改数据只能让两边一致、不解决问题。且 user 3 是 `verify-admin-api.mjs` 硬编码的钱包验收账号（`walletUser=3`）：改成 `rejected` 会断管理端验收，改成 `approved` 是伪造审核记录。**两个方向都要负责人拍板** |
+| **A20 案例引用 733** | 根因是**法条库没有真正的第七百三十三条正文**（V710 明文不补录、等人工核对原文），属段八。改快照只会把错误藏起来——`CaseDetailPage` 的 `?? list[0]` 静默兜底（DRIFT-018）还在 |
+| **测试账号本身** | 属 DEFERRED-011「上线前测试数据清理」，不是 DIRT。且 `purge-test-data.ps1` 默认只认测试号段，9 个验收账号被防误删逻辑挡住；强行 `-ForceAll` 会连 `13890864209` 主测试号一起删 |
+
+### 四、新增产物
+
+| 文件 | 是什么 |
+|---|---|
+| `scripts/monitor/data-integrity.sql` 🆕 | **DIRT 巡检（20 项）**，只读。判读规则唯一：n=0 通过，n>0 必须逐条处置。含「已知未清项」注释，解释 A12/A20 为什么红了是对的 |
+| `docs/facts/DRIFT.md` 📝 | 新增 **D3 组 2 条**（见下节） |
+
+### 五、G2 启动：接口事实自动生成
+
+新增 `scripts/facts/api.mjs`，从 78 个 Controller 源码抽取端点，产出 `docs/facts/api.json`（2128 行）。
+
+实测结果：
+
+```text
+Controller 文件       78
+端点总数             260
+按访问面             {"admin":123,"app":114,"pub":22,"dev":1}
+按 HTTP 方法         {"GET":140,"POST":93,"PUT":17,"DELETE":10}
+```
+
+**这一跑就抓出两条漂移（D3 组）**：
+
+| ID | 事实 | 处置 |
+|---|---|---|
+| DRIFT-043 | `user_balance` 叫 `balance_cents`、`lawyer_balance` 叫 `available_cents`——同一概念两个列名。固化巡检 SQL 时第一次跑就报 `Unknown column` | 待拍板 |
+| DRIFT-044 | 文档 **5 处**写「`§4.8.4` 管理端 **87** 个接口」，代码实测 **123** | 改文档（但先要归因多出的 36 条，不能直接换数字） |
+
+> 这两条都是**读代码看不出来、跑脚本一眼看出来**的，正是 G2 要解决的东西。
+
+解析器本身也修了三个坑（都是先误报、再核实、再修）：
+1. `@PostMapping(value = "/import", consumes = ...)` —— 带额外属性的注解会把路径截掉，退化成类前缀，**一度误报成「重复端点」**
+2. `@RequestMapping({"/api/v1/pub/articles", "/api/v1/app/articles"})` —— 数组前缀（一个 Controller 挂两个 URL）原来解析不到
+3. 同一 `method+path` 出现两次**不一定冲突**：`POST /admin/law-items/import` 一份收 JSON、一份收 multipart，是 Spring 合法的 `consumes` 分派。判据改为区分「跨 Controller 冲突」与「同 Controller 分派」
+
+### 六、清理后复检
+
+`scripts/monitor/data-integrity.sql` 全量重跑：**18 项 = 0，2 项 = 1**（A12 / A20，均在上表说明）。`orders` 29 → 24 行。
+
+另做一次**全库 mojibake 扫描**（21 个表 30 个文本列，按 `HEX LIKE '%C3A5%'` 判据）：**0 命中**，说明 `doc_template.id=7` 是唯一一处双重编码。
+
+### 七、负责人决策（2026-11-11）
+
+| 事项 | 决定 | 落地 |
+|---|---|---|
+| **user 3 实名矛盾**（`realname_auth=rejected` vs `app_user.realname_status=approved`） | **方案 C：不改数据** | 等 DRIFT-015 修完（让 `realname_status` 由 `realname_auth` 派生）后一次性收敛。**在此之前巡检 A12 恒为 1，是预期** |
+| **两张余额表列名不一致**（`user_balance.balance_cents` vs `lawyer_balance.available_cents`） | **统一列名** | 改为 `改代码`。含迁移 + 实体 + Mapper + 全部引用处，**单独提交并跑全量回归**，不混在本次提交里 |
+
+> 基线：v1.67（DRIFT.md 更新为 173 行 / `15ead782c7d1d557`；资产数 48 不变）。`scripts/` 下的三个脚本不进文档基线。
+
+---
+
+## 2026-11-11 · 立「说辞一致与真相源规范」+ DRIFT / DEFERRED 两张登记表（只建制度，不修代码）
+
+**背景**：负责人 2026-11-10 的要求不是"再修一批 bug"，而是「**不要让文档、设计稿和代码都各一套说辞，而是统一说辞**」，并明确「**以现在开发出来的这套代码为主**，前面的文档和设计稿占比非常小」。
+
+前面 68 条验收问题的复核结论里，**7 条是纯误报**——代码是对的，验收方按文档/设计稿的期望判成错。误报的原因不是谁看错，是**三处说法不同、两边都没错、没人负责对齐**。这一版就是补这一层。
+
+### 一、做了什么（3 新增 + 2 变更 + 1 脚本）
+
+| 产物 | 是什么 |
+|---|---|
+| `docs/standards/说辞一致与真相源规范.md` 🆕 | 真相源分级（P0 运行中的代码与库 / P1 Flyway / P2 文档 / P3 设计稿）；**三类不一致的分界**（DRIFT 漂移 / GAP 缺口 / DIRT 脏数据）；5 种处置值的裁决规则（禁「待定」）；数字口径必须机器算；承接手段表 |
+| `docs/facts/DRIFT.md` 🆕 | 42 行。D1 组 25 条逐条核查、D2 组 17 条全仓盘点批量登记。每行给「代码实际（P0）」+ **证据强度**（实测 / 通读 / 待复核） |
+| `docs/facts/DEFERRED.md` 🆕 | 段八挂账汇总索引。**不是待办清单，是真相声明**。负责人点名 4 项 + 最易误判的 8 项 + 118 条分类索引 |
+| `scripts/facts/page-inventory.mjs` 🆕 | 页面口径核算：路由常量 / 路由壳 / 页面实现 / 设计稿四方对账。只读文件系统 |
+| `docs/README.md`、`docs/standards/README.md` 📝 | 加索引（BASELINE §4 四件事之一） |
+
+### 二、三个判断（这版真正有价值的地方）
+
+**1. 「不一致」不是一种东西，是三种，混在一张表里会互相稀释优先级。**
+
+| 类 | 判据 | 处置 |
+|---|---|---|
+| DRIFT | 代码里**有**该事物，两方描述矛盾 | 立即裁决谁改 |
+| GAP | 代码里**搜不到** | 先不管，登记段八 |
+| DIRT | 代码**正确**，库里数据违规 | 巡检 SQL + 清理 |
+
+原计划把 24 条混成一张"漂移清单"，逐条看下去发现处置方式互相矛盾：GAP 会被误当成待修缺陷、DRIFT 会被"反正是段八的事"拖延、DIRT 会诱使人改文档去描述脏数据。
+
+**2. 仓库里有四个「71」，全部正确、全部自洽，但没人讲清构成。**
+
+产品页 **69**（= 路由常量 71 − 2 个开发探测页）/ 路由常量 **71** / 页面实现 **71** / 设计稿主屏 **68**（`design/ui` 的 71 个 HTML = 68 主屏 + 3 个弹层补充屏：`07b-privacy-prompt`、`07c-language-picker`、`41b-version-update`）。
+读者无法判断哪个是哪个。**这不是错误，是口径缺失**——所以 `scripts/facts/page-inventory.mjs` 让这类数字机器算，写进规范的只有"怎么算"。
+
+**3. 首次全仓盘点：118 条挂账里，18 条方向是反的。**
+
+文档说"没做"，代码其实已经做了。最典型三条：
+
+| 旧文档说法 | 代码实际 |
+|---|---|
+| 缺译已累到 **1818 条**，段 8 必须清零（`seg7/挂账.md:144`） | `.i18n-pending.json` 的 `pending` 是 `{}`，**早已清零** |
+| `region` **无采集点、恒 NULL**（`seg7/挂账.md:68`） | `V709` 地区枚举 + `GET /pub/regions` + `RegisterBO.region` 白名单 + `RegisterPage` 选择器**全已实现** |
+| 业务错误率「已交给 be-api 落地」（`seg7/挂账.md:47`） | `BizMetricsAdvice` + `faze_biz_errors_total` + 改后的 `FazeHighErrorRate` **均已存在** |
+
+**按旧文档排段 8 会重复劳动。** 这 18 条已全部登记为 DRIFT 的 D2 组。
+
+### 三、顺带抓到一条新缺陷（68 条验收报告里没有的）
+
+`node scripts/facts/page-inventory.mjs` 跑集合差集时发现：**`/case-detail` 有路由壳、有页面实现，但 `PAGE_ROUTES` 里没有它**。再 grep 出两处硬编码裸路径：
+
+- `features/content/pages/SearchPage.tsx:434` → `` router.push(`/case-detail?id=${item.id}`) ``
+- `features/content/pages/CaseListPage.tsx:251` → 同上
+
+违反 `routes.ts:4` 自己写的「页面导航一律从这里取路径，**禁止在页面里直接写路径字符串**」。已登记 `DRIFT-017`，处置 `改代码`。
+
+### 四、实测证据（把三条从"通读"升到"实测"）
+
+| 结论 | 怎么验的 |
+|---|---|
+| 取消收藏的归属预检取的是**任意用户**的行 | 同一 token 打两次：`targetId=3`（仅 9324 收藏、9415 未收藏）→ `{"code":401008,"msg":"无权限访问该资源"}`；`targetId=99`（无人收藏）→ `{"code":200,"msg":"ok"}`。**同一接口、同一用户，结果取决于别人有没有收藏** |
+| 实名状态是两套真相 | 用户 9416、同一 token、同一时刻：`GET /app/account/realname` → `"status":"PENDING"`；`GET /app/account/profile` → `"realnameStatus":"NONE"`。**同一 APP 两个页面显示两种实名状态** |
+| 自下单无拦截 | `orders` 22、28 的 `user_id=1`，而 `lawyer.id=2` 的 `user_id` 也是 1（两单均 `cancelled`） |
+| `balance_flow.biz_type` 全表 9 值 | `SELECT DISTINCT biz_type` = 9：用户侧 4（`adjust`/`consume`/`recharge`/`refund`）+ 律师侧 5（`freeze`/`income`/`income_unfreeze`/`unfreeze`/`withdraw`）。文档写"5 值"只数了律师侧 |
+
+### 五、这一版**没有**做的事（必须写清）
+
+1. **没有关闭任何一条 DRIFT。** 42 条全部 `开`，`关闭记录` 节为空。
+2. **没有修任何业务代码。** 唯一新增代码是只读的 `page-inventory.mjs`，且**还没进 CI**。
+3. **`DEFERRED.md` 不是施工清单。** 118 条里的任何一条都不在本轮范围，负责人已明确「这些先不管」。
+4. **承接手段表里只有 2 条真有东西在拦**，其余 4 条标「待建」——**写在表里不等于已经管住**。
+
+> 基线：v1.66 → **v1.67**（新增 3 份、内容变更 2 份，资产 45 → 48）。见 `docs/BASELINE.md` §7.70。
+
+---
+
 ## 2026-11-10 · P2 五条：口径与假承诺（另有 3 条不做、1 条已完成）
 
 **背景**：P0 六条 + P1 九条修完后开始处理 P2 九条（体验 / 文案 / 规范债）。逐条复核前提后，

@@ -1,0 +1,2128 @@
+{
+  "_comment": "本文件由 scripts/facts/api.mjs 从 Controller 源码生成，禁止手改。口径见 docs/standards/说辞一致与真相源规范.md §四。",
+  "generatedAt": "2026-11-10",
+  "sourceRoot": "services/faze-api/src/main/java/com/faze",
+  "totals": {
+    "controllers": 78,
+    "endpoints": 260,
+    "unresolved": 0,
+    "duplicateKeys": 1,
+    "realConflicts": 0
+  },
+  "bySurface": {
+    "admin": 123,
+    "app": 114,
+    "dev": 1,
+    "pub": 22
+  },
+  "byDomain": {
+    "ai": 16,
+    "ops": 56,
+    "content": 22,
+    "trade": 64,
+    "caseflow": 19,
+    "conversation": 7,
+    "document": 17,
+    "account": 43,
+    "workbench": 10,
+    "infra/probe": 4,
+    "infra/storage": 2
+  },
+  "byMethod": {
+    "GET": 140,
+    "POST": 93,
+    "PUT": 17,
+    "DELETE": 10
+  },
+  "duplicates": [
+    {
+      "key": "POST /api/v1/admin/law-items/import",
+      "first": "AdminLawItemController",
+      "second": "AdminLawItemController",
+      "sameController": true
+    }
+  ],
+  "unresolved": [],
+  "endpoints": [
+    {
+      "domain": "ai",
+      "controller": "AdminAiConversationController",
+      "method": "GET",
+      "path": "/api/v1/admin/ai-conversations",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "ai",
+      "controller": "AdminAiConversationController",
+      "method": "GET",
+      "path": "/api/v1/admin/ai-conversations/{id}/export",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "ai",
+      "controller": "AdminAiConversationController",
+      "method": "GET",
+      "path": "/api/v1/admin/ai-conversations/{id}/messages",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "ops",
+      "controller": "AdminAnnouncementController",
+      "method": "GET",
+      "path": "/api/v1/admin/announcements",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "ops",
+      "controller": "AdminAnnouncementController",
+      "method": "POST",
+      "path": "/api/v1/admin/announcements",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "ops",
+      "controller": "AdminAnnouncementController",
+      "method": "GET",
+      "path": "/api/v1/admin/announcements/{id}",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "ops",
+      "controller": "AdminAnnouncementController",
+      "method": "POST",
+      "path": "/api/v1/admin/announcements/{id}/push",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "ops",
+      "controller": "AdminAnnouncementController",
+      "method": "GET",
+      "path": "/api/v1/admin/announcements/estimate",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "content",
+      "controller": "AdminArticleController",
+      "method": "GET",
+      "path": "/api/v1/admin/articles",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "content",
+      "controller": "AdminArticleController",
+      "method": "POST",
+      "path": "/api/v1/admin/articles",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "content",
+      "controller": "AdminArticleController",
+      "method": "GET",
+      "path": "/api/v1/admin/articles/{id}",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "content",
+      "controller": "AdminArticleController",
+      "method": "PUT",
+      "path": "/api/v1/admin/articles/{id}",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "content",
+      "controller": "AdminArticleController",
+      "method": "POST",
+      "path": "/api/v1/admin/articles/{id}/offline",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "content",
+      "controller": "AdminArticleController",
+      "method": "POST",
+      "path": "/api/v1/admin/articles/{id}/publish",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "trade",
+      "controller": "AdminWalletLedgerController",
+      "method": "GET",
+      "path": "/api/v1/admin/balance-flows",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "content",
+      "controller": "AdminCaseLibraryController",
+      "method": "GET",
+      "path": "/api/v1/admin/case-library",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "content",
+      "controller": "AdminCaseLibraryController",
+      "method": "POST",
+      "path": "/api/v1/admin/case-library",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "content",
+      "controller": "AdminCaseLibraryController",
+      "method": "GET",
+      "path": "/api/v1/admin/case-library/{id}",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "content",
+      "controller": "AdminCaseLibraryController",
+      "method": "PUT",
+      "path": "/api/v1/admin/case-library/{id}",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "content",
+      "controller": "AdminCaseLibraryController",
+      "method": "POST",
+      "path": "/api/v1/admin/case-library/{id}/offline",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "content",
+      "controller": "AdminCaseLibraryController",
+      "method": "POST",
+      "path": "/api/v1/admin/case-library/{id}/publish",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "content",
+      "controller": "AdminCaseLibraryController",
+      "method": "POST",
+      "path": "/api/v1/admin/case-library/offline",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "caseflow",
+      "controller": "AdminCaseController",
+      "method": "GET",
+      "path": "/api/v1/admin/cases",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "caseflow",
+      "controller": "AdminCaseController",
+      "method": "GET",
+      "path": "/api/v1/admin/cases/{id}",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "caseflow",
+      "controller": "AdminCaseController",
+      "method": "POST",
+      "path": "/api/v1/admin/cases/{id}/audit",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "caseflow",
+      "controller": "AdminCaseController",
+      "method": "GET",
+      "path": "/api/v1/admin/cases/{id}/deliveries",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "caseflow",
+      "controller": "AdminCaseController",
+      "method": "POST",
+      "path": "/api/v1/admin/cases/{id}/deliveries",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "caseflow",
+      "controller": "AdminCaseController",
+      "method": "GET",
+      "path": "/api/v1/admin/cases/{id}/documents",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "caseflow",
+      "controller": "AdminCaseController",
+      "method": "GET",
+      "path": "/api/v1/admin/cases/{id}/progress",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "caseflow",
+      "controller": "AdminCaseController",
+      "method": "POST",
+      "path": "/api/v1/admin/cases/{id}/progress",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "ops",
+      "controller": "AdminContentReviewController",
+      "method": "GET",
+      "path": "/api/v1/admin/content-reviews",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "ops",
+      "controller": "AdminContentReviewController",
+      "method": "GET",
+      "path": "/api/v1/admin/content-reviews/{id}",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "ops",
+      "controller": "AdminContentReviewController",
+      "method": "POST",
+      "path": "/api/v1/admin/content-reviews/{id}/audit",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "conversation",
+      "controller": "AdminConversationController",
+      "method": "GET",
+      "path": "/api/v1/admin/conversations/{id}/messages",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "ops",
+      "controller": "AdminDashboardController",
+      "method": "GET",
+      "path": "/api/v1/admin/dashboard/export",
+      "surface": "admin",
+      "adminDir": false
+    },
+    {
+      "domain": "ops",
+      "controller": "AdminDashboardController",
+      "method": "GET",
+      "path": "/api/v1/admin/dashboard/ping",
+      "surface": "admin",
+      "adminDir": false
+    },
+    {
+      "domain": "ops",
+      "controller": "AdminDashboardController",
+      "method": "GET",
+      "path": "/api/v1/admin/dashboard/regions",
+      "surface": "admin",
+      "adminDir": false
+    },
+    {
+      "domain": "ops",
+      "controller": "AdminDashboardController",
+      "method": "GET",
+      "path": "/api/v1/admin/dashboard/summary",
+      "surface": "admin",
+      "adminDir": false
+    },
+    {
+      "domain": "ops",
+      "controller": "AdminDashboardController",
+      "method": "GET",
+      "path": "/api/v1/admin/dashboard/todos",
+      "surface": "admin",
+      "adminDir": false
+    },
+    {
+      "domain": "ops",
+      "controller": "AdminDashboardController",
+      "method": "GET",
+      "path": "/api/v1/admin/dashboard/trends",
+      "surface": "admin",
+      "adminDir": false
+    },
+    {
+      "domain": "document",
+      "controller": "AdminDocTemplateController",
+      "method": "GET",
+      "path": "/api/v1/admin/doc-templates",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "document",
+      "controller": "AdminDocTemplateController",
+      "method": "POST",
+      "path": "/api/v1/admin/doc-templates",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "document",
+      "controller": "AdminDocTemplateController",
+      "method": "GET",
+      "path": "/api/v1/admin/doc-templates/{id}",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "document",
+      "controller": "AdminDocTemplateController",
+      "method": "PUT",
+      "path": "/api/v1/admin/doc-templates/{id}",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "document",
+      "controller": "AdminDocTemplateController",
+      "method": "POST",
+      "path": "/api/v1/admin/doc-templates/{id}/preview",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "ops",
+      "controller": "AdminExportController",
+      "method": "GET",
+      "path": "/api/v1/admin/exports/{taskId}/download",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "ai",
+      "controller": "AdminLawItemController",
+      "method": "GET",
+      "path": "/api/v1/admin/law-items",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "ai",
+      "controller": "AdminLawItemController",
+      "method": "GET",
+      "path": "/api/v1/admin/law-items/{id}",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "ai",
+      "controller": "AdminLawItemController",
+      "method": "PUT",
+      "path": "/api/v1/admin/law-items/{id}",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "ai",
+      "controller": "AdminLawItemController",
+      "method": "POST",
+      "path": "/api/v1/admin/law-items/{id}/disable",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "ai",
+      "controller": "AdminLawItemController",
+      "method": "POST",
+      "path": "/api/v1/admin/law-items/import",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "ai",
+      "controller": "AdminLawItemController",
+      "method": "POST",
+      "path": "/api/v1/admin/law-items/import",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "account",
+      "controller": "AdminLawyerApplicationController",
+      "method": "GET",
+      "path": "/api/v1/admin/lawyer-applications",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "account",
+      "controller": "AdminLawyerApplicationController",
+      "method": "GET",
+      "path": "/api/v1/admin/lawyer-applications/{id}",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "account",
+      "controller": "AdminLawyerApplicationController",
+      "method": "POST",
+      "path": "/api/v1/admin/lawyer-applications/{id}/audit",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "trade",
+      "controller": "AdminSettlementController",
+      "method": "GET",
+      "path": "/api/v1/admin/lawyer-settlements",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "trade",
+      "controller": "AdminSettlementController",
+      "method": "GET",
+      "path": "/api/v1/admin/lawyer-settlements/{id}",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "trade",
+      "controller": "AdminSettlementController",
+      "method": "POST",
+      "path": "/api/v1/admin/lawyer-settlements/{id}/confirm",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "trade",
+      "controller": "AdminSettlementController",
+      "method": "POST",
+      "path": "/api/v1/admin/lawyer-settlements/generate",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "trade",
+      "controller": "AdminSettlementController",
+      "method": "GET",
+      "path": "/api/v1/admin/lawyer-settlements/summary",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "account",
+      "controller": "AdminLawyerController",
+      "method": "GET",
+      "path": "/api/v1/admin/lawyers",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "account",
+      "controller": "AdminLawyerController",
+      "method": "GET",
+      "path": "/api/v1/admin/lawyers/{id}",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "ops",
+      "controller": "AdminViolationController",
+      "method": "POST",
+      "path": "/api/v1/admin/lawyers/{id}/violations",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "ops",
+      "controller": "AdminLoginLogController",
+      "method": "GET",
+      "path": "/api/v1/admin/login-logs",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "ops",
+      "controller": "AdminLoginLogController",
+      "method": "GET",
+      "path": "/api/v1/admin/login-logs/export",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "ops",
+      "controller": "AdminNotifyTemplateController",
+      "method": "GET",
+      "path": "/api/v1/admin/notify-templates",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "ops",
+      "controller": "AdminNotifyTemplateController",
+      "method": "POST",
+      "path": "/api/v1/admin/notify-templates",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "ops",
+      "controller": "AdminNotifyTemplateController",
+      "method": "DELETE",
+      "path": "/api/v1/admin/notify-templates/{id}",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "ops",
+      "controller": "AdminNotifyTemplateController",
+      "method": "PUT",
+      "path": "/api/v1/admin/notify-templates/{id}",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "ops",
+      "controller": "AdminNotifyTemplateController",
+      "method": "POST",
+      "path": "/api/v1/admin/notify-templates/{id}/test",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "ops",
+      "controller": "AdminOperationLogController",
+      "method": "GET",
+      "path": "/api/v1/admin/operation-logs",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "ops",
+      "controller": "AdminOperationLogController",
+      "method": "GET",
+      "path": "/api/v1/admin/operation-logs/export",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "ops",
+      "controller": "AdminOpsController",
+      "method": "GET",
+      "path": "/api/v1/admin/ops/health-report",
+      "surface": "admin",
+      "adminDir": false
+    },
+    {
+      "domain": "trade",
+      "controller": "AdminOrderController",
+      "method": "GET",
+      "path": "/api/v1/admin/orders",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "trade",
+      "controller": "AdminOrderController",
+      "method": "GET",
+      "path": "/api/v1/admin/orders/{id}",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "trade",
+      "controller": "AdminOrderController",
+      "method": "GET",
+      "path": "/api/v1/admin/orders/{id}/status-log",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "trade",
+      "controller": "AdminRechargeSyncController",
+      "method": "POST",
+      "path": "/api/v1/admin/recharges/{orderNo}/sync",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "trade",
+      "controller": "AdminReconciliationController",
+      "method": "GET",
+      "path": "/api/v1/admin/reconciliation/channel-diffs",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "trade",
+      "controller": "AdminReconciliationController",
+      "method": "PUT",
+      "path": "/api/v1/admin/reconciliation/channel-diffs/{id}",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "trade",
+      "controller": "AdminReconciliationController",
+      "method": "GET",
+      "path": "/api/v1/admin/reconciliation/channel-diffs/export",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "trade",
+      "controller": "AdminReconciliationController",
+      "method": "GET",
+      "path": "/api/v1/admin/reconciliation/diffs",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "trade",
+      "controller": "AdminReconciliationController",
+      "method": "POST",
+      "path": "/api/v1/admin/reconciliation/run",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "trade",
+      "controller": "AdminReconciliationController",
+      "method": "GET",
+      "path": "/api/v1/admin/reconciliation/summary",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "trade",
+      "controller": "AdminRefundController",
+      "method": "GET",
+      "path": "/api/v1/admin/refunds",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "trade",
+      "controller": "AdminRefundController",
+      "method": "POST",
+      "path": "/api/v1/admin/refunds/{id}/audit",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "ops",
+      "controller": "AdminAppealController",
+      "method": "GET",
+      "path": "/api/v1/admin/sensitive-word-appeals",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "ops",
+      "controller": "AdminAppealController",
+      "method": "POST",
+      "path": "/api/v1/admin/sensitive-word-appeals/{id}/audit",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "ops",
+      "controller": "AdminSensitiveWordController",
+      "method": "GET",
+      "path": "/api/v1/admin/sensitive-words",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "ops",
+      "controller": "AdminSensitiveWordController",
+      "method": "POST",
+      "path": "/api/v1/admin/sensitive-words",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "ops",
+      "controller": "AdminSensitiveWordController",
+      "method": "DELETE",
+      "path": "/api/v1/admin/sensitive-words/{id}",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "ops",
+      "controller": "AdminSensitiveWordController",
+      "method": "PUT",
+      "path": "/api/v1/admin/sensitive-words/{id}",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "ops",
+      "controller": "AdminSensitiveWordController",
+      "method": "GET",
+      "path": "/api/v1/admin/sensitive-words/export",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "ops",
+      "controller": "AdminSensitiveWordController",
+      "method": "POST",
+      "path": "/api/v1/admin/sensitive-words/import",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "trade",
+      "controller": "AdminSettlementController",
+      "method": "POST",
+      "path": "/api/v1/admin/settlements/backfill",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "trade",
+      "controller": "AdminSettlementController",
+      "method": "GET",
+      "path": "/api/v1/admin/settlements/backfill/pending",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "ops",
+      "controller": "AdminSysConfigController",
+      "method": "GET",
+      "path": "/api/v1/admin/sys-configs",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "ops",
+      "controller": "AdminSysConfigController",
+      "method": "PUT",
+      "path": "/api/v1/admin/sys-configs",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "ops",
+      "controller": "AdminTicketController",
+      "method": "GET",
+      "path": "/api/v1/admin/tickets",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "ops",
+      "controller": "AdminTicketController",
+      "method": "GET",
+      "path": "/api/v1/admin/tickets/{id}",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "ops",
+      "controller": "AdminTicketController",
+      "method": "POST",
+      "path": "/api/v1/admin/tickets/{id}/assign",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "ops",
+      "controller": "AdminTicketController",
+      "method": "POST",
+      "path": "/api/v1/admin/tickets/{id}/close",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "ops",
+      "controller": "AdminTicketController",
+      "method": "POST",
+      "path": "/api/v1/admin/tickets/{id}/reply",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "ops",
+      "controller": "AdminTicketController",
+      "method": "POST",
+      "path": "/api/v1/admin/tickets/assign-batch",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "ops",
+      "controller": "AdminTicketController",
+      "method": "GET",
+      "path": "/api/v1/admin/tickets/export",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "account",
+      "controller": "AdminUserController",
+      "method": "GET",
+      "path": "/api/v1/admin/users",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "account",
+      "controller": "AdminUserController",
+      "method": "GET",
+      "path": "/api/v1/admin/users/{id}",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "account",
+      "controller": "AdminUserController",
+      "method": "POST",
+      "path": "/api/v1/admin/users/{id}/ban",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "account",
+      "controller": "AdminUserController",
+      "method": "POST",
+      "path": "/api/v1/admin/users/{id}/unban",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "ops",
+      "controller": "AdminViolationController",
+      "method": "GET",
+      "path": "/api/v1/admin/users/{id}/violations",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "account",
+      "controller": "AdminVerificationController",
+      "method": "GET",
+      "path": "/api/v1/admin/verifications",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "account",
+      "controller": "AdminVerificationController",
+      "method": "GET",
+      "path": "/api/v1/admin/verifications/{id}",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "account",
+      "controller": "AdminVerificationController",
+      "method": "POST",
+      "path": "/api/v1/admin/verifications/{id}/audit",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "trade",
+      "controller": "AdminWalletController",
+      "method": "POST",
+      "path": "/api/v1/admin/wallet/adjust",
+      "surface": "admin",
+      "adminDir": false
+    },
+    {
+      "domain": "trade",
+      "controller": "AdminWalletController",
+      "method": "POST",
+      "path": "/api/v1/admin/wallet/recharge",
+      "surface": "admin",
+      "adminDir": false
+    },
+    {
+      "domain": "trade",
+      "controller": "AdminWalletLedgerController",
+      "method": "GET",
+      "path": "/api/v1/admin/wallets/{userId}",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "trade",
+      "controller": "AdminWalletOpsController",
+      "method": "POST",
+      "path": "/api/v1/admin/wallets/{userId}/adjust",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "trade",
+      "controller": "AdminWalletOpsController",
+      "method": "POST",
+      "path": "/api/v1/admin/wallets/{userId}/recharge",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "trade",
+      "controller": "AdminWithdrawController",
+      "method": "GET",
+      "path": "/api/v1/admin/withdrawals",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "trade",
+      "controller": "AdminWithdrawController",
+      "method": "POST",
+      "path": "/api/v1/admin/withdrawals/{id}/audit",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "trade",
+      "controller": "AdminWithdrawController",
+      "method": "POST",
+      "path": "/api/v1/admin/withdrawals/{id}/paid",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "trade",
+      "controller": "AdminWithdrawController",
+      "method": "GET",
+      "path": "/api/v1/admin/withdrawals/{id}/voucher",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "trade",
+      "controller": "AdminWithdrawController",
+      "method": "POST",
+      "path": "/api/v1/admin/withdrawals/{id}/voucher",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "trade",
+      "controller": "AdminWithdrawController",
+      "method": "GET",
+      "path": "/api/v1/admin/withdrawals/summary",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "account",
+      "controller": "AccountSecurityController",
+      "method": "DELETE",
+      "path": "/api/v1/app/account",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "account",
+      "controller": "AccountSecurityController",
+      "method": "POST",
+      "path": "/api/v1/app/account/change-phone",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "account",
+      "controller": "AccountSecurityController",
+      "method": "GET",
+      "path": "/api/v1/app/account/devices",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "account",
+      "controller": "EnterpriseController",
+      "method": "GET",
+      "path": "/api/v1/app/account/enterprise",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "account",
+      "controller": "EnterpriseController",
+      "method": "POST",
+      "path": "/api/v1/app/account/enterprise",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "account",
+      "controller": "AccountSecurityController",
+      "method": "POST",
+      "path": "/api/v1/app/account/logout",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "account",
+      "controller": "AccountSecurityController",
+      "method": "PUT",
+      "path": "/api/v1/app/account/password",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "account",
+      "controller": "PayPasswordController",
+      "method": "POST",
+      "path": "/api/v1/app/account/pay-password",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "account",
+      "controller": "PayPasswordController",
+      "method": "PUT",
+      "path": "/api/v1/app/account/pay-password",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "account",
+      "controller": "PayPasswordController",
+      "method": "POST",
+      "path": "/api/v1/app/account/pay-password/reset",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "account",
+      "controller": "PayPasswordController",
+      "method": "POST",
+      "path": "/api/v1/app/account/pay-password/verify",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "account",
+      "controller": "ProfileController",
+      "method": "GET",
+      "path": "/api/v1/app/account/profile",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "account",
+      "controller": "ProfileController",
+      "method": "PUT",
+      "path": "/api/v1/app/account/profile",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "account",
+      "controller": "RealnameController",
+      "method": "GET",
+      "path": "/api/v1/app/account/realname",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "account",
+      "controller": "RealnameController",
+      "method": "POST",
+      "path": "/api/v1/app/account/realname",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "ai",
+      "controller": "AiConversationController",
+      "method": "GET",
+      "path": "/api/v1/app/ai/conversations",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "ai",
+      "controller": "AiConversationController",
+      "method": "POST",
+      "path": "/api/v1/app/ai/conversations",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "ai",
+      "controller": "AiConversationController",
+      "method": "DELETE",
+      "path": "/api/v1/app/ai/conversations/{id}",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "ai",
+      "controller": "AiQuotaController",
+      "method": "GET",
+      "path": "/api/v1/app/ai/quota",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "ai",
+      "controller": "AiStreamController",
+      "method": "GET",
+      "path": "/api/v1/app/ai/stream",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "content",
+      "controller": "ArticleController",
+      "method": "GET",
+      "path": "/api/v1/app/articles",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "content",
+      "controller": "ArticleController",
+      "method": "GET",
+      "path": "/api/v1/app/articles/{id}",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "account",
+      "controller": "AuthController",
+      "method": "POST",
+      "path": "/api/v1/app/auth/refresh",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "caseflow",
+      "controller": "AppDeliveryController",
+      "method": "GET",
+      "path": "/api/v1/app/case-deliveries",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "caseflow",
+      "controller": "AppDeliveryController",
+      "method": "GET",
+      "path": "/api/v1/app/case-deliveries/{id}",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "caseflow",
+      "controller": "AppDeliveryController",
+      "method": "POST",
+      "path": "/api/v1/app/case-deliveries/{id}/confirm",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "caseflow",
+      "controller": "AppDeliveryController",
+      "method": "PUT",
+      "path": "/api/v1/app/case-deliveries/{id}/method",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "content",
+      "controller": "AppCaseLibraryController",
+      "method": "GET",
+      "path": "/api/v1/app/case-library",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "content",
+      "controller": "AppCaseLibraryController",
+      "method": "GET",
+      "path": "/api/v1/app/case-library/{id}",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "content",
+      "controller": "AppCaseLibraryController",
+      "method": "DELETE",
+      "path": "/api/v1/app/case-library/{id}/favorite",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "content",
+      "controller": "AppCaseLibraryController",
+      "method": "POST",
+      "path": "/api/v1/app/case-library/{id}/favorite",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "caseflow",
+      "controller": "AppCaseController",
+      "method": "GET",
+      "path": "/api/v1/app/cases",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "caseflow",
+      "controller": "AppCaseController",
+      "method": "POST",
+      "path": "/api/v1/app/cases",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "caseflow",
+      "controller": "AppCaseController",
+      "method": "GET",
+      "path": "/api/v1/app/cases/{id}",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "caseflow",
+      "controller": "AppCaseController",
+      "method": "GET",
+      "path": "/api/v1/app/cases/{id}/form",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "caseflow",
+      "controller": "AppCaseController",
+      "method": "GET",
+      "path": "/api/v1/app/cases/{id}/progress",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "caseflow",
+      "controller": "AppCaseController",
+      "method": "POST",
+      "path": "/api/v1/app/cases/{id}/progress",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "caseflow",
+      "controller": "AppCaseController",
+      "method": "POST",
+      "path": "/api/v1/app/cases/{id}/resubmit",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "ops",
+      "controller": "ComplaintController",
+      "method": "GET",
+      "path": "/api/v1/app/complaints",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "ops",
+      "controller": "ComplaintController",
+      "method": "POST",
+      "path": "/api/v1/app/complaints",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "ops",
+      "controller": "ContentAppealController",
+      "method": "POST",
+      "path": "/api/v1/app/content-appeals",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "conversation",
+      "controller": "ConversationController",
+      "method": "GET",
+      "path": "/api/v1/app/conversations",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "conversation",
+      "controller": "ConversationController",
+      "method": "POST",
+      "path": "/api/v1/app/conversations",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "conversation",
+      "controller": "ConversationController",
+      "method": "GET",
+      "path": "/api/v1/app/conversations/{id}",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "conversation",
+      "controller": "ConversationController",
+      "method": "GET",
+      "path": "/api/v1/app/conversations/{id}/messages",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "conversation",
+      "controller": "ConversationController",
+      "method": "POST",
+      "path": "/api/v1/app/conversations/{id}/read",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "document",
+      "controller": "AppDocumentController",
+      "method": "GET",
+      "path": "/api/v1/app/doc-templates",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "document",
+      "controller": "AppDocumentController",
+      "method": "GET",
+      "path": "/api/v1/app/documents",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "document",
+      "controller": "AppDocumentController",
+      "method": "POST",
+      "path": "/api/v1/app/documents",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "document",
+      "controller": "AppDocumentController",
+      "method": "DELETE",
+      "path": "/api/v1/app/documents/{id}",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "document",
+      "controller": "AppDocumentController",
+      "method": "GET",
+      "path": "/api/v1/app/documents/{id}",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "document",
+      "controller": "AppDocumentController",
+      "method": "GET",
+      "path": "/api/v1/app/documents/{id}/export",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "document",
+      "controller": "AppDocumentController",
+      "method": "POST",
+      "path": "/api/v1/app/documents/{id}/generate",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "document",
+      "controller": "AppDocumentController",
+      "method": "GET",
+      "path": "/api/v1/app/documents/{id}/preview",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "document",
+      "controller": "AppDocumentController",
+      "method": "POST",
+      "path": "/api/v1/app/documents/{id}/sign",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "ops",
+      "controller": "FeedbackController",
+      "method": "GET",
+      "path": "/api/v1/app/feedback",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "ops",
+      "controller": "FeedbackController",
+      "method": "POST",
+      "path": "/api/v1/app/feedback",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "account",
+      "controller": "LawyerApplicationController",
+      "method": "POST",
+      "path": "/api/v1/app/lawyer-applications",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "account",
+      "controller": "LawyerApplicationController",
+      "method": "GET",
+      "path": "/api/v1/app/lawyer-applications/current",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "trade",
+      "controller": "LawyerOrderController",
+      "method": "GET",
+      "path": "/api/v1/app/lawyer/orders",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "account",
+      "controller": "LawyerBrowseController",
+      "method": "GET",
+      "path": "/api/v1/app/lawyers",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "account",
+      "controller": "LawyerBrowseController",
+      "method": "GET",
+      "path": "/api/v1/app/lawyers/{id}",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "account",
+      "controller": "LawyerBrowseController",
+      "method": "DELETE",
+      "path": "/api/v1/app/lawyers/{id}/follow",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "account",
+      "controller": "LawyerBrowseController",
+      "method": "POST",
+      "path": "/api/v1/app/lawyers/{id}/follow",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "account",
+      "controller": "LawyerBrowseController",
+      "method": "GET",
+      "path": "/api/v1/app/lawyers/{id}/reviews",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "ops",
+      "controller": "NotificationController",
+      "method": "GET",
+      "path": "/api/v1/app/notifications",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "ops",
+      "controller": "NotificationController",
+      "method": "POST",
+      "path": "/api/v1/app/notifications/{id}/read",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "ops",
+      "controller": "NotificationController",
+      "method": "GET",
+      "path": "/api/v1/app/notifications/unread-count",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "trade",
+      "controller": "OrderController",
+      "method": "GET",
+      "path": "/api/v1/app/orders",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "trade",
+      "controller": "OrderController",
+      "method": "POST",
+      "path": "/api/v1/app/orders",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "trade",
+      "controller": "OrderController",
+      "method": "GET",
+      "path": "/api/v1/app/orders/{id}",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "trade",
+      "controller": "LawyerOrderController",
+      "method": "POST",
+      "path": "/api/v1/app/orders/{id}/accept",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "trade",
+      "controller": "OrderController",
+      "method": "POST",
+      "path": "/api/v1/app/orders/{id}/cancel",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "trade",
+      "controller": "LawyerOrderController",
+      "method": "POST",
+      "path": "/api/v1/app/orders/{id}/complete",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "trade",
+      "controller": "OrderController",
+      "method": "POST",
+      "path": "/api/v1/app/orders/{id}/pay",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "trade",
+      "controller": "OrderController",
+      "method": "GET",
+      "path": "/api/v1/app/orders/{id}/refund",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "trade",
+      "controller": "OrderController",
+      "method": "POST",
+      "path": "/api/v1/app/orders/{id}/refund",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "trade",
+      "controller": "LawyerOrderController",
+      "method": "POST",
+      "path": "/api/v1/app/orders/{id}/reject",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "trade",
+      "controller": "OrderController",
+      "method": "GET",
+      "path": "/api/v1/app/orders/{id}/review",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "trade",
+      "controller": "OrderController",
+      "method": "POST",
+      "path": "/api/v1/app/orders/{id}/review",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "trade",
+      "controller": "ReviewController",
+      "method": "POST",
+      "path": "/api/v1/app/reviews/{id}/reply",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "content",
+      "controller": "SearchController",
+      "method": "GET",
+      "path": "/api/v1/app/search",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "document",
+      "controller": "AppSignatureController",
+      "method": "GET",
+      "path": "/api/v1/app/signatures",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "document",
+      "controller": "AppSignatureController",
+      "method": "POST",
+      "path": "/api/v1/app/signatures",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "document",
+      "controller": "AppSignatureController",
+      "method": "DELETE",
+      "path": "/api/v1/app/signatures/{id}",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "trade",
+      "controller": "AppSocialController",
+      "method": "DELETE",
+      "path": "/api/v1/app/social/favorites",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "trade",
+      "controller": "AppSocialController",
+      "method": "GET",
+      "path": "/api/v1/app/social/favorites",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "trade",
+      "controller": "AppSocialController",
+      "method": "GET",
+      "path": "/api/v1/app/social/follow-count",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "trade",
+      "controller": "AppSocialController",
+      "method": "DELETE",
+      "path": "/api/v1/app/social/follows",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "trade",
+      "controller": "AppSocialController",
+      "method": "GET",
+      "path": "/api/v1/app/social/follows",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "account",
+      "controller": "UploadController",
+      "method": "POST",
+      "path": "/api/v1/app/upload/token",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "account",
+      "controller": "UploadController",
+      "method": "GET",
+      "path": "/api/v1/app/upload/url",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "trade",
+      "controller": "WalletController",
+      "method": "GET",
+      "path": "/api/v1/app/wallet/balance",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "trade",
+      "controller": "WalletController",
+      "method": "GET",
+      "path": "/api/v1/app/wallet/flows",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "trade",
+      "controller": "RechargeController",
+      "method": "GET",
+      "path": "/api/v1/app/wallet/recharges",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "trade",
+      "controller": "RechargeController",
+      "method": "POST",
+      "path": "/api/v1/app/wallet/recharges",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "trade",
+      "controller": "RechargeController",
+      "method": "GET",
+      "path": "/api/v1/app/wallet/recharges/{orderNo}",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "trade",
+      "controller": "WithdrawController",
+      "method": "GET",
+      "path": "/api/v1/app/withdrawals",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "trade",
+      "controller": "WithdrawController",
+      "method": "POST",
+      "path": "/api/v1/app/withdrawals",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "trade",
+      "controller": "WithdrawController",
+      "method": "GET",
+      "path": "/api/v1/app/withdrawals/config",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "workbench",
+      "controller": "AppWorkbenchController",
+      "method": "GET",
+      "path": "/api/v1/app/workbench/consultations",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "conversation",
+      "controller": "ConversationController",
+      "method": "GET",
+      "path": "/api/v1/app/workbench/conversations",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "workbench",
+      "controller": "AppWorkbenchController",
+      "method": "GET",
+      "path": "/api/v1/app/workbench/documents",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "workbench",
+      "controller": "AppWorkbenchController",
+      "method": "POST",
+      "path": "/api/v1/app/workbench/documents/{documentId}/send",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "workbench",
+      "controller": "AppWorkbenchController",
+      "method": "GET",
+      "path": "/api/v1/app/workbench/income",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "workbench",
+      "controller": "AppWorkbenchController",
+      "method": "GET",
+      "path": "/api/v1/app/workbench/income/flows",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "trade",
+      "controller": "WorkbenchController",
+      "method": "PUT",
+      "path": "/api/v1/app/workbench/online-status",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "workbench",
+      "controller": "AppWorkbenchController",
+      "method": "GET",
+      "path": "/api/v1/app/workbench/profile",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "workbench",
+      "controller": "AppWorkbenchController",
+      "method": "PUT",
+      "path": "/api/v1/app/workbench/profile",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "workbench",
+      "controller": "AppWorkbenchController",
+      "method": "GET",
+      "path": "/api/v1/app/workbench/service-settings",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "trade",
+      "controller": "WorkbenchController",
+      "method": "PUT",
+      "path": "/api/v1/app/workbench/service-settings",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "trade",
+      "controller": "WorkbenchController",
+      "method": "GET",
+      "path": "/api/v1/app/workbench/summary",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "workbench",
+      "controller": "AppWorkbenchController",
+      "method": "GET",
+      "path": "/api/v1/app/workbench/withdraw-account",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "workbench",
+      "controller": "AppWorkbenchController",
+      "method": "PUT",
+      "path": "/api/v1/app/workbench/withdraw-account",
+      "surface": "app",
+      "adminDir": false
+    },
+    {
+      "domain": "infra/probe",
+      "controller": "FaultInjectionController",
+      "method": "GET",
+      "path": "/api/v1/dev/fault",
+      "surface": "dev",
+      "adminDir": false
+    },
+    {
+      "domain": "ops",
+      "controller": "PubAppConfigController",
+      "method": "GET",
+      "path": "/api/v1/pub/app/config",
+      "surface": "pub",
+      "adminDir": false
+    },
+    {
+      "domain": "ops",
+      "controller": "PubAppVersionController",
+      "method": "GET",
+      "path": "/api/v1/pub/app/version",
+      "surface": "pub",
+      "adminDir": false
+    },
+    {
+      "domain": "content",
+      "controller": "ArticleController",
+      "method": "GET",
+      "path": "/api/v1/pub/articles",
+      "surface": "pub",
+      "adminDir": false
+    },
+    {
+      "domain": "content",
+      "controller": "ArticleController",
+      "method": "GET",
+      "path": "/api/v1/pub/articles/{id}",
+      "surface": "pub",
+      "adminDir": false
+    },
+    {
+      "domain": "account",
+      "controller": "AuthController",
+      "method": "POST",
+      "path": "/api/v1/pub/auth/login/password",
+      "surface": "pub",
+      "adminDir": false
+    },
+    {
+      "domain": "account",
+      "controller": "AuthController",
+      "method": "POST",
+      "path": "/api/v1/pub/auth/login/sms",
+      "surface": "pub",
+      "adminDir": false
+    },
+    {
+      "domain": "account",
+      "controller": "AuthController",
+      "method": "POST",
+      "path": "/api/v1/pub/auth/register",
+      "surface": "pub",
+      "adminDir": false
+    },
+    {
+      "domain": "account",
+      "controller": "AuthController",
+      "method": "POST",
+      "path": "/api/v1/pub/auth/reset-password",
+      "surface": "pub",
+      "adminDir": false
+    },
+    {
+      "domain": "ops",
+      "controller": "PubConfigController",
+      "method": "GET",
+      "path": "/api/v1/pub/config/{configKey}",
+      "surface": "pub",
+      "adminDir": false
+    },
+    {
+      "domain": "ops",
+      "controller": "PubFaqController",
+      "method": "GET",
+      "path": "/api/v1/pub/faq",
+      "surface": "pub",
+      "adminDir": false
+    },
+    {
+      "domain": "infra/storage",
+      "controller": "PubFileController",
+      "method": "GET",
+      "path": "/api/v1/pub/file/get",
+      "surface": "pub",
+      "adminDir": false
+    },
+    {
+      "domain": "infra/storage",
+      "controller": "PubFileController",
+      "method": "PUT",
+      "path": "/api/v1/pub/file/put",
+      "surface": "pub",
+      "adminDir": false
+    },
+    {
+      "domain": "ai",
+      "controller": "LawItemPublicController",
+      "method": "GET",
+      "path": "/api/v1/pub/law-items",
+      "surface": "pub",
+      "adminDir": false
+    },
+    {
+      "domain": "trade",
+      "controller": "PayCallbackController",
+      "method": "POST",
+      "path": "/api/v1/pub/pay/callback/alipay",
+      "surface": "pub",
+      "adminDir": false
+    },
+    {
+      "domain": "trade",
+      "controller": "PayCallbackController",
+      "method": "POST",
+      "path": "/api/v1/pub/pay/callback/mock",
+      "surface": "pub",
+      "adminDir": false
+    },
+    {
+      "domain": "trade",
+      "controller": "PayCallbackController",
+      "method": "POST",
+      "path": "/api/v1/pub/pay/callback/wechat",
+      "surface": "pub",
+      "adminDir": false
+    },
+    {
+      "domain": "infra/probe",
+      "controller": "ProbeController",
+      "method": "GET",
+      "path": "/api/v1/pub/ping",
+      "surface": "pub",
+      "adminDir": false
+    },
+    {
+      "domain": "infra/probe",
+      "controller": "ProbeController",
+      "method": "POST",
+      "path": "/api/v1/pub/probe/ai",
+      "surface": "pub",
+      "adminDir": false
+    },
+    {
+      "domain": "infra/probe",
+      "controller": "ProbeController",
+      "method": "GET",
+      "path": "/api/v1/pub/probe/law",
+      "surface": "pub",
+      "adminDir": false
+    },
+    {
+      "domain": "account",
+      "controller": "PubRegionController",
+      "method": "GET",
+      "path": "/api/v1/pub/regions",
+      "surface": "pub",
+      "adminDir": false
+    },
+    {
+      "domain": "account",
+      "controller": "SmsController",
+      "method": "POST",
+      "path": "/api/v1/pub/sms/code",
+      "surface": "pub",
+      "adminDir": false
+    },
+    {
+      "domain": "ai",
+      "controller": "PubSysConfigController",
+      "method": "GET",
+      "path": "/api/v1/pub/sys-config",
+      "surface": "pub",
+      "adminDir": false
+    }
+  ]
+}
