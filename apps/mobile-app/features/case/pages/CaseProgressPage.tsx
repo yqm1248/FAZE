@@ -15,6 +15,15 @@
  *   4. 底栏随状态切换（设计稿三态）：正常态「补充材料 / 联系律师」、补正态
  *      「联系律师 / 上传补正材料」、不予受理态「联系律师 / 重新提交」；
  *      `in_progress` 额外给「查看送达」入口（C4）。
+ *      **P0-6 止血（2026-11-10）**：「补充材料 / 重新提交」两个按钮目前只原地弹
+ *      「该功能即将开放」（已有四语言 key `home.soon`），**不再跳 /case-filing**——
+ *      后端 App 侧还没有补正接口（`AppCaseController` 只有 create/list/detail/progress/
+ *      addProgress；`AdminCaseController.correctProgress` 是 PC 管理员端），跳过去会进空白
+ *      表单并 `createCase` 新建第二张案件，原案件永远停在 rejected、App 内无法删除。
+ *      TODO：后端补 `POST /api/v1/app/cases/{id}/resubmit`（或等价补正接口）后，
+ *      本页两个按钮带 `caseId` 跳 `/case-filing`，FilingPage 按 `caseId` 预填并调该接口，
+ *      成功后 `router.replace` 回本页；`CaseStateMachine:61-64` 已有
+ *      `REJECTED → FILED(USER)` 迁移边，当前只缺 App 入口。
  *   5. 页面底部**必须有**「FAZE- 开头的编号是平台业务单号，不是法院案号」说明（B3 第 5 条）。
  *   6. 四态齐全：加载（骨架）/ 错误（重试）/ 正常；详情失败时整页错误态。
  *
@@ -40,6 +49,7 @@ import {
 import type { CaseDetail, CaseNodeCode, CaseProgressNode } from '@/features/case/api/client';
 import { CaseStatusPill } from '@/features/case/components/CaseStatusPill';
 import { AppHeader } from '@/shared/components/AppHeader';
+import { useToast } from '@/shared/components/AppToast';
 import { ErrorState } from '@/shared/components/ErrorState';
 import { LoadingState } from '@/shared/components/LoadingState';
 import { LocalizedText } from '@/shared/components/LocalizedText';
@@ -121,6 +131,7 @@ function formatDateTime(raw: string | null): string {
  */
 export function CaseProgressPage() {
   const { t } = useI18n();
+  const toast = useToast();
   const router = useRouter();
   const params = useLocalSearchParams<{ caseId?: string }>();
   const caseId = typeof params.caseId === 'string' ? params.caseId : '';
@@ -402,7 +413,11 @@ export function CaseProgressPage() {
             <Pressable
               testID="caseProgress-resubmit"
               accessibilityRole="button"
-              onPress={() => router.push(PAGE_ROUTES.caseFiling)}
+              onPress={() => {
+                // P0-6 止血：不跳 /case-filing（后端无补正接口，见文件头第 4 条 TODO），
+                // 原地提示；按钮保留，避免被读成「功能被砍」。
+                toast.show(t('home.soon'));
+              }}
               style={styles.secondaryButton}
             >
               <LocalizedText numberOfLines={1} style={styles.secondaryText}>
@@ -413,7 +428,10 @@ export function CaseProgressPage() {
             <Pressable
               testID="caseProgress-supplement"
               accessibilityRole="button"
-              onPress={() => router.push(PAGE_ROUTES.caseFiling)}
+              onPress={() => {
+                // P0-6 止血：同「重新提交」，不跳 /case-filing，原地提示。
+                toast.show(t('home.soon'));
+              }}
               style={styles.secondaryButton}
             >
               <LocalizedText numberOfLines={1} style={styles.secondaryText}>
