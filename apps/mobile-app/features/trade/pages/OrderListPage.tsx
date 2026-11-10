@@ -51,14 +51,15 @@ type FilterKey = 'all' | 'pending' | 'doing' | 'completed' | 'cancelled';
  *
  * 「进行中」包含 `paid`（已付等接单）、`in_service`、`refunding`、`refund_rejected`：
  * 这四态对用户都是「这单还在处理中」，拆开会让人找不到订单。
- * 「已完成」包含 `refunded`（已退款是终态）。
+ * 「已退款」并入「已取消」：两者都是「服务没有完成、钱已回到用户手上」的终态；
+ * 拆成第 6 档会破坏设计稿 5 tab 口径（`design/ui/app.js` §31 只有 5 档）。
  */
 const FILTER_STATUS: Record<FilterKey, string | undefined> = {
   all: undefined,
   pending: 'pending',
   doing: 'paid,in_service,refunding,refund_rejected',
-  completed: 'completed,refunded',
-  cancelled: 'cancelled',
+  completed: 'completed',
+  cancelled: 'cancelled,refunded',
 };
 
 /** 档位文案 key。 */
