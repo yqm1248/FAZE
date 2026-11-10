@@ -11,6 +11,8 @@
  *   2. 卸载后不再 setState：避免「返回上一页时组件已卸载」告警。
  *   3. `emptyWhen` 由调用方决定「什么算空」——列表用 `list.length === 0`，
  *      详情类接口一般不需要（不传即永远不进空态）。
+ *   4. `reloadSilently()` 是给 `useRefreshOnFocus` 用的**静默刷新**：不置 `loading`（不闪骨架）、
+ *      失败时保留已有成功数据（不把 success 打成 error），成功才替换数据。首屏加载行为与它无关。
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -31,8 +33,14 @@ export type AsyncResourceOptions<T> = {
 export type AsyncResource<T> = {
   /** 当前四态。 */
   state: AsyncState<T>;
-  /** 重新加载（错误态的重试按钮用）。 */
+  /** 重新加载（错误态的重试按钮用）。会先进入 `loading`，失败进 `error`。 */
   reload: () => void;
+  /**
+   * 静默重新加载（聚焦刷新用）。
+   *
+   * 不进入 `loading`（不闪骨架）；失败时保留旧数据、不改成 `error`；成功才替换。
+   */
+  reloadSilently: () => void;
   /** 用本地结果覆盖当前数据（例如保存成功后刷新表单回显）。 */
   setData: (data: T) => void;
 };
@@ -55,6 +63,8 @@ export function useAsyncResource<T>(
   emptyWhenRef.current = options.emptyWhen;
   const [state, setState] = useState<AsyncState<T>>({ phase: 'loading' });
   const [nonce, setNonce] = useState(0);
+  /** 本次 effect 是否为静默刷新：`reloadSilently` 置位，effect 消费后复位。 */
+  const silentRef = useRef(false);
   const mountedRef = useRef(true);
   const enabled = options.enabled !== false;
 
@@ -67,16 +77,26 @@ export function useAsyncResource<T>(
 
   useEffect(() => {
     if (!enabled) {
+      silentRef.current = false;
       return;
     }
+    // 静默刷新：不进入 loading，失败不覆盖已有数据。首屏仍走原来的 loading → success/error 流程。
+    const silent = silentRef.current;
+    silentRef.current = false;
     let cancelled = false;
-    setState({ phase: 'loading' });
+    if (!silent) {
+      setState({ phase: 'loading' });
+    }
     void (async () => {
       const result = await loaderRef.current();
       if (cancelled || !mountedRef.current) {
         return;
       }
       if (!result.ok) {
+        if (silent) {
+          // 静默刷新失败：保留已展示的数据，不把 success 打成 error（下次聚焦再试）。
+          return;
+        }
         setState({ phase: 'error', error: result.error });
         return;
       }
@@ -96,9 +116,14 @@ export function useAsyncResource<T>(
     setNonce((value) => value + 1);
   }, []);
 
+  const reloadSilently = useCallback(() => {
+    silentRef.current = true;
+    setNonce((value) => value + 1);
+  }, []);
+
   const setData = useCallback((data: T) => {
     setState({ phase: 'success', data });
   }, []);
 
-  return { state, reload, setData };
+  return { state, reload, reloadSilently, setData };
 }
