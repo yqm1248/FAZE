@@ -85,8 +85,11 @@ const SERVICE_LABEL_KEYS: Readonly<Record<string, MessageKey>> = {
 
 /** 订单通知系统消息的载荷（服务端 `content` 里存的 JSON）。 */
 type OrderNoticePayload = {
-  /** i18n key，当前只有 `conversation.orderNotice`。 */
-  key?: string;
+  /**
+   * 消息种类标记：`orderNotice` 表示这是订单通知。
+   * 历史消息里的 `key` 字段（旧版本服务端写入）会被忽略，不做数据迁移。
+   */
+  type?: string;
   /** 服务类型 code。 */
   serviceType?: string;
   /** 业务单号。 */
@@ -672,6 +675,7 @@ export function ChatPage() {
               <MessageBubble
                 key={message.id}
                 message={message}
+                peerType={conversation?.peerType}
                 onLongPress={() => {
                   // 只有「自己发的」才能撤回。归属一律看 mine（`=== true`，缺失降级为对方消息）；
                   // 不改用 senderId 比较：用户侧是 app_user.id、律师侧是 lawyer.id，比较恒 false。
@@ -802,13 +806,22 @@ export function ChatPage() {
 /**
  * 一条居中显示的系统提示（当前只有「已购买服务」的订单通知）。
  *
- * 服务端把内容存成 `{"key":"conversation.orderNotice","serviceType":…,"orderNo":…,"amountCents":…}`，
- * 这里按 key 翻成当前语言；解析失败就原样显示 content，不静默吞掉内容。
+ * 服务端把内容存成 `{"type":"orderNotice","serviceType":…,"orderNo":…,"amountCents":…}`，
+ * 口吻按**查看者视角**选：对端是用户 ⇒ 当前是律师端，用「对方已购买…」；
+ * 缺省（会话对象还没加载）按用户视角，避免律师端先闪一下错的文案。
+ * 解析失败就原样显示 content，不静默吞掉内容。
  *
- * @param props.content 系统消息的原始 content
+ * @param props.content  系统消息的原始 content
+ * @param props.peerType 会话对端类型（`user` = 当前是律师端；undefined 按用户视角）
  * @returns 居中的提示条
  */
-function SystemNotice({ content }: { content: string | null }) {
+function SystemNotice({
+  content,
+  peerType,
+}: {
+  content: string | null;
+  peerType: string | undefined;
+}) {
   const { t } = useI18n();
   const notice = parseOrderNotice(content);
   let text = content ?? '';
@@ -819,7 +832,10 @@ function SystemNotice({ content }: { content: string | null }) {
     notice.amountCents !== undefined
   ) {
     const serviceKey = SERVICE_LABEL_KEYS[notice.serviceType];
-    text = t('conversation.orderNotice', {
+    // 同一条消息两端共享，口吻不能写死一端：对端是用户 ⇒ 我在律师端。
+    const noticeKey: MessageKey =
+      peerType === 'user' ? 'conversation.orderNoticeLawyer' : 'conversation.orderNotice';
+    text = t(noticeKey, {
       service: serviceKey === undefined ? notice.serviceType : t(serviceKey),
       orderNo: notice.orderNo,
       amount: formatAmount(centsFromServer(notice.amountCents)),
@@ -835,15 +851,24 @@ function SystemNotice({ content }: { content: string | null }) {
 /**
  * 一条消息气泡。
  *
- * @param props.message    消息
+ * @param props.message     消息
+ * @param props.peerType    会话对端类型（系统通知据此选查看者视角的文案）
  * @param props.onLongPress 长按回调（撤回用）
  * @returns 气泡
  */
-function MessageBubble({ message, onLongPress }: { message: ChatMessage; onLongPress: () => void }) {
+function MessageBubble({
+  message,
+  peerType,
+  onLongPress,
+}: {
+  message: ChatMessage;
+  peerType: string | undefined;
+  onLongPress: () => void;
+}) {
   const { t } = useI18n();
   // 系统消息居中显示：既不算「我发的」，也不算律师发的（否则会靠右带「已读」）
   if (message.senderRole === 'system') {
-    return <SystemNotice content={message.content} />;
+    return <SystemNotice content={message.content} peerType={peerType} />;
   }
   // 气泡方向只看 mine（后端按 viewerRole 算好的查看者视角）：
   // 用户端与律师端共用本页，`senderRole !== 'lawyer'` 是写死的用户视角，律师端会全反。

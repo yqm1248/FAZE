@@ -3,8 +3,10 @@
  * 调用方：modules/conversation/service/ConversationService#createOrGet（新建与已存在两条路径）。
  * 数据来源：经 trade 域 `OrderQueryService` 读 faze.orders；写 faze.conversation_message。
  * 注意：
- *   1. **content 存的是 i18n 描述 JSON，不是中文死文本**：客户端按 `key` 走 `t()`，
- *      四语言（含 RTL）都能正确渲染；服务端拼中文就绕过了 i18n 规范。
+ *   1. **content 存的是 i18n 描述 JSON，不是中文死文本**：客户端按 `type` + **查看者视角**
+ *      （会话对端是用户 ⇒ 当前是律师端）选 `conversation.orderNotice` /
+ *      `conversation.orderNoticeLawyer` 再走 `t()`，四语言（含 RTL）都能正确渲染。
+ *      **服务端不决定口吻**：`conversation_message` 是一行两端共享，写死一端必然别扭。
  *   2. 幂等键固定为 `order-notice-{orderId}`：先按 `(conversation_id, client_msg_id)` 查、
  *      再插，并发时靠 `uk_msg_client_id` 唯一键兜底，捕获 `DuplicateKeyException` 静默跳过。
  *   3. **不改 `conversation.last_message` / `unread_*`**：这是「进入会话时的历史补发」，
@@ -51,9 +53,6 @@ public class OrderNoticeService {
 
     /** 幂等键前缀；与 orderId 拼成 `order-notice-{orderId}`。 */
     private static final String CLIENT_MSG_ID_PREFIX = "order-notice-";
-
-    /** 订单通知的 i18n key（客户端在 conversation 命名空间下取它渲染）。 */
-    private static final String I18N_KEY = "conversation.orderNotice";
 
     private final OrderQueryService orderQueryService;
     private final ConversationMessageMapper messageMapper;
@@ -137,16 +136,20 @@ public class OrderNoticeService {
     /**
      * 拼订单通知的 i18n 描述 JSON。
      *
+     * <p>`type` 只是消息种类标记，**不写 i18n key**：同一条消息两端共享，
+     * 口吻由客户端按查看者视角选（对端是用户 ⇒ 律师端用 `orderNoticeLawyer`）。
+     * 历史消息里旧的 `key` 字段保留兼容，客户端不再读它即可，无需数据迁移。</p>
+     *
      * <p>金额用**字符串**（`"10000"`）而不是数字：前端 `t()` 的参数需要字符串化展示，
      * 且避免大整数在 JSON 数字类型里被某些客户端解析成浮点。</p>
      *
      * @param order 订单最小投影
      * @return JSON 字符串，形如
-     *     {@code {"key":"conversation.orderNotice","serviceType":"consult_text","orderNo":"OR...","amountCents":"10000"}}
+     *     {@code {"type":"orderNotice","serviceType":"consult_text","orderNo":"OR...","amountCents":"10000"}}
      */
     private String contentOf(OrderBriefVO order) {
         Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("key", I18N_KEY);
+        payload.put("type", "orderNotice");
         payload.put("serviceType", order.serviceType());
         payload.put("orderNo", order.orderNo());
         payload.put("amountCents", order.amountCents() == null ? null : String.valueOf(order.amountCents()));
