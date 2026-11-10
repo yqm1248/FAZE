@@ -35,6 +35,7 @@ import { LocalizedText } from '@/shared/components/LocalizedText';
 import { Screen } from '@/shared/components/Screen';
 import { useI18n } from '@/shared/i18n';
 import type { MessageKey } from '@/shared/i18n';
+import { PAGE_ROUTES } from '@/shared/navigation/routes';
 import type { AppError } from '@/shared/api/types';
 import { color, radius, spacing, typography } from '@/shared/theme';
 
@@ -159,7 +160,7 @@ export function CaseListPage() {
             testID="case-search-entry"
             accessibilityRole="button"
             accessibilityLabel={t('content.case.searchPlaceholder')}
-            onPress={() => router.push('/search')}
+            onPress={() => router.push(PAGE_ROUTES.search)}
             style={styles.searchBar}
           >
             <LocalizedText numberOfLines={1} style={styles.searchText}>

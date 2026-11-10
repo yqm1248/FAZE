@@ -34,7 +34,6 @@ import { UserAvatar } from '@/features/profile/components/UserAvatar';
 import { getBalance } from '@/features/trade/api/wallet';
 import type { ApiResult } from '@/shared/api/types';
 import { AsyncBoundary } from '@/shared/components/AsyncBoundary';
-import { useToast } from '@/shared/components/AppToast';
 import { ConfirmDialog } from '@/shared/components/ConfirmDialog';
 import { LocalizedText } from '@/shared/components/LocalizedText';
 import { MoneyText } from '@/shared/components/MoneyText';
@@ -145,7 +144,6 @@ function lawyerText(
 export function MyPage() {
   const { t } = useI18n();
   const router = useRouter();
-  const toast = useToast();
   const resource = useAsyncResource<MyData>(loadMyData);
   const [logoutVisible, setLogoutVisible] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
@@ -296,7 +294,7 @@ export function MyPage() {
                     </LocalizedText>
                   </Pressable>
                   <Pressable
-                    onPress={() => toast.show(t('profile.my.rechargePending'))}
+                    onPress={() => router.push(PAGE_ROUTES.recharge)}
                     accessibilityRole="button"
                     accessibilityLabel={t('profile.my.recharge')}
                     style={({ pressed }) => [styles.rechargeBtn, pressed ? styles.pressed : null]}

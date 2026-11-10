@@ -190,7 +190,7 @@ export function HomePage() {
         </View>
 
         <Pressable
-          onPress={() => toast.show(t('home.searchPending'))}
+          onPress={() => router.push(PAGE_ROUTES.search)}
           accessibilityRole="search"
           style={styles.search}
         >

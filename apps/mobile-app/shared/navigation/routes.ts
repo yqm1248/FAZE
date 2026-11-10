@@ -102,6 +102,8 @@ export const PAGE_ROUTES = {
   messages: '/messages' as Href,
   /** 消息详情（段 2 G8.3，占位）。 */
   messageDetail: '/message-detail' as Href,
+  /** 搜索页（段 2 G8；首页搜索框与案件列表的搜索入口）。 */
+  search: '/search' as Href,
 
   // ── 段 2 G3：律师浏览与律师侧 ───────────────────────────────────────
   /** 找律师页（段 2 G3.1）。 */
