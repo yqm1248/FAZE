@@ -227,16 +227,16 @@
     "title": "隐私设置",
     "groupVisible": "谁能看到我的信息",
     "phoneVisible": "手机号对律师可见",
-    "phoneVisibleDesc": "关掉后律师不能直接打电话，只能用站内消息联系你",
+    "phoneVisibleDesc": "此偏好暂保存在本机，服务端同步接入后才会对律师生效。",
     "profileVisible": "个人资料对律师可见",
-    "profileVisibleDesc": "昵称、地区这类基本信息。律师需要这些判断你所在地区",
+    "profileVisibleDesc": "此偏好暂保存在本机，接入前律师看到的资料不变。",
     "groupOnline": "在线状态",
     "onlineVisible": "向律师展示在线状态",
-    "onlineVisibleDesc": "关掉后律师看不到你在线，你也看不到律师的在线状态",
+    "onlineVisibleDesc": "此偏好暂保存在本机，接入前在线状态照常展示。",
     "groupRecommend": "推荐",
     "personalRec": "个性化推荐",
-    "personalRecDesc": "按你的浏览和咨询记录推荐律师与文章。关掉后仍会推荐，只是不依据你的记录",
-    "localOnly": "隐私偏好当前保存在本机；同步接口将在后续版本接入。"
+    "personalRecDesc": "此偏好暂保存在本机，接入前推荐不依据你的浏览与咨询记录。",
+    "localOnly": "隐私偏好当前仅保存在本机，尚未接入服务端；接入前下列开关不影响律师看到的信息。"
   },
   "settings": {
     "title": "设置",
