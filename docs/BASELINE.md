@@ -110,7 +110,7 @@
 
 | # | 文件 | 行数 | 字节 | SHA256 前 16 位 |
 |---|---|---|---|---|
-| 1 | `AGENTS.md` | 199 | 18231 | `57201732abcc029b` 📝 |
+| 1 | `AGENTS.md` | 199 | 18372 | `d5e9177ec844e022` 📝 |
 | 2 | `README.md` | 128 | 6650 | `e73e69e54d114ac0` |
  | 3 | `docs/README.md` | 326 | 40812 | `91e71378d6945c9e` 📝 | 
 
@@ -178,7 +178,7 @@
 |---|---|---|---|---|
 | 16 | `docs/standards/目录与命名规范.md` | 116 | 4986 | `cb0c73d18309ceaa` |
 | 17 | `docs/standards/代码注释规范.md` | 144 | 5676 | `48dfd0358a09be6e` |
-| 18 | `docs/standards/代码审查清单.md` | 66 | 3275 | `0a8943ae6fc959a3` 📝 |
+| 18 | `docs/standards/代码审查清单.md` | 65 | 3304 | `832447307fe8118b` 📝 |
 | 19 | `docs/standards/README.md` | 60 | 4724 | `9a6355637c5710b2` 📝 |
 | 44 | `docs/standards/法条数据录入规范.md` | 135 | 9159 | `c12c1b3f7d0e3cf1` 📝 |
 | 45 | `docs/standards/AI对话留存策略.md` | 104 | 5754 | `23d13a37832da248` 🆕 |
@@ -2238,3 +2238,39 @@ git tag -n
 
 `docs/CHANGELOG.md` 与 `docs/README.md` 属基线但 `CHANGELOG` 不登记固定指纹（§2.6）；
 `docs/README.md` 本版只改基线号引用（不改变其登记指纹口径需重算——若后续校验发现不一致，按 §4 再出补正版）。
+
+## §7.68 v1.65 缺陷修复改了规范本身：禁掉 `Alert.alert`（内容变更 2 份）
+
+**为什么要出这一版**：P1 验收缺陷清单里有一条「立案页填过内容后点返回毫无反应」。查下来**根因不在页面，在规范**：
+`react-native-web` 的 `Alert.alert` 实现是空函数（`node_modules/react-native-web/dist/exports/Alert/index.js`
+里 `static alert() {}`），弹窗不出现、回调不执行、`router.back()` 永不调用。而 `AGENTS.md` §5 与
+`docs/standards/代码审查清单.md` E 节当时都在**推荐**用 `Alert.alert`。
+
+只改页面是治标：规范还在教人用不可用的 API，下一个页面照样会写。所以按 §4 第 6 条，改基线内文档正文
+后必须出新版本并重算指纹。
+
+**改了什么**
+
+| # | 资产 | 改了什么 |
+|---|---|---|
+| 1 | `AGENTS.md` | §5 禁止清单一条：「禁止使用 `alert()`；统一 `AppToast` 或 `Alert.alert`」→「禁止 `alert()`；也**禁止 `Alert.alert`**——`react-native-web` 的实现是空函数，Web 上点了没反应。二次确认统一用 `shared/components/ConfirmDialog`，轻提示用 `AppToast`」 |
+| 18 | `docs/standards/代码审查清单.md` | E 节第 45 条：「没有 `alert()`；提示统一走 `AppToast` 或 `Alert.alert`」→「没有 `alert()` / `Alert.alert`；二次确认走 `ConfirmDialog`，轻提示走 `AppToast`」 |
+
+**配套的机器拦截**（本版一并落地，规则得有承接手段）：`apps/mobile-app/eslint.config.mjs` 的
+`no-restricted-imports` 追加 `react-native` 的 `Alert`（与既有的 `Text` 条目并列，两条各自独立生效，
+已用临时探针文件实测：同时 `import { Alert, Text }` 会报出两条各自正确的 message）。
+
+**指纹重算（本版只动这 2 份，LF 口径）**
+
+| 文件 | 行数 | 字节 | SHA256 前 16 位 |
+|---|---|---|---|
+| `AGENTS.md` | 199 | 18372 | `d5e9177ec844e022` |
+| `docs/standards/代码审查清单.md` | 65 | 3304 | `832447307fe8118b` |
+
+**口径说明（又踩了一次，记下来）**：`AGENTS.md` 行数 199 与其原登记 199 一致（改动是单行替换，行数不变）；
+`代码审查清单.md` 原登记是 `66`，按 LF 口径实测为 **65** —— 与 §7.64 已归一的口径（行数 = LF 个数）一致，
+此前的 66 是 LF+1 的历史偏差。本版按 LF 归一，不保留偏差。
+
+其余 43 份资产本版未重算——本次改动不涉及它们，沿用 v1.64 登记值。
+`docs/CHANGELOG.md` 与 `docs/README.md` 本版无需变更（前者不登记固定指纹，后者内容未变、指纹实测仍为
+`91e71378d6945c9e` / 326 行 / 40812 字节，与 v1.62 登记值一致）。

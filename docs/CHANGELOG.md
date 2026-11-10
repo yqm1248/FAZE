@@ -4,6 +4,57 @@
 
 ---
 
+## 2026-11-10 · P1 九条：口径错、入口错、假承诺（附 P0 六条补记）
+
+**背景**：上一轮按《缺陷清单》修了 P0（崩溃 / 隐私 / 数据错误 / 资源泄漏），推送在 `0caa36a`。
+**那一版漏写了本文件**（违反「每次推送前必须更新」），本版一并补记。本轮继续修 P1 九条。
+
+### 一、P0 六条（补记，已随 `0caa36a` 推送）
+
+| # | 缺陷 | 根因与修法 |
+|---|---|---|
+| P0-1 | 点「确认支付」必崩 | Mock 回调报文是 `application/x-www-form-urlencoded` 表单串，前端先 `JSON.parse` 必抛 SyntaxError，且 `client.ts` 唯一 body 通道写死 JSON。`client` 新增 `bodyMode` / `contentType` / `successMode` 三个可选参数（既有 JSON 路径逐字节不变）；`confirmMock` 补 try/catch/finally，`busy` 由 finally 释放、payload 只在 HTTP 200 后丢弃 |
+| P0-2 | 律师端气泡全反、撤回按钮错位 | 方向判断原本用 `senderRole !== 'lawyer'`（写死用户视角），`senderId` 是分域 id（用户侧 `app_user.id`、律师侧 `lawyer.id`）无法比较。`MessageVO` 新增 `Boolean mine`；实时推送在 `pushToPeer` 翻转为接收者视角；前端一律 `mine === true` 判断 |
+| P0-3 | 已读风暴（1 分钟 1036 次 UPDATE） | `markRead` 不看消息表影响行数，无条件写 `conversation` 并推对端。改为以影响行数判定 `advanced`，未前进不写库不推送；前端用 `reportedSeqRef` 去重、只在已读位置前进时发包 |
+| P0-4 | 跨会话消息泄漏 | 离线补推按 `user_id` 跨会话投递，前端收到帧不校验 `conversationId`。在帧处理层统一过滤 `chat.message/read/recall/typing/history` 五类，`String()` 归一比较，缺字段保持原行为 |
+| P0-5 | 法条 733 被错录成 722 的正文 | V305 把第七百二十二条正文挂在 `article_seq=733` 下，AI 检索到 733 时给 722 的原文，且 `ArticleNoValidator` 仍判定条号存在。新增 `V710` 用 UPDATE 改条号为 722；不改已执行的 V305（Flyway checksum），**不补录真正的 733 正文**（禁止自编法条原文） |
+| P0-6 | 案件补正入口会新建第二张案件 | 两个补正按钮 `router.push('/case-filing')` 且不带 `caseId`，进去是空白表单，提交会 `createCase` 新建案件，原案件永远停在 rejected。App 侧尚无补正接口，**本版只止血**（原地提示 + TODO 指向需新增 `POST /app/cases/{id}/resubmit`） |
+
+**P0 验证证据**：充值走真实浏览器端到端（选档→立即充值→确认支付→成功页）；气泡方向与已读用双端 WS 帧级脚本断言（`firstRead=1 / repeat30=0 / newMsg=1`；实时帧 `mine=false`、历史两端对齐、同 `messageId` 两端相反）。
+
+### 二、P1 九条（本版）
+
+| # | 缺陷 | 根因 | 修法 | 实测对照 |
+|---|---|---|---|---|
+| P1-1 | 律师「预计收入」不分订单状态 | `LawyerOrderService.toVO` 无条件透传 `lawyer_income_cents`，而看板 SQL 只算 `in_service/completed` | 后端抽唯一口径常量 `INCOME_STATUSES = {IN_SERVICE, COMPLETED}`（Javadoc 绑定 `OrdersMapper.selectWorkbenchStats`，改一处必须同步另一处）；非结算状态置 `null`；`Set.of().contains(null)` 会 NPE 故先判空；脏状态 `log.warn` 不抛异常。前端 `null` 时显示灰色 `—` + 读屏「未计入收入」 | 改前列表合计 **212950 分** vs 看板 46200；改后 **46200 = 46200**，带收入的只剩 4 条 `completed` |
+| P1-2 | 已驳回提现显示「¥99.40 到账」 | 无条件渲染 `actualCents`，而 `reject` 不清 `actual_cents`；「到账」还是硬编码中文 | 按状态分支：`paid`→新增 `withdrawArrived`、`applying/approved`→新增 `withdrawExpectedAmount`、`rejected`→不渲染。既有 `withdrawExpected` **未加占位符**（`WithdrawPanel` 当纯标签用）。后端与 PC 后台不动（PC 依赖 `actualCents` 非空） | 驳回行改前「¥99.40 到账」，改后只剩「已驳回 + 驳回理由」；`paid` 行正常显示到账 |
+| P1-3 | 系统通知用「用户口吻」发给律师 | 后端 payload 写死 `key:"conversation.orderNotice"`，一行消息两端共享，不可能同时正确 | 后端改 `type:"orderNotice"` 不再下发 key（**不做数据迁移**）；前端 `SystemNotice` 按 `peerType === 'user'`（对端是用户 ⇒ 律师端）选 `orderNoticeLawyer`，缺省按用户视角防闪。四语言补新 key | 律师端 4 条通知全部「对方已购买…」，其中 3 条是**旧格式历史消息**——证明不迁移也正确 |
+| P1-4 | 「我的文书」跳模板列表 | `MyPage` 自造 `DOC_TEMPLATES_ROUTE='/doc/templates'` | 改跳 `PAGE_ROUTES.docMine`；`routes.ts` 补 `docSeals/docForm/docPreview/docLawsuit`；**同源收口** 5 个页面/组件的自造路由常量（`DocMinePage`/`DynamicForm`/`DocTemplatesPage`/`DocPreviewPage`） | 浏览器：点「我的文书」落在 `/doc/mine`，页面是「我的文书 / 草稿 / 已完成」列表 |
+| P1-5 | 立案页改过内容后返回无反应 | **根因在规范不在页面**：`AGENTS.md` §5 与审查清单当时都推荐 `Alert.alert`，而 `react-native-web` 的实现是 `static alert() {}` 空函数 | 页面改 `ConfirmDialog`（含「继续填写」出口）；**规范改口径**（AGENTS §5 + 审查清单 E 节）；**ESLint 加 `no-restricted-imports` 禁 `react-native` 的 `Alert`**（与既有 `Text` 条目并列，探针实测两条各自生效）。`BackHandler` 浏览器后退拦截未做（挂账） | 浏览器：填「民事」→ 返回 → 弹窗出现 →「继续填写」关窗 → 再返回「离开」退回 `/case-my`。改前一步都不会发生 |
+| P1-6 | 列表返回不刷新 | `useAsyncResource` 的 effect 只依赖 `[nonce, enabled]`，挂载后不再请求；全仓仅 2 处 `useFocusEffect` | `useAsyncResource` 加 `reloadSilently()`（消费式 `silentRef`，不置 loading、失败保留旧数据）；新增 `useRefreshOnFocus`（首次聚焦跳过）；**25 个列表/展示页接入**。分页保护：显式页码页 `pageNum !== 1` 时跳过、游标页 `pagedRef` 标记翻过页即跳过；律师订单管理页加 in-flight 守卫避免「聚焦刷新 + 10 秒轮询」并发 | 浏览器「我的」→ 进余额 → 返回：请求数 **+3**（改前 0），4 次采样**均无加载骨架** |
+| P1-7 | 订单「已完成」里出现已退款 | `FILTER_STATUS.completed = 'completed,refunded'`，与设计稿 5 tab 口径矛盾 | `completed: 'completed'`、`cancelled: 'cancelled,refunded'`（已退款是「服务未完成、钱已回用户」的终态）。不新增第 6 档，不动设计稿 | 数据级：`status=completed` 返回 0 条、`cancelled,refunded` 返回 6 条且全为 `refunded` |
+| P1-8 | 「去充值」「首页搜索」该跳不跳 | 两处只 `toast.show('即将开放')`，而页面与路由壳都已实现 | 改真跳转 `PAGE_ROUTES.recharge` / `PAGE_ROUTES.search`（`routes.ts` 补 `search`）；回收 4 个过期死 key（`profile.my.rechargePending`、`home.searchPending`、`trade.balance.rechargePending`、`trade.pay.rechargePending`）；`trade.pay.rechargeTip` 改「余额不足，请先充值」并纠正两处与代码不符的注释 | 浏览器：`/profile`→去充值落在 `/recharge`；首页搜索框落在 `/search`；`CaseListPage` 的裸 `'/search'` 一并收口 |
+| P1-9 | 隐私开关只存本机但文案承诺生效 | 后端 grep `phoneVisible/privacySetting` **0 命中**；律师侧拿到的本来就是脱敏号；「在线状态」用户侧没有数据源 → 三个开关在任何状态下都不生效 | **本版走 A（文案止血）**：四语言 4 条 `*Desc` + `localOnly` 改成「仅存本机、尚未接入服务端、接入前不影响律师看到的信息」；开关数量与默认值不变。**B（真接服务端）需加表 + 接口 + PC 联动，排期** | 代码级（无后端可验）；四语言同构经 `check:i18n` |
+
+### 三、附带修复
+
+- **`52ef61c`**：「律师工作台」补入口。段 5 交付了 `/lawyer-workbench` 但全仓没有任何界面入口，律师登录后找不到客户咨询，等于收不到也回不了用户消息。在「我的」页加一张卡片，仅 `roles` 含 lawyer 时渲染。
+- **路由常量收口**：`HomePage` 与 `SearchPage` 的反引号路由字面量改用 `PAGE_ROUTES`（`HomePage` 的 `as never` 一并去掉）。
+
+### 四、已知取舍与挂账
+
+1. **律师工作台故意不接聚焦刷新**（P1-6 的例外）：`WorkbenchBody` 用 `useEffect([summary])` 把服务端值同步进本地价格输入框，聚焦刷新会无提示覆盖律师未保存的编辑。丢输入比数字不新鲜更糟。要两者兼得需加 `dirtyRef` 守卫。
+2. **P1-6 排除 15 个表单/支付类页面**：`LawyerJoinPage`、`EditProfilePage`、`ChangePhonePage`、`DeactivatePage`、`PayPasswordPage`、`RealnamePage`、`EnterpriseAuthPage`、`DocSealPage`、`LegalDocView`、`DynamicForm`、`PayPage`、`RechargePage`、`RefundPage`、`ReviewPage`、`SearchPage`——重拉数据会覆盖输入或打断支付/充值。
+3. **P0-6 仅止血**：真正修法是新增 `POST /api/v1/app/cases/{id}/resubmit` + `FilingPage` 按 `caseId` 预填，需负责人放行。
+4. **`WithdrawStatus.i18nKey()` 是死映射**：返回的 `trade.withdraw.status.*` 四语言里不存在，本版未修。
+5. **浏览器后退绕过 dirty 守卫**：全仓无 `BackHandler` / `usePreventRemove`，`P1-5` 只修了页内返回按钮。
+
+### 五、文档基线
+
+`AGENTS.md` §5 与 `docs/standards/代码审查清单.md` E 节因 P1-5 改口径，按 `docs/BASELINE.md` §4 出新基线 **v1.65**（`BASELINE.md` §7.68，重算这两份指纹；其余 43 份沿用 v1.64 登记值）。
+
+---
+
 ## 2026-11-09 · 借条模板：金额大写自动化 + 利率固定单位
 
 **背景**：负责人点测「借条欠条」时发现两个问题——① 「借款金额（大写）」和「（小写）」是两个
