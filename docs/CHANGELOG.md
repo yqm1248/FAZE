@@ -4,6 +4,99 @@
 
 ---
 
+## 2026-11-10 · P0-6 补正链路打通 + 两项挂账收口（附两笔漏记的推送）
+
+**背景**：上一版（同日）把 P0-6 止血成「原地提示 + TODO」，并把它写进挂账第 3 条：「真正修法是新增
+`POST /app/cases/{id}/resubmit` + `FilingPage` 按 `caseId` 预填，需负责人放行」。负责人本轮放行，补完。
+
+**同时补记两笔漏更新的推送**：`0f670c8`（P1-7 第 6 档「已退款」）与 `b24e0d7`（挂账第 2 项
+浏览器后退）**推送时都没有更新本文件**，违反本文件开头的「每次推送前必须更新」。现在补记，
+并一并纠正上一版的两处口径：① 挂账第 3 条（P0-6 仅止血）已关闭；② 挂账第 5 条（浏览器后退
+绕过 dirty 守卫）已由 `b24e0d7` 关闭。
+
+### 一、P0-6：案件被驳回后能在 App 内真正补救（本版）
+
+| 维度 | 内容 |
+|---|---|
+| 后端新增 | `GET /api/v1/app/cases/{id}/form` → `CaseFormVO`（四步表单快照 + 驳回理由，**只给委托人本人**；律师访问按案件不存在返回 `407001`）<br>`POST /api/v1/app/cases/{id}/resubmit` → `CaseSubmitVO`（复用 `CaseCreateBO`，必须带 `Idempotency-Key`）<br>`GET /api/v1/app/cases/{id}` 增 `resubmitCount` / `canResubmit` 两个字段 |
+| 补正规则 | 状态 `rejected → filed` 走 `CaseStateMachine.assertCanTransit(REJECTED, FILED, USER)`（这条边早就在，缺的是入口）；落库用 CAS（`WHERE id=? AND user_id=? AND status='rejected'`），同时清 `reject_reason`、整体替换表单快照与主表字段；追加一条 `case_progress(submitted)` 节点。**补正上限 3 次**，第 4 次抛新错误码 `407009`；次数由「`submitted` 节点数 − 1」推算（首提交也算一条），**不新增字段、不加迁移** |
+| 幂等 | Redis 键 `faze:case:resubmit:idem:{caseId}:{key}`，与立案的 `{userId}:{key}` 分开，两类提交不互串；写入失败只 `log.warn` 不回滚业务（与 `create` 同口径） |
+| 前端 | `FilingPage` 带 `?caseId=` 进入补正模式：预填原快照（**预填就绪前整页只显示骨架/错误态**，否则用户会先看到空表单再被覆盖）、页头「补正材料」、第 1 步合规条下插驳回理由提示条、第 4 步按钮「提交补正」；成功后 `router.replace` 回案件进度页。`CaseProgressPage`「重新提交」按后端 `canResubmit` 决定跳转或原地提示，驳回理由框多一行「还可补正 N 次 / 次数已用完」 |
+| 四语言 | 新增 7 条 key：`case.filing.resubmitTitle` / `resubmitBanner` / `resubmitSubmit` / `error.resubmitFailed`、`case.progress.resubmitRemaining` / `resubmitLimitReached`、`error.case.resubmit-limit`；四目录同构、占位符 `{{reason}}` / `{{count}}` 一致 |
+| 明确不动 | 「补充材料」按钮语义是**审理中补交材料**（不是补正），后端无对应接口，保持「即将开放」；补正材料上传仍走文书中心 |
+
+**验证证据**（全部真实运行，不是静态核对；脚本在 `tmp/fix-plan/`，`tmp/` 被 gitignore）：
+
+| 层 | 断言数 | 覆盖 |
+|---|---|---|
+| 接口级 `verify-p06-resubmit.mjs` | **31 条全过** | 补正前 `rejected / resubmitCount=0 / canResubmit=true` → form 回吐 `张三 / 500000 分 / labor` → 补正成功 → `filed / 1 / false`、`reject_reason` 已清空、进度 2 条；另覆盖 `407001`（非本人取 form）、`407002`（非 rejected 再补正）、`407003`（律师看非承办案件，HTTP 403）、`407009`（次数用完）、`401002`（缺幂等键）与幂等重放（同键重放返回同一 `caseNo`，进度仍 2 条、次数仍 1） |
+| 浏览器端到端 `verify-p06-e2e.mjs` | **19 条全过** | 我的案件 → 已驳回卡片 → 进度页（已驳回 / 驳回理由 / 还可补正 3 次）→「重新提交」→ `/case-filing?caseId=3`（标题「补正材料」+ 驳回提示条）→ 预填（原告张三 / 被告李四 / ¥5000 / 劳动仲裁；案情陈述在 `TextInput` 里，按 `value` 断言）→ 四步 →「提交补正」→ 回 `/case-progress?caseId=3` 状态「审核中」、时间轴出现「用户补正后重新提交立案材料」、「重新提交」消失、「补充材料」出现 |
+| 上限分支 UI `verify-p06-limit.mjs` | **7 条全过** | 造 4 条 `submitted`（= 已补正 3 次）后：驳回理由框显示「补正次数已用完，请联系平台」，点「重新提交」**不跳页面**、原地 toast——不能让用户白填一遍四步 |
+
+质量门（Lead 独立重跑，不采信执行者汇报）：`mvn -q -DskipTests compile` = 0、`npm run lint` = 0、
+`npm run check:i18n` = 0。后端为跑验证重启过 8081（`deploy\restart-api.ps1`，PID 42212）。
+
+### 二、补记：P1-7 加上第 6 档「已退款」（`0f670c8`）
+
+上一版 P1-7 的结论是「不新增第 6 档」，负责人随后决定要这一档（已退款是「服务没做成、钱退回」，
+与「取消」不是一回事，混在一起用户分不清钱去哪了）。
+
+- `OrderListPage` 的 `FILTER_STATUS.cancelled` 从 `'cancelled,refunded'` 改回 `'cancelled'`，新增
+  `refunded: 'refunded'`；`FILTER_ORDER` 追加在**末尾**（不是插在「已完成」和「已取消」之间）
+- 为什么追加在末尾：6 个 chip 在 390dp 下**刚好放下**，插在中间会把「已取消」挤出视口只剩半个字——
+  那是老用户已经形成位置记忆的档位。四语言补 `trade.order.filterRefunded`（复用各语言既有的
+  `order.statusRefunded` 说法）
+- 实测：用户 9415 有 6 单 `refunded`、0 单 `completed`。改前这 6 单全在「已完成」里；改后点「已退款」
+  列表非空且卡片状态全是「已退款」，点「已完成」显示空态「还没有订单」
+
+### 三、补记：挂账第 2 项——系统返回 / 浏览器后退也会丢数据（`b24e0d7`）
+
+上一版 P1-5 只修了页内返回按钮，系统返回与浏览器后退完全绕过 `AppHeader.onBack`。改用
+`usePreventRemove`（`@react-navigation/native`，`expo-router` 不 re-export 这个 hook）拦下所有
+导致立案页被移除的导航。**踩了三个坑，都写进代码注释了**：
+
+1. **死循环**：`preventRemove` 是渲染期布尔值，确认离开时同 tick 直接 `router.back()` 会被自己再拦一次
+   → 确认框反复弹。改成只置 `exiting` 状态，真正的 back 放到 effect 里（那时守卫已放行）。
+2. **提交成功也被拦**：`router.replace` 去结果页同样走 `beforeRemove`。改成置 `submitted` + `doneHref`，
+   由 effect 跳转。
+3. **Web 端 URL 与内容不一致**：浏览器后退会先把**地址栏**改成上一页，而 `usePreventRemove` 只拦住了
+   screen 被移除 → 出现「地址栏是列表、内容是表单」。补 `Platform.OS === 'web'` 时用 `history.pushState`
+   把 URL 改回本页。**不能用 `history.forward()`**——它会再触发 popstate，React Navigation 再走一遍导航，
+   又被守卫拦下，确认框反复弹。
+
+依赖 `@react-navigation/native@7.5.1` 提为直接依赖（与 `expo-router` 6.0.24 自带同版本，
+`package-lock.json` 只多 1 行），理由与风险已登记 `docs/architecture/依赖清单.md`。
+
+实测：从 `/case-my` 点进立案页 → 选「民事」→ `history.back()` → `afterBackPath=/case-filing`
+（URL 回正）、确认框出现、页面未丢；点「继续填写」留在本页且弹窗关闭。改前：后退直接离开、无提示、内容静默丢失。
+
+### 四、已知取舍（本轮新增，都不是缺陷但要知道）
+
+1. **幂等重放的 `submittedAt` 与首提不逐字相等**：首提返回内存里纳秒精度的 `now`，重放按契约读
+   `updated_at`（MySQL `DATETIME(0)` 会把小数秒四舍五入），两者最多差 1 秒内。用户可见性为零
+   （前端只展示到分钟），且 `create` 的幂等早就有同样现象，**不在本轮改**。
+2. **补正成功后导航栈残留旧进度页**：`router.replace` 替换的是立案页，栈变成
+   `case-my → case-progress(旧) → case-progress(新)`，用户多按一次返回才回列表。旧页重新聚焦时
+   会被 P1-6 的 `useRefreshOnFocus` 静默刷新，所以**看到的数据不会过期**，只是多一次返回。
+3. **时间轴上补正节点与首提交同名**：前端按 `nodeCode` 映射 i18n（`submitted → 材料已提交`），后端写的
+   title「材料已补正并重新提交」只作兜底不展示。两条记录的差异靠时间与描述
+   （「用户提交立案材料」vs「用户补正后重新提交立案材料」）体现。要根治得新增节点 code，
+   会影响状态机文档与次数统计算法，单独立项。
+4. **律师视角 `canResubmit=false` 只做了静态核对**：库里唯一的 rejected 案件未挂律师，
+   造 fixture 成本大于收益；代码条件是 `Objects.equals(e.getUserId(), userId) && status==rejected && count<3`，
+   静态可核。
+5. **补正次数上限 3 次是拍板值，不是推导值**：防的是「反复提交刷审核队列」。取值依据是运营判断，
+   不是测算；要改只需改后端一个常量 + 前端一个常量（两处都写了交叉引用注释）。
+
+### 五、文档基线
+
+本版**不出新基线版本之外的资产变更**：`docs/CHANGELOG.md` 不登记固定指纹（`BASELINE.md` §2.6），
+唯一变更的基线资产是 `docs/architecture/依赖清单.md`（`b24e0d7` 登记 `@react-navigation/native@7.5.1`，
+121 → **122 行** / 16877 → **17558 字节** / `f63b7a473853c45c` → **`fb3669b1f831c0f9`**）。
+连同上一版 v1.65 的头部漏更新，一并出 **v1.66**（`BASELINE.md` §7.69）。
+
+---
+
 ## 2026-11-10 · P1 九条：口径错、入口错、假承诺（附 P0 六条补记）
 
 **背景**：上一轮按《缺陷清单》修了 P0（崩溃 / 隐私 / 数据错误 / 资源泄漏），推送在 `0caa36a`。
