@@ -23,7 +23,12 @@ export type BalanceData = {
   totalCents: string;
 };
 
-/** 流水业务类型。 */
+/**
+ * 流水业务类型。
+ *
+ * 与后端 `balance_flow.biz_type` 一一对应（不区分 `owner_type`）：`income_unfreeze` 只由律师侧
+ * 收入解冻产生，用户余额页不会出现，但类型清单仍要补齐——漏一个值会让前端映射表出现空洞。
+ */
 export type FlowBizType =
   | 'recharge'
   | 'consume'
@@ -32,6 +37,7 @@ export type FlowBizType =
   | 'withdraw'
   | 'freeze'
   | 'unfreeze'
+  | 'income_unfreeze'
   | 'adjust';
 
 /** 资金流水项（`FlowVO`）。 */

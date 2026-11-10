@@ -62,7 +62,13 @@ const FLOW_ICONS: Record<string, React.ComponentProps<typeof Ionicons>['name']> 
   adjust: 'create-outline',
 };
 
-/** 业务类型 → i18n key（列表名称与筛选共用同一套翻译）。 */
+/**
+ * 业务类型 → i18n key（列表名称与筛选共用同一套翻译）。
+ *
+ * 用户侧余额页只会出现用户流水；`income` / `withdraw` / `freeze` / `unfreeze` /
+ * `income_unfreeze` 由律师侧产生（后端按 `owner_type` 过滤，用户页看不到）。这里仍按
+ * `FlowBizType` 全量补齐：真正的防线是渲染处的 `typeUnknown` 兜底，映射表只是少留空洞。
+ */
 const FLOW_TYPE_KEYS: Record<string, MessageKey> = {
   recharge: 'trade.balance.typeRecharge',
   consume: 'trade.balance.typeConsume',
@@ -71,6 +77,7 @@ const FLOW_TYPE_KEYS: Record<string, MessageKey> = {
   withdraw: 'trade.balance.typeWithdraw',
   freeze: 'trade.balance.typeFreeze',
   unfreeze: 'trade.balance.typeUnfreeze',
+  income_unfreeze: 'trade.balance.typeIncomeUnfreeze',
   adjust: 'trade.balance.typeAdjust',
 };
 
@@ -337,8 +344,9 @@ export function BalancePage() {
                     />
                   </View>
                   <View style={styles.billMain}>
+                    {/* 未映射的 bizType 一律显示「其他」：后端 code 绝不许原样上屏。 */}
                     <LocalizedText numberOfLines={1} style={styles.billName}>
-                      {typeLabel === undefined ? flow.bizType : t(typeLabel)}
+                      {typeLabel === undefined ? t('trade.balance.typeUnknown') : t(typeLabel)}
                     </LocalizedText>
                     <View style={styles.billMetaRow}>
                       <LtrText numberOfLines={1} style={styles.billMeta}>
