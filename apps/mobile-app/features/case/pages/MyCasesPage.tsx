@@ -9,7 +9,8 @@
  *      **没有金额、没有受理法院、没有立案日期**（设计稿明确没有，工作流 B3 第 1 条不许加）。
  *   2. 5 种状态都能正确显示 pill，映射在 `CaseStatusPill` 里，本页不重复维护。
  *   3. 四态齐全：加载（骨架屏）/ 空（「还没有案件」+「去找律师」）/ 错误（重试）/ 正常。
- *   4. 每次回到本页（`useFocusEffect`）都重新拉一次：从立案流程或进度页返回时状态可能已变。
+ *   4. **首屏与切筛选走非静默加载**（骨架屏）；**之后每次回到本页静默刷新**当前筛选，
+ *      不闪骨架、失败保留已有列表（P1-6：原来每次聚焦都 setPhase('loading')，返回必闪骨架）。
  *   5. `filter` 是**服务端筛选**（`pending` 是聚合语义：filed + rejected + accepted），本页不做本地过滤。
  *
  * testID 清单：myCases-screen / myCases-loading / myCases-error / myCases-retry /
@@ -17,8 +18,8 @@
  *              myCases-list / myCases-card-{id} / myCases-file
  */
 
-import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useRouter } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, View } from 'react-native';
 
 import { fetchMyCases } from '@/features/case/api/client';
@@ -32,6 +33,7 @@ import { LocalizedText } from '@/shared/components/LocalizedText';
 import { Screen } from '@/shared/components/Screen';
 import { useI18n } from '@/shared/i18n';
 import type { MessageKey } from '@/shared/i18n';
+import { useRefreshOnFocus } from '@/shared/hooks/useRefreshOnFocus';
 import { PAGE_ROUTES } from '@/shared/navigation/routes';
 import type { AppError } from '@/shared/api/types';
 import { color, radius, size, spacing, typography } from '@/shared/theme';
@@ -85,14 +87,18 @@ export function MyCasesPage() {
    *
    * @param next 筛选值（不传用当前 `filter`）
    * @param isRefresh 是否下拉刷新（不显示骨架屏，只用 RefreshControl 的转圈）
+   * @param silent 静默刷新（聚焦用）：不置 loading、失败保留已有列表
    */
   const load = useCallback(
-    async (next: CaseFilter, isRefresh = false): Promise<void> => {
-      if (!isRefresh) {
+    async (next: CaseFilter, isRefresh = false, silent = false): Promise<void> => {
+      if (!isRefresh && !silent) {
         setPhase('loading');
       }
       const res = await fetchMyCases(next);
       if (!res.ok) {
+        if (silent) {
+          return;
+        }
         setError(res.error);
         setPhase('error');
         setRefreshing(false);
@@ -106,20 +112,24 @@ export function MyCasesPage() {
     [],
   );
 
-  useFocusEffect(
+  // 首屏与切筛选：非静默（骨架屏 + 错误态）。
+  useEffect(() => {
+    void load(filter);
+  }, [load, filter]);
+
+  // 之后每次回到本页：静默刷新当前筛选，不闪骨架（首次聚焦由上面的 effect 负责，hook 自己跳过）。
+  useRefreshOnFocus(
     useCallback(() => {
-      void load(filter);
+      void load(filter, false, true);
     }, [load, filter]),
   );
 
-  /** 切换筛选 chip。 */
+  /** 切换筛选 chip（加载由上面的 filter effect 触发）。 */
   const onFilter = (next: CaseFilter): void => {
     if (next === filter) {
       return;
     }
     setFilter(next);
-    setPhase('loading');
-    void load(next);
   };
 
   /** 渲染卡片。 */
