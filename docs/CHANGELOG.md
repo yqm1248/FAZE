@@ -4,6 +4,94 @@
 
 ---
 
+## 2026-11-10 · P2 五条：口径与假承诺（另有 3 条不做、1 条已完成）
+
+**背景**：P0 六条 + P1 九条修完后开始处理 P2 九条（体验 / 文案 / 规范债）。逐条复核前提后，
+**9 条里只有 5 条该做**，其余是已完成或依赖外部输入。本轮把该做的 5 条做完。
+
+### 一、范围裁决（为什么只做 5 条）
+
+| # | 处置 | 依据 |
+|---|---|---|
+| P2-1 | 做 | 真 bug：律师收入流水把 `orders.service_type` 枚举当标题，用户看到 `consult_text` |
+| P2-2 | 做（**性质已更正**，见下） | 兜底会把未映射 `biz_type` 原样上屏 |
+| P2-3 | 做（**前提已更正**，见下） | 页面里写死客服热线时段，违反同文件自己写的「时段从服务端读」 |
+| P2-4 | 做 | 深色模式是假承诺（全仓 0 处 `useColorScheme`/`ThemeProvider`，`userInterfaceStyle: light`） |
+| P2-5 | **已完成，本轮未动** | 三处「即将开放」已随 P1-8 回收（`rechargePending` / `searchPending` 在四语言里已 0 命中） |
+| P2-6 | **不做** | ICP / App 备案号是负责人提供的外部事实，代码无需改 |
+| P2-7 | **不做** | 协议与隐私政策正文由法务定稿；机制已就绪（管理后台可编辑） |
+| P2-8 | 做 | 搜索空态把 `{{kw}}` 原样上屏 |
+| P2-9 | **不做** | 改 `conversation.orderNotice` 这类两段 key 会触发 `MessageKey` 字面量联合的类型连锁，收益低风险高 |
+
+**两处前提更正（原缺陷清单写错了，记在案）**：
+
+1. **P2-2 原写「`balance_flow.biz_type` 实测有 9 种，其中 `income_unfreeze`（2 条）不在映射表」**——
+   那是**全表统计、没区分 `owner_type`**。实测分布：
+   ```text
+   用户侧(user)：adjust 6 / consume 17 / recharge 41 / refund 14
+   律师侧(lawyer)：freeze 4 / income 3 / income_unfreeze 2 / unfreeze 1 / withdraw 1
+   ```
+   `income_unfreeze` 的写入点是 `SettlementService:302`（律师收入解冻），只产生在 `owner_type='lawyer'`；
+   而余额页走用户侧接口、后端按 `owner_type='user'` 过滤 → **用户余额页当前不可能出现该类型**。
+   所以这条的真实价值不是「修一个用户能看到的现象」，而是**堵住兜底泄漏**：
+   `typeLabel === undefined ? flow.bizType : ...` 会把任何未映射 code 直接上屏。
+2. **P2-3 原写「两处客服时段不一致，可能本来就是两条不同时段，先确认再改」**——已查实：
+   设计稿 `design/ui/55-support.html` 热线原文是「工作日 9:00–18:00」，在线客服配置是 `09:00-20:00`，
+   两者**本来就是两条不同服务，值不同是设计意图**。真正的缺陷是热线时段被写死成 TS 常量
+   （`SupportPage.tsx` 的 `PHONE_HOURS = '9:00–18:00'`），而同一文件头自己写着「号码与时段一律从服务端读」。
+
+### 二、五条的做法
+
+| # | 做法 | 关键点 |
+|---|---|---|
+| P2-1 | 后端 `IncomeFlowRowVO` **删 `orderTitle`、加 `serviceType`**（装枚举 code，语义显式）；`WorkbenchServiceImpl` 改 `setServiceType`；前端 `IncomePage` 加 `SERVICE_KEYS` 查表，未映射 / 无关联订单一律回落「其他收入」 | 后端**不返回中文**，文案只在 i18n 资源里有一份；任何分支都不许把 code 上屏 |
+| P2-2 | `FLOW_TYPE_KEYS` 补 `income_unfreeze`、`FlowBizType` 补该值；**核心是兜底改成 `t('trade.balance.typeUnknown')`** | 加映射只是少留空洞，真正的防线是兜底 |
+| P2-3 | 新迁移 **V711** 写 `sys_config.service.phone_hours = '09:00-18:00'`（`ON DUPLICATE KEY UPDATE` 不覆盖 `config_value`）；`PubAppConfigController` 加 `phoneHours`（含默认值）；前端读 `config.phoneHours` | 值必须补零 + 半角连字符：`isWithinServiceHours()` 的正则是 `/^\d{2}:\d{2}-\d{2}:\d{2}$/`，写成 `9:00–18:00` 会**静默**判成「不在服务时间」 |
+| P2-4 | 保留主题 sheet 与三个选项的 UI（设计稿有这一屏），但点击只 toast「深色模式将在后续版本提供」+ 关 sheet，**不改选中态、不写本地存储**；`themeNote` 四语言改实话 | 旧文案「只是换个显示，不影响任何功能」是在**描述一个不存在的能力**，必须删 |
+| P2-8 | `EmptyState` 加 `vars?: TranslationVars` 并传 `t(key, vars)`；`SearchPage` 唯一受影响调用点传 `{ kw: keyword }` | 全量核对过：84 个带占位符的调用点里只有这 1 处漏传 |
+
+### 三、验证证据（全部真实运行）
+
+| 层 | 断言 | 结果 |
+|---|---|---|
+| 接口级 `verify-p2-b.mjs` | 9 条 | **全过**。`/pub/app/config` 同时返回 `onlineHours=09:00-20:00` 与 `phoneHours=09:00-18:00`；律师收入流水 10 行里 8 行带订单号的行全部有 `serviceType`，**`orderTitle` 键 0 例**；库内 `service.phone_hours` 已写入、Flyway `711 success=1` |
+| 浏览器端到端 `verify-p2-e2e.mjs` | 16 条 | **全过**（页面文本摘要见下） |
+
+浏览器实测到的东西（原文摘录）：
+
+- **P2-8**：搜索 `zzzz不存在的词` → 空态「没搜到「zzzz不存在的词」相关的内容」，`{{kw}}` 为 0 处
+- **P2-4**：主题 sheet 底部「深色模式将在后续版本提供。当前设置不会改变界面显示。」；点「跟随系统」→ toast 出现、sheet 关闭、**右侧当前值仍是「开」**（点前「开」→ 点后「开」）
+- **P2-3**：客服页热线行「点击号码直接拨打 · 09:00-18:00」；页面上出现的**唯一**时段串就是服务端值，`9:00–18:00` 这个旧硬编码为 0 处
+- **P2-2**：余额页 20 条流水，界面文本里匹配不到任何 `[a-z]+_[a-z]+` 形式的 code
+- **P2-1**：律师收入页显示「图文咨询 / 文书代写 / 其他收入」，`consult_text|consult_phone|document|case` 匹配 0 处
+
+质量门（Lead 独立重跑）：`mvn -q -DskipTests compile` = 0、`npm run lint` = 0、`npm run check:i18n` = 0；
+21 个改动文件全部通过 UTF-8 完整性扫描（0 处替换字符、0 处 mojibake 特征）。
+
+### 四、已知取舍（本轮新增）
+
+1. **P2-2 没有给筛选 chips 加「收入解冻」第 5 档**：设计稿 `design/ui/35-balance.html` 只有 4 档（全部/充值/消费/退款），
+   而 `filterRow` 是 `flexDirection:'row'` **无 flexWrap**，5 个 chip 在 390dp 会横向溢出；且用户侧永远产生不了该类型，
+   这一档永远是空结果。结论：chips 是精选档位而不是全量类型列表，不加。
+2. **P2-4 保留了一个「点了才知道没做」的入口**：这是权衡后的选择——删掉整段会偏离设计稿，置灰则点击毫无反馈。
+   现在的形态是「结构在、说明在、骗不了人」。真做深色模式需要 `ThemeProvider` + 双套令牌，属独立排期。
+3. **P2-1 没有顺手收口 `SERVICE_KEYS` 的 6 处重复**（OrderList / OrderDetail / PayPage / ReviewPage /
+   LawyerOrders / IncomePage，且前 5 处用 `lawyer.detail.service*`、新增这处用 `trade.order.service*`）。
+   收口会动 5 个已完成页面，属另一笔债；本轮只在新代码里注明「统一收口是另一笔债」。
+4. **`income_unfreeze` 流水的 `serviceType` 是 `null`**：它们没有关联订单（`orderNo` 也为 null），
+   页面显示「其他收入 · 无关联订单」。这是正确行为，不是漏字段。
+5. **调试环境踩到一个坑（不是代码问题）**：Metro dev server 在编辑文件时会崩——
+   `FSWatcher ENOENT: ...\.SettingsPage.tsx.<pid>.<uuid>.tmpdir`，编辑器临时文件被 watcher 抓到后又消失。
+   日志里同时出现过一条 `ComplaintListPage.tsx:190 Unexpected token`，但那个文件的当前内容与报错行完全不同、
+   `tsc --noEmit` 通过，判定为读到编辑中间状态的瞬时错误，**不是真缺陷**。重启 dev server 即恢复。
+
+### 五、文档基线
+
+本轮**只改代码与 i18n 资源，没有改任何基线内文档**（`docs/architecture/依赖清单.md` 未动、无新依赖、
+无规范变更），因此**不出新基线版本**，维持 v1.66。`docs/CHANGELOG.md` 按 §2.6 不登记固定指纹。
+
+---
+
 ## 2026-11-10 · P0-6 补正链路打通 + 两项挂账收口（附两笔漏记的推送）
 
 **背景**：上一版（同日）把 P0-6 止血成「原地提示 + TODO」，并把它写进挂账第 3 条：「真正修法是新增
