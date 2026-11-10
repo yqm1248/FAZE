@@ -89,6 +89,7 @@
     "filterDoing": "进行中",
     "filterCompleted": "已完成",
     "filterCancelled": "已取消",
+    "filterRefunded": "已退款",
     "statusPending": "待支付",
     "statusPaid": "等待接单",
     "statusInService": "进行中",

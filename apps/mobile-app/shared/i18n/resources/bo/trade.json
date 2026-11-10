@@ -89,6 +89,7 @@
     "filterDoing": "བྱེད་བཞིན་པ",
     "filterCompleted": "ལེགས་གྲུབ།",
     "filterCancelled": "མི་བྱེད་པར་བྱས་ཟིན",
+    "filterRefunded": "དངུལ་ཕྱིར་སྤྲད་ཟིན",
     "statusPending": "དངུལ་སྤྲོད་རྒྱུ",
     "statusPaid": "ལེན་རྒྱུར་སྒུག",
     "statusInService": "བྱེད་བཞིན་པ",

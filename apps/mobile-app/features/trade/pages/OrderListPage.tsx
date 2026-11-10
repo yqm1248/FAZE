@@ -47,22 +47,27 @@ import { formatServerDateTime } from '@/shared/utils/serverTime';
 const PAGE_SIZE = 20;
 
 /** 筛选档位（UI 概念，与后端状态 code 的映射见 `FILTER_STATUS`）。 */
-type FilterKey = 'all' | 'pending' | 'doing' | 'completed' | 'cancelled';
+type FilterKey = 'all' | 'pending' | 'doing' | 'completed' | 'refunded' | 'cancelled';
 
 /**
  * 档位 → 状态 code 集合。
  *
  * 「进行中」包含 `paid`（已付等接单）、`in_service`、`refunding`、`refund_rejected`：
  * 这四态对用户都是「这单还在处理中」，拆开会让人找不到订单。
- * 「已退款」并入「已取消」：两者都是「服务没有完成、钱已回到用户手上」的终态；
- * 拆成第 6 档会破坏设计稿 5 tab 口径（`design/ui/app.js` §31 只有 5 档）。
+ *
+ * 「已退款」**单独一档**（第 6 档，2026-11-10 负责人拍板）：
+ * 退款与取消结果相近（服务没完成、钱回到用户手上），但对用户是两件不同的事——
+ * 取消是「自己没付钱就放弃」，退款是「付了钱、服务没做成、钱退回来」。
+ * 并进「已取消」会让人分不清「我到底取没取消过」，所以单独立档；
+ * 设计稿只有 5 档，这一档是在 5 档之后追加的，不改动原有 5 档的顺序与含义。
  */
 const FILTER_STATUS: Record<FilterKey, string | undefined> = {
   all: undefined,
   pending: 'pending',
   doing: 'paid,in_service,refunding,refund_rejected',
   completed: 'completed',
-  cancelled: 'cancelled,refunded',
+  refunded: 'refunded',
+  cancelled: 'cancelled',
 };
 
 /** 档位文案 key。 */
@@ -71,11 +76,26 @@ const FILTER_KEYS: Record<FilterKey, MessageKey> = {
   pending: 'trade.order.filterPending',
   doing: 'trade.order.filterDoing',
   completed: 'trade.order.filterCompleted',
+  refunded: 'trade.order.filterRefunded',
   cancelled: 'trade.order.filterCancelled',
 };
 
-/** 档位顺序（与设计稿一致）。 */
-const FILTER_ORDER: FilterKey[] = ['all', 'pending', 'doing', 'completed', 'cancelled'];
+/**
+ * 档位顺序：**原有 5 档保持设计稿顺序不变**，新增的「已退款」追加在末尾。
+ *
+ * 为什么追加在末尾而不是插在「已完成」之后：390dp 宽下 6 个 chip 放不满一行
+ * （`ScrollView horizontal` 可滑，但默认视口只露 5 个）。插在中间会让原有的
+ * 「已取消」被挤到视口外——那是老用户已经形成位置的档位；新增档位靠滑动发现，
+ * 影响面最小。
+ */
+const FILTER_ORDER: FilterKey[] = [
+  'all',
+  'pending',
+  'doing',
+  'completed',
+  'cancelled',
+  'refunded',
+];
 
 /** 服务类型 → 文案 key。 */
 const SERVICE_KEYS: Record<string, MessageKey> = {
