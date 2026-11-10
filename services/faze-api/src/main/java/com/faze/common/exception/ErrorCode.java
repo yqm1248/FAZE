@@ -190,6 +190,15 @@ public enum ErrorCode {
     CASE_DELIVERY_ALREADY_SIGNED(407007, 200, "error.case.delivery-already-signed", "该文书已签收，不能重复签收"),
     /** 送达方式非法（只允许 platform / sms_pickup / mail）。HTTP 200。 */
     CASE_DELIVERY_METHOD_INVALID(407008, 200, "error.case.delivery-method-invalid", "送达方式非法"),
+    /**
+     * 补正次数已用完（同一案件驳回后最多补正 3 次，第 4 次拒绝）。HTTP 200。
+     *
+     * <p>为什么单开一个码而不复用 407002：407002 表示「当前状态不允许该操作」，
+     * 而这里状态**允许**（rejected），只是次数到顶——两者对用户的下一步动作完全不同
+     * （前者等平台、后者联系客服人工补正），合并会让 App 无法给出正确引导。
+     * 次数不落字段，由 `case_progress` 里 submitted 节点数推算（P06-TASKS §0 第 2 条）。</p>
+     */
+    CASE_RESUBMIT_LIMIT(407009, 200, "error.case.resubmit-limit", "补正次数已用完，请联系平台"),
 
     // ── 交易域 05 段 5 补登（提现 / 结算，《错误码规范》§3.5） ────────────────
     /*

@@ -5,7 +5,8 @@
  * 注意：
  *   1. 单表 CRUD 用 BaseMapper + LambdaQueryWrapper；多表联查写 XML（后端规范 §8.1）。
  *   2. **归属条件必须进 SQL**（`eq(LegalCase::getUserId, uid)`），不许先查再判（§11.2）。
- *   3. 状态迁移用条件更新（CAS）：`update ... where id=? and status=?`，见 CaseMapper.xml。
+ *   3. 状态迁移用条件更新（CAS）：`update ... where id=? and status=?`。本 Mapper **没有 XML**，
+ *      两个 CAS 方法（casUpdateStatus / casResubmit）都是注解 SQL。
  */
 package com.faze.modules.caseflow.mapper;
 
@@ -57,4 +58,43 @@ public interface LegalCaseMapper extends BaseMapper<LegalCase> {
                           @Param("lawyerId") Long lawyerId,
                           @Param("courtCaseNo") String courtCaseNo,
                           @Param("now") java.time.LocalDateTime now);
+
+    /**
+     * 补正重新提交（CAS）：只有「本人的、当前的、未被删的」rejected 案件才更新成功。
+     *
+     * <p>为什么一次性把所有表单字段写回：补正允许用户改任意一步，`form_snapshot` 必须整体替换，
+     * 否则快照与主表的 title/case_type/description/amount_cents 会各说各话。</p>
+     *
+     * <p>为什么必须写 `reject_reason = NULL`：补正后旧驳回理由已经失效，留着会让前端在
+     * filed 状态下继续显示驳回提示条。`status = #{fromStatus}` 是并发闸门——两个补正请求
+     * 同时到达时只有一个 affected rows = 1，另一个为 0（§三 A2 第 4 条），调用方据此拒。</p>
+     *
+     * @param id            案件 id
+     * @param userId        委托人 app_user.id（归属条件进 SQL，不许先查再判）
+     * @param fromStatus    期望的当前状态（补正固定传 rejected）
+     * @param toStatus      目标状态（补正固定传 filed）
+     * @param title         案件标题（按新表单重算）
+     * @param caseType      案件类型 code
+     * @param description   案情陈述
+     * @param amountCents   争议金额（分，可为 null）
+     * @param formSnapshot  新的四步表单快照（JSON 字符串）
+     * @param evidenceUrls  证据 key 数组（JSON 字符串，可为 null）
+     * @param now           更新时间（UTC）
+     * @return 影响行数（0 表示状态已被别人改走 / 不是本人案件）
+     */
+    @Update("UPDATE legal_case SET status = #{toStatus}, reject_reason = NULL, title = #{title}, "
+            + "case_type = #{caseType}, description = #{description}, amount_cents = #{amountCents}, "
+            + "form_snapshot = #{formSnapshot}, evidence_urls = #{evidenceUrls}, updated_at = #{now} "
+            + "WHERE id = #{id} AND user_id = #{userId} AND status = #{fromStatus} AND deleted_at IS NULL")
+    int casResubmit(@Param("id") Long id,
+                    @Param("userId") Long userId,
+                    @Param("fromStatus") String fromStatus,
+                    @Param("toStatus") String toStatus,
+                    @Param("title") String title,
+                    @Param("caseType") String caseType,
+                    @Param("description") String description,
+                    @Param("amountCents") Long amountCents,
+                    @Param("formSnapshot") String formSnapshot,
+                    @Param("evidenceUrls") String evidenceUrls,
+                    @Param("now") java.time.LocalDateTime now);
 }

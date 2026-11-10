@@ -14,6 +14,7 @@ import com.faze.modules.caseflow.bo.CaseCreateBO;
 import com.faze.modules.caseflow.bo.CaseProgressBO;
 import com.faze.modules.caseflow.bo.CaseQueryBO;
 import com.faze.modules.caseflow.vo.CaseDetailVO;
+import com.faze.modules.caseflow.vo.CaseFormVO;
 import com.faze.modules.caseflow.vo.CaseProgressVO;
 import com.faze.modules.caseflow.vo.CaseRowVO;
 import com.faze.modules.caseflow.vo.CaseSubmitVO;
@@ -77,4 +78,35 @@ public interface CaseService {
      * @return 新写入的进度节点
      */
     CaseProgressVO addProgress(Long userId, Long caseId, CaseProgressBO bo);
+
+    /**
+     * 补正预填（`GET /app/cases/{id}/form`）。
+     *
+     * <p>前置：案件存在且 `user_id` = 当前用户（**只有委托人本人**；承办律师访问返回 407001，
+     * 因为归属条件进 SQL，查不到即不存在，不泄露「这案存在但不是你的」）。
+     * 副作用：无（只读）。</p>
+     *
+     * @param userId 当前登录用户 app_user.id
+     * @param caseId 案件 id
+     * @return 四步表单快照 + 驳回理由；快照为空的历史数据返回只带 rejectReason 的空对象
+     */
+    CaseFormVO form(Long userId, Long caseId);
+
+    /**
+     * 补正重新提交（`POST /app/cases/{id}/resubmit`）。
+     *
+     * <p>前置：Idempotency-Key 非空；案件存在且是本人的；当前状态为 rejected；
+     * 已补正次数 &lt; 3。状态迁移经 `CaseStateMachine.assertCanTransit(REJECTED, FILED, USER)`
+     * 校验，再用 CAS 落库（不是先查再改）。</p>
+     *
+     * <p>副作用：更新 legal_case（status→filed、清空 reject_reason、整体替换表单字段与快照）、
+     * 追加一条 `case_progress(submitted)` 节点、写 Redis 幂等键（失败只告警不回滚业务）。</p>
+     *
+     * @param userId         当前登录用户 app_user.id
+     * @param caseId         案件 id
+     * @param bo             与新建案件完全相同的四步表单（全量重填）
+     * @param idempotencyKey 幂等键（必填；与新建案件的键空间隔离）
+     * @return 提交结果（id / caseNo 用原案件，submittedAt 是本次补正时间）
+     */
+    CaseSubmitVO resubmit(Long userId, Long caseId, CaseCreateBO bo, String idempotencyKey);
 }

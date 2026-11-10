@@ -58,4 +58,16 @@ public class CaseDetailVO {
 
     /** 当前用户是否可推进节点（该案承办律师本人）。 */
     private Boolean canAdvance;
+
+    /** 已补正次数（首提交不算）。供 54-case-progress 显示「还可补正 N 次」。 */
+    private Integer resubmitCount;
+
+    /**
+     * 当前用户能否发起补正（重新提交）。
+     *
+     * <p>为 true 的条件同时满足三条：当前用户是委托人本人、状态为 rejected、补正次数未到上限。
+     * **必须带「本人」条件**：本接口允许承办律师访问他人案件，只判 rejected 会让律师也拿到 true，
+     * 而补正接口只接受本人（P06-TASKS §1.3）。</p>
+     */
+    private Boolean canResubmit;
 }

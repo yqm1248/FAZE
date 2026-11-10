@@ -1,10 +1,11 @@
 /*
- * 职责：案件中心的 HTTP 入口——立案、我的案件、详情、进度时间轴、律师推进节点。
+ * 职责：案件中心的 HTTP 入口——立案、我的案件、详情、进度时间轴、律师推进节点、驳回后补正。
  * 调用方：App 端（53-my-cases / 54-case-progress / 20-filing）。
  * 数据来源：@AuthenticationPrincipal 取当前用户；业务全在 CaseService。
  * 注意：
  *   1. Controller 只做三件事：收参、调 Service、包 R（后端规范 §3.2）。
- *   2. `POST /cases` 必须带 `Idempotency-Key` 头；缺了由 Service 抛 401002。
+ *   2. `POST /cases` 与 `POST /cases/{id}/resubmit` **都必须带 `Idempotency-Key` 头**；
+ *      缺了由 Service 抛 401002（不在 Controller 里判，保持校验单点）。
  *   3. 路径在 `/api/v1/app/**` 下，未登录由 SecurityConfig 返回 401。
  */
 package com.faze.modules.caseflow.controller;
@@ -18,6 +19,7 @@ import com.faze.modules.caseflow.bo.CaseProgressBO;
 import com.faze.modules.caseflow.bo.CaseQueryBO;
 import com.faze.modules.caseflow.service.CaseService;
 import com.faze.modules.caseflow.vo.CaseDetailVO;
+import com.faze.modules.caseflow.vo.CaseFormVO;
 import com.faze.modules.caseflow.vo.CaseProgressVO;
 import com.faze.modules.caseflow.vo.CaseRowVO;
 import com.faze.modules.caseflow.vo.CaseSubmitVO;
@@ -93,6 +95,36 @@ public class AppCaseController {
     public R<CaseDetailVO> detail(@AuthenticationPrincipal LoginUser loginUser,
                                   @PathVariable @Positive Long id) {
         return R.ok(caseService.detail(requireLogin(loginUser).getUserId(), id));
+    }
+
+    /**
+     * 补正预填：取本案首次提交时的四步表单快照 + 驳回理由。
+     *
+     * @param loginUser 当前登录用户
+     * @param id        案件 id
+     * @return 补正预填视图（只给委托人本人，律师访问按案件不存在处理）
+     */
+    @GetMapping("/{id}/form")
+    public R<CaseFormVO> form(@AuthenticationPrincipal LoginUser loginUser,
+                              @PathVariable @Positive Long id) {
+        return R.ok(caseService.form(requireLogin(loginUser).getUserId(), id));
+    }
+
+    /**
+     * 补正重新提交：把驳回的案件按新表单重新推回待审核。
+     *
+     * @param loginUser      当前登录用户（必须是案件委托人）
+     * @param id             案件 id
+     * @param idempotencyKey 幂等键（必填）
+     * @param bo             四步表单全量入参（与新建案件同一个 BO）
+     * @return 本次补正提交结果
+     */
+    @PostMapping("/{id}/resubmit")
+    public R<CaseSubmitVO> resubmit(@AuthenticationPrincipal LoginUser loginUser,
+                                    @PathVariable @Positive Long id,
+                                    @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+                                    @Valid @RequestBody CaseCreateBO bo) {
+        return R.ok(caseService.resubmit(requireLogin(loginUser).getUserId(), id, bo, idempotencyKey));
     }
 
     /**
