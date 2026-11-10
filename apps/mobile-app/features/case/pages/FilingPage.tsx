@@ -24,9 +24,11 @@
  *   filing-summary / filing-counter
  */
 
+import { usePreventRemove } from '@react-navigation/native';
+import type { Href } from 'expo-router';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
 import { createCase } from '@/features/case/api/client';
 import type { CaseTypeCode } from '@/features/case/api/client';
@@ -103,6 +105,12 @@ export function FilingPage() {
   const [errorKey, setErrorKey] = useState<MessageKey | null>(null);
   /** 「离开将丢失已填内容」确认框是否可见。 */
   const [leaveVisible, setLeaveVisible] = useState(false);
+  /** 用户已确认离开：置 true 后由下方 effect 执行 `router.back()`。 */
+  const [exiting, setExiting] = useState(false);
+  /** 提交成功：置 true 后不再拦离开，由下方 effect 跳结果页。 */
+  const [submitted, setSubmitted] = useState(false);
+  /** 提交成功后的结果页地址（由 effect 消费，保证跳转发生在「不再拦截」之后）。 */
+  const [doneHref, setDoneHref] = useState<string | null>(null);
 
   /**
    * 是否已经填过任何内容（决定返回时要不要弹「离开将丢失」）。
@@ -163,18 +171,69 @@ export function FilingPage() {
   };
 
   /**
-   * 退出确认：填过内容才弹确认框，避免误触丢数据。
+   * 是否还有未保存内容（决定要不要拦离开）。
    *
-   * 副作用：未填内容直接 `router.back()`；填过则打开 `ConfirmDialog`。
+   * 两个「放行」条件：用户已点「离开」（`exiting`）、材料已提交成功（`submitted`）。
+   * 提交成功也必须放行——否则 `router.replace` 去结果页时会被自己的守卫拦下。
+   */
+  const hasUnsaved = !exiting && !submitted && dirty();
+
+  /**
+   * 拦下所有导致本页被移除的导航：页内返回按钮、**系统返回键 / 浏览器后退**都走这里。
+   *
+   * 为什么不用 `AppHeader.onBack` 自己判断：那只覆盖页内按钮，系统返回与浏览器后退
+   * 完全绕过它（P0-5 修完后仍存在的缺口，挂账第 2 项）。
+   *
+   * 注意 `usePreventRemove` 的 `preventRemove` 是**渲染期布尔值**：确认离开时不能直接
+   * `dispatch`/`router.back()`（同一 tick 里它仍是 true，会再次被拦成死循环）。
+   * 因此这里只负责「置状态」，真正的 `router.back()` 放到下面的 effect 里——
+   * 渲染完成后 `hasUnsaved` 已为 false，那时再走就不会被拦。
+   */
+  usePreventRemove(hasUnsaved, () => {
+    setLeaveVisible(true);
+  });
+
+  /** 用户已确认「离开」→ 渲染完成后执行返回（此时守卫已放行）。 */
+  useEffect(() => {
+    if (exiting) {
+      router.back();
+    }
+  }, [exiting, router]);
+
+  /**
+   * Web 端补救：浏览器后退会先把**地址栏**改成上一页，`usePreventRemove` 只拦住了
+   * screen 被移除（页面内容没丢、确认框也弹了），于是出现「URL 是列表、内容是表单」。
+   * 这里把 URL 改回本页，让地址栏与实际内容一致；原生端没有地址栏，直接跳过。
+   *
+   * 为什么用 `pushState` 而不是 `history.forward()`：forward 会再次触发 popstate，
+   * React Navigation 会再走一遍导航 → 又被守卫拦下 → 确认框反复弹。
+   */
+  useEffect(() => {
+    if (!leaveVisible || Platform.OS !== 'web') {
+      return;
+    }
+    const expected = String(PAGE_ROUTES.caseFiling);
+    if (globalThis.location !== undefined && globalThis.location.pathname !== expected) {
+      globalThis.history.pushState(null, '', expected);
+    }
+  }, [leaveVisible]);
+
+  /** 提交成功 → 渲染完成后跳结果页（此时守卫已放行）。 */
+  useEffect(() => {
+    if (doneHref !== null) {
+      router.replace(doneHref as Href);
+    }
+  }, [doneHref, router]);
+
+  /**
+   * 页内返回按钮：统一交给 `usePreventRemove` 判断，这里不做 dirty 分支。
+   *
+   * 副作用：无内容直接返回；有内容时由拦截器弹确认框。
    *
    * @returns 无
    */
   const confirmLeave = (): void => {
-    if (!dirty()) {
-      router.back();
-      return;
-    }
-    setLeaveVisible(true);
+    router.back();
   };
 
   /** 提交（仅第 4 步）。 */
@@ -219,7 +278,9 @@ export function FilingPage() {
       amountYuan: amountYuan.trim(),
       evidenceCount: '0',
     });
-    router.replace(`${String(PAGE_ROUTES.caseFilingDone)}?${doneParams.toString()}`);
+    // 先把「已提交」置位（不再拦离开），再由 effect 跳转：同 tick 直接 replace 会被守卫拦下。
+    setSubmitted(true);
+    setDoneHref(`${String(PAGE_ROUTES.caseFilingDone)}?${doneParams.toString()}`);
   };
 
   /** 下一步 / 提交。 */
@@ -536,8 +597,9 @@ export function FilingPage() {
         confirmLabel={t('case.filing.leaveExit')}
         cancelLabel={t('case.filing.leaveStay')}
         onConfirm={() => {
+          // 只置状态：真正的返回由 `exiting` 的 effect 执行（同 tick 直接 back 会被守卫拦下）。
           setLeaveVisible(false);
-          router.back();
+          setExiting(true);
         }}
         onCancel={() => setLeaveVisible(false)}
         danger
