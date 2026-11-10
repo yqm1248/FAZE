@@ -263,18 +263,39 @@ function RechargeBody({ data }: { data: WalletBalanceWithPanel }) {
     toast.show(t('trade.recharge.sdkPending'));
   }, [amount.cents, channelCode, t, toast]);
 
-  /** 确认模拟支付：把预生成的回调报文打给平台，再轮询查单。 */
+  /**
+   * 确认模拟支付：把预生成的回调报文打给平台，再轮询查单。
+   *
+   * 三件事必须同时成立（P0-1 的第三处断点）：
+   *   1. `busy` 靠 `finally` 释放——原实现没有 try/finally，任何一次失败都会让主 CTA
+   *      `disabled={!canSubmit}` 永久为真，用户再也点不动；
+   *   2. **只有回调真的被平台接收（HTTP 200 → `notified.ok`）才清 `mockPayload`**，
+   *      否则报文一丢，用户连重试的素材都没有，只能重新下单；
+   *   3. 回调失败只 toast、不推进 `phase`：停在「待支付」，用户可以再点一次确认。
+   */
   const confirmMock = useCallback(async () => {
     if (mockPayload === null || order === null) {
       return;
     }
     setBusy(true);
-    setMockPayload(null);
-    await mockNotify(mockPayload);
-    const nextPhase = await pollOrder(order.orderNo);
-    setBusy(false);
-    setPhase(nextPhase);
-  }, [mockPayload, order, pollOrder]);
+    try {
+      const notified = await mockNotify(mockPayload);
+      if (!notified.ok) {
+        // 回调没送到：保留 mockPayload（确认框仍在），用户可直接重试。
+        toast.show(t('trade.recharge.submitFailed'));
+        return;
+      }
+      // 仅 HTTP 200（平台已接收回调）才丢掉报文；后续查单失败不影响这个判断。
+      setMockPayload(null);
+      const nextPhase = await pollOrder(order.orderNo);
+      setPhase(nextPhase);
+    } catch {
+      // client 层不抛异常，这里只兜「非预期异常」；同样保留 payload 供重试。
+      toast.show(t('trade.recharge.submitFailed'));
+    } finally {
+      setBusy(false);
+    }
+  }, [mockPayload, order, pollOrder, t, toast]);
 
   /** 选档位（null = 切到「其他金额」），并清空自定义输入。 */
   const onSelectChip = useCallback((cents: number | null) => {

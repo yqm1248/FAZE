@@ -12,6 +12,10 @@
  *   3. 401 三条硬约束缺一条就会无限刷新（B2「卡住怎么办」第 2 条）：
  *      ①只重放 1 次；②刷新自身的 401 不再触发刷新；③只对**带了 Authorization** 的请求判登出。
  *   4. `R.msg` 只进 `AppError` 的调试用途，页面展示一律走 `msgKey → t()`。
+ *   5. **两条请求体通道**：默认 JSON（`body` 经 `JSON.stringify`）；`bodyMode: 'text'`
+ *      原样发字符串（渠道回调的表单报文是 `k=v&k2=v2`，JSON 化后验签必失败）。
+ *      `successMode: 'http'` 给「应答不是 `R<T>`」的渠道回调用，只按 HTTP 2xx 判成功。
+ *      两者都是**新增的可选分支**，不传时既有 JSON 路径的行为一个字节都不变。
  */
 
 import Constants from 'expo-constants';
@@ -57,16 +61,43 @@ const CODE_TOKEN_INVALID = 402003;
 /** 支持的 HTTP 方法。 */
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
+/** 请求体编码方式：json = `JSON.stringify`（默认）；text = 原样发送字符串。 */
+export type RequestBodyMode = 'json' | 'text';
+
+/** 成功判据：envelope = 按 `R.code === 200`（默认）；http = 只看 HTTP 2xx。 */
+export type SuccessMode = 'envelope' | 'http';
+
 /** 单次请求的可选项。 */
 export type RequestOptions = {
   /** 方法，默认 GET。 */
   method?: HttpMethod;
-  /** 请求体（会被 JSON 序列化）。 */
+  /** 请求体：默认经 `JSON.stringify`；`bodyMode='text'` 时必须是字符串。 */
   body?: unknown;
   /** 是否附加 Authorization；默认 true。登录接口必须传 false。 */
   auth?: boolean;
   /** 超时毫秒数，默认 15 秒。 */
   timeoutMs?: number;
+  /**
+   * 请求体编码方式，默认 `json`。
+   *
+   * `text` 时 `body` 原样发出（不做 `JSON.stringify`），用于
+   * `application/x-www-form-urlencoded` 报文（支付回调重放）。
+   */
+  bodyMode?: RequestBodyMode;
+  /**
+   * 有请求体时的 Content-Type。
+   *
+   * 仅 `bodyMode='text'` 生效，默认 `application/x-www-form-urlencoded;charset=UTF-8`；
+   * JSON 模式恒为 `application/json;charset=UTF-8`（传了也忽略）。
+   */
+  contentType?: string;
+  /**
+   * 成功判据，默认 `envelope`（要求 `R.code === 200`）。
+   *
+   * `http` 只要求 HTTP 2xx：渠道回调应答是 `{"code":"SUCCESS"}` / 纯文本 `success`，
+   * 不是 `R<T>`，套用 envelope 解析会把成功当业务错误。此时 `data` 恒为 null。
+   */
+  successMode?: SuccessMode;
   /**
    * 额外请求头（如下单的 `Idempotency-Key`）。
    *
@@ -233,7 +264,20 @@ async function sendOnce<T>(
   const useAuth = options.auth !== false && session !== null;
   const accessToken = useAuth ? session.accessToken : null;
 
-  const headers = await buildHeaders(requestId, accessToken, options.body !== undefined, options.headers);
+  // text 通道的 Content-Type：默认表单（渠道回调报文就是表单串）；JSON 通道传 undefined，
+  // buildHeaders 回落到 application/json —— 既有调用不传 bodyMode，行为与改动前一致。
+  const textContentType = options.bodyMode === 'text'
+    ? options.contentType ?? 'application/x-www-form-urlencoded;charset=UTF-8'
+    : undefined;
+  const hasBody = options.body !== undefined;
+  // 请求体编码：默认 JSON；text 通道原样发字符串（JSON.stringify 会把表单串包成 JSON 字符串，
+  // 服务端按表单解析必然验签失败）。
+  const body: string | undefined = options.body === undefined
+    ? undefined
+    : options.bodyMode === 'text'
+      ? String(options.body)
+      : JSON.stringify(options.body);
+  const headers = await buildHeaders(requestId, accessToken, hasBody, options.headers, textContentType);
   const url = BASE_URL + (path.startsWith('/') ? path : `/${path}`);
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), options.timeoutMs ?? DEFAULT_TIMEOUT_MS);
@@ -243,7 +287,7 @@ async function sendOnce<T>(
     response = await fetch(url, {
       method: options.method ?? 'GET',
       headers,
-      body: options.body === undefined ? undefined : JSON.stringify(options.body),
+      body,
       signal: controller.signal,
     });
   } catch {
@@ -293,6 +337,15 @@ async function sendOnce<T>(
     };
   }
 
+  // successMode='http'：应答不是 R 结构（渠道回调 `{"code":"SUCCESS"}` / 纯文本 `success`），
+  // 只能按 HTTP 状态判成功；继续走 R 解析会把成功当业务错误（充值 Mock 链路就断在这里）。
+  if (options.successMode === 'http') {
+    if (!response.ok) {
+      return { ok: false, error: networkError() };
+    }
+    return { ok: true, data: null as T };
+  }
+
   if (envelope === null) {
     return { ok: false, error: parseError(traceIdHeader) };
   }
@@ -311,6 +364,9 @@ async function sendOnce<T>(
  * @param requestId   逻辑请求 id
  * @param accessToken access token（无则不带 Authorization）
  * @param hasBody     是否有请求体（决定是否带 Content-Type）
+ * @param extra       业务额外头（不许覆盖框架头）
+ * @param contentType 有请求体时的 Content-Type；不传 = `application/json;charset=UTF-8`
+ *                    （既有 JSON 调用都不传，输出与改动前逐字节一致）
  * @returns 请求头对象
  */
 async function buildHeaders(
@@ -318,6 +374,7 @@ async function buildHeaders(
   accessToken: string | null,
   hasBody: boolean,
   extra?: Record<string, string>,
+  contentType?: string,
 ): Promise<Record<string, string>> {
   const lang = (await readStoredLang()) ?? 'zh-Hans';
   const deviceId = await getDeviceId();
@@ -329,7 +386,8 @@ async function buildHeaders(
     'X-Device-Id': deviceId,
   };
   if (hasBody) {
-    headers['Content-Type'] = 'application/json;charset=UTF-8';
+    // 第 5 个参数只被 raw text 通道使用；JSON 通道的 Content-Type 与改动前完全一致。
+    headers['Content-Type'] = contentType ?? 'application/json;charset=UTF-8';
   }
   if (accessToken !== null) {
     headers.Authorization = `Bearer ${accessToken}`;

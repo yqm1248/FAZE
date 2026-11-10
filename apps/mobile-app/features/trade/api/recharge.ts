@@ -16,7 +16,7 @@
  *   4. 列表是游标分页：`nextCursor` 原样回传，不要自己算 offset。
  */
 
-import { get, post } from '@/shared/api/client';
+import { get, post, request } from '@/shared/api/client';
 import type { ApiResult } from '@/shared/api/types';
 
 import type {
@@ -87,13 +87,24 @@ export function listRecharges(cursor?: string, limit = 20): Promise<ApiResult<Re
  * 「页面内模拟确认 → 把预生成的回调报文打给平台」这条链路，用来验回调与入账
  * （锚点 6-A2 / 6-A3）。真实渠道接入后这个函数只在开发环境用。
  *
- * @param callbackBody Mock 网关预生成的回调报文（JSON 字符串）
- * @returns 成功时 `data` 为 null；回调接口按渠道格式返回，不保证是 `R` 结构
+ * 报文与应答都不是 JSON（P0-1 的两处断点）：
+ *   1. `callbackBody` 是 `MockPaymentGateway#buildCallbackBody` 生成的
+ *      `application/x-www-form-urlencoded` 表单串（`orderNo=..&amountCents=..&sign=..`）。
+ *      对表单串做 `JSON.parse` 必抛 SyntaxError；用 JSON.stringify 发出去服务端也解析不出来。
+ *      → 走 client 的 `bodyMode: 'text'` 原样发送，显式声明表单 Content-Type。
+ *   2. 成功应答是 `{"code":"SUCCESS"}`（不是 `R<T>`，见 RechargeCallbackService），
+ *      套 envelope 解析会永远 `ok:false` → 用 `successMode: 'http'` 按 HTTP 200 判成功。
+ *
+ * @param callbackBody Mock 网关预生成的回调报文（表单串，不是 JSON）
+ * @returns 成功（HTTP 200）时 `data` 为 null
  */
 export function mockNotify(callbackBody: string): Promise<ApiResult<null>> {
-  return post<null>(
-    '/api/v1/pub/pay/callback/mock',
-    JSON.parse(callbackBody) as Record<string, unknown>,
-    { auth: false },
-  );
+  return request<null>('/api/v1/pub/pay/callback/mock', {
+    method: 'POST',
+    body: callbackBody,
+    bodyMode: 'text',
+    contentType: 'application/x-www-form-urlencoded;charset=UTF-8',
+    successMode: 'http',
+    auth: false,
+  });
 }
