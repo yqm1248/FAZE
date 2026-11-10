@@ -5,7 +5,7 @@
  *       关于（关于法泽、检查更新、意见反馈）/ 退出登录。
  * 所属路由：`/settings`（路由壳 `app/settings.tsx`）；入口在「我的」页。
  * 数据来源：
- *   - 本地：`features/settings/storage.ts`（字体档位、深色三选、缓存大小）；
+ *   - 本地：`features/settings/storage.ts`（字体档位、缓存大小；深色三选只读取用于显示当前值）；
  *   - 账号状态：`GET /app/account/profile`（已实名状态、支付密码是否已设置）；
  *   - 企业状态：`GET /app/account/enterprise`（「企业认证」行的值，失败降级为「去认证」）；
  *   - 版本：`GET /pub/app/version`（检查更新）；
@@ -17,8 +17,9 @@
  *   2. **字体大小必须真实生效**：本页所有文字都过 `scaleTextStyle(..., fontLevel)`，
  *      四档选项本身各用自己的倍率渲染（小 0.875 / 标准 1.0 / 大 1.125 / 特大 1.25），
  *      切换后立刻能看出差别。只缩放本页，不改全局令牌（工作流：令牌替换挂段 8）。
- *   3. **深色模式本段只做开关与持久化**，不做主题令牌替换（工作流明确挂段 8）；
- *      切换后写入 `settings.theme`，重启后保持。
+ *   3. **深色模式尚未实现**：`useColorScheme` / `ThemeProvider` 全仓 0 处，`userInterfaceStyle`
+ *      是 `light`。sheet 与三个选项保留（设计稿有这一屏），但点击只弹「后续版本提供」的轻提示，
+ *      **不改选中态、不写本地存储**——避免用户以为设置已经生效。读回旧值是给右侧当前值行显示用。
  *   4. **清除缓存**：确认框正文逐字是工作流要求的那句；清完 token / 字体设置 / 草稿都还在
  *      （storage.ts 只删 `faze.cache.` 前缀与 Cache Storage）。
  *   5. 检查更新弹 `UpdateModal`：`currentVersion < minVersion` 是**强更、不可关闭**
@@ -50,7 +51,6 @@ import {
   readFontScale,
   readThemeMode,
   writeFontScale,
-  writeThemeMode,
 } from '@/features/settings/storage';
 import type { ThemeMode } from '@/features/settings/storage';
 import { AppHeader } from '@/shared/components/AppHeader';
@@ -178,16 +178,14 @@ export function SettingsPage() {
   };
 
   /**
-   * 切换深色模式三选。
+   * 点击深色模式三选。
    *
-   * 副作用：写本地存储（本段只持久化，不替换主题令牌）。
-   *
-   * @param mode 目标值
+   * 副作用：关 sheet + 弹轻提示。**不写本地存储、不改选中态**——深色模式尚未实现，
+   * 这里如实告知，而不是让用户以为设置生效了。
    */
-  const changeThemeMode = (mode: ThemeMode) => {
-    setThemeMode(mode);
+  const changeThemeMode = (): void => {
     setSheet(null);
-    void writeThemeMode(mode);
+    toast.show(t('profile.settings.themeUnavailable'));
   };
 
   /** 执行清除缓存：只清可再生成的临时文件，token 与草稿保留。 */
@@ -502,7 +500,7 @@ export function SettingsPage() {
               return (
                 <Pressable
                   key={mode}
-                  onPress={() => changeThemeMode(mode)}
+                  onPress={() => changeThemeMode()}
                   accessibilityRole="button"
                   accessibilityLabel={t(THEME_LABELS[mode])}
                   accessibilityState={{ selected: active }}
