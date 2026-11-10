@@ -64,6 +64,7 @@
     "filterCancelled": "已取消",
     "filterAll": "全部",
     "incomeLabel": "预计收入",
+    "incomeNotSettled": "未计入收入",
     "accept": "接单",
     "reject": "拒单",
     "complete": "结束服务",

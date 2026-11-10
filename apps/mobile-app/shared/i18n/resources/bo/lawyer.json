@@ -64,6 +64,7 @@
     "filterCancelled": "མི་བྱེད་པར་བྱས་ཟིན",
     "filterAll": "ཚང་མ",
     "incomeLabel": "རེ་བའི་ཡོང་འབབ",
+    "incomeNotSettled": "ཡོང་འབབ་ནང་མ་ཚུད",
     "accept": "ལེན་པ",
     "reject": "མི་ལེན",
     "complete": "ཞབས་ཞུ་མཇུག་སྒྲིལ",

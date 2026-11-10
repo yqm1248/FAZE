@@ -30,8 +30,13 @@ export type LawyerOrder = {
   status: string;
   /** 订单金额（分）。 */
   amountCents: string;
-  /** 律师预计收入（分）。 */
-  lawyerIncomeCents: string;
+  /**
+   * 有效预计收入（分）。
+   *
+   * 服务端只对 `in_service` / `completed` 下发数值；其它状态（退款中 / 已退款 /
+   * 已取消 / 退款被驳回等）为 `null`，表示这笔钱不计入律师收入。
+   */
+  lawyerIncomeCents: string | null;
   /** 用户备注，可空。 */
   remark: string | null;
   /** 下单人昵称（用户已注销时为 null）。 */

@@ -59,6 +59,16 @@ public class LawyerOrderService {
     /** 每页最大条数。 */
     private static final int MAX_PAGE_SIZE = 100;
 
+    /**
+     * 计入律师「有效预计收入」的订单状态。
+     *
+     * <p>**必须与 `OrdersMapper.selectWorkbenchStats` 的 CASE WHEN 保持一致**
+     * （`status IN ('in_service', 'completed')`）：看板「总收益」与列表行合计是同一口径，
+     * 两处各写一份状态串就会出现「列表加起来 ≠ 看板」。改这里必须同步改 SQL。</p>
+     */
+    private static final Set<OrderStatus> INCOME_STATUSES =
+            Set.of(OrderStatus.IN_SERVICE, OrderStatus.COMPLETED);
+
     private final LawyerQueryService lawyerQueryService;
     private final OrdersMapper ordersMapper;
     private final LawyerMapper lawyerMapper;
@@ -241,13 +251,21 @@ public class LawyerOrderService {
         vo.setServiceType(order.getServiceType());
         vo.setStatus(order.getStatus());
         vo.setAmountCents(order.getAmountCents());
-        vo.setLawyerIncomeCents(order.getLawyerIncomeCents());
+        // 状态只解析一次：收入口径与可执行动作都用这个枚举，避免同一行解析两遍。
+        OrderStatus status = OrderStatus.ofOrNull(order.getStatus());
+        if (status == null) {
+            // 脏状态按「不计入收入」处理：一条坏数据不能让整页 500，但要留下可查线索。
+            log.warn("订单状态无法解析，收入按未计入处理 orderId={} status={}",
+                    order.getId(), order.getStatus());
+        }
+        // 注意：Set.of(...).contains(null) 会抛 NPE，所以先判 status 非空。
+        vo.setLawyerIncomeCents(
+                status != null && INCOME_STATUSES.contains(status) ? order.getLawyerIncomeCents() : null);
         vo.setRemark(order.getRemark());
         vo.setUserNickname(userNickname);
         vo.setCreatedAt(order.getCreatedAt());
         vo.setPaidAt(order.getPaidAt());
         vo.setAcceptedAt(order.getAcceptedAt());
-        OrderStatus status = OrderStatus.ofOrNull(order.getStatus());
         vo.setActions(OrderActionResolver.resolveForLawyer(status));
         return vo;
     }

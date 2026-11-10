@@ -48,6 +48,9 @@ const PAGE_SIZE = 20;
 /** 轮询间隔（毫秒）：工作流要求 10 秒。 */
 const POLL_INTERVAL_MS = 10_000;
 
+/** 收入不适用时的视觉占位（订单状态不计入收入，用文案 key 给读屏用户解释原因）。 */
+const INCOME_PLACEHOLDER = '—';
+
 /** 筛选档位。 */
 type FilterKey = 'pendingAccept' | 'inService' | 'completed' | 'cancelled' | 'all';
 
@@ -143,7 +146,18 @@ function OrderItem({
         <LocalizedText numberOfLines={1} style={styles.income}>
           {`${t('lawyer.orders.incomeLabel')} `}
         </LocalizedText>
-        <MoneyText cents={centsFromServer(order.lawyerIncomeCents)} style={styles.incomeValue} />
+        {order.lawyerIncomeCents === null ? (
+          // 状态不计入收入：不渲染金额，占位横线 + 读屏文案说明原因。
+          <LocalizedText
+            numberOfLines={1}
+            style={styles.incomeNotSettled}
+            accessibilityLabel={t('lawyer.orders.incomeNotSettled')}
+          >
+            {INCOME_PLACEHOLDER}
+          </LocalizedText>
+        ) : (
+          <MoneyText cents={centsFromServer(order.lawyerIncomeCents)} style={styles.incomeValue} />
+        )}
       </View>
       {order.actions.length === 0 ? null : (
         <View style={styles.acts}>
@@ -476,6 +490,11 @@ const styles = StyleSheet.create({
   incomeValue: {
     ...typography.micro,
     color: color.state.success,
+  },
+  /** 不计入收入时的占位：灰色，不与「有收入」的绿色混淆。 */
+  incomeNotSettled: {
+    ...typography.micro,
+    color: color.text.muted,
   },
   acts: {
     flexDirection: 'row',

@@ -7,8 +7,9 @@
  *      真要给手机号必须走单独脱敏字段（`139****0009`）并记录查看行为，本段不做。
  *   2. `actions` 是服务端按律师视角推导的动作（accept / reject / complete），
  *      前端据此渲染按钮，**不自己判断状态**。
- *   3. `lawyerIncomeCents` 只出现在律师侧：这是律师的预计收入（订单上记账，**不是真到账**，
- *      结算属段 5）。给用户侧看会泄露平台抽成比例。
+ *   3. `lawyerIncomeCents` 只出现在律师侧：这是**有效预计收入**（订单记账口径，**不是真到账**），
+ *      仅 `in_service` / `completed` 下发，其余状态为 null；结算属段 5。
+ *      给用户侧看会泄露平台抽成比例。
  */
 package com.faze.modules.trade.vo;
 
@@ -37,7 +38,12 @@ public class LawyerOrderVO {
     /** 订单金额（分，用户实付）。 */
     private Long amountCents;
 
-    /** 律师预计收入（分）——只在订单上记账，结算见段 5。 */
+    /**
+     * 有效预计收入（分）。
+     *
+     * <p>仅 `in_service` / `completed` 有值；其它状态（含退款中 / 已退款 / 已取消）为
+     * {@code null}，表示这笔钱不计入律师收入。这不是「真到账」——结算与提现见段 5。</p>
+     */
     private Long lawyerIncomeCents;
 
     /** 用户下单备注。 */
