@@ -39,6 +39,7 @@ import { useI18n } from '@/shared/i18n';
 import type { MessageKey } from '@/shared/i18n';
 import { formatAmount } from '@/shared/i18n/datetime';
 import { useAsyncResource } from '@/shared/hooks/useAsyncResource';
+import { useRefreshOnFocus } from '@/shared/hooks/useRefreshOnFocus';
 import { chatHref, orderDetailHref, payHref } from '@/shared/navigation/routes';
 import { color, radius, size, spacing, typography } from '@/shared/theme';
 import { centsFromServer } from '@/shared/utils/money';
@@ -120,6 +121,8 @@ export function PayResultPage() {
   };
 
   const resource = useAsyncResource<ResultContext>(load, { enabled: orderId !== '' });
+  // 从订单 / 会话返回时静默刷新，避免凭证区停在旧状态（不闪骨架）。
+  useRefreshOnFocus(resource.reloadSilently);
 
   return (
     <Screen edges={['top', 'left', 'right', 'bottom']}>

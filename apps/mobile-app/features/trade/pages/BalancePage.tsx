@@ -39,6 +39,7 @@ import { useI18n } from '@/shared/i18n';
 import type { MessageKey } from '@/shared/i18n';
 import { formatAmount } from '@/shared/i18n/datetime';
 import { useAsyncResource } from '@/shared/hooks/useAsyncResource';
+import { useRefreshOnFocus } from '@/shared/hooks/useRefreshOnFocus';
 import { PAGE_ROUTES } from '@/shared/navigation/routes';
 import { color, gradient, radius, size, spacing, typography } from '@/shared/theme';
 import { centsFromServer } from '@/shared/utils/money';
@@ -128,10 +129,11 @@ export function BalancePage() {
    *
    * @param targetPage 页码（从 1 开始）
    * @param replace    是否替换现有列表（筛选/重试为 true，加载更多为 false）
+   * @param silent     静默刷新：不置 loading、失败时保留已有数据（聚焦刷新用）
    */
   const loadFlows = useCallback(
-    async (targetPage: number, replace: boolean) => {
-      if (replace) {
+    async (targetPage: number, replace: boolean, silent = false) => {
+      if (replace && !silent) {
         setFlowPhase('loading');
       }
       const result = await getFlows({
@@ -142,6 +144,10 @@ export function BalancePage() {
         endTime: undefined,
       });
       if (!result.ok) {
+        if (silent) {
+          // 静默刷新失败：保留当前流水，不把 success 打成 error。
+          return;
+        }
         setFlowError(result.error);
         setFlowPhase('error');
         return;
@@ -160,6 +166,17 @@ export function BalancePage() {
   useEffect(() => {
     void loadFlows(1, true);
   }, [loadFlows]);
+
+  // 回到本页：余额静默重拉；流水只在第 1 页时重拉（翻页后不重置分页）。
+  useRefreshOnFocus(balanceResource.reloadSilently);
+  useRefreshOnFocus(
+    useCallback(() => {
+      if (pageNum !== 1) {
+        return;
+      }
+      void loadFlows(1, true, true);
+    }, [loadFlows, pageNum]),
+  );
 
   /**
    * 加载更多。

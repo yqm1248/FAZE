@@ -37,6 +37,7 @@ import { InfoRow } from '@/shared/components/SettingRow';
 import { useI18n } from '@/shared/i18n';
 import type { MessageKey } from '@/shared/i18n';
 import { useAsyncResource } from '@/shared/hooks/useAsyncResource';
+import { useRefreshOnFocus } from '@/shared/hooks/useRefreshOnFocus';
 import { chatHref, payHref, refundHref, reviewHref } from '@/shared/navigation/routes';
 import { color, radius, size, spacing, typography } from '@/shared/theme';
 import { centsFromServer } from '@/shared/utils/money';
@@ -242,6 +243,8 @@ export function OrderDetailPage() {
   const params = useLocalSearchParams<{ id?: string }>();
   const orderId = typeof params.id === 'string' ? params.id : '';
   const resource = useAsyncResource<OrderDetail>(() => getOrderDetail(orderId), { enabled: orderId !== '' });
+  // 从支付 / 退款 / 评价页返回时静默刷新状态，按钮跟着服务端状态变（不闪骨架）。
+  useRefreshOnFocus(resource.reloadSilently);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const data = resource.state.phase === 'success' ? resource.state.data : null;

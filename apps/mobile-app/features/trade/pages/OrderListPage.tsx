@@ -14,6 +14,8 @@
  *   3. 待支付卡片的「剩余支付时间」用服务端 `payExpireAt`，不用本地算。
  *   4. 分页用服务端 `hasMore`，不拿 `total` 自己推。
  *   5. 四态齐全：加载（骨架）/ 空（无订单 + 去找律师）/ 错误（可重试）/ 正常。
+ *   6. 从详情页 / 支付页返回时**静默刷新**当前筛选的第一页（不闪骨架、失败保留旧列表）；
+ *      已翻页时跳过，避免把列表打回第 1 页（P1-6）。
  */
 
 import { useRouter } from 'expo-router';
@@ -35,6 +37,7 @@ import { PrimaryButton } from '@/shared/components/PrimaryButton';
 import { Screen } from '@/shared/components/Screen';
 import { useI18n } from '@/shared/i18n';
 import type { MessageKey } from '@/shared/i18n';
+import { useRefreshOnFocus } from '@/shared/hooks/useRefreshOnFocus';
 import { PAGE_ROUTES, orderDetailHref, payHref } from '@/shared/navigation/routes';
 import { color, radius, size, spacing, typography } from '@/shared/theme';
 import { centsFromServer } from '@/shared/utils/money';
@@ -177,10 +180,11 @@ export function OrderListPage() {
    *
    * @param targetPage 页码（从 1 开始）
    * @param replace    是否替换现有列表（切筛选/重试为 true，加载更多为 false）
+   * @param silent     静默刷新：不置 loading、失败时保留已有数据（聚焦刷新用）
    */
   const load = useCallback(
-    async (targetPage: number, replace: boolean) => {
-      if (replace) {
+    async (targetPage: number, replace: boolean, silent = false) => {
+      if (replace && !silent) {
         setPhase('loading');
       }
       const result = await getOrders({
@@ -189,6 +193,10 @@ export function OrderListPage() {
         status: FILTER_STATUS[filter],
       });
       if (!result.ok) {
+        if (silent) {
+          // 静默刷新失败：保留当前列表，不把 success 打成 error（下次聚焦再试）。
+          return;
+        }
         setError(result.error);
         setPhase('error');
         return;
@@ -207,6 +215,20 @@ export function OrderListPage() {
   useEffect(() => {
     void load(1, true);
   }, [load]);
+
+  /**
+   * 回到本页时静默刷新当前筛选。
+   *
+   * 已经翻到第 2 页及以后时不动：重拉第 1 页会把列表打回一页，违反「不重置分页」。
+   */
+  useRefreshOnFocus(
+    useCallback(() => {
+      if (pageNum !== 1) {
+        return;
+      }
+      void load(1, true, true);
+    }, [load, pageNum]),
+  );
 
   /**
    * 加载更多。
