@@ -47,6 +47,7 @@
   "error.case.delivery-not-found": "送达记录不存在",
   "error.case.delivery-already-signed": "该文书已签收，不能重复签收",
   "error.case.delivery-method-invalid": "送达方式非法",
+  "error.case.resubmit-limit": "补正次数已用完，请联系平台",
   "error.trade.withdraw-below-min": "提现金额低于最低限额",
   "error.trade.withdraw-insufficient": "可提现余额不足",
   "error.trade.withdraw-state-invalid": "提现单状态非法，当前操作不允许",

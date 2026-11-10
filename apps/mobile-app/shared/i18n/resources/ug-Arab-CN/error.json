@@ -47,6 +47,7 @@
   "error.case.delivery-not-found": "يەتكۈزۈش خاتىرىسى مەۋجۇت ئەمەس",
   "error.case.delivery-already-signed": "بۇ ھۆججەت تاپشۇرۇۋېلىنغان، قايتا تاپشۇرۇۋالغىلى بولمايدۇ",
   "error.case.delivery-method-invalid": "يەتكۈزۈش ئۇسۇلى قانۇنسىز",
+  "error.case.resubmit-limit": "تۈزىتىش قېتىمى تۈگەپ كەتتى، سۇپا بىلەن ئالاقىلىشىڭ",
   "error.trade.withdraw-below-min": "ئېلىش سوممىسى ئەڭ تۆۋەن چەكتىن تۆۋەن",
   "error.trade.withdraw-insufficient": "ئېلىشقا بولىدىغان قالدۇق يېتىشمەيدۇ",
   "error.trade.withdraw-state-invalid": "ئېلىش تالونى ھالىتى قانۇنسىز، ھازىرقى مەشغۇلاتقا يول قويۇلمايدۇ",

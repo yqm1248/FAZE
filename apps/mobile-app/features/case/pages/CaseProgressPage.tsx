@@ -15,15 +15,12 @@
  *   4. 底栏随状态切换（设计稿三态）：正常态「补充材料 / 联系律师」、补正态
  *      「联系律师 / 上传补正材料」、不予受理态「联系律师 / 重新提交」；
  *      `in_progress` 额外给「查看送达」入口（C4）。
- *      **P0-6 止血（2026-11-10）**：「补充材料 / 重新提交」两个按钮目前只原地弹
- *      「该功能即将开放」（已有四语言 key `home.soon`），**不再跳 /case-filing**——
- *      后端 App 侧还没有补正接口（`AppCaseController` 只有 create/list/detail/progress/
- *      addProgress；`AdminCaseController.correctProgress` 是 PC 管理员端），跳过去会进空白
- *      表单并 `createCase` 新建第二张案件，原案件永远停在 rejected、App 内无法删除。
- *      TODO：后端补 `POST /api/v1/app/cases/{id}/resubmit`（或等价补正接口）后，
- *      本页两个按钮带 `caseId` 跳 `/case-filing`，FilingPage 按 `caseId` 预填并调该接口，
- *      成功后 `router.replace` 回本页；`CaseStateMachine:61-64` 已有
- *      `REJECTED → FILED(USER)` 迁移边，当前只缺 App 入口。
+ *      **P0-6 补正链路已打通（2026-11-10）**：「重新提交」带 `?caseId=` 跳 `/case-filing`，
+ *      FilingPage 会预填原案件表单快照并调 `POST /api/v1/app/cases/{id}/resubmit`，
+ *      成功后 `router.replace` 回本页（`CaseStateMachine` 的 `REJECTED → FILED(USER)` 边）。
+ *      是否可点**只看后端 `canResubmit`**（驳回态且补正次数未用完）：次数用完时原地提示
+ *      `case.progress.resubmitLimitReached`，驳回理由框里也显示剩余次数。
+ *      「补充材料」语义是**审理中补交材料**（与补正不同），后端无对应接口，保持即将开放。
  *   5. 页面底部**必须有**「FAZE- 开头的编号是平台业务单号，不是法院案号」说明（B3 第 5 条）。
  *   6. 四态齐全：加载（骨架）/ 错误（重试）/ 正常；详情失败时整页错误态。
  *
@@ -101,6 +98,15 @@ const TYPE_KEYS: Record<string, MessageKey> = {
   labor: 'case.type.labor',
   family: 'case.type.family',
 };
+
+/**
+ * 补正次数上限。
+ *
+ * **与后端 `CaseServiceImpl.RESUBMIT_LIMIT = 3` 对齐，改一处要改两处**——
+ * 前端只用它算「还可补正几次」的展示值；能否补正本身以后端 `canResubmit` 为准，
+ * 不做本地判断（避免前后端各算一套导致点得进去、提交才报错）。
+ */
+const RESUBMIT_LIMIT = 3;
 
 /**
  * 把 UTC 时间转成「YYYY-MM-DD HH:mm」本地展示。
@@ -309,6 +315,17 @@ export function CaseProgressPage() {
                 <LocalizedText numberOfLines={4} style={styles.rejectText}>
                   {detail.rejectReason}
                 </LocalizedText>
+                <LocalizedText
+                  numberOfLines={1}
+                  style={styles.resubmitRemaining}
+                  testID="caseProgress-resubmitRemaining"
+                >
+                  {detail.canResubmit
+                    ? t('case.progress.resubmitRemaining', {
+                        count: RESUBMIT_LIMIT - detail.resubmitCount,
+                      })
+                    : t('case.progress.resubmitLimitReached')}
+                </LocalizedText>
               </View>
             ) : null}
           </View>
@@ -414,9 +431,15 @@ export function CaseProgressPage() {
               testID="caseProgress-resubmit"
               accessibilityRole="button"
               onPress={() => {
-                // P0-6 止血：不跳 /case-filing（后端无补正接口，见文件头第 4 条 TODO），
-                // 原地提示；按钮保留，避免被读成「功能被砍」。
-                toast.show(t('home.soon'));
+                // P0-6：驳回态 → 进入补正模式（带 caseId），FilingPage 预填原表单并调 resubmit。
+                // 能否补正只认后端 `canResubmit`（含「补正次数已用完」与律师视角两种情况）。
+                if (detail.canResubmit) {
+                  router.push(
+                    `${String(PAGE_ROUTES.caseFiling)}?caseId=${encodeURIComponent(detail.id)}`,
+                  );
+                  return;
+                }
+                toast.show(t('case.progress.resubmitLimitReached'));
               }}
               style={styles.secondaryButton}
             >
@@ -429,7 +452,8 @@ export function CaseProgressPage() {
               testID="caseProgress-supplement"
               accessibilityRole="button"
               onPress={() => {
-                // P0-6 止血：同「重新提交」，不跳 /case-filing，原地提示。
+                // P0-6 只接入了补正（重新提交）；该按钮语义是「审理中补交材料」，
+                // 后端无接口，保持即将开放（不跳 /case-filing，避免新建第二张案件）。
                 toast.show(t('home.soon'));
               }}
               style={styles.secondaryButton}
@@ -648,6 +672,12 @@ const styles = StyleSheet.create({
     ...typography.bodySmall,
     color: color.text.body,
     marginTop: spacing.xxs,
+  },
+  /** 驳回理由框里的「还可补正 N 次 / 次数已用完」一行。 */
+  resubmitRemaining: {
+    ...typography.caption,
+    color: color.text.muted,
+    marginTop: spacing.xs,
   },
   timelineCard: {
     backgroundColor: color.background.surface,

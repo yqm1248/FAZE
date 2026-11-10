@@ -17,29 +17,42 @@
  *      但后端 `CaseType` 枚举 5 类、PC 列表筛选也是 5 类，渲染 3 类会让另外两类案件无法提交。
  *      已登记为偏差（`docs/acceptance/seg5/PROGRESS-A-B.md`）。
  *   6. 视觉数值全部来自令牌；RTL 用 `start/end` 语义（AGENTS §4.3、§5）。
+ *   7. **补正模式（P0-6，2026-11-10）**：带 `?caseId=` 进入时，本页是「补正材料」而不是新建案件——
+ *      先 `GET /api/v1/app/cases/{id}/form` 回填原表单快照（`fetchCaseForm`），
+ *      提交走 `POST /api/v1/app/cases/{id}/resubmit`（`resubmitCase`，同样带 `Idempotency-Key`），
+ *      成功后 `router.replace` 回「案件进度」页；**不再新建第二张案件**。
+ *      页头标题、提交按钮、错误文案在补正模式下走单独的 key，避免用户以为又新建了一张。
+ *      预填就绪前整页只显示加载/错误态（表单区不渲染空表单，防止回填覆盖用户输入）。
  *
  * testID 清单（全部真实挂载）：
  *   filing-screen / filing-step-{1|2|3|4} / filing-type-{code} / filing-dispute-{index} /
  *   filing-next / filing-prev / filing-submit / filing-error / filing-compliance /
- *   filing-summary / filing-counter
+ *   filing-summary / filing-counter / filing-resubmitBanner / filing-formRetry
  */
 
 import { usePreventRemove } from '@react-navigation/native';
 import type { Href } from 'expo-router';
-import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
-import { createCase } from '@/features/case/api/client';
-import type { CaseTypeCode } from '@/features/case/api/client';
+import {
+  createCase,
+  fetchCaseForm,
+  resubmitCase,
+} from '@/features/case/api/client';
+import type { CaseCreatePayload, CaseTypeCode } from '@/features/case/api/client';
 import { AppHeader } from '@/shared/components/AppHeader';
 import { ConfirmDialog } from '@/shared/components/ConfirmDialog';
+import { ErrorState } from '@/shared/components/ErrorState';
+import { LoadingState } from '@/shared/components/LoadingState';
 import { LocalizedText } from '@/shared/components/LocalizedText';
 import { PrimaryButton } from '@/shared/components/PrimaryButton';
 import { Screen } from '@/shared/components/Screen';
 import { useI18n } from '@/shared/i18n';
 import type { MessageKey } from '@/shared/i18n';
 import { PAGE_ROUTES } from '@/shared/navigation/routes';
+import type { AppError } from '@/shared/api/types';
 import { color, radius, size, spacing, typography } from '@/shared/theme';
 
 /** 案件类型选项（5 类，与后端 `CaseType` 一致）。`key` 是静态字面量，供 `t()` 类型校验。 */
@@ -79,6 +92,26 @@ const STEP_TITLE_KEYS: MessageKey[] = [
 const STATEMENT_MAX = 2000;
 
 /**
+ * 把「字符串形式的 Long 分值」转成金额输入框里的元字符串。
+ *
+ * **只做展示换算（÷100），不参与任何累加**：提交时仍按 `Math.round(元 * 100)` 还原成整数分，
+ * 金额口径始终是整数分（AGENTS §4.5）；这里不做浮点求和，因此不会累积精度误差。
+ *
+ * @param cents 分值（字符串形式的 Long，如 `"500000"`）；`null`/空串视为未填
+ * @returns 元字符串（整数元不带小数，如 `"5000"`；否则两位小数，如 `"1234.56"`）
+ */
+function centsToYuanInput(cents: string | null): string {
+  if (cents === null || cents === '') {
+    return '';
+  }
+  const n = Number(cents) / 100;
+  if (!Number.isFinite(n)) {
+    return '';
+  }
+  return Number.isInteger(n) ? String(n) : n.toFixed(2);
+}
+
+/**
  * 渲染立案四步表单。
  *
  * 副作用：提交成功后 `router.replace` 到材料已提交页（用 replace，返回键不会回到已提交的表单）。
@@ -88,6 +121,9 @@ const STATEMENT_MAX = 2000;
 export function FilingPage() {
   const { t } = useI18n();
   const router = useRouter();
+  const { caseId } = useLocalSearchParams<{ caseId?: string }>();
+  /** 补正模式的原案件 id；正常立案为 `null`（两套文案/接口/跳转都按它分支）。 */
+  const resubmitId = typeof caseId === 'string' && caseId !== '' ? caseId : null;
 
   const [step, setStep] = useState(1);
   const [caseType, setCaseType] = useState<CaseTypeCode | null>(null);
@@ -111,6 +147,67 @@ export function FilingPage() {
   const [submitted, setSubmitted] = useState(false);
   /** 提交成功后的结果页地址（由 effect 消费，保证跳转发生在「不再拦截」之后）。 */
   const [doneHref, setDoneHref] = useState<string | null>(null);
+  /** 补正预填的加载状态；非补正模式恒为 `idle`（按 ready 处理，不显示骨架）。 */
+  const [formState, setFormState] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
+  /** 补正预填失败时的错误（交给 `ErrorState` 按 `kind` 选文案）。 */
+  const [formError, setFormError] = useState<AppError | null>(null);
+  /** 上一次驳回理由（补正模式第 1 步顶部的提示条用）。 */
+  const [rejectReason, setRejectReason] = useState<string | null>(null);
+  /**
+   * 预填请求是否已作废。
+   *
+   * 卸载或 `resubmitId` 变化时置 true，在途响应回来后直接丢弃——等价于 effect 里的
+   * `cancelled` 清理标志，但能同时覆盖「重试」这条路径（`loadForm` 被两处调用）。
+   */
+  const formCancelled = useRef(false);
+
+  /**
+   * 拉补正预填并回填四步表单。
+   *
+   * 副作用：成功后逐个 `setState` 回填表单字段与驳回理由；失败置 `error` 态由 `ErrorState` 重试。
+   * 非补正模式（`resubmitId === null`）直接返回，不改任何状态。
+   */
+  const loadForm = useCallback(async (): Promise<void> => {
+    if (resubmitId === null) {
+      return;
+    }
+    formCancelled.current = false;
+    setFormState('loading');
+    const res = await fetchCaseForm(resubmitId);
+    if (formCancelled.current) {
+      return;
+    }
+    if (!res.ok) {
+      setFormError(res.error);
+      setFormState('error');
+      return;
+    }
+    const form = res.data;
+    setCaseType(form.caseType);
+    setDisputeType(form.disputeType ?? '');
+    setLocation(form.location ?? '');
+    setPlaintiffName(form.plaintiff.name);
+    setIdCard(form.plaintiff.idCard);
+    setPhone(form.plaintiff.phone);
+    setDefendantName(form.defendant?.name ?? '');
+    setDefendantAddress(form.defendant?.address ?? '');
+    setStatement(form.statement);
+    setClaims(form.claims ?? '');
+    setAmountYuan(centsToYuanInput(form.amountCents));
+    setRejectReason(form.rejectReason);
+    setFormState('ready');
+  }, [resubmitId]);
+
+  /** 补正模式进入时拉一次预填；卸载时作废在途请求，避免卸载后 setState。 */
+  useEffect(() => {
+    if (resubmitId === null) {
+      return;
+    }
+    void loadForm();
+    return () => {
+      formCancelled.current = true;
+    };
+  }, [loadForm, resubmitId]);
 
   /**
    * 是否已经填过任何内容（决定返回时要不要弹「离开将丢失」）。
@@ -247,7 +344,7 @@ export function FilingPage() {
     setErrorKey(null);
     const amountCents =
       amountYuan.trim() === '' ? null : Math.round(Number(amountYuan.trim()) * 100);
-    const res = await createCase({
+    const payload: CaseCreatePayload = {
       caseType,
       disputeType: disputeType === '' ? null : disputeType,
       location: location.trim() === '' ? null : location.trim(),
@@ -263,13 +360,27 @@ export function FilingPage() {
       claims: claims.trim() === '' ? null : claims.trim(),
       amountCents,
       evidenceUrls: [],
-    });
+    };
+    // 补正模式：同一份四步表单全量重填到原案件（P0-6），不新建第二张案件。
+    const res =
+      resubmitId === null
+        ? await createCase(payload)
+        : await resubmitCase(resubmitId, payload);
     setSubmitting(false);
     if (!res.ok) {
-      setErrorKey('case.filing.error.submitFailed');
+      setErrorKey(
+        resubmitId === null ? 'case.filing.error.submitFailed' : 'case.filing.error.resubmitFailed',
+      );
       return;
     }
-    // 把「材料已提交」页要展示的 4 行信息一起传过去：这些值本页刚填过，
+    if (resubmitId !== null) {
+      // 补正成功回「案件进度」页（不是「材料已提交」页）：用户补正后最想看的是案件状态变了没。
+      // 先把「已提交」置位（不再拦离开），再由 doneHref 的 effect 执行 replace。
+      setSubmitted(true);
+      setDoneHref(`${String(PAGE_ROUTES.caseProgress)}?caseId=${encodeURIComponent(resubmitId)}`);
+      return;
+    }
+    // 新建流程原样：把「材料已提交」页要展示的 4 行信息一起传过去：这些值本页刚填过，
     // 比再发一次详情请求更可靠（弱网下提交成功但详情拉不到会让用户看到空白页）。
     const doneParams = new URLSearchParams({
       caseNo: res.data.caseNo,
@@ -298,9 +409,33 @@ export function FilingPage() {
     void submit();
   };
 
+  // 补正模式：预填没就绪前不渲染表单——否则用户先看到一页空白表单，预填到达后又被覆盖，
+  // 容易误以为「要重新填一遍」。此处已在**所有 hook 之后**（React 规则：hook 不许在早退之后）。
+  if (resubmitId !== null && formState !== 'ready') {
+    return (
+      <Screen edges={['top', 'left', 'right']}>
+        <AppHeader title={t('case.filing.resubmitTitle')} onBack={confirmLeave} />
+        <View style={styles.stateWrap}>
+          {formState === 'error' ? (
+            <ErrorState
+              error={formError ?? { kind: 'parse', msgKey: 'error.common.server', traceId: null }}
+              onRetry={() => void loadForm()}
+              retryTestID="filing-formRetry"
+            />
+          ) : (
+            <LoadingState rows={6} />
+          )}
+        </View>
+      </Screen>
+    );
+  }
+
   return (
     <Screen edges={['top', 'left', 'right']}>
-      <AppHeader title={t('case.filing.title')} onBack={confirmLeave} />
+      <AppHeader
+        title={t(resubmitId === null ? 'case.filing.title' : 'case.filing.resubmitTitle')}
+        onBack={confirmLeave}
+      />
       <ScrollView contentContainerStyle={styles.content} testID="filing-screen">
         <View style={styles.stepBar}>
           {[1, 2, 3, 4].map((n) => (
@@ -328,6 +463,16 @@ export function FilingPage() {
             <LocalizedText numberOfLines={4} style={styles.compliance} testID="filing-compliance">
               {t('case.filing.complianceNote')}
             </LocalizedText>
+
+            {resubmitId !== null && rejectReason !== null ? (
+              <LocalizedText
+                numberOfLines={5}
+                style={styles.resubmitBanner}
+                testID="filing-resubmitBanner"
+              >
+                {t('case.filing.resubmitBanner', { reason: rejectReason })}
+              </LocalizedText>
+            ) : null}
 
             <LocalizedText numberOfLines={1} style={styles.label}>
               {t('case.filing.field.caseType')}
@@ -580,7 +725,11 @@ export function FilingPage() {
                 submitting
                   ? t('case.filing.submitting')
                   : step === 4
-                    ? t('case.filing.submit')
+                    ? t(
+                        resubmitId === null
+                          ? 'case.filing.submit'
+                          : 'case.filing.resubmitSubmit',
+                      )
                     : t('case.filing.next')
               }
               disabled={submitting}
@@ -660,6 +809,11 @@ const styles = StyleSheet.create({
     paddingTop: spacing.md,
     paddingBottom: spacing.xxxl,
   },
+  /** 补正预填的加载/错误态容器（表单未渲染时用，给骨架屏补左右留白）。 */
+  stateWrap: {
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.md,
+  },
   stepBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -701,6 +855,20 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: color.text.secondary,
     backgroundColor: color.brand.primarySoft,
+    borderRadius: radius.sm,
+    padding: spacing.md,
+    marginBottom: spacing.xl,
+  },
+  /**
+   * 补正提示条（第 1 步合规说明条下面）。
+   *
+   * 危险色调但只用令牌：底色取输入框灰底、文字取 `color.state.danger`，
+   * 与进度页的驳回理由框同一套做法（都是「危险信息」而非「操作失败」）。
+   */
+  resubmitBanner: {
+    ...typography.caption,
+    color: color.state.danger,
+    backgroundColor: color.background.input,
     borderRadius: radius.sm,
     padding: spacing.md,
     marginBottom: spacing.xl,

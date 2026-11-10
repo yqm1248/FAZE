@@ -47,6 +47,7 @@
   "error.case.delivery-not-found": "جەتكىزۋ جازباسى جوق",
   "error.case.delivery-already-signed": "بۇ قۇجات قابىلدانعان، قايتا قابىلداۋعا بولمايدى",
   "error.case.delivery-method-invalid": "جەتكىزۋ امالى جارامسىز",
+  "error.case.resubmit-limit": "تولىقتاۋ رەتى تۋگەندى، الاڭمەن بايلانىسىڭىز",
   "error.trade.withdraw-below-min": "شىعارۋ سوماسى ەڭ از شەكتەن تومەن",
   "error.trade.withdraw-insufficient": "شىعارۋعا بولاتىن قالدىق جەتىسپەيدى",
   "error.trade.withdraw-state-invalid": "شىعارۋ تالونى كۇيى جارامسىز، اعىمداعى امالعا رۇقسات جوق",

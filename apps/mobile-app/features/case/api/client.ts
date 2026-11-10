@@ -10,6 +10,8 @@
  *   3. 时间字段是 UTC 无时区后缀（`2026-11-08T03:36:10`），展示前按 +8 处理。
  *   4. `POST /cases` **必须带 `Idempotency-Key`**：重复提交只产生 1 条案件（工作流 B1 第 5 条）。
  *      这里统一在 `createCase` 内部生成，调用方不用操心。
+ *      补正提交 `POST /cases/{id}/resubmit` 同理也必须带，只是幂等键前缀改成 `case-resubmit-`
+ *      （后端 Redis 键前缀也不同，避免与新建互串）。
  *   5. 分页响应是 C 端三段式（`list / total / pageNum / pageSize / hasMore`），
  *      `hasMore` 由服务端算，前端不拿 total 自己推。
  */
@@ -66,6 +68,39 @@ export type CaseSubmitResult = {
   submittedAt: string;
 };
 
+/**
+ * 补正预填视图（后端 `CaseFormVO`）。
+ *
+ * 用途：驳回后「补正材料」进入立案页时，把原案件的表单快照回填到四步表单，
+ * 用户改完再 `POST /cases/{id}/resubmit` 全量重填，而不是重新建一张案件。
+ * 注意：
+ *   1. `amountCents` 是**字符串形式的 Long**（不是 number），展示时才 ÷100，禁止浮点累加。
+ *   2. `defendant` 整个对象可为 `null`（原案件没填被告）。
+ *   3. `rejectReason` 由后端从 `legal_case.reject_reason` 单独塞入，可为 `null`。
+ */
+export type CaseFormSnapshot = {
+  /** 案件类型 code（5 类之一）。 */
+  caseType: CaseTypeCode;
+  /** 具体纠纷类型（自由文本，可空）。 */
+  disputeType: string | null;
+  /** 事发地 / 合同履行地（可空）。 */
+  location: string | null;
+  /** 原告信息（身份证号与手机号是原文，仅委托人本人可取）。 */
+  plaintiff: { name: string; idCard: string; phone: string };
+  /** 被告信息（整个对象可空）。 */
+  defendant: { name: string | null; address: string | null } | null;
+  /** 案情陈述。 */
+  statement: string;
+  /** 诉讼请求（可空）。 */
+  claims: string | null;
+  /** 争议金额（字符串形式的 Long，单位分）；未填为 `null`。 */
+  amountCents: string | null;
+  /** 证据数组（段 5 不做上传，通常是空数组）。 */
+  evidenceUrls: string[];
+  /** 上一次驳回理由（可空）。 */
+  rejectReason: string | null;
+};
+
 /** 我的案件列表行（后端 `CaseRowVO`）。 */
 export type CaseRow = {
   id: string;
@@ -110,6 +145,19 @@ export type CaseDetail = {
   rejectReason: string | null;
   /** 当前用户是否可推进节点（该案承办律师本人）。 */
   canAdvance: boolean;
+  /**
+   * 已补正次数（首次提交不算）。
+   *
+   * 后端按「`case_progress` 里 `nodeCode=submitted` 的节点数 - 1」算，不新增字段。
+   */
+  resubmitCount: number;
+  /**
+   * 当前是否还能补正（后端一定返回，不是可选）。
+   *
+   * `status === 'rejected' && resubmitCount < 3`；非 rejected、律师视角、本人已用完次数
+   * 一律 `false`——前端只认这个布尔值，不自己按状态推。
+   */
+  canResubmit: boolean;
 };
 
 /** 案件进度节点（后端 `CaseProgressVO`）。 */
@@ -129,9 +177,15 @@ export type CaseProgressNode = {
 /** 我的案件列表的筛选值（设计稿 4 个 chips）。 */
 export type CaseFilter = 'all' | 'pending' | 'in_progress' | 'closed';
 
-/** 生成一个幂等键（提交时由客户端发一次性随机值）。 */
-function newIdempotencyKey(): string {
-  return `case-filing-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+/**
+ * 生成一个幂等键（提交时由客户端发一次性随机值）。
+ *
+ * @param prefix 幂等键前缀：新建立案用 `case-filing`，补正提交用 `case-resubmit`
+ *               （与后端 Redis 键前缀一并区分，避免两条链路互串）
+ * @returns 一次性幂等键
+ */
+function newIdempotencyKey(prefix = 'case-filing'): string {
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
 /**
@@ -177,6 +231,41 @@ export function fetchMyCases(
  */
 export function fetchCaseDetail(caseId: string): Promise<ApiResult<CaseDetail>> {
   return get<CaseDetail>(`/api/v1/app/cases/${encodeURIComponent(caseId)}`);
+}
+
+/**
+ * 拉补正预填视图（驳回后在立案页回填原表单）。
+ *
+ * **只有委托人本人**能取；律师访问他人案件由服务端返回 `407003`。
+ *
+ * @param caseId 案件 id
+ * @returns 原案件表单快照 + 驳回理由
+ */
+export function fetchCaseForm(caseId: string): Promise<ApiResult<CaseFormSnapshot>> {
+  return get<CaseFormSnapshot>(`/api/v1/app/cases/${encodeURIComponent(caseId)}/form`);
+}
+
+/**
+ * 补正提交（驳回后重新提交，不新建第二张案件）。
+ *
+ * 请求体与 `POST /cases` 完全相同的全量重填；成功返回本次补正提交时间。
+ * 幂等：同一个 `Idempotency-Key` 重放返回首次结果，不会重复写进度节点。
+ * 失败码：`407001` 案件不存在/非本人、`407002` 当前状态不是 `rejected`、
+ * `407009` 补正次数已用完。
+ *
+ * @param caseId 案件 id
+ * @param payload 四步表单全量数据
+ * @returns 成功时含案件 id 与平台单号（单号沿用原案件）
+ */
+export function resubmitCase(
+  caseId: string,
+  payload: CaseCreatePayload,
+): Promise<ApiResult<CaseSubmitResult>> {
+  return post<CaseSubmitResult>(
+    `/api/v1/app/cases/${encodeURIComponent(caseId)}/resubmit`,
+    payload,
+    { headers: { 'Idempotency-Key': newIdempotencyKey('case-resubmit') } },
+  );
 }
 
 /**

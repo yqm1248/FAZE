@@ -47,6 +47,7 @@
   "error.case.delivery-not-found": "སྤྲོད་པའི་ཐོ་མེད།",
   "error.case.delivery-already-signed": "ཡིག་ཆ་འདི་བདག་ལེན་བྱས་ཟིན། ཡང་བསྐྱར་བྱེད་མི་ཆོག",
   "error.case.delivery-method-invalid": "སྤྲོད་སྟངས་ཁྲིམས་མིན།",
+  "error.case.resubmit-limit": "བཅོས་སྐྱོང་གི་ཐེངས་ཚད་ཟད་སོང་། སྟེགས་བུ་དང་འབྲེལ་གཏུགས་བྱེད་རོགས",
   "error.trade.withdraw-below-min": "བཏོན་པའི་དངུལ་གྲངས་ཉུང་མཐའ་ལས་དམན།",
   "error.trade.withdraw-insufficient": "བཏོན་ཆོག་པའི་ལྷག་མ་མི་འདང་།",
   "error.trade.withdraw-state-invalid": "དངུལ་བཏོན་པའི་ཤོག་གི་གནས་སྟངས་ཁྲིམས་མིན། ད་ལྟའི་བྱ་བར་མི་ཆོག",
