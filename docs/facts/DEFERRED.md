@@ -70,6 +70,23 @@ G4 建 `design/PAGE-MAP.json`（设计稿 ↔ 页面映射）时，第一次把�
 
 ---
 
+## 二·补二、2026-11-11 G6 建档时新登记的（2 项）
+
+G6 逐条核对《护栏计划》的 8 条后端边界测试时发现：**4 条对应的业务行为根本不存在**。其中 2 条是功能缺口（另 1 条是实名同步 = DRIFT-015，已登记；1 条是法条快照一致性，归巡检 SQL）。
+
+| ID | 条目 | 代码实际 | 缺什么 | 出处 |
+|---|---|---|---|---|
+| DEF-014 | **律师给自己下单的校验** | 全仓搜「自己下单 / selfOrder / 不能给自己 / SELF_ORDER」**0 处命中**；`405031` 这个错误码**不存在**（当前最大 405030）。`POST /app/orders` 不检查 `lawyer.user_id == 下单人.user_id` | 一条前置校验 + 一个新错误码 | `docs/acceptance/guard/G6-后端边界测试.md` §二 第 3 行；`PendingBehaviorSpecsTest#lawyerCannotOrderSelf` |
+| DEF-015 | **注销时校验进行中订单** | 注销流程只校验**余额**（`CancelAccountBalanceTest` 只覆盖余额）；搜「进行中订单 / activeOrder」在注销逻辑 0 处命中 | 一条订单状态前置校验 | 同上 §二 第 6 行；`PendingBehaviorSpecsTest#deactivateBlockedByActiveOrder` |
+
+> **这两条都是「有实际后果的缺口」，不是体验问题**：
+> - DEF-014：律师可用自己账号下单、给自己付款，资金进自己的律师余额（`orders` 与 `balance_flow` 全程跑通）。
+> - DEF-015：用户可在有未完成订单时注销，订单悬空、律师侧结算无对象。
+>
+> 写成 `@Disabled` 的可执行规格（`PendingBehaviorSpecsTest`），实现后删注解即可当回归测试。
+
+---
+
 ## 三、按原因分类的索引（118 条的全貌）
 
 2026-11-11 做过一次全仓盘点（覆盖 `docs/` 164 份 Markdown + 代码抽查），结果如下。

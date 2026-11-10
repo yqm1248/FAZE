@@ -131,16 +131,20 @@ public class SocialQueryService {
             throw new BusinessException(ErrorCode.COMMON_PARAM_MISSING);
         }
         String internal = toInternalType(normalizeExternalType(rawTargetType));
-        // 归属校验：先看这个目标当前是否被别人收藏着（含软删过滤）
-        List<SocialAction> others = socialActionMapper.selectList(Wrappers.<SocialAction>lambdaQuery()
-                .eq(SocialAction::getActionType, SocialActionService.ACTION_FAVORITE)
-                .eq(SocialAction::getTargetType, internal)
-                .eq(SocialAction::getTargetId, targetId)
-                .isNull(SocialAction::getDeletedAt)
-                .last("LIMIT 1"));
-        if (!others.isEmpty() && !userId.equals(others.get(0).getUserId())) {
-            throw new BusinessException(ErrorCode.COMMON_FORBIDDEN);
-        }
+        // ── 这里原来有一段「归属校验」，2026-11-11 删除（DRIFT-014）───────────────────
+        //
+        // 原实现：先 `LIMIT 1` 查**任意用户**对该目标的收藏行（不带 user_id 条件、不带 ORDER BY），
+        // 再把这一行的 userId 与调用方比较，不同就抛 401008。它有两个致命问题：
+        //
+        //   1. **行为取决于数据库返回哪一行。** 同一个请求换个用户重试就换个结果。
+        //      实测：同一 token 下 `targetId=3`（被 9324 收藏）返回 401008「无权限」，
+        //      而 `targetId=99`（没人收藏）返回 200 —— 与预期完全相反。
+        //   2. **它校验的对象本来就不可能是别人的行。** 下面调的
+        //      `socialActionService.unfavorite` 的 UPDATE 条件里已经带了 `user_id = userId`，
+        //      物理上删不到别人的收藏。所以这段预检既拦不住越权，只会误伤合法用户。
+        //
+        // 正确语义：取消一个「自己没收藏」的目标 → 幂等成功（0 行受影响），不是 403。
+        // 回归保护见 `GuardSocialFavoriteMultiUserTest`。
         socialActionService.unfavorite(userId, internal, targetId);
         log.info("取消收藏 userId={} target={}:{}", userId, internal, targetId);
     }

@@ -59,8 +59,16 @@ public class CorsConfig {
         config.setAllowedOrigins(originsOf(allowedOrigins));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
-        // 让前端能读到链路 id 与首字节调试头
-        config.setExposedHeaders(List.of("X-Trace-Id", "X-First-Byte-Ms"));
+        // 让前端能读到这些**动态响应头**。
+        //
+        // 前两个是链路与首字节调试头。后两个是 2026-11-11 补的（CorsExposedHeadersTest 的直接产物）：
+        //   · X-Pay-Pwd-Remaining —— 支付密码剩余尝试次数。服务端一直在发，但没进暴露列表，
+        //     浏览器端的 `fetch` 读不到自定义响应头，所以设计稿要求的「还可试 N 次」永远显示不出来。
+        //   · Retry-After            —— 限流/锁定后的等待秒数（标准头，但跨域下同样需要显式暴露）。
+        //
+        // **新增动态响应头时必须同步加到这里**，否则它的存在对浏览器等同于不存在。
+        config.setExposedHeaders(
+                List.of("X-Trace-Id", "X-First-Byte-Ms", "X-Pay-Pwd-Remaining", "Retry-After"));
         config.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
