@@ -262,7 +262,7 @@
     "fontSizeStandard": "标准",
     "fontSizeLarge": "大",
     "fontSizeXLarge": "特大",
-    "fontSizeNote": "字体会影响全 App 的正文与按钮文字。目标用户里有不少中老年人，选「大」或「特大」不会影响任何功能。",
+    "fontSizeNote": "字体会影响全 App 的正文与按钮文字。不少中老年人会使用，选「大」或「特大」不影响任何功能。",
     "themeTitle": "深色模式",
     "themeFollowSystem": "跟随系统",
     "themeOn": "开",

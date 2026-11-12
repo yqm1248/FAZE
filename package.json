@@ -15,10 +15,12 @@
     "check:pages": "node scripts/facts/check-pages.mjs",
     "check:page-inventory": "node scripts/facts/page-inventory.mjs",
     "check:render": "node scripts/facts/render-docs.mjs --check",
-    "check:drift": "node scripts/facts/check-drift.mjs",
     "check:contracts": "node scripts/facts/check-contracts.mjs",
+    "check:copy-tone": "node scripts/check-copy-tone.mjs",
+    "check:write-paths": "node scripts/facts/check-write-paths.mjs",
     "check:integrity": "node scripts/monitor/check-integrity.mjs",
     "check:invisible": "node scripts/monitor/check-invisible.mjs",
+    "check:daily": "node scripts/monitor/daily-check.mjs",
     "render:docs": "node scripts/facts/render-docs.mjs"
   }
 }

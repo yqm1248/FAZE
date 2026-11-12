@@ -247,7 +247,7 @@
     "forget": "忘记支付密码",
     "verify": "验证支付密码",
     "verifyTitle": "验证支付密码",
-    "verifyDesc": "用来演示锁定与剩余次数：连续输错 5 次会锁定 30 分钟。",
+    "verifyDesc": "显示锁定状态与剩余次数：连续输错 5 次会锁定 30 分钟。",
     "verifySubmit": "验证",
     "modifyOldLabel": "当前支付密码",
     "modifyNewLabel": "新支付密码",

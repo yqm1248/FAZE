@@ -130,13 +130,13 @@ jobs:
           echo "OK：faze_app 无法建表（迁移只走 faze_migrate）"
 
       # ── 数据完整性巡检（G7 接入）────────────────────────────────────
-      # 20 条只读检查，判读规则「n 必须为 0」。已知非零项由 scripts/monitor/known-issues.json
+      # 21 条只读检查，判读规则「n 必须为 0」。已知非零项由 scripts/monitor/known-issues.json
       # 逐条豁免，且每条都写了关闭条件——没有台账的话只有两种坏结局：长期红（人开始忽略）
       # 或整条关掉（真问题也看不见）。
       #
       # CI 的库是 Flyway 从空库建的，A12/A20 会实测 0 条；台账用的是「≤ 允许值」而不是
       # 「= 允许值」，所以空库也通过。开发者本地库有那两条历史脏数据，实测各 1 条，同样通过。
-      - name: 数据完整性巡检（20 条 DIRT 检查）
+      - name: 数据完整性巡检（21 条 DIRT 检查）
         run: node scripts/monitor/check-integrity.mjs
         env:
           FAZE_DB_HOST: 127.0.0.1
@@ -227,6 +227,21 @@ jobs:
       - name: 承诺性注释与文案（清单不漂移 + 范围承诺在台账内）
         working-directory: .
         run: node scripts/facts/check-contracts.mjs --check
+
+      # ── 回归清单 R-11 / R-15（G9 接入）──────────────────────────────
+      # R-11：用户可见文案禁内部口吻。**这条实测抓到过 2 处真缺陷**
+      #   （支付密码页「用来演示锁定」、字号说明「目标用户里有不少中老年人」），不是理论风险。
+      - name: 用户可见文案无内部口吻（R-11）
+        working-directory: .
+        run: node scripts/check-copy-tone.mjs
+
+      # R-15：每个字段必须有写入路径。判据是「六种写入证据之一」，找不到的必须登记在
+      #   scripts/facts/write-paths-baseline.json（每条带 reason + closeWhen）。
+      #   这条覆盖本仓踩过的 court_name / view_count 两类「有读无写」缺陷，且它自己也会过期：
+      #   字段补上写入路径后，基线里那条会报「过期」，逼人删掉。
+      - name: 每个字段都有写入路径（R-15）
+        working-directory: .
+        run: node scripts/facts/check-write-paths.mjs
 
   # ── PC 后台：能构建即可（RuoYi 前端没有 lint script） ──────────────
   admin-web:

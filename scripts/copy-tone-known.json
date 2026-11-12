@@ -1,0 +1,9 @@
+{
+  "_comment": "用户可见文案「内部口吻」检查（R-11）的**已知豁免台账**。每条必须写明为什么现在不改（reason）与什么条件下可以删掉这条豁免（closeWhen）——没有 closeWhen 的豁免等于永久放弃这条检查。豁免按 key 不按语言：同一个 key 只要有一种语言命中，整条 key 进台账。",
+  "_rules": [
+    "allowed[].key 是 i18n key（形如 namespace.camelCase.path），与 apps/mobile-app/shared/i18n/resources/<lang>/<namespace>.json 对应。",
+    "新增一条豁免必须同时在 docs/acceptance/guard/G9-回归清单落地.md 里记一笔，不允许只在这里悄悄加。",
+    "改完文案后要把对应行删掉，让检查重新盯住它。"
+  ],
+  "allowed": []
+}

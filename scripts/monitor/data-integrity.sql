@@ -152,3 +152,22 @@ FROM case_library c
 JOIN law_item l ON l.id = JSON_UNQUOTE(JSON_EXTRACT(c.law_refs, '$[0].lawItemId'))
 WHERE JSON_VALID(c.law_refs)
   AND JSON_UNQUOTE(JSON_EXTRACT(c.law_refs, '$[0].articleNo')) <> l.article_no;
+
+SELECT '=== 造数残留（回归清单 R-19）===' AS section;
+
+-- R-19：测试数据禁止进入真实用户可见的列表。
+-- 判据只看**对外展示字段**（昵称 / 律师姓名 / 案例标题），因为这些会被 App 列表直接返回：
+-- 「找律师」列表里出现「验收律师甲」、评价区出现「测试用户」，用户看到的就是这个。
+-- 不看订单号 / 流水号这类内部标识——它们不进列表展示，且有独立的唯一键约束。
+--
+-- 为什么允许值按台账而不是等于 0：开发库与 CI 库的 seed 里本来就有测试账号
+-- （`database/seed/test.sql` 的 13800000001 那批），它们的昵称合法地含「测试」二字。
+-- 台账 `known-issues.json` 的 closeWhen 是「上线前清库 + 生产库复跑应为 0」。
+SELECT 'A21 造数痕迹出现在对外可见字段' AS chk, COUNT(*) AS n
+FROM (
+  SELECT id FROM app_user WHERE nickname REGEXP '测试|验收|压测|端到端|示例数据|demo'
+  UNION ALL
+  SELECT id FROM lawyer WHERE real_name REGEXP '测试|验收|压测|端到端|示例数据|demo'
+  UNION ALL
+  SELECT id FROM case_library WHERE title REGEXP '测试|验收|压测|端到端|示例数据|demo'
+) t;

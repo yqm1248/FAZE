@@ -1,6 +1,6 @@
 {
   "_comment": "本文件由 scripts/facts/check-contracts.mjs 从源码注释与 i18n 文案生成，禁止手改。用途：让「代码里承诺了什么」成为可 diff 的清单——新增一条承诺就是一次可见的改动。",
-  "sourceDigest": "93ae63202bcf545c",
+  "sourceDigest": "ac13b400733b6b4b",
   "totals": {
     "promises": 444,
     "scopeViolations": 1,
@@ -17,7 +17,7 @@
     {
       "file": "apps/mobile-app/shared/i18n/resources/zh-Hans/profile.json",
       "line": 265,
-      "text": "\"fontSizeNote\": \"字体会影响全 App 的正文与按钮文字。目标用户里有不少中老年人，选「大」或「特大」不会影响任何功能。\","
+      "text": "\"fontSizeNote\": \"字体会影响全 App 的正文与按钮文字。不少中老年人会使用，选「大」或「特大」不影响任何功能。\","
     }
   ],
   "promises": [

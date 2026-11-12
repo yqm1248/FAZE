@@ -1,0 +1,22 @@
+{
+  "_comment": "「有读无写」字段的**已知基线**（回归清单 R-15）。这里列出的字段当前确实找不到任何写入证据，但已逐条定性：要么是设计上允许为空，要么缺口已登记在 DEFERRED.md / DRIFT.md。新增的无证据字段不在这个文件里 → `check:write-paths` 会失败。每条必须写 reason 与 closeWhen。",
+  "_rules": [
+    "field 格式为 <表名>.<列名>；表名与列名都用真实名字，不要写驼峰。",
+    "新增一条基线必须同时在 docs/acceptance/guard/G9-回归清单落地.md 记一笔。",
+    "字段后来补了写入路径 → 本检查会报「过期」，此时删掉这一条（这条设计就是要它自己过期）。"
+  ],
+  "known": [
+    {
+      "field": "content_review.reviewer_id",
+      "reason": "内容审核记录的**处置人**。当前只有系统/自动判定，没有「人工处置并记录处置人」的写入路径——全仓搜 setReviewerId **0 处**，实库 content_review 5 行记录的 reviewer_id **全为 NULL**。定为缺口而不是「设计允许为空」：管理端内容审核页要能回答「这条是谁处置的」，现在答不上。",
+      "closeWhen": "补人工处置审核的写入路径（处置时写 reviewer_id）后，本检查会报「过期」，届时删掉这一条并关闭 DEF-016。",
+      "owner": "DEF-016"
+    },
+    {
+      "field": "user_device.push_cid",
+      "reason": "设备的**推送 CID**。DeviceService.insert 只写 deviceId / deviceName，不写 push_cid；全仓搜 setPushCid **0 处**，实库 user_device 153 行设备记录的 push_cid **全为 NULL**。这比「推送通道未接」（DEF-007）更深一层：即使段八接了个推，也找不到投递目标。",
+      "closeWhen": "客户端上报 CID + 设备注册接口接收并落库 push_cid 后，删掉这一条；与 DEF-007（个推通道）一起验收。",
+      "owner": "DEF-007 / DEF-016"
+    }
+  ]
+}

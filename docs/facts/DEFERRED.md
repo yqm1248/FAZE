@@ -46,7 +46,7 @@
 |---|---|---|---|---|
 | DEF-005 | **真实钉钉机器人 webhook + 加签密钥** | 链路完整（`AlertDispatcher` 60s 轮询 → POST → 失败降级），**但 `alert.dingtalk_webhook` 指向 `http://127.0.0.1:8088/dingtalk`（本地 mock），`secret` 是空串** | 日志里有「告警已发送 response={"errcode":0,"errmsg":"ok"}」，看起来通了 | `docs/acceptance/seg7/挂账.md:43`；`docs/ops/运维手册.md:54` |
 | DEF-006 | **豆包真实 API key** | AI 链路可跑，但 4 条 AI 锚点（`3-A2`/`3-A3`/`3-A4`/`3-A8`）在 mock 下**不判过** | 页面能对话、SSE 能流式 | `docs/acceptance/seg3/C1-client.md:104` |
-| DEF-007 | **个推 + 四厂商推送凭据** | `DisabledPushSender` 明确抛 `PushUnavailableException`；杀进程推送 (`2-A3`) 挂段 8 | 推送接口返回 200 | `docs/architecture/法泽FAZE_第2段工作流_v1.0.md:1073` |
+| DEF-007 | **个推 + 四厂商推送凭据** | `DisabledPushSender` 明确抛 `PushUnavailableException`；杀进程推送 (`2-A3`) 挂段 8。**另有更深一层（2026-11-13 R-15 检查发现）**：`user_device.push_cid` **没有任何写入路径**（`DeviceService.insert` 不写该字段，实库 153 行全 NULL）——即使段八接了个推，服务端也找不到投递目标；接通道时要同时补「客户端上报 CID + 设备注册落库」，见 DEF-016 | 推送接口返回 200 | `docs/architecture/法泽FAZE_第2段工作流_v1.0.md:1073`；`scripts/facts/check-write-paths.mjs` |
 | DEF-008 | **隐私政策 / 用户协议正文** | 机制就绪（后台可编辑），正文是**占位文本，需律师审** | 页面能打开、有内容 | `docs/architecture/法泽FAZE_开发计划总纲_v1.0.md:906` |
 | DEF-009 | **正式敏感词库** | 词库 50 条里 `block` 级 30 条**全是 `【示例】…` 占位词**，三语示意词未做 | 敏感词引擎跑通、命中能拦 | `docs/acceptance/seg7/挂账.md:53` |
 | DEF-010 | **真机验收环境整体** | `adb devices` 为空。RTL 运行时、手写板端到端、相册上传、系统分享/存相册/打印、iOS 侧全部未验 | 浏览器里都能点通 | `docs/acceptance/seg0/README.md:50`；`docs/acceptance/seg4/遗留与挂账.md:23`~`:26` |
@@ -70,20 +70,26 @@ G4 建 `design/PAGE-MAP.json`（设计稿 ↔ 页面映射）时，第一次把�
 
 ---
 
-## 二·补二、2026-11-11 G6 建档时新登记的（2 项）
+## 二·补二、G6（2026-11-11）与 G9（2026-11-13）建档时新登记的（4 项）
 
 G6 逐条核对《护栏计划》的 8 条后端边界测试时发现：**4 条对应的业务行为根本不存在**。其中 2 条是功能缺口（另 1 条是实名同步 = DRIFT-015，已登记；1 条是法条快照一致性，归巡检 SQL）。
+
+G9 落地回归清单 R-01~R-20 时又查出 2 项——由两个**新写的检查脚本**查出来的，不是读代码读出来的：R-15 的写入路径检查查出 2 个「有读无写」字段（DEF-016），R-06 的人工核对查出单号重试只做了一半（DEF-017）。
 
 | ID | 条目 | 代码实际 | 缺什么 | 出处 |
 |---|---|---|---|---|
 | DEF-014 | **律师给自己下单的校验** | 全仓搜「自己下单 / selfOrder / 不能给自己 / SELF_ORDER」**0 处命中**；`405031` 这个错误码**不存在**（当前最大 405030）。`POST /app/orders` 不检查 `lawyer.user_id == 下单人.user_id` | 一条前置校验 + 一个新错误码 | `docs/acceptance/guard/G6-后端边界测试.md` §二 第 3 行；`PendingBehaviorSpecsTest#lawyerCannotOrderSelf` |
 | DEF-015 | **注销时校验进行中订单** | 注销流程只校验**余额**（`CancelAccountBalanceTest` 只覆盖余额）；搜「进行中订单 / activeOrder」在注销逻辑 0 处命中 | 一条订单状态前置校验 | 同上 §二 第 6 行；`PendingBehaviorSpecsTest#deactivateBlockedByActiveOrder` |
+| DEF-016 | **「有读无写」字段：内容审核处置人 + 设备推送 CID** | 两条字段表里有、接口能读、**全仓 0 处写入**：① `content_review.reviewer_id`（搜 `setReviewerId` 0 处，实库 5 行全 NULL）——管理端答不上「这条是谁处置的」；② `user_device.push_cid`（搜 `setPushCid` 0 处，实库 153 行全 NULL）——推送找不到目标（与 DEF-007 同批验收）。**这两个不是漏测，是漏写**：CI 全绿、类型检查全过，因为没有任何测试断言它们非空 | ① 审核处置时写 `reviewer_id`；② 客户端上报 CID 并落库 | `scripts/facts/check-write-paths.mjs`（R-15，2026-11-13 新增）；基线见 `scripts/facts/write-paths-baseline.json` |
+| DEF-017 | **7 类业务单号的撞号重试** | 单号重试**只做了一半**：`OrderCreateExecutor:118-125`（订单号）与 `RechargeCreateExecutor:86`（充值单号）捕获 `DuplicateKeyException` 换号重试；**案件 CS / 提现 WD / 结算 JS / 送达 SD / 案例 CL / 工单 TK / 公告 AN 共 7 类没有**——`BizNoGenerator.nextXxxNo()` 直接 `set` 后 insert，撞号即 500。触发条件真实存在：Redis 被清空/重启后序号从 1 重来，会撞上已用单号 | 7 处各加重试包装，或统一在 `BizNoGenerator` 内做一次换号重试（注意后者要处理「生成-落库」之间的耦合） | `docs/acceptance/guard/G9-回归清单落地.md` 的 R-06 行（2026-11-13 人工核对 7 个调用点） |
 
-> **这两条都是「有实际后果的缺口」，不是体验问题**：
+> **这四条都是「有实际后果的缺口」，不是体验问题**：
 > - DEF-014：律师可用自己账号下单、给自己付款，资金进自己的律师余额（`orders` 与 `balance_flow` 全程跑通）。
 > - DEF-015：用户可在有未完成订单时注销，订单悬空、律师侧结算无对象。
+> - DEF-016：`push_cid` 全 NULL 意味着**即使接了个推也发不出去**；`reviewer_id` 全 NULL 意味着内容审核没有责任人可追溯。
+> - DEF-017：Redis 重启后 7 类单号会撞已用号，用户看到的是「提交失败」（数据没坏，唯一键挡住了，但可用性受损）。
 >
-> 写成 `@Disabled` 的可执行规格（`PendingBehaviorSpecsTest`），实现后删注解即可当回归测试。
+> 前两条写成 `@Disabled` 的可执行规格（`PendingBehaviorSpecsTest`），实现后删注解即可当回归测试；后两条的检测已自动化（`check:write-paths`）或已进人工清单（PR 模板 R-06 无对应项，靠 G9 台账跟踪）。
 
 ---
 
