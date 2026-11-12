@@ -50,6 +50,15 @@ public class I18nGlossary {
     /** 是否启用（D 类表硬要求，停用而非删除）；1 = 启用。 */
     private Integer isEnabled;
 
+    /**
+     * 术语表冻结时间（UTC）；NULL 表示「冻结之后新增、待复审」。
+     *
+     * <p>第 8 段 B-2 加（V801）。`status` 表达「这条术语本身定没定」，
+     * 本列表达「整张表在某个时间点被冻结，之后改动要走过审批」——两者语义不同。
+     * 别用 `status` 代替它做冻结判断。</p>
+     */
+    private LocalDateTime frozenAt;
+
     /** 创建时间（UTC）。 */
     private LocalDateTime createdAt;
 

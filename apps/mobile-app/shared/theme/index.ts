@@ -7,6 +7,7 @@
 
 export {
   color,
+  darkColor,
   gradient,
   fontSize,
   fontWeight,
@@ -19,6 +20,11 @@ export {
 } from './tokens';
 
 export type { Tokens } from './tokens';
+
+// 深色模式取用入口（第 8 段 E-4）：按 settings.theme + 系统外观选一套颜色令牌。
+// 页面**不要**直接 import darkColor，走 getColorTokens——它会按设置与系统外观选。
+export { getColorTokens, getColorTokensByScheme, resolveColorScheme } from './darkMode';
+export type { ColorScheme, ThemeModeValue } from './darkMode';
 
 export { typography, lineHeightFor } from './typography';
 

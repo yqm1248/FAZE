@@ -516,7 +516,7 @@ COMMENT='订单主表；状态枚举：created/paid/accepted/completed/cancelled
 <!-- FACTS:schema-tables -->
 > 本区块由 `scripts/facts/render-docs.mjs` 从 `docs/facts/*.json` 生成，**禁止手改**；要改先改代码再跑 `npm run facts`。
 
-已建 **53** 张业务表 / 687 列 / 188 个索引；Flyway 已应用 50 个迁移，最新 **V800**。
+已建 **53** 张业务表 / 688 列 / 188 个索引；Flyway 已应用 51 个迁移，最新 **V801**。
 
 | 表 | 列 | 主键 | 唯一键 | 表注释 |
 |---|---|---|---|---|
@@ -541,7 +541,7 @@ COMMENT='订单主表；状态枚举：created/paid/accepted/completed/cancelled
 | `faq` | 9 | id | — | 常见问题；APP 55/56 两页的数据源，改库即生效 |
 | `feedback` | 10 | id | — | 意见反馈；提交时同事务生成 service_ticket（裁决 23） |
 | `file_record` | 14 | id | uk_file_oss_key | 上传文件登记；业务表存 oss_key，不存完整 URL |
-| `i18n_glossary` | 10 | id | uk_i18n_glossary_term_lang | 法律术语对照表；段 3 只灌中文源术语，译文留段 8 母语译者 |
+| `i18n_glossary` | 11 | id | uk_i18n_glossary_term_lang | 法律术语对照表；段 3 只灌中文源术语，译文留段 8 母语译者 |
 | `law_item` | 15 | id | uk_law_article | 法条库；AI 只能引用本表存在的条文 |
 | `lawyer` | 29 | id | uk_lawyer_license、uk_lawyer_user | 律师资料；余额权威在 lawyer_balance，balance_cents 仅历史缓存 |
 | `lawyer_application` | 16 | id | — | 律师入驻申请；四步流程，驳回历史见 lawyer_application_log |

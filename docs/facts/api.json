@@ -1,16 +1,16 @@
 {
   "_comment": "本文件由 scripts/facts/api.mjs 从 Controller 源码生成，禁止手改。口径见 docs/standards/说辞一致与真相源规范.md §四。",
-  "sourceDigest": "6455dc5932251f7a",
+  "sourceDigest": "d0e4cab9bd7c8a7d",
   "sourceRoot": "services/faze-api/src/main/java/com/faze",
   "totals": {
-    "controllers": 78,
-    "endpoints": 261,
+    "controllers": 79,
+    "endpoints": 266,
     "unresolved": 0,
     "duplicateKeys": 1,
     "realConflicts": 0
   },
   "bySurface": {
-    "admin": 123,
+    "admin": 128,
     "app": 114,
     "dev": 1,
     "pub": 23
@@ -18,7 +18,7 @@
   "byDomain": {
     "ai": 17,
     "ops": 56,
-    "content": 22,
+    "content": 27,
     "trade": 64,
     "caseflow": 19,
     "conversation": 7,
@@ -29,9 +29,9 @@
     "infra/storage": 2
   },
   "byMethod": {
-    "GET": 141,
+    "GET": 144,
     "POST": 93,
-    "PUT": 17,
+    "PUT": 19,
     "DELETE": 10
   },
   "duplicates": [
@@ -409,6 +409,22 @@
       "controller": "AdminExportController",
       "method": "GET",
       "path": "/api/v1/admin/exports/{taskId}/download",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "content",
+      "controller": "AdminTranslationController",
+      "method": "GET",
+      "path": "/api/v1/admin/i18n-glossary",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "content",
+      "controller": "AdminTranslationController",
+      "method": "PUT",
+      "path": "/api/v1/admin/i18n-glossary/{id}",
       "surface": "admin",
       "adminDir": true
     },
@@ -873,6 +889,30 @@
       "controller": "AdminTicketController",
       "method": "GET",
       "path": "/api/v1/admin/tickets/export",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "content",
+      "controller": "AdminTranslationController",
+      "method": "GET",
+      "path": "/api/v1/admin/translations",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "content",
+      "controller": "AdminTranslationController",
+      "method": "GET",
+      "path": "/api/v1/admin/translations/{id}",
+      "surface": "admin",
+      "adminDir": true
+    },
+    {
+      "domain": "content",
+      "controller": "AdminTranslationController",
+      "method": "PUT",
+      "path": "/api/v1/admin/translations/{id}",
       "surface": "admin",
       "adminDir": true
     },

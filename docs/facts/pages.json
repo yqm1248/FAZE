@@ -1,6 +1,6 @@
 {
   "_comment": "本文件由 scripts/facts/extract-pages.mjs 从 app/ + features/ + design/ 生成，禁止手改。口径见 docs/standards/说辞一致与真相源规范.md §四。与设计稿的映射关系另见 design/PAGE-MAP.json。",
-  "sourceDigest": "f6c0937b8f837255",
+  "sourceDigest": "f0fc9de6d882f5d2",
   "sources": {
     "routes": "apps/mobile-app/shared/navigation/routes.ts",
     "shells": "apps/mobile-app/app/**/*.tsx",
@@ -993,18 +993,30 @@
       "route": "/",
       "routeKey": "root",
       "isDevProbe": false,
-      "lines": 164,
+      "lines": 282,
       "testIdCount": 0,
       "testIds": [],
-      "localizedTextCount": 4,
+      "localizedTextCount": 7,
       "rawTextCount": 0,
-      "navigations": [],
+      "navigations": [
+        {
+          "kind": "routeKey",
+          "value": "agreement"
+        },
+        {
+          "kind": "routeKey",
+          "value": "privacy"
+        }
+      ],
       "imports": [
+        "@/features/auth/components/PrivacyConsentDialog",
         "@/shared/api/tokenStore",
         "@/shared/components/LocalizedText",
         "@/shared/components/Screen",
         "@/shared/i18n",
-        "@/shared/theme"
+        "@/shared/navigation/routes",
+        "@/shared/theme",
+        "@/shared/utils/prefStore"
       ]
     },
     {

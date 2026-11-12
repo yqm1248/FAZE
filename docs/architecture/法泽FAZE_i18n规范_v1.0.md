@@ -40,23 +40,23 @@
 <!-- FACTS:i18n-stats -->
 > 本区块由 `scripts/facts/render-docs.mjs` 从 `docs/facts/*.json` 生成，**禁止手改**；要改先改代码再跑 `npm run facts`。
 
-源语言 `zh-Hans` 共 **1882** 个 key（可翻译叶子 1882 条、含中间对象的总节点 1967 个——**三个口径不是一个数**，引用时必须说明取哪个）。
+源语言 `zh-Hans` 共 **1890** 个 key（可翻译叶子 1890 条、含中间对象的总节点 1976 个——**三个口径不是一个数**，引用时必须说明取哪个）。
 
 14 个 namespace、56 个 json 文件。
 
 | 语言 | key 数 | 覆盖率 |
 |---|---|---|
-| `zh-Hans` | 1882 | 100.00% |
-| `bo` | 1880 | 99.89% |
-| `ug-Arab-CN` | 1880 | 99.89% |
-| `kk-Arab-CN` | 1880 | 99.89% |
+| `zh-Hans` | 1890 | 100.00% |
+| `bo` | 1880 | 99.47% |
+| `ug-Arab-CN` | 1880 | 99.47% |
+| `kk-Arab-CN` | 1880 | 99.47% |
 
 每 namespace 的 key 数：
 
 | namespace | zh-Hans | bo | ug-Arab-CN | kk-Arab-CN |
 |---|---|---|---|---|
 | `ai` | 47 | 47 | 47 | 47 |
-| `auth` | 101 | 101 | 101 | 101 |
+| `auth` | 109 | 101 | 101 | 101 |
 | `case` | 179 | 179 | 179 | 179 |
 | `common` | 28 | 28 | 28 | 28 |
 | `content` | 92 | 92 | 92 | 92 |
@@ -70,7 +70,7 @@
 | `trade` | 324 | 324 | 324 | 324 |
 | `workbench` | 149 | 149 | 149 | 149 |
 
-缺译登记：`apps/mobile-app/shared/i18n/resources/.i18n-pending.json` 登记 6 条，与本脚本实测**吻合**。
+缺译登记：`apps/mobile-app/shared/i18n/resources/.i18n-pending.json` 登记 30 条，与本脚本实测**吻合**。
 <!-- /FACTS:i18n-stats -->
 
 > 上面 §1.1 的「1 defined / 21 partial / 2 missing」是 **2026-10-28 的审计结论**，保留它是因为它说明

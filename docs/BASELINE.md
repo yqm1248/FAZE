@@ -1,18 +1,18 @@
-# 法泽 FAZE 文档基线 v1.80
+# 法泽 FAZE 文档基线 v1.81
 
 > # 后续一切文档从这里开始
 
 | 项 | 值 |
 | --- | --- |
-| 基线编号 | **v1.80** |
-| 确立日期 | 2026-11-13（DRIFT-015 实名状态派生——真相源从「两套」收敛为 `realname_auth` 一张表，`app_user.realname_status` 降级为冗余缓存；顺带清掉 A12 已知红灯，巡检 A12/A13 归零；见 §7.83） |
-| 上一版 | v1.79（2026-11-13，第 8 段工作流产出 + 3 处文档漂移；见 §7.82） |
+| 基线编号 | **v1.81** |
+| 确立日期 | 2026-11-13（第 8 段施工——A 组合规 6 项落地/判定、B-2 术语冻结、E 组 A-17 新增 1 个 PC 页 + 深色令牌层、F-2 版本回滚方案；**B-1 缺译未完成（6→30）**、A-5/F-1 外部依赖未清；见 §7.84） |
+| 上一版 | v1.80（2026-11-13，DRIFT-015 实名状态派生；见 §7.83） |
 | 所在分支 | `UI设计`（v1.2 及以前在 `docs` 分支） |
 | Git 标签 | `v1.13-docs-baseline`（v1.3~v1.10 当时未打标签，见 §7.13；v1.14~v1.32 亦未打标签，见 §7.33 末尾） |
-| 基线资产数 | **56**（49 份 Markdown + 7 份 JSON；v1.49~v1.66 为 45 份，v1.67 登记 48 漏算 1 份，v1.69~v1.74 逐步补到 55，v1.79 补到 56。**v1.80 无新增无删除**） |
+| 基线资产数 | **56**（49 份 Markdown + 7 份 JSON；v1.49~v1.66 为 45 份，v1.67 登记 48 漏算 1 份，v1.69~v1.74 逐步补到 55，v1.79 补到 56。**v1.81 无新增无删除**——第 8 段的验收证据 `docs/acceptance/seg8/F-1-商店材料清单.md` **不是**基线资产，见 §一 第 1456 行的口径） |
 | 本版新增 | **0 份** |
 | 本版删除 | **0 份** |
-| 本版内容变更 | **4 份**（`docs/facts/DRIFT.md`：DRIFT-015 行改为「已修」并补修复前后的对照实测、§八 加关闭记录、统计区上方「user 3 实名矛盾」说明改为「已清」；`docs/architecture/法泽FAZE_数据表规范_v1.0.md`：受控区块 `FACTS:schema-tables` 重渲染，Flyway 已应用 49→**50**、最新 **V712**→**V800**；`docs/facts/tables.json`：flyway 计数同步；`docs/facts/contracts.json`：承诺性注释 447→**448**，新增的是 `RealnameStatusResolver#resolveBatch` 的「保证每个入参 userId 都有值」；另 `docs/CHANGELOG.md` 属叙述。**本文件自身不计入**） |
+| 本版内容变更 | **13 份**（① 施工回写：`docs/architecture/法泽FAZE_第8段工作流_v1.0.md` 加 §十一之一、`docs/architecture/法泽FAZE_开发计划总纲_v1.0.md` §11.2 第 8 段行 + 新增 §5.9.1、`docs/README.md` 基线号 3 处；② 设计：`docs/design/设计令牌.md` 加深色节 + 变更记录、`design/tokens/tokens.json` v1.1.0→**v1.2.0** 加 `dark.color`、`docs/design/法泽PC后台UI设计说明_v1.0.md` 加 §5.8；③ 事实与受控区块：`docs/facts/i18n-keys.json`（+8 条文案）、`docs/facts/pages.json`、`docs/facts/tables.json`（V801 加 1 列：687→**688**）、`docs/architecture/法泽FAZE_i18n规范_v1.0.md` / `接口规范` / `数据表规范` 三份受控区块重渲染；另 `docs/CHANGELOG.md` 属叙述。**本文件自身不计入**） |
 
 ---
 
@@ -112,20 +112,20 @@
 |---|---|---|---|---|
 | 1 | `AGENTS.md` | 200 | 19016 | `856afaaefb1e4feb` 📝 |
 | 2 | `README.md` | 127 | 6650 | `e73e69e54d114ac0` |
- | 3 | `docs/README.md` | 363 | 46544 | `eea3e33dbfaaa77d` 📝 | 
+ | 3 | `docs/README.md` | 363 | 46544 | `7967446a81d3505f` 📝 | 
 
 ### 2.2 架构与实施（★ 核心）
 
 | # | 文件 | 行数 | 字节 | SHA256 前 16 位 |
 |---|---|---|---|---|
-| 4 | `docs/architecture/法泽FAZE_开发计划总纲_v1.0.md` | 999 | 89743 | `375a072d40bb2b30` 📝 |
+| 4 | `docs/architecture/法泽FAZE_开发计划总纲_v1.0.md` | 1011 | 91360 | `3ba865ed69a9d9c4` 📝 |
 | 5 | `docs/architecture/法泽FAZE_技术路线_v2.3.md` | 4276 | 214134 | `e5bd39f1e66415e3` 📝 |
 | 6 | `docs/architecture/法泽FAZE_V1基线表结构_v1.0.md` | 232 | 15858 | `3569f83f4ba74328` 📝 |
 | 7 | `docs/architecture/法泽FAZE_错误码规范_v1.0.md` | 457 | 33621 | `6c0ed247805623ce` 📝 |
-| 24 | `docs/architecture/法泽FAZE_数据表规范_v1.0.md` | 731 | 55411 | `535f6b46c47fb18e` 📝 |
-| 25 | `docs/architecture/法泽FAZE_接口规范_v1.0.md` | 1190 | 82769 | `87dbb011245b7926` 📝 |
+| 24 | `docs/architecture/法泽FAZE_数据表规范_v1.0.md` | 731 | 55411 | `da050582b0789124` 📝 |
+| 25 | `docs/architecture/法泽FAZE_接口规范_v1.0.md` | 1190 | 82769 | `29c4d54dc0581f33` 📝 |
 | 26 | `docs/architecture/法泽FAZE_后端代码规范_v1.0.md` | 1608 | 93985 | `03573f955af80606` 🆕 |
-| 27 | `docs/architecture/法泽FAZE_i18n规范_v1.0.md` | 610 | 28290 | `d3c83761141feac6` 📝 |
+| 27 | `docs/architecture/法泽FAZE_i18n规范_v1.0.md` | 610 | 28291 | `00a28ce02100df35` 📝 |
 | 28 | `docs/architecture/法泽FAZE_审计与日志规范_v1.0.md` | 391 | 23320 | `375aa774e73e6f0b` 📝 |
 | 29 | `docs/architecture/法泽FAZE_第0段工作流_v1.0.md` | 2995 | 274718 | `d03d3e6da992a72f` 📝 |
 | 30 | `docs/architecture/法泽FAZE_第1段工作流_v1.0.md` | 1320 | 89395 | `4e9085b58dfa61d7` 📝 |
@@ -160,11 +160,11 @@
 | 8 | `docs/design/法泽APP_页面导航树_v1.4.md` | 832 | 45366 | `b54df4f78073f9a5` |
 | 9 | `docs/design/法泽APP_UI设计顺序_v1.0.md` | 1921 | 136753 | `81f2c17fe42255ae` 📝 |
 | 10 | `docs/design/页面清单与信息架构.md` | 261 | 21551 | `b990ad4d85e3b559` |
-| 11 | `docs/design/设计令牌.md` | 156 | 11343 | `7d36fb2aae479160` |
+| 11 | `docs/design/设计令牌.md` | 188 | 14053 | `ea3d66e1914f1054` |
 | 12 | `docs/design/组件清单.md` | 89 | 5374 | `07b41a5d37138251` |
 | 13 | `docs/design/README.md` | 76 | 5114 | `c658713ae7156da3` 📝 |
-| 14 | `design/tokens/tokens.json` | 332 | 15668 | `46c6b2a096023835` |
- | 15 | `docs/design/法泽PC后台UI设计说明_v1.0.md` | 255 | 19673 | `90b274e51c5708b2` | 
+| 14 | `design/tokens/tokens.json` | 664 | 21759 | `cf3fc58ec8880ade` |
+ | 15 | `docs/design/法泽PC后台UI设计说明_v1.0.md` | 290 | 23055 | `2a6982d0dcc76098` | 
 
 > **68 页以第 8 份为唯一准据**（有逐页名称可核对）。**文件名写的是 v1.4，内容实为 v1.5** —— 改名会打断 `AGENTS.md` 与本文件里的引用，版本以文件内首行为准。**但「哪一页属于哪一段」不看它，看第 4 份 §4.1。**
 >
@@ -190,14 +190,14 @@
 | 46 | `docs/standards/说辞一致与真相源规范.md` | 297 | 15598 | `9d11a58b3ca8b879` 🆕 | **同一个事实在代码 / 文档 / 设计稿三处说法不同时听谁的**：真相源分级（P0 运行中的代码与库 / P1 Flyway / P2 文档 / P3 设计稿）、三类不一致的分界（DRIFT 漂移 / GAP 缺口 / DIRT 脏数据）、5 种处置值的裁决规则、数字口径必须机器算 |
 | 47 | `docs/facts/DRIFT.md` | 216 | 41535 | `e5c337adbac0c3d5` 📝 | **说辞漂移登记表**：同一事物、说法不同。D1 组 25 条（逐条核查）、D2 组 17 条（全仓盘点批量登记）、D3 组 **8 条**（跑脚本量出来的）。每行给「代码实际（P0）」+ 证据强度（实测 / 通读 / 待复核） |
 | 48 | `docs/facts/DEFERRED.md` | 171 | 20892 | `1e344287763ae34e` 📝 | **段八挂账汇总索引**：计划有、代码无。**不是待办清单，是真相声明**。含负责人点名的 4 项、最容易被误当已做的 8 项、118 条的分类索引、以及「18 条其实是文档落后于代码」的反向提醒 |
-| 49 | `docs/facts/api.json` | 2136 | 54429 | `fd27202548d1c2c1` 🆕 | **接口清单**：`scripts/facts/api.mjs` 从 78 个 Controller 生成，260 个端点（admin 123 / app 114 / pub 22 / dev 1）。**v1.67 首次登记时漏算本文件，v1.68 补正** |
-| 50 | `docs/facts/tables.json` | 1615 | 41816 | `1cf84e518a0d7e18` 🆕 | **表结构**：`scripts/facts/tables.mjs` 从 information_schema + flyway_schema_history 生成，53 张业务表 / 687 列 / 188 索引 / Flyway 48 个到 V711 |
+| 49 | `docs/facts/api.json` | 2176 | 55476 | `e6129bd3d32faf1e` 🆕 | **接口清单**：`scripts/facts/api.mjs` 从 78 个 Controller 生成，260 个端点（admin 123 / app 114 / pub 22 / dev 1）。**v1.67 首次登记时漏算本文件，v1.68 补正** |
+| 50 | `docs/facts/tables.json` | 1620 | 41938 | `dfe01a578dfc5a43` 🆕 | **表结构**：`scripts/facts/tables.mjs` 从 information_schema + flyway_schema_history 生成，53 张业务表 / 687 列 / 188 索引 / Flyway 48 个到 V711 |
 | 51 | `docs/facts/error-codes.json` | 709 | 18939 | `f3718b96d5ba35d1` 🆕 | **错误码清单**：`scripts/facts/error-codes.mjs` 从 ErrorCode 枚举生成，94 个码，无重复。文档里同时写着 78 和 91（DRIFT-045） |
-| 52 | `docs/facts/i18n-keys.json` | 165 | 3707 | `d8922ee221a062b7` 🆕 | **i18n 事实**：`scripts/facts/extract-i18n.mjs` 从 56 个 json 生成。**三个口径同时给出**（总节点 1965 / 叶子条目 1880 / 带 namespace 前缀去重 1880），四语言覆盖各 100%。DRIFT-046、DRIFT-047 都是这张表抓出来的 |
-| 53 | `docs/facts/pages.json` | 4292 | 133719 | `fae02c553b66f795` 🆕 | **页面事实**：`scripts/facts/extract-pages.mjs` 逐页抽取「文件 / 路由 / testID 锚点 / LocalizedText / 写死路由」。四种页面数口径的**唯一解析实现**（`page-inventory.mjs` 只 import 它打印）。抓出 6 处写死路由与 `/case-detail` 壳无对应常量 |
+| 52 | `docs/facts/i18n-keys.json` | 189 | 4639 | `ef79325d436e2f53` 🆕 | **i18n 事实**：`scripts/facts/extract-i18n.mjs` 从 56 个 json 生成。**三个口径同时给出**（总节点 1965 / 叶子条目 1880 / 带 namespace 前缀去重 1880），四语言覆盖各 100%。DRIFT-046、DRIFT-047 都是这张表抓出来的 |
+| 53 | `docs/facts/pages.json` | 4304 | 134020 | `0591846d5e7f0d15` 🆕 | **页面事实**：`scripts/facts/extract-pages.mjs` 逐页抽取「文件 / 路由 / testID 锚点 / LocalizedText / 写死路由」。四种页面数口径的**唯一解析实现**（`page-inventory.mjs` 只 import 它打印）。抓出 6 处写死路由与 `/case-detail` 壳无对应常量 |
 | 54 | `docs/standards/公共构件与护栏规范.md` | 234 | 14981 | `6f408c9b88f30159` 🆕 | **同类缺陷为什么反复出现、用什么拦住**：六个构件（幂等键 / 法条按 id 回查 / 乐观切换 / 金额展示 / 错误文案 / 归属校验）+ 3 条 ESLint 规则 + 豁免台账 + **三处「计划前提与仓库实际不符」的如实记录**（`useFavorite` 改签名、不建 `ErrorBanner`、先补后端接口） |
 | 55 | `docs/facts/contracts.json` | 2713 | 118271 | `d6271754403c0af7` 🆕 | **承诺清单**：`scripts/facts/check-contracts.mjs` 扫出的 **444 条**承诺性注释（幂等 320 / 保证 99 / 重复提交 22 / 重复点 3）+ 1 条范围承诺违规（`profile.fontSizeNote` 说「影响全 App」而实现只影响设置页，DRIFT-002，台账内）。**清单不代表说错**，作用是让「新增承诺」成为可见的 diff |
-| 56 | `docs/architecture/法泽FAZE_第8段工作流_v1.0.md` | 423 | 38245 | `5fadbef9d10b6382` 🆕 | **第 8 段（收口段）施工细则**：把总纲 §5.9 的 9 条锚点展开成任务分组；**本段做 4 组 15 任务，2 组 10 任务移出，9 条锚点只执行 3 条**（`8-A2` 术语冻结 / `8-A5` 合规材料 / `8-A9` 材料齐备）。**8 处上游冲突逐条裁决** + **11 项负责人裁决**，其中第 11 条「**本段整类不做测试**」推翻了真机/性能/渗透三条，测试清单移交到文件 §七 7.1（性能实测 / 真机走查 / 多厂商兼容 / 渗透 / 4×69 逐页走查 / 必测六类 / 崩溃率口径）。另含 A-17 多语言翻译管理页（PC，稿有码无）与深色模式令牌。总纲 §11.2 的「待产出」已同步改为「已产出」 |
+| 56 | `docs/architecture/法泽FAZE_第8段工作流_v1.0.md` | 586 | 52461 | `6c35af8e834f3e25` 🆕 | **第 8 段（收口段）施工细则**：把总纲 §5.9 的 9 条锚点展开成任务分组；**本段做 4 组 15 任务，2 组 10 任务移出，9 条锚点只执行 3 条**（`8-A2` 术语冻结 / `8-A5` 合规材料 / `8-A9` 材料齐备）。**8 处上游冲突逐条裁决** + **11 项负责人裁决**，其中第 11 条「**本段整类不做测试**」推翻了真机/性能/渗透三条，测试清单移交到文件 §七 7.1（性能实测 / 真机走查 / 多厂商兼容 / 渗透 / 4×69 逐页走查 / 必测六类 / 崩溃率口径）。另含 A-17 多语言翻译管理页（PC，稿有码无）与深色模式令牌。总纲 §11.2 的「待产出」已同步改为「已产出」 |
 
 ### 2.5 决策依据
 
@@ -3019,3 +3019,51 @@ hence column cannot be dropped or renamed.
 2. **`app_user.realname_status` 列没有删**：删列不可逆，导出/直查仍在读。它现在的定位是缓存，写路径两处维护。**如果将来出现第三处写入或有人又开始读它，就是本问题复发**——A12 会亮。
 3. **A20（案例引用 733 条号但法条库无正文）没动**，仍挂段八。
 4. **集成测试的 5 个 error 是环境问题不是回归**：`TaskQueueIntegrationTest` / `OrderNoGeneratorTest` 在未加载 `deploy/.env`（`FAZE_DB_URL` 等）时上下文起不来。加载后重跑 **5/5 全过**。
+
+---
+
+## §7.84 v1.81 第 8 段施工：合规落地、A-17 新增 1 页、术语冻结、深色令牌层（无新增，内容变更 4 份）
+
+**一句话**：第 8 段（收口段）施工完成，**但"做完"不等于"能上架"**——本段按负责人决定**整类不做测试**，且缺译、备案号、商店材料三项客观未清。下面按"真做完的 / 判定的 / 没做到的"分开写，别混着读。
+
+### 一、真做完的（有代码或可复核数据）
+
+| 项 | 产物 | 实测证据 |
+|---|---|---|
+| A-1 启动页隐私弹窗（DEF-013） | `features/auth/components/PrivacyConsentDialog.tsx`（新增）+ `SplashPage.tsx` 改造：**未同意不跳转**、点遮罩不关闭、「不同意」停在启动页 | `tsc` exit 0、`eslint` 0 告警、`check-raw-text` 命中 0 |
+| B-2 术语表冻结 | 迁移 `V801__i18n_glossary_frozen_at.sql`（加 `frozen_at` + 回填 51 条）；实体加字段；A-17 术语表显示冻结态 | `SELECT COUNT(*) WHERE frozen_at IS NOT NULL` = **51**；Flyway version 801 success=1 |
+| E-1 A-17 多语言翻译页 | 后端 `AdminTranslationController` + `AdminTranslationService`（5 接口 / 6 BO/VO）；前端 `views/biz/i18n/index.vue` + `api/biz/i18n.js` | 后端编译通过；三个 GET 路由实测返回 **401（路由存在）** 而非 404 |
+| E-2 权限与审计 | 写接口标 `@OperationLog`；菜单种子 `database/seed/seg8_admin_menu.sql`（2240 菜单 + 2241 按钮，`sys_role_menu` **只绑超管 role_id=1**） | 菜单已执行并回读确认 |
+| E-3 稿↔码登记 | 《PC 后台 UI 设计说明》新增 **§5.8**（8 行对应表 + 5 接口 + 3 差异 + 没做清单），`16-translation` 行「缺」→「已实现」 | 文档 |
+| E-4 深色令牌（**只到令牌层**） | `tokens.json` v1.1.0→**1.2.0** 加 `dark.color`（33 叶子，与 `color` 同构）；`tokens.ts` 加 `darkColor`；新增 `shared/theme/darkMode.ts`；`check-tokens-sync.py` **新增"深色组同构"强制检查** | `check-tokens-sync.py`：**深色组同构 33/33 一致**、72 项比对通过 |
+| F-2 版本/灰度/回滚 | `deploy/README.md` 新 **§8**（版本号来源与三步改法、三批灰度、发版前置 9 项、**分层回滚表**四层、回滚后三步验证） | 文档；**未演练** |
+
+### 二、判定完成的（核查后确认无需改代码）
+
+- **A-2/A-3**（隐私政策/用户协议正文）：机制成立（`GET /pub/config/*_content` 实测 200 返回 `sys_config` 正文），**正文仍是占位**，等律师（DEF-008）。
+- **A-4**（AI 标识）：AI 输出展示点全仓只有 `AiChatPage` 一处，已挂 `AiGeneratedLabel`；`AiHistoryPage` 是导航索引、`AiLawSearchView` 不调大模型 → 无需补标识。
+- **A-6**（权限说明）：`app.config.ts` 的 `plugins` 无任何运行时权限插件 → **本段无对象可写**。
+- **A-7**（注销文案）：`402012` / `401006` 的实际行为与页面文案已对齐；两处观察（`balanceDesc` 未提"提现"、`402012` 无"去订单"入口）登记不改。
+
+### 三、没做到的（**必须如实记，这是本版最重要的一段**）
+
+| 项 | 目标 | 实际 | 原因 |
+|---|---|---|---|
+| **B-1 缺译清零** | 6 → **0** | 6 → **30**（每语言 10 条） | 候选快照（侧边/豆包）只有 55 条 error key，当前 59 条；两个新 key 与 A-1 新增 8 条文案**都没有译文来源**。项目口径「不许机翻」，我不产可疑译文 → 登记缺译，App 端降级显示中文 |
+| **A-5 备案信息上屏** | 真实备案号 | 占位仍在 | DEF-004 外部未下来 |
+| **F-1 商店材料** | 齐备并提交 | 清单产出（15 项：6❌/4⚠️/5✅），**未提交** | 备案号、软著、正式图标、四语言截图、隐私政策正文全缺；**应用图标现为 uni-app 默认模板图标**（`assets/legacy/index.ts:9` 自认） |
+| **A-1 浏览器联调** | 点过一遍 | 只过静态门禁 | 本段「不做任何测试」，8090 未起 |
+| **E-2 普通管理员 403** | 实测 | 只做菜单绑定 | 需 RuoYi 角色登录环境 |
+| **E-4 深色生效** | 界面变深 | **只到令牌层** | 71 个页面仍 `import { color }` 静态浅色；响应式改造需 71 文件 + ThemeProvider，属独立任务 |
+
+### 四、本段新增的四个上游没预料到的问题
+
+1. **`i18n_glossary` 没有 `frozen_at` 列**——`8-A2` 要求「冻结（`frozen_at` 有值）」而表只有 `status`，语义不同 → 加列（V801）。
+2. **翻译候选快照不含新增文案**——"按工作流去候选快照取译文"这条路是断的。
+3. **A-17 管的是文章译文不是 i18n key**——工作流原文与设计稿/数据模型不一致（第 9 处冲突），按 P0 代码为准实现 `article_translation`。
+4. **应用图标是 uni-app 默认模板图标**——F-1 硬阻塞，需设计产出。
+
+### 五、本段**没有做任何测试**（与 §7.82 的口径变更一致）
+
+性能实测、真机走查、多厂商兼容、渗透测试、4×69 逐页走查、必测六类、崩溃率口径 —— **全部未做**。
+所以第 8 段结束时**不能说"可上架"**，只能说"做完了、门禁绿了"。移交清单见第 8 段工作流 §七 7.1（11 项）与 §十一之一 11.9。

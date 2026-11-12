@@ -1,13 +1,13 @@
 {
   "_comment": "本文件由 scripts/facts/tables.mjs 从 information_schema + flyway_schema_history 生成，禁止手改。口径见 docs/standards/说辞一致与真相源规范.md §四。",
-  "sourceDigest": "c77b5ebf777d8d22",
+  "sourceDigest": "fa782193962efe1b",
   "database": "faze",
   "totals": {
     "tables": 53,
-    "columns": 687,
+    "columns": 688,
     "indexes": 188,
-    "flywayApplied": 50,
-    "flywayLatest": "800"
+    "flywayApplied": 51,
+    "flywayLatest": "801"
   },
   "flyway": {
     "applied": [
@@ -210,6 +210,10 @@
       {
         "version": "800",
         "description": "fix realname status derive"
+      },
+      {
+        "version": "801",
+        "description": "i18n glossary frozen at"
       }
     ]
   },
@@ -780,7 +784,7 @@
     {
       "name": "i18n_glossary",
       "comment": "法律术语对照表；段 3 只灌中文源术语，译文留段 8 母语译者",
-      "columnCount": 10,
+      "columnCount": 11,
       "primaryKey": [
         "id"
       ],
@@ -798,7 +802,8 @@
         "status:varchar(20)",
         "is_enabled:tinyint",
         "created_at:datetime",
-        "updated_at:datetime"
+        "updated_at:datetime",
+        "frozen_at:datetime"
       ]
     },
     {

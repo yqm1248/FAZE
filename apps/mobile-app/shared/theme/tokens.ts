@@ -120,6 +120,104 @@ export const color = {
 } as const;
 
 /**
+ * 深色模式颜色令牌（第 8 段 E-4，tokens.json v1.2.0）。
+ *
+ * **与 `color` 完全同构**：33 个叶子键一一对应。往 `color` 加令牌时必须同时在这里加一条，
+ * 否则 `scripts/check-tokens-sync.py` 会报叶子数不一致——两套令牌不同构，
+ * 深色模式下就会出现「某个颜色没值」的黑洞。
+ *
+ * 取用方式：**不要在组件里直接 import 这个常量**，用 `shared/theme/darkMode.ts` 的
+ * `getColorTokens(mode)`——它会按 `settings.theme`（system / on / off）与系统外观选一套。
+ *
+ * 注意：本段只做**令牌层**。全仓 71 个页面目前仍直接 import 静态的 `color`，
+ * 换成响应式取用是独立改造（涉及 71 个文件 + 一个 ThemeContext），不在第 8 段范围。
+ */
+export const darkColor = {
+  brand: {
+    /** 主色深色版：在 #111316 上对比度 5.6:1（浅色版只有 3.1:1，不合格） */
+    primary: '#7C93F7',
+    /** 主色按下态深色版：比 primary 压暗约 12%，保持"按下去更暗"的直觉 */
+    primaryPressed: '#5F77E0',
+    /** 强调色深色版：紫在深底上要提亮，否则与正文灰分不开 */
+    accent: '#B78BF2',
+    /** 强调色浅底的深色替代：同色相压暗，用于 AI 标签背景 */
+    accentSoft: '#2B2140',
+    /** 主色浅底的深色替代：用于提示条、选中卡、标签底 */
+    primarySoft: '#1E2542',
+    /** 登录页标题色深色版 */
+    loginTitle: '#93A2FB',
+  },
+  background: {
+    /** 页面底色深色版：近黑不纯黑，保留与卡片的层次差 */
+    canvas: '#111316',
+    /** 卡片/面板底色深色版：比 canvas 亮一档 */
+    surface: '#1C1F24',
+    /** 律师工作台顶栏深色版：比页面更暗，仍用深色区分角色 */
+    workbench: '#0B0D12',
+    /** 输入框底色深色版：比 surface 再亮一档，让输入区可辨 */
+    input: '#272A31',
+  },
+  text: {
+    /** 大标题深色版：接近白但不刺眼 */
+    primary: '#F2F3F5',
+    /** 正文深色版 */
+    body: '#D7DAE0',
+    /** 次要说明深色版：在 #1C1F24 上对比度 6.8:1 */
+    secondary: '#A6AAB3',
+    /** 占位符深色版：仍要满足 4.5:1（在 #1C1F24 上约 4.9:1） */
+    muted: '#8B9199',
+    /** 品牌色底上的文字：深色模式下品牌底仍是彩色，文字仍用白 */
+    onBrand: '#FFFFFF',
+  },
+  border: {
+    /** 细分隔线深色版 */
+    subtle: '#2A2E35',
+    /** 分割线深色版 */
+    divider: '#23272D',
+    /** 描边深色版：比分隔线更明显一档 */
+    outline: '#303540',
+  },
+  state: {
+    /** 成功色深色版：深底上要提亮到可读 */
+    success: '#4FD1C5',
+    /** 成功色浅底深色替代 */
+    successSoft: '#142B2A',
+    /** 警告色深色版 */
+    warning: '#FFB340',
+    /** 警告色浅底深色替代 */
+    warningSoft: '#322415',
+    /** 警告深文字深色版：浅色时是"深色文字压浅底"，深色时反过来要亮 */
+    warningDeep: '#FFC46B',
+    /** 危险色深色版 */
+    danger: '#FF5A6E',
+    /** 危险色浅底深色替代 */
+    dangerSoft: '#3A1A1E',
+  },
+  icon: {
+    /** 文书图标深色版 */
+    doc: '#5FE0D5',
+    /** 律师图标深色版 */
+    lawyer: '#8CA1F8',
+    /** 进度图标深色版 */
+    progress: '#FFBE4D',
+  },
+  banner: {
+    /** 顶部渐变起点深色版 */
+    start: '#1B2A44',
+    /** 顶部渐变终点深色版：与 canvas 同色，渐变自然收进页面 */
+    end: '#111316',
+  },
+  overlay: {
+    /** 半透明白叠加层深色版：白在深底上更显眼，不透明度从 22% 降到 12% */
+    whiteSoft: '#FFFFFF1F',
+    /** 更淡的白色叠加层深色版 */
+    whiteFaint: '#FFFFFF12',
+    /** 遮罩深色版：深色背景上需要更重的遮罩才能压出层次 */
+    scrim: '#000000B3',
+  },
+} as const;
+
+/**
  * 渐变令牌。
  *
  * `colors` 元组直接传给 `expo-linear-gradient` 的 `colors` 属性，

@@ -201,6 +201,41 @@ def main():
         if "font-arabic" not in css:
             errors.append("JSON 声明了 arabic 字体，但 tokens.css 没有 --font-arabic")
 
+    # ── 深色组同构检查（第 8 段 E-4）─────────────────────────────────────────
+    # 浅色的每个令牌都必须有一个同名深色令牌。少一个是「深色模式下这个颜色没值」，
+    # 多一个是「深色组里躺了个浅色组没有的键」——两种都是漂移。
+    # 这条检查存在的原因：本仓 19 个门禁脚本里原本**没有任何一个**管令牌同步
+    # （tokens.json / tokens.ts / 设计令牌.md 三处靠人肉比对），
+    # 第 8 段加深色组时补上，免得以后加一个浅色令牌忘了加深色版本。
+    dark = data.get("dark", {}).get("color")
+    if dark is None:
+        errors.append("tokens.json 缺 dark.color 组（E-4 加的深色令牌组被删了？）")
+    else:
+        def leaf_keys(node, prefix=""):
+            keys = set()
+            for k, v in node.items():
+                if k.startswith("$"):
+                    continue
+                path = prefix + k
+                if isinstance(v, dict) and "value" in v:
+                    keys.add(path)
+                elif isinstance(v, dict):
+                    keys |= leaf_keys(v, path + ".")
+            return keys
+
+        light_keys = leaf_keys(data.get("color", {}))
+        dark_keys = leaf_keys(dark)
+        missing = sorted(light_keys - dark_keys)
+        extra = sorted(dark_keys - light_keys)
+        if missing:
+            errors.append("dark.color 缺 %d 个键（深色模式会没值）：%s"
+                          % (len(missing), ", ".join(missing[:5])))
+        if extra:
+            errors.append("dark.color 多 %d 个键（浅色组里没有）：%s"
+                          % (len(extra), ", ".join(extra[:5])))
+        if not missing and not extra:
+            print("深色组同构          : %d/%d 一致" % (len(light_keys), len(dark_keys)))
+
     print("比对通过项          :", checked)
     print("")
     if errors:

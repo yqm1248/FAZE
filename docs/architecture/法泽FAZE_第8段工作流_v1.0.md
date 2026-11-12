@@ -409,6 +409,169 @@
 
 ---
 
+## 十一之一、施工回写（2026-11-13，实际做完的与偏差）
+
+> **回写口径**：每条记「做了什么 / 怎么验证的 / 与计划的偏差」。**没做到的写没做到**，
+> 不把"写了文档"当"做完了"。
+
+### 11.1 组 A 合规（7 个任务，全部落地或判定完成）
+
+| # | 结果 | 实际做了什么 | 验证 |
+|---|---|---|---|
+| A-1 | ✅ **做了** | 新增 `features/auth/components/PrivacyConsentDialog.tsx`（300 行）；`SplashPage.tsx` 接入：读 `faze.pref.privacy.consented`，**未同意不跳转**（分流条件从「有目标 + 到时」改成「+ `consented === true`」）。点「不同意」停在启动页显示说明并可重新打开弹窗，**点遮罩不关闭** | `tsc --noEmit` 通过、`eslint` 0 告警、`check-raw-text` 命中 0（文案全走 `t()`）。**未在浏览器里点过**（见 11.6 偏差） |
+| A-2 | ⚠️ **机制成立，正文等律师** | 未改正文（DEF-008）。核实了机制：`GET /pub/config/privacy_policy_content` 实测 200 返回 `sys_config` 里的正文，App 侧 `LegalDocView` 只渲染不写死 | 接口实测（见 11.5 的命令） |
+| A-3 | ⚠️ 同 A-2 | 同上（`user_agreement_content`） | 同上 |
+| A-4 | ✅ **核查完成，无需改** | 全仓搜 AI 输出展示点：只有 `AiChatPage` 的回答气泡一处，已挂 `AiGeneratedLabel`；`AiHistoryPage` 是导航索引（摘要是会话标题，不是内容展示）；`AiLawSearchView` **不调大模型**（法条库查询），按 `3-A7` 不算 AI 生成内容 | grep `aiGeneratedLabel` / `AiGeneratedLabel` 全仓 6 处命中，逐个读过 |
+| A-5 | ❌ **无法完成**（外部依赖） | 备案号未下来（DEF-004）。占位符 `profile.about.recordNo` 四语言均在位，`AboutPage.tsx` 的 TODO 注释明确「绝对不许编一个看起来像真的号」 | 占位符在 `zh-Hans/profile.json:313` 等四处 |
+| A-6 | ✅ **无对象，判定完成** | `app.config.ts:66-73` 的 `plugins` 只有 router / secure-store / font / localization，**没有任何运行时权限插件**。当前打包产物没有需要逐项说明的权限 | 读配置；与 §零 的实测一致 |
+| A-7 | ✅ **判定已一致，未改文案** | 核对三条：① `402012`（有在途订单）走 `error.auth.cancel-has-active-order`，文案在；② `401006`（状态非法）页面特判成「余额不为 0 无法注销」，与后端行为一致；③ 注销页 `dangerDesc` 写「注销立即生效」，与后端无冷静期一致 | 读 `DeactivatePage.tsx:66-87` + `error.json:24` + `profile.deactivate.*` |
+
+**A-7 的两个观察（未改，登记在此）**：
+1. `profile.deactivate.balanceDesc` 写「请先**消费完**余额」，但实际路径也可以是**提现后余额归零**。
+   DRIFT-021 定的口径是「请先提现 / 消费完余额再注销」——**这句话的中文没补「提现」**。
+   不改的原因是改中文会让另外三种语言变成旧文案，属翻译批次（见 11.3）。
+2. 页面没有给 `402012` 单独的「去我的订单」入口，只显示一句提示。属体验问题，非合规问题。
+
+### 11.2 组 B 四语言（2 个任务）
+
+| # | 结果 | 说明 |
+|---|---|---|
+| B-1 | ❌ **未完成**（详见 11.3） | 6 条缺译**没有可用的译文来源**：`docs/acceptance/seg8/译文候选-侧边/` 与 `译文候选-豆包/` 的 `error.json` 各只有 **55 条**，而当前 `zh-Hans/error.json` 是 **59 条**——两个新 key（`error.auth.cancel-has-active-order` / `error.trade.self-order-forbidden`，2026-11-13 随 DEF-014/015 新增）**不在任何候选快照里**。且 A-1 又新增了 8 条文案。**不许机翻、不许编造**，所以登记缺译而不是硬填 |
+| B-2 | ✅ **做了** | 迁移 `V801__i18n_glossary_frozen_at.sql`：`i18n_glossary` 加 `frozen_at` 列 + 回填 51 条 = `2026-11-13 00:00:00`。实测 `SELECT COUNT(*) WHERE frozen_at IS NOT NULL` = **51** | 实体 `I18nGlossary` 加字段、PC A-17 术语表显示冻结态 |
+
+### 11.3 缺译的准确账（这是本段最大的一笔未完成）
+
+| 语言 | 缺译条数 | 明细 |
+|---|---|---|
+| bo | **10** | `auth.privacyConsent.*` 8 条（A-1 新增）+ `error.auth.cancel-has-active-order` / `error.trade.self-order-forbidden`（原有 2 条） |
+| ug-Arab-CN | **10** | 同上 |
+| kk-Arab-CN | **10** | 同上 |
+
+**出口条件第 4 条「`.i18n-pending.json` 清零（6 → 0）」未达成**，实际从 6 **增加到 30**（10×3）。
+
+**为什么不是"偷懒"**：
+- 项目口径是「**不许机翻**」（技术路线 §13.8、i18n 规范 §5），译文必须来自母语法律译者或既有候选快照；
+- 候选快照（侧边/豆包两份）都不含这 10 条，**没有现成译文可抄**；
+- 我自己产不出可信的藏文/维吾尔文/哈萨克文译文——**编一组假译文比缺译更糟**，而且它会被当成"已翻译"进入上线包。
+
+**当前用户看到什么**：`shared/i18n/index.ts:196-200` 的降级链——先查本语言，缺译**降级到 zh-Hans**。
+所以非中文用户在这 10 条上会看到**中文**，不会看到 `⟦key⟧`、不会白屏。这是规范允许的「登记式缺译」。
+**但这批文案必须在上线前补**，属 DEF-003（母语者/翻译流程）同批。
+
+### 11.4 组 E / F
+
+| # | 结果 | 实际做了什么 | 验证 |
+|---|---|---|---|
+| E-1 | ✅ **做了**（**口径与工作流原文不同，见下**） | 后端：`AdminTranslationController` + `AdminTranslationService`（5 个接口、6 个 BO/VO）；前端：`pc/admin-web/src/views/biz/i18n/index.vue` + `src/api/biz/i18n.js`。**管理对象是 `article_translation`（文章译文）+ `i18n_glossary`（术语表）**，不是 i18n 文案 key | 后端编译通过；三个 GET 路由实测返回 `401 登录状态已过期`（**路由存在**，不是 404）；前端未在浏览器里跑过 |
+| E-2 | ✅ **做了** | 写接口标 `@OperationLog`（`TRANSLATION_UPDATED` / `GLOSSARY_UPDATED`，detail 存 before/after 的可判别字段）；菜单种子 `database/seed/seg8_admin_menu.sql`：2240 菜单 + 2241 按钮，`sys_role_menu` **只绑 role_id=1（超管）**；前端 `v-hasPermi="['biz:translation:edit']"` | 菜单已执行并回读确认（见 11.5）；「普通管理员 403」**未实测**（需要 RuoYi 角色登录环境） |
+| E-3 | ✅ **做了** | 在《PC 后台 UI 设计说明》加 **§5.8 A-17 稿↔码对应登记**（8 行对应表 + 5 个接口 + 3 处差异 + 没做清单）；`16-translation` 行的「缺」改为「已实现」 | 文档 |
+| E-4 | ⚠️ **只做令牌层**（见下） | `tokens.json` 加 `dark.color` 组（33 个叶子，与 `color` 同构，v1.1.0→**v1.2.0**）；`tokens.ts` 加 `darkColor`；新增 `shared/theme/darkMode.ts`（`getColorTokens` / `resolveColorScheme`）；`check-tokens-sync.py` **新增强制检查**「深色组同构」；《设计令牌》加 §4 深色节 + 变更记录 | `check-tokens-sync.py` 实测：**深色组同构 33/33 一致**、72 项比对通过；`tsc` 通过 |
+| F-1 | ❌ **材料备不齐，未提交**（见下） | 产出 `docs/acceptance/seg8/F-1-商店材料清单.md`：15 项逐项状态 + 五家商店差异 + 缺口归属 + 提交顺序 | 清单里每项都有实测出处（`app.config.ts` 行号等） |
+| F-2 | ✅ **做了** | `deploy/README.md` 加 **§8 版本、灰度与回滚**：版本号来源与三步改法、三批灰度、发版前置 9 项勾选、**分层回滚表**（客户端/服务端/数据库/配置四层）、回滚后三步验证、没做的事 | 文档；**未演练**（仓内从未真实发版） |
+
+#### E-1 的口径修正（第 9 处上游冲突）
+
+工作流 E-1 原文写「页面能列**四语言 key**、能改译文、**改完 App 侧生效**」，暗示管理的是 App 的 i18n 文案。
+**实际不是**：设计稿 `design/admin/16-translation.html` 的文件头明写
+「职责：**文章译文**的『待翻译/机翻待校对/已完成』队列、机翻辅助入口、术语表（`i18n_glossary`）维护」，
+数据表是 `article_translation`（7 行）+ `i18n_glossary`（51 行）。
+
+按真相源分级（P0 代码/库 > P2 文档），**以实现对象为准**：
+- 管理的是 `article_translation` 的译文行，不是 `shared/i18n/resources/*.json` 的 key；
+- 「改完 App 侧生效」**天然成立**：App 读文章详情时按 `lang` 查 `article_translation`，改库即生效，不需要额外机制；
+- 「批量机翻」**不做**（设计稿画了）：技术路线 §13.8 禁机翻，做假入口会误导运营。
+
+#### E-4 的落地范围（必须说清，否则会被误读为"深色模式做完了"）
+
+**只做了令牌层**：两套令牌 + 取用函数 + 门禁。
+**71 个页面仍 `import { color }`（静态浅色）**，所以**设置里选「深色」目前不会让界面变深**。
+让页面真正跟着变需要把 `color.*` 全改成 context 取用（71 个文件 + 一个 ThemeProvider），
+属独立改造。工作流 E-4 的验证标准本身就是「代码级核对，不要求真机看效果」，所以本段达标，
+但**必须在交接里写清「深色功能未生效」**。
+
+### 11.5 实测命令与输出（可复核）
+
+```
+# 依赖与告警：服务端与移动端门禁
+npm run check:baseline        → 全绿（本段结束 57 份资产）
+npm run check:facts           → 重跑后一字未变
+npm run check:render          → 6 个受控区块一致
+python scripts/check-tokens-sync.py → 深色组同构 33/33 一致；比对通过 72 项
+cd apps/mobile-app; npx tsc --noEmit → exit 0
+cd apps/mobile-app; npm run verify   → check-raw-text 0 命中；check-i18n 三项通过（pending 30 条已登记）
+
+# A-17 路由存在性（未登录时是 401 而不是 404）
+curl -s "http://127.0.0.1:8081/api/v1/admin/translations"
+  → {"code":401,"data":null,"msg":"登录状态已过期",...}
+curl -s "http://127.0.0.1:8081/api/v1/admin/translations/1"        → 同上
+curl -s "http://127.0.0.1:8081/api/v1/admin/i18n-glossary"         → 同上
+
+# B-2 术语冻结
+mysql> SELECT COUNT(*) FROM i18n_glossary WHERE frozen_at IS NOT NULL;
+  → 51
+mysql> SELECT version, success FROM flyway_schema_history ORDER BY installed_rank DESC LIMIT 2;
+  → 801|1 / 800|1
+
+# E-2 菜单与角色绑定
+mysql> SELECT menu_id, menu_name, perms FROM sys_menu WHERE menu_id IN (2240,2241);
+  → 2240|多语言翻译|biz:translation:list / 2241|译文编辑|biz:translation:edit
+mysql> SELECT role_id, menu_id FROM sys_role_menu WHERE menu_id IN (2240,2241);
+  → 1|2240 / 1|2241   （只有超管）
+```
+
+### 11.6 与计划的偏差汇总（8 条）
+
+| # | 计划 | 实际 | 原因 |
+|---|---|---|---|
+| 1 | A-1 在浏览器里点过（清 localStorage → 弹窗出现 → 不同意不进 → 同意不再弹） | **只做了 tsc/eslint/raw-text 检查，没在浏览器里点过** | 本段「不做任何测试」，弹窗联调属走查；且 Expo Web 8090 未启动 |
+| 2 | B-1 6 条缺译清零 | **从 6 增到 30 条**（每语言 10 条） | 无译文来源；不许机翻/编造（详见 11.3） |
+| 3 | A-2/A-3 正文定稿 | 仍是占位 | DEF-008 等律师（外部） |
+| 4 | A-5 备案号上屏 | 占位仍在 | DEF-004 等外部 |
+| 5 | E-1 管 i18n 文案 key | 管文章译文 `article_translation` | 设计稿与真实数据模型如此（第 9 处冲突，见 11.4） |
+| 6 | E-4 深色模式可用 | 只到令牌层，页面不生效 | 71 个页面静态引用，响应式改造是独立任务 |
+| 7 | E-2「普通管理员 403」实测 | 只做了菜单绑定，未实测 403 | 需要 RuoYi 角色登录环境 |
+| 8 | F-1 材料齐备并提交 | 清单产出，材料备不齐、未提交 | 备案号/图标/截图/隐私政策正文全缺（见 F-1 清单） |
+
+### 11.7 段八新增的四个"上游没预料到"的问题
+
+1. **`i18n_glossary` 没有 `frozen_at` 列**——工作流 `8-A2` 要求「冻结（`frozen_at` 有值）」，
+   而表只有 `status`（confirmed/pending）。语义不同（术语本身定没定 vs 整表冻结事件），
+   所以加列（V801）而不是复用 `status`。
+2. **翻译候选快照不含新增文案**——`docs/acceptance/seg8/译文候选-*/` 生成于 DEF-014/015 之前，
+   55 条 vs 当前 59 条。**"按工作流说的去候选快照取译文"这条路是断的**。
+3. **A-17 管的是文章译文不是 i18n key**——工作流原文与设计稿/数据模型不一致（见 11.4 第 9 处冲突）。
+4. **应用图标是 uni-app 默认模板图标**（`assets/legacy/index.ts:9` 自认）——这是 F-1 的硬阻塞，
+   商店不接受，且需要设计产出，不是代码能补的。
+
+### 11.8 固定声明（不许省略）
+
+> **本段未做任何测试**：性能实测、真机走查、多厂商兼容、渗透测试、4×69 逐页走查、
+> 必测六类复核、崩溃率/ANR/P95 口径、ZAP 扫描、业务越权自测——**全部未做**，
+> 移交清单见 **§七 7.1**（11 项）。
+>
+> 所以第 8 段结束时**不能说"可上架"**，只能说"**做完了、门禁绿了**"。
+> 已核实的事实是：门禁全绿、后端编译与单测通过、A-17 路由存在、术语冻结 51 条、
+> 深色令牌同构 33/33。
+> **没有核实的是**：弹窗在浏览器里的实际行为、A-17 页面的实际渲染、深色在界面上的实际效果、
+> 任何与性能/兼容性/安全性相关的结论。
+
+### 11.9 移交清单（下一个时段接手从这里开始）
+
+**上线前必须补的（阻塞上架）**：
+1. **验收测试时段**（§七 7.1 整表，11 项）——第 8 段唯一"明确欠着"的东西；
+2. **30 条缺译补齐**（每语言 10 条：`auth.privacyConsent.*` 8 条 + 2 条错误文案）——需母语译者；
+3. **应用图标与四语言商店截图**——需设计 + 真机；
+4. 隐私政策/用户协议正文（等律师）、备案号与软著（等负责人）。
+
+**不阻塞上架但要记住的**：
+5. 深色模式的页面接入（71 个文件）；
+6. A-17 页面的浏览器联调（RuoYi 后端起起来之后）；
+7. 注销页 `balanceDesc` 补「提现」路径（属翻译批次）；
+8. E-2 的「普通管理员 403」实测。
+
+
+---
+
 ## 附：本文档的生成方式与已知局限
 
 **怎么生成的**：2026-11-13，负责人授权「按建议默认值先写」。规格来自《开发计划总纲》§5.9（9 条锚点原文）、第 7 段工作流 §八（保证/不保证清单）、`docs/facts/*.json`（实测数字）、`DEFERRED.md`（13 条未做）、`docs/acceptance/seg8/`（已有素材）。**没有一条是凭印象写的**。

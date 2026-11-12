@@ -30,14 +30,14 @@
 <!-- FACTS:api-endpoints -->
 > 本区块由 `scripts/facts/render-docs.mjs` 从 `docs/facts/*.json` 生成，**禁止手改**；要改先改代码再跑 `npm run facts`。
 
-共 **261** 个端点、78 个 Controller。按访问面：`admin` 123 / `app` 114 / `pub` 23 / `dev` 1。按方法：DELETE 10 / GET 141 / POST 93 / PUT 17。
+共 **266** 个端点、79 个 Controller。按访问面：`admin` 128 / `app` 114 / `pub` 23 / `dev` 1。按方法：DELETE 10 / GET 144 / POST 93 / PUT 19。
 
 | 域 | admin | app | pub | dev | 合计 |
 |---|---|---|---|---|---|
 | `account` | 12 | 25 | 6 | 0 | 43 |
 | `ai` | 9 | 5 | 3 | 0 | 17 |
 | `caseflow` | 8 | 11 | 0 | 0 | 19 |
-| `content` | 13 | 7 | 2 | 0 | 22 |
+| `content` | 18 | 7 | 2 | 0 | 27 |
 | `conversation` | 1 | 6 | 0 | 0 | 7 |
 | `document` | 5 | 12 | 0 | 0 | 17 |
 | `infra/probe` | 0 | 0 | 3 | 1 | 4 |
@@ -45,7 +45,7 @@
 | `ops` | 44 | 8 | 4 | 0 | 56 |
 | `trade` | 31 | 30 | 3 | 0 | 64 |
 | `workbench` | 0 | 10 | 0 | 0 | 10 |
-| **合计** | 123 | 114 | 23 | 1 | **261** |
+| **合计** | 128 | 114 | 23 | 1 | **266** |
 
 逐条明细（方法 / 路径 / 控制器 / 域）见 `docs/facts/api.json`。
 <!-- /FACTS:api-endpoints -->
