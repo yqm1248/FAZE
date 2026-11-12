@@ -21,6 +21,9 @@
  *      `workbench.settings.title`（服务设置）被并成一条，前者缺译永远不会被告警。
  *      2026-11-11 连同 `check-i18n.ps1` 一并改为带前缀，改时 `.i18n-pending.json` 为空，
  *      零迁移成本。**两个脚本必须同时改，只改一边就会出现两套数字。**
+ *      **例外（2026-11-13 补）：`error.json` 不加前缀**——它的顶层 key 本身就是完整
+ *      msgKey（`error.auth.token-expired`，i18n 规范 §4.4），再加一层会得到
+ *      `error.error.auth.token-expired` 这种库里不存在的路径。见 `readLang` 的注释。
  *   2. **本脚本不重写 `.i18n-pending.json`**（那是 `check-i18n.ps1` 的产物）。本脚本只
  *      **读**它，并与自己算出的缺译集合做交叉校验：两边不一致说明有一方漂移，
  *      `pendingFile.consistent` 会变成 false。双实现交叉校验比单实现更能发现漂移。
@@ -80,7 +83,10 @@ function readLang(lang) {
   for (const f of files) {
     const ns = f.replace(/\.json$/, '');
     const parsed = JSON.parse(readFileSync(join(dir, f), 'utf8'));
-    const part = flatten(parsed, ns);
+    // error.json 的顶层 key 本身即完整 msgKey（i18n 规范 §4.4），**不再加 namespace 前缀**，
+    // 否则会得到 `error.error.auth.token-expired` 这种库里不存在的路径。
+    // 与 `check-i18n.ps1` 的 `Read-LangFlat` 同步改（两个脚本必须同口径，见文件头第 1 条）。
+    const part = flatten(parsed, ns === 'error' ? '' : ns);
     perFile[f] = Object.keys(part).length;
     for (const [k, v] of Object.entries(part)) flat[k] = v;
   }

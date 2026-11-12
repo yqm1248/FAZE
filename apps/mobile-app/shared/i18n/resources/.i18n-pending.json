@@ -1,5 +1,17 @@
 {
   "_comment": "本文件由 scripts/check-i18n.ps1 生成，不要手改；段 8 收口时必须为空。",
   "pending": {
+    "bo": [
+      "error.auth.cancel-has-active-order",
+      "error.trade.self-order-forbidden"
+    ],
+    "ug-Arab-CN": [
+      "error.auth.cancel-has-active-order",
+      "error.trade.self-order-forbidden"
+    ],
+    "kk-Arab-CN": [
+      "error.auth.cancel-has-active-order",
+      "error.trade.self-order-forbidden"
+    ]
   }
 }

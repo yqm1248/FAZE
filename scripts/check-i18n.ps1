@@ -10,6 +10,11 @@
          本脚本每次运行会**重新生成**该登记表（不手写，避免腐坏）；
       3. 同一个 key 的 `{{占位符}}` 集合四语言一致。
 
+    口径（2026-11-13 补）：key 一律带 namespace 前缀（`profile.settings.title`），
+    **唯一例外是 `error.json`**——它的顶层 key 本身就是完整 msgKey（`error.auth.token-expired`），
+    再加前缀会得到库里不存在的 `error.error.auth.token-expired`。这个错只在产物里可见
+    （`.i18n-pending.json` 是给段 8 照着补译的表），在 pending 为空时完全看不出来。
+
     为什么缺译允许「登记」而不是直接失败：段 0 的 bo/ug/kk 全部为空对象，
     若直接失败，B3 当天就过不了。规范允许「登记式缺译」，但段 8 收口时该表必须为空。
 
@@ -69,7 +74,14 @@ function Read-LangFlat([string]$lang) {
         # 不同译文，扁平化后只剩一条，于是前者缺译**永远不会被本脚本报出来**。
         # 当时 `.i18n-pending.json` 为空，改口径零迁移成本；有登记以后再改要迁移数据。
         $ns = [System.IO.Path]::GetFileNameWithoutExtension($file.Name)
-        $part = Flatten-Json $json $ns
+        # error.json 例外（2026-11-13 修）：它的顶层 key **本身就是完整 msgKey**
+        # （`error.auth.token-expired`，i18n 规范 §4.4），再加一层 namespace 前缀会变成
+        # `error.error.auth.token-expired`——库里不存在的路径。
+        # 这个错**不会让比对失败**（四语言同样加前缀，仍然匹配得上），错在**产物**：
+        # `.i18n-pending.json` 是给段 8 照着补译的表，带双前缀的路径会让人找不到对应 key。
+        # 该缺陷在 pending 为空时完全不可见，2026-11-13 第一次新增 msgKey 才暴露。
+        $prefix = if ($ns -eq 'error') { '' } else { $ns }
+        $part = Flatten-Json $json $prefix
         foreach ($k in $part.Keys) { $flat[$k] = $part[$k] }
     }
     return $flat

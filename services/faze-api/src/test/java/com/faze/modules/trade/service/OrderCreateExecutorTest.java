@@ -43,6 +43,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import com.faze.infra.mq.TaskQueueService;
 
@@ -183,6 +184,61 @@ class OrderCreateExecutorTest {
                 () -> executor.create(USER_ID, request("consult_text")));
 
         assertEquals(ErrorCode.TRADE_LAWYER_UNAVAILABLE, ex.getErrorCode());
+    }
+
+    /**
+     * DEF-014：律师不能给自己下单。
+     *
+     * <p>断言三件事，缺一条都算没拦住：
+     * ① 错误码是 405031（G6 台账与回归清单都按此码写）；
+     * ② **一行订单都没写**——只抛异常但已经 insert 过，等于钱还是转了一圈；
+     * ③ 连关单任务都没入队（校验在取价之前，后面所有副作用都不该发生）。</p>
+     */
+    @Test
+    @DisplayName("律师给自己下单：拒（405031，DEF-014），订单与关单任务都不许产生")
+    void selfOrderRejected() {
+        lawyer.setUserId(USER_ID);
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> executor.create(USER_ID, request("consult_text")));
+
+        assertEquals(ErrorCode.TRADE_SELF_ORDER_FORBIDDEN, ex.getErrorCode());
+        assertEquals(405031, ex.getErrorCode().getCode());
+        verify(ordersMapper, never()).insert(any(Orders.class));
+        verifyNoInteractions(taskQueueService);
+    }
+
+    /**
+     * 反向：同一位律师被**别人**下单时必须放行。
+     *
+     * <p>没有这条，把校验写成「lawyerId 存在就拒」也能让上面那条通过。</p>
+     */
+    @Test
+    @DisplayName("其他用户给该律师下单：放行（只拦本人，不误杀）")
+    void otherUserCanOrderThisLawyer() {
+        lawyer.setUserId(9999L);
+
+        Orders order = executor.create(USER_ID, request("consult_text"));
+
+        assertEquals(USER_ID, order.getUserId());
+        assertEquals(LAWYER_ID, order.getLawyerId());
+    }
+
+    /**
+     * 历史数据保护：`lawyer.user_id` 为 null 时不许 NPE。
+     *
+     * <p>段 1 的 lawyer 行在极端情况下可能有空 user_id（未关联账号的在册律师）。
+     * 校验必须写成 `lawyer.getUserId() != null && ...`，否则一个空值会让**所有**用户
+     * 给这位律师下单都拿到 500，比自下单那个缺陷更严重。</p>
+     */
+    @Test
+    @DisplayName("lawyer.user_id 为空：不影响下单（不许 NPE）")
+    void nullLawyerUserIdDoesNotBlockOrdering() {
+        lawyer.setUserId(null);
+
+        Orders order = executor.create(USER_ID, request("consult_text"));
+
+        assertEquals(3003L, order.getId());
     }
 
     @Test

@@ -29,7 +29,7 @@
 |---|---|---|---|---|
 | DEF-001 | **支付商户号**（微信 + 支付宝） | `WechatPaymentGateway` 的 prepay / parseCallback / refund / query **四个方法都直接抛「尚未联调（商户号未下发）」**；只有余额记账与 Mock 通道可跑 | 外部资质 | `docs/acceptance/seg6/挂账.md:18` |
 | DEF-002 | **真实短信通道** | `SmsCodeService.resolveCode` 关掉固定码后即抛 `AUTH_SMS_SEND_FAILED`；全仓无任何短信服务商 SDK | 服务商 + 开发 | `docs/architecture/法泽FAZE_第1段工作流_v1.0.md:1212` |
-| DEF-003 | **四语言译文人工核对** | 译文已全部落地（**1880 key × 4 语**，以 `docs/facts/i18n-keys.json` 为准），`.i18n-pending.json` 已清零；**缺的是母语者签字** | 外部人工 | `docs/acceptance/seg8/i18n-翻译任务书.md:202`（已定口径 **C：不找母语者签字，挂账**） |
+| DEF-003 | **四语言译文人工核对** | `zh-Hans` **1882 key**；`bo` / `ug-Arab-CN` / `kk-Arab-CN` 各 **1880 key**——2026-11-13 新增两个错误码文案（`error.auth.cancel-has-active-order`、`error.trade.self-order-forbidden`）后，三语言各缺 2 条，已由门禁登记进 `.i18n-pending.json`（共 6 条）。**缺的不是「有没有译文」，是母语者签字**：1880 条现行译文全部是机译，段 8 要逐条核 | 外部人工 | `docs/acceptance/seg8/i18n-翻译任务书.md:202`（已定口径 **C：不找母语者签字，挂账**）；`docs/facts/i18n-keys.json` |
 | DEF-004 | **App / ICP 备案号** | 关于页仍是占位：`zh-Hans/profile.json:313` 写 `[待替换：ICP 备案号 / App 备案号]` | 外部资质 | `docs/architecture/法泽FAZE_第7段工作流_v1.0.md:2415` |
 
 > **注意这四条不是同一类**：DEF-001、DEF-002 是**未实现**（代码里是个抛异常的壳）；DEF-003、DEF-004 是**已实现但缺外部输入**（代码跑得通，缺的是凭据/签字/号码）。
@@ -76,20 +76,24 @@ G6 逐条核对《护栏计划》的 8 条后端边界测试时发现：**4 条�
 
 G9 落地回归清单 R-01~R-20 时又查出 2 项——由两个**新写的检查脚本**查出来的，不是读代码读出来的：R-15 的写入路径检查查出 2 个「有读无写」字段（DEF-016），R-06 的人工核对查出单号重试只做了一半（DEF-017）。
 
+> **2026-11-13 更新：本节 4 条已全部落地。**
+> DEF-014 / DEF-015 的代码与测试已补（见下两行的「已修」）；DEF-016 的 `reviewer_id` 已补写入与出参，只剩 `push_cid` 随 DEF-007；DEF-017 的三件套（Redis 持久化 / `BizNoRetry` / `SettlementService` 区分两个唯一键）已修。
+> **本节不再有「未实现的行为」**——唯一还剩的规格是 DRIFT-015 的实名状态派生，它在 `PendingBehaviorSpecsTest` 里，不在本节。
+
 | ID | 条目 | 代码实际 | 缺什么 | 出处 |
 |---|---|---|---|---|
-| DEF-014 | **律师给自己下单的校验** | 全仓搜「自己下单 / selfOrder / 不能给自己 / SELF_ORDER」**0 处命中**；`405031` 这个错误码**不存在**（当前最大 405030）。`POST /app/orders` 不检查 `lawyer.user_id == 下单人.user_id` | 一条前置校验 + 一个新错误码 | `docs/acceptance/guard/G6-后端边界测试.md` §二 第 3 行；`PendingBehaviorSpecsTest#lawyerCannotOrderSelf` |
-| DEF-015 | **注销时校验进行中订单** | 注销流程只校验**余额**（`CancelAccountBalanceTest` 只覆盖余额）；搜「进行中订单 / activeOrder」在注销逻辑 0 处命中 | 一条订单状态前置校验 | 同上 §二 第 6 行；`PendingBehaviorSpecsTest#deactivateBlockedByActiveOrder` |
+| DEF-014 | **律师给自己下单的校验** | **已修（2026-11-13）**：`OrderCreateExecutor.create` 新增「任务 3」——比较 `lawyer.user_id` 与下单人 `userId`（**不是 `lawyer.id`**），相等抛 `405031 TRADE_SELF_ORDER_FORBIDDEN`，位置在取价之前（不建单、不入队关单任务）；`lawyer.user_id` 为 null 时不拦（历史数据保护）。<br>**原描述有一处要纠正**：「全仓搜 0 处命中」是真的（代码确实没拦），但**这件事不是本次新发现的**——`DRIFT.md` 的 DRIFT-016 早在 2026-11-10 建表时就记了同一件事（实测 `orders` 22、28 的 `user_id` 等于律师自己的 `user_id`，**这两行已在 2026-11-11 清脏数据时删掉**，2026-11-13 复查 JOIN 为 0 条）。两个台账各记一份、互不可见，已写进 `DRIFT.md` §九 第 5 条 | **已闭环** | `OrderCreateExecutorTest#selfOrderRejected`（+2 条反向用例）；`docs/acceptance/guard/G6-后端边界测试.md` §二 第 3 行 |
+| DEF-015 | **注销时校验进行中订单** | **已修（2026-11-13）**：`AccountSecurityService.cancelAccount` 新增「任务 2」——同时查**两个身份**：「作为下单人」`orders.user_id` 与「作为服务方」`orders.lawyer_id`；口径是 `OrderStatus.isTerminal()` 的**补集**（`pending` / `paid` / `in_service` / `refunding` / `refund_rejected`），命中抛 `402012 AUTH_CANCEL_HAS_ACTIVE_ORDER`。<br>**为什么连待支付也拦**：待支付单靠 `task_queue` 回收，而该表已实测出 12 条死信（DEF-016），任务机制不是 100% 可靠；用户手上的待支付单自己就能取消，不是死锁。<br>与 `DRIFT.md` 的 DRIFT-022 是同一件事的两面（那边记「文档没说要查」，这边记「代码没查」），本次一并收口 | **已闭环** | `DeactivateWithActiveOrderTest` 4 例（真库）；同上 §二 第 6 行 |
 | DEF-016 | **「有读无写」字段：内容审核处置人 + 设备推送 CID** | 两条字段表里有、接口能读、**原先全仓 0 处写入**。**2026-11-13 实测把原描述修正了两处**：<br>① `content_review.reviewer_id` —— **不是「完全没写」**：`AdminContentReviewService.casUpdateResult:221-233` 写了 `reviewed_at` 却没写 `reviewer_id`；且 `ContentReviewVO` 原本**不返回处置人字段**，管理端即使处置了也看不到「谁处置的」。实库 5 行全 NULL（3 条 `pending` + 2 条 `ignored` 都是 warn 级**系统自动忽略**，**人工处置从未发生过**）。<br>② `user_device.push_cid` —— **不是「推送找不到目标」，是整条链路不读它**：`PushMessage` 只有 `{userId, title, body, payload}`，**没有 deviceId/cid 字段**；`PushTask` 也不查 `push_cid`。实库 153 行全 NULL；`task_queue` 里 push 任务 **12 条 dead + 2 条 done**（`DisabledPushSender` 抛异常 → 重试耗尽进死信）。接推送要同时改三处（`PushMessage` 加 cid + `PushTask` 查设备 + 客户端上报），**单修字段没意义** | ① `reviewer_id`：**已修（2026-11-13）**——处置时写入 + `ContentReviewVO` 补 `reviewerId`（详情页内嵌同一 VO，自动生效）；② `push_cid`：**不单独修**，随 DEF-007 的推送通道一起做 | `scripts/facts/check-write-paths.mjs`（R-15）；基线见 `scripts/facts/write-paths-baseline.json`；2026-11-13 实测 |
 | DEF-017 | **业务单号的撞号重试** | 单号重试**只做了一半**：`OrderCreateExecutor:118-125`（订单号）与 `RechargeCreateExecutor`（充值单号）捕获 `DuplicateKeyException` 换号重试；**案件 CS / 提现 WD / 结算 JS / 送达 SD / 案例 CL / 工单 TK / 公告 AN 共 7 类没有**。**2026-11-13 实测把原描述修正了三处**：<br>① **撞号不是 500，是 HTTP 200 + 业务码 401005「资源已存在」**（`GlobalExceptionHandler:331-334` 把所有 `DuplicateKeyException` 统一转 `COMMON_ALREADY_EXISTS`），i18n 文案「该内容已存在，请勿重复提交」——**这句在劝退唯一有效的解法**（实测：删掉撞订单后重试即成功）。<br>② **触发条件是「必丢」不是「可能」**：Redis 实测 `CONFIG GET save` 返回空、`appendonly no` = **零持久化**，任何一次重启都丢当天序号；丢后每建一单就撞一个已用号（不是偶发）。且 `.env` 的 `FAZE_REDIS_URL` 库号是错的（DRIFT-050），按它排查会看错库——本次实测就是被这个坑骗了三次。<br>③ `SettlementService` 原有的 `catch (DuplicateKeyException)` 会把**单号冲突也当成「同律师同账期并发」**静默跳过（该表有 `uk_settlement_no` + `uk_settlement_lawyer_period` 两个唯一键）→ 撞号变成**丢单 + 日志误报「并发重复」** | **已修（2026-11-13，三件一起做）**：① `deploy/redis-faze.conf` 开 RDB + AOF（`save 900 1 / 300 10 / 60 10000` + `appendonly yes` + `appendfsync everysec`），并用 `CONFIG SET` 让运行实例立即生效（服务重启后配置文件同样生效）；② 新增 `infra/seq/BizNoRetry`，**只认单号唯一键名**（撞业务唯一键原样抛出，避免把「同律师同账期重复」误报成「单号生成失败」），8 个单号写入点全部接入；③ `SettlementService` 改为「单号冲突在 BizNoRetry 内换号重试、`uk_settlement_lawyer_period` 冲突才幂等跳过」。<br>**仍存的局限（写清，不要误以为万能）**：3 次重试只能消化 **2 个**已占用号；若 Redis 序号被**人为清空**（FLUSHDB / del key）且当天已建 ≥3 单，仍会返回 401005。根治靠持久化（已开），重试只兜「持久化也挡不住的人为误删」 | `docs/acceptance/guard/G9-回归清单落地.md` 的 R-06 行；2026-11-13 实测：建单 `CS20261113000001` → 回退序号 → 再建单**内部重试成功**得 `CS20261113000002`（HTTP 200，非 401005） |
 
 > **这四条都是「有实际后果的缺口」，不是体验问题**：
-> - DEF-014：律师可用自己账号下单、给自己付款，资金进自己的律师余额（`orders` 与 `balance_flow` 全程跑通）。
-> - DEF-015：用户可在有未完成订单时注销，订单悬空、律师侧结算无对象。
+> - DEF-014：律师可用自己账号下单、给自己付款，资金进自己的律师余额（`orders` 与 `balance_flow` 全程跑通）。**2026-11-13 已修**。
+> - DEF-015：用户可在有未完成订单时注销，订单悬空、律师侧结算无对象。**2026-11-13 已修**。
 > - DEF-016：`push_cid` 全 NULL 意味着**即使接了个推也发不出去**（且 `PushMessage` 结构里根本没有 cid）；`reviewer_id` 全 NULL 意味着内容审核没有责任人可追溯——**2026-11-13 已补写入路径与出参**，但存量 5 行仍为 NULL（它们从未被人工处置过，不是漏填）。
-> - DEF-017：Redis 重启后 7 类单号会撞已用号，用户看到的**不是「提交失败」，而是 HTTP 200 + 401005「资源已存在 / 请勿重复提交」**（数据没坏，唯一键挡住了，但文案在劝退重试）。
+> - DEF-017：Redis 重启后 7 类单号会撞已用号，用户看到的**不是「提交失败」，而是 HTTP 200 + 401005「资源已存在 / 请勿重复提交」**（数据没坏，唯一键挡住了，但文案在劝退重试）。**2026-11-13 已修**。
 >
-> 前两条写成 `@Disabled` 的可执行规格（`PendingBehaviorSpecsTest`），实现后删注解即可当回归测试；后两条的检测已自动化（`check:write-paths`）或已进人工清单（PR 模板 R-06 无对应项，靠 G9 台账跟踪）。**DEF-016 的 `reviewer_id` 与 DEF-017 的代码部分已于 2026-11-13 修完**，剩下 `push_cid` 随 DEF-007。
+> **测试落地方式（2026-11-13 定）**：DEF-014 / DEF-015 原来只是 `PendingBehaviorSpecsTest` 里的两条禁用规格，现已**删除那两条空规格**，改为真测试——`OrderCreateExecutorTest`（单测 3 例）+ `DeactivateWithActiveOrderTest`（真库 4 例）。**不保留空规格**：同一个行为两份测试、一份永远跑不了，会让看清单的人以为有两条在保护，其实只有一边在跑。DEF-016 的检测已自动化（`check:write-paths`），DEF-017 靠 G9 台账跟踪。**DEF-016 的 `push_cid` 仍随 DEF-007。**
 
 ---
 
@@ -128,7 +132,7 @@ G9 落地回归清单 R-01~R-20 时又查出 2 项——由两个**新写的检�
 
 | 原挂账说法 | 代码实际 |
 |---|---|
-| 缺译已累到 **1818 条**，段 8 收口时必须为空（`seg7/挂账.md:144`） | **早已清零**：`.i18n-pending.json` 的 `pending` 为 `{}`；`CHANGELOG.md:434` 记「1818×3 → 0」 |
+| 缺译已累到 **1818 条**，段 8 收口时必须为空（`seg7/挂账.md:144`） | **曾清零，2026-11-13 又回 6 条**：`CHANGELOG.md:434` 记「1818×3 → 0」，`pending` 一度是 `{}`；DEF-014/015 新增两个 msgKey 后 bo/ug/kk 各缺 2 条（共 6 条，见 DEF-003）。**这不叫回退**——新增文案必然先缺译再登记，是规范允许的路径；段 8 清回 0 |
 | `region` 列**无采集点、恒为 NULL**，采集入口段 8 补（`seg7/挂账.md:68`） | **已实现**：`V709` 地区枚举 + `GET /pub/regions` + `RegisterBO.region` 白名单 + `RegisterPage` 地区选择器 |
 | 错误率告警口径「已交给 be-api 落地」（`seg7/挂账.md:47`） | **已落地**：`BizMetricsAdvice` + `FazeMetrics`（`faze_biz_errors_total`）+ `alert-rules.yml:50` |
 

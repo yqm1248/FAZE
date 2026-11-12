@@ -1,6 +1,6 @@
 {
   "_comment": "本文件由 scripts/facts/extract-i18n.mjs 从 shared/i18n/resources 生成，禁止手改。口径见 docs/standards/说辞一致与真相源规范.md §四。切换语言目录后必须重跑，CI 会拦 git diff。",
-  "sourceDigest": "3b50cd933db03441",
+  "sourceDigest": "acff34edc9447f73",
   "source": "apps/mobile-app/shared/i18n/resources",
   "sourceLang": "zh-Hans",
   "targetLangs": [
@@ -11,31 +11,31 @@
   "totals": {
     "namespaces": 14,
     "jsonFiles": 56,
-    "sourceKeys": 1880,
-    "leafCount": 1880,
-    "nodeCount": 1965,
+    "sourceKeys": 1882,
+    "leafCount": 1882,
+    "nodeCount": 1967,
     "countNote": "sourceKeys=带 namespace 前缀去重后的 key 数；leafCount=可翻译叶子条目数；nodeCount=含中间对象的总节点数。三者都可查，引用数字时必须连口径一起引。"
   },
   "coverage": {
     "zh-Hans": {
-      "keys": 1880,
-      "sourceKeys": 1880,
+      "keys": 1882,
+      "sourceKeys": 1882,
       "ratio": 1
     },
     "bo": {
       "keys": 1880,
-      "sourceKeys": 1880,
-      "ratio": 1
+      "sourceKeys": 1882,
+      "ratio": 0.9989
     },
     "ug-Arab-CN": {
       "keys": 1880,
-      "sourceKeys": 1880,
-      "ratio": 1
+      "sourceKeys": 1882,
+      "ratio": 0.9989
     },
     "kk-Arab-CN": {
       "keys": 1880,
-      "sourceKeys": 1880,
-      "ratio": 1
+      "sourceKeys": 1882,
+      "ratio": 0.9989
     }
   },
   "perNamespace": {
@@ -82,7 +82,7 @@
       "kk-Arab-CN": 161
     },
     "error": {
-      "zh-Hans": 57,
+      "zh-Hans": 59,
       "bo": 57,
       "ug-Arab-CN": 57,
       "kk-Arab-CN": 57
@@ -124,14 +124,27 @@
       "kk-Arab-CN": 149
     }
   },
-  "missing": {},
+  "missing": {
+    "bo": [
+      "error.auth.cancel-has-active-order",
+      "error.trade.self-order-forbidden"
+    ],
+    "ug-Arab-CN": [
+      "error.auth.cancel-has-active-order",
+      "error.trade.self-order-forbidden"
+    ],
+    "kk-Arab-CN": [
+      "error.auth.cancel-has-active-order",
+      "error.trade.self-order-forbidden"
+    ]
+  },
   "placeholderMismatch": [],
   "structureMismatch": [],
   "pendingFile": {
     "path": "apps/mobile-app/shared/i18n/resources/.i18n-pending.json",
     "exists": true,
-    "registeredTotal": 0,
-    "computedTotal": 0,
+    "registeredTotal": 6,
+    "computedTotal": 6,
     "consistent": true,
     "perLangConsistent": {
       "bo": true,

@@ -67,4 +67,33 @@ public interface OrderQueryService {
      * @return 主键 → 订单号；查不到的不出现在结果里
      */
     java.util.Map<Long, String> mapOrderNosByIds(java.util.Collection<Long> orderIds);
+
+    /**
+     * 判断某用户作为**下单人**是否还有「在途订单」（注销前置校验用，DEF-015）。
+     *
+     * <p>「在途」= **非终态**：`pending`（待支付）、`paid`（已支付等接单）、`in_service`（服务中）、
+     * `refunding`（退款中）、`refund_rejected`（退款被驳回）。终态只有 `completed` / `cancelled` /
+     * `refunded`，由 {@code OrderStatus#isTerminal()} 判定。</p>
+     *
+     * <p><b>与 {@link #existsActiveOrderOfUserAndLawyer} 的口径不同，不许合并</b>：
+     * 那个是会话准入，只认「钱已扣且服务未完结」（`paid` + `in_service`）；
+     * 这里是注销，凡是还没走完流程的都要拦。差别就在 `pending`——待支付单注销后靠定时任务关，
+     * 但 `task_queue` 已实测出 12 条死信（DEF-016），任务机制不是 100% 可靠，
+     * 让用户带着「可能永远不关的单」注销是不该开的门。</p>
+     *
+     * @param userId 用户主键（app_user.id）
+     * @return 存在在途订单返回 true
+     */
+    boolean existsInFlightOrderOfUser(Long userId);
+
+    /**
+     * 判断某律师作为**服务方**是否还有在途订单（注销前置校验用，DEF-015）。
+     *
+     * <p>律师也是 `app_user`，注销律师账号同样要拦：律师注销后用户手里的 `paid` / `in_service`
+     * 单会失去服务方，退款与结算都没有对象。口径与 {@link #existsInFlightOrderOfUser} 一致。</p>
+     *
+     * @param lawyerId 律师主键（lawyer.id，**不是** lawyer.user_id）
+     * @return 存在在途订单返回 true
+     */
+    boolean existsInFlightOrderOfLawyer(Long lawyerId);
 }

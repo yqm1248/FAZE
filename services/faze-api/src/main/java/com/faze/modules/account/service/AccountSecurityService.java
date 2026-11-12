@@ -1,8 +1,10 @@
 /*
- * 职责：凭证变更（B3）——修改密码、忘记密码重置、换绑手机。
+ * 职责：凭证变更（B3）——修改密码、忘记密码重置、换绑手机；以及登出与注销（B5）。
  * 调用方：modules/account/controller/AccountSecurityController（已登录的两个）、
  *         modules/account/controller/AuthController（忘记密码，未登录）。
- * 数据来源：faze.app_user；refresh token 存储；短信验证码。
+ * 数据来源：faze.app_user；refresh token 存储；短信验证码；
+ *           faze.user_balance / balance_flow（注销前置余额校验）；
+ *           faze.orders（注销前置在途订单校验，经 trade 域的 OrderQueryService 只读接口）。
  * 注意：
  *   1. **凭证变更必须让 token_version +1，并同时吊销该用户的全部 refresh token**。
  *      只做版本号：旧 refresh 仍能换出带新版本号的 access，等于没失效；
@@ -10,6 +12,8 @@
  *   2. 改密后**给当前客户端签发新令牌**（B3 要求保留当前会话），其他设备被踢。
  *   3. 忘记密码是匿名操作，写不了 operation_log（operator_id NOT NULL），
  *      改用 login_log 留痕；已登录的改密/换绑走 @OperationLog 切面。
+ *   4. 注销是**不可逆**动作，前置校验一律偏保守：余额取账本与缓存的较大值，
+ *      订单要求「非终态」一个都不许剩（含待支付单，理由见 cancelAccount 的任务 2 注释）。
  */
 package com.faze.modules.account.service;
 
@@ -23,10 +27,12 @@ import com.faze.modules.account.bo.ChangePhoneBO;
 import com.faze.modules.account.bo.ResetPasswordBO;
 import com.faze.modules.account.converter.AccountConverter;
 import com.faze.modules.account.entity.AppUser;
+import com.faze.modules.account.entity.Lawyer;
 import com.faze.modules.account.mapper.AccountMapper;
 import com.faze.modules.account.rule.PasswordPolicy;
 import com.faze.modules.account.vo.TokenVO;
 import com.faze.modules.trade.service.BalanceQueryService;
+import com.faze.modules.trade.service.OrderQueryService;
 import com.faze.security.JwtTokenProvider;
 import com.faze.security.RefreshTokenStore;
 import java.time.Duration;
@@ -58,6 +64,8 @@ public class AccountSecurityService {
     private final LoginLogService loginLogService;
     private final AccountConverter accountConverter;
     private final BalanceQueryService balanceQueryService;
+    private final OrderQueryService orderQueryService;
+    private final LawyerQueryService lawyerQueryService;
     private final Duration refreshTtl;
 
     /**
@@ -71,6 +79,8 @@ public class AccountSecurityService {
      * @param loginLogService     登录日志（忘记密码留痕）
      * @param accountConverter    脱敏转换
      * @param balanceQueryService 余额只读查询（注销前判断）
+     * @param orderQueryService   订单只读查询（注销前判断在途订单）
+     * @param lawyerQueryService  律师只读查询（判断当前用户是否律师，注销时查服务方订单）
      * @param jwtProperties       JWT 配置
      */
     public AccountSecurityService(AccountMapper accountMapper,
@@ -81,6 +91,8 @@ public class AccountSecurityService {
                                   LoginLogService loginLogService,
                                   AccountConverter accountConverter,
                                   BalanceQueryService balanceQueryService,
+                                  OrderQueryService orderQueryService,
+                                  LawyerQueryService lawyerQueryService,
                                   FazeJwtProperties jwtProperties) {
         this.accountMapper = accountMapper;
         this.passwordEncoder = passwordEncoder;
@@ -90,6 +102,8 @@ public class AccountSecurityService {
         this.loginLogService = loginLogService;
         this.accountConverter = accountConverter;
         this.balanceQueryService = balanceQueryService;
+        this.orderQueryService = orderQueryService;
+        this.lawyerQueryService = lawyerQueryService;
         this.refreshTtl = Duration.ofDays(jwtProperties.refreshTtlDays());
     }
 
@@ -240,7 +254,7 @@ public class AccountSecurityService {
     /**
      * 注销账号（立即生效，无冷静期）。
      *
-     * <p>前置：账号存在且余额（含冻结）为 0。</p>
+     * <p>前置：账号存在、余额（含冻结）为 0、名下没有未完结订单。</p>
      * <p>副作用：status 置 cancelled、手机号改写为占位值释放唯一键（原号进 original_phone）、
      * token_version +1、吊销全部 refresh、写 operation_log。</p>
      *
@@ -248,7 +262,8 @@ public class AccountSecurityService {
      * 删行会让「这个号曾经发生过什么」永远查不到。</p>
      *
      * @param userId 当前用户
-     * @throws BusinessException 402003 用户不存在 / 402008 已注销 / 401006 有余额不允许注销
+     * @throws BusinessException 402003 用户不存在 / 402008 已注销 /
+     *                           401006 有余额不允许注销 / 402012 有未完结订单不允许注销
      */
     @Transactional(rollbackFor = Exception.class)
     @OperationLog(module = MODULE_ACCOUNT, action = "CANCEL_ACCOUNT", targetType = "APP_USER")
@@ -273,7 +288,26 @@ public class AccountSecurityService {
         if (available > 0 || frozen > 0) {
             throw new BusinessException(ErrorCode.COMMON_ILLEGAL_STATE);
         }
-        // 任务 2：改写手机号为占位值，释放唯一键（裁决 #9：注销后号码可立即重新注册）。
+        // 任务 2：名下还有未完结的订单不允许注销（DEF-015，2026-11-13 补）。
+        // **两个身份都要查**：作为下单人（orders.user_id）与作为服务方（orders.lawyer_id）。
+        // 只查一侧会漏掉一半场景——律师账号注销后，用户手里 paid / in_service 的单失去服务方，
+        // 退款与结算都没有对象；用户账号注销后，律师侧的结算没有收款人。
+        //
+        // 为什么连 `pending`（待支付、还没扣钱）也要拦：
+        //   ① 待支付单靠 `task_queue` 的 15 分钟关单任务回收，而该表**已实测出 12 条死信**
+        //      （DEF-016），任务机制不是 100% 可靠——让用户带着「可能永远不会关的单」注销，
+        //      就把一个本该拒绝的动作变成了不可逆的数据悬空；
+        //   ② 用户手上的待支付单自己就能取消，这不是死锁，只是多点一步；
+        //   ③ 一条「非终态即拦」的规则给得出，写进客服话术也只要一句话。
+        Long lawyerIdOfUser = lawyerQueryService.findByUserId(userId)
+                .map(Lawyer::getId)
+                .orElse(null);
+        if (orderQueryService.existsInFlightOrderOfUser(userId)
+                || orderQueryService.existsInFlightOrderOfLawyer(lawyerIdOfUser)) {
+            log.warn("注销前置校验：存在未完结订单 userId={} lawyerId={}", userId, lawyerIdOfUser);
+            throw new BusinessException(ErrorCode.AUTH_CANCEL_HAS_ACTIVE_ORDER);
+        }
+        // 任务 3：改写手机号为占位值，释放唯一键（裁决 #9：注销后号码可立即重新注册）。
         int nextVersion = tokenVersionOf(user) + 1;
         AppUser patch = new AppUser();
         patch.setId(userId);
@@ -284,7 +318,7 @@ public class AccountSecurityService {
         patch.setUpdatedAt(LocalDateTime.now(ZoneOffset.UTC));
         accountMapper.updateById(patch);
         refreshTokenStore.revokeAllByUser(userId);
-        // 任务 3：审计明细只留脱敏号。
+        // 任务 4：审计明细只留脱敏号。
         AuditContext.mark(MODULE_ACCOUNT, "CANCEL_ACCOUNT", "APP_USER", String.valueOf(userId),
                 "{\"phone\":\"" + accountConverter.maskPhone(user.getPhone()) + "\"}");
         log.info("账号已注销 userId={} {}", userId, accountConverter.maskPhone(user.getPhone()));

@@ -72,6 +72,21 @@ public enum ErrorCode {
     AUTH_GUARDIAN_REQUIRED(402009, 200, "error.auth.guardian-required", "未成年人需填写监护人手机号"),
     /** 密码强度不足。HTTP 200。 */
     AUTH_PASSWORD_WEAK(402010, 200, "error.auth.password-weak", "密码强度不足"),
+    /*
+     * 402011 是《错误码规范》§3.2 里**已作废**的那一行（`error.auth.account-banned`）：
+     * 段 7 施工时核对确认它从未在 `ErrorCode.java` 出现过，账号封禁由段 1 就有的
+     * `402004 AUTH_ACCOUNT_BLOCKED`（HTTP 403）承担。**不启用该号**，从 402012 继续编。
+     */
+    /**
+     * 注销被拒：名下还有未完结的订单（待支付 / 已支付 / 服务中 / 退款中 / 退款被驳回）。HTTP 200。
+     *
+     * <p>**为什么单独开码而不复用 401006**：注销是不可逆动作，被拒时必须让用户知道
+     * 「去把订单处理掉」而不是「状态非法」——401006 的文案对注销场景毫无指导性，
+     * 用户只能反复点注销然后投诉。同理也不复用 401006 的余额分支：
+     * 两个拒绝原因要能分流，客户端才好把用户导到「订单列表」还是「余额页」。</p>
+     */
+    AUTH_CANCEL_HAS_ACTIVE_ORDER(402012, 200, "error.auth.cancel-has-active-order",
+            "还有未完成的订单，请先处理后再注销"),
     /** 短信发送失败（第三方通道）。HTTP 200。 */
     AUTH_SMS_SEND_FAILED(502001, 200, "error.auth.sms-send-failed", "短信发送失败"),
 
@@ -265,6 +280,15 @@ public enum ErrorCode {
      */
     /** 充值下单过于频繁（用户维度限流，HTTP 429 + `Retry-After`）。 */
     TRADE_RECHARGE_RATE_LIMITED(405030, 429, "error.trade.recharge-rate-limited", "充值操作过于频繁，请稍后重试"),
+    /*
+     * GAP 收口追加登记（2026-11-13，DEF-014）：405031 的编号**不是这次现取的**——
+     * `docs/acceptance/guard/G6-后端边界测试.md` §二第 3 行早就把「律师给自己下单返回 405031」
+     * 写成了验收判据，`OrderSelfCreateTest` 与 `PendingBehaviorSpecsTest` 也按这个码描述。
+     * 也就是说：码是既定契约，缺的是实现。**所以按原编号落地，不另起新号**——
+     * 换号会让 G6 台账、回归清单、遗留登记三份文档同时对不上。
+     */
+    /** 律师不能给自己下单（下单人与承办律师是同一个 app_user）。HTTP 200。 */
+    TRADE_SELF_ORDER_FORBIDDEN(405031, 200, "error.trade.self-order-forbidden", "不能给自己下单"),
 
     // ── 内容域 09 段 5 补登（案例库，《错误码规范》§3.9） ────────────────────
     /*

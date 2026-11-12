@@ -14,6 +14,13 @@
  *      `@EnabledIfEnvironmentVariable(FAZE_DB_URL)`（与其他集成测试同口径）。
  *   4. 本类不启 Spring 上下文，所以 `Deprecated` 的 `fail()` 调用只是「这里还没实现」的
  *      显式标记，不是真断言。
+ *   5. **2026-11-13 更新**：本来登记的三条，其中两条（律师自下单 = DEF-014、
+ *      注销校验在途订单 = DEF-015）**已实现**，真测试分别落在
+ *      `modules/trade/service/OrderCreateExecutorTest#selfOrderRejected`（+ 两条反向）
+ *      与 `com.faze.DeactivateWithActiveOrderTest`（4 条，真库）。
+ *      本类**不再保留这两条空规格**：留着会出现「同一个行为两份测试，一份永远红不了」
+ *      的假覆盖——看清单的人会以为有两条测试在保护，其实只有一边在跑。
+ *      只剩 DRIFT-015（实名状态派生）一条仍待实现。
  */
 package com.faze.guard;
 
@@ -50,48 +57,5 @@ class PendingBehaviorSpecsTest {
         // 4. 走后台驳回，断言两边都是 'rejected'
         throw new UnsupportedOperationException(
             "未实现：阻塞于 DRIFT-015（realname_status 不由 realname_auth 派生）");
-    }
-
-    /**
-     * 律师不能给自己下单。
-     *
-     * <p><b>阻塞于 GAP</b>：全仓搜「自己下单 / selfOrder / 不能给自己」**0 处命中**，
-     * 也没有 405031 这个错误码（当前最大是 405030）。《护栏计划》G6 写的
-     * 「律师给自己下单返回 405031」在代码里没有对应实现。</p>
-     *
-     * <p>这条不实现是有实际后果的：律师可以用自己的账号下单、给自己付款，
-     * 资金会进自己的律师余额（`orders` 与 `balance_flow` 都能跑通）。</p>
-     */
-    @Test
-    @Disabled("阻塞于 GAP：自下单校验与 405031 错误码都不存在（见 DEFERRED）")
-    @DisplayName("律师给自己下单应被拒绝（405031）")
-    void lawyerCannotOrderSelf() {
-        // 启用步骤：
-        // 1. 用某个律师账号登录（记下其 user_id）
-        // 2. 调 POST /app/orders { lawyerId: 自己 }，带 Idempotency-Key
-        // 3. 断言返回 code=405031，且 orders 表没有新增行
-        throw new UnsupportedOperationException(
-            "未实现：自下单校验不存在，405031 错误码也不存在（GAP）");
-    }
-
-    /**
-     * 有进行中订单时不允许注销账号。
-     *
-     * <p><b>阻塞于 GAP</b>：全仓搜「进行中订单 / activeOrder / 进行中的订单」在注销逻辑里
-     * 0 处命中。现有 `CancelAccountBalanceTest` 只覆盖**余额**（有余额即拒），
-     * 没有覆盖订单。</p>
-     *
-     * <p>后果：用户可以在有未完成订单时注销，订单悬空、律师侧结算无对象。</p>
-     */
-    @Test
-    @Disabled("阻塞于 GAP：注销流程只校验余额，不校验进行中订单（见 DEFERRED）")
-    @DisplayName("有进行中订单时注销应被拒绝")
-    void deactivateBlockedByActiveOrder() {
-        // 启用步骤：
-        // 1. 造一个用户 + 一条 status 在「进行中」集合里的订单
-        // 2. 调注销接口
-        // 3. 断言返回业务错误码，且 app_user.status 未变为 cancelled
-        throw new UnsupportedOperationException(
-            "未实现：注销只校验余额，不校验进行中订单（GAP）");
     }
 }

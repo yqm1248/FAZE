@@ -1,5 +1,5 @@
 /*
- * 职责：账号安全相关的 HTTP 入口——修改密码、换绑手机（都需登录）。
+ * 职责：账号安全相关的 HTTP 入口——修改密码、换绑手机、设备列表、登出、注销账号（都需登录）。
  * 调用方：App「账号与安全」页、修改密码页、换绑手机页。
  * 数据来源：请求体 + SecurityContext 里的 LoginUser；业务全在 AccountSecurityService。
  * 注意：
@@ -98,11 +98,15 @@ public class AccountSecurityController {
     /**
      * 注销账号（立即生效，无冷静期）。
      *
-     * <p>前置：余额（含冻结）为 0。</p>
+     * <p>前置：余额（含冻结）为 0 **且名下没有未完结订单**（作为下单人或作为律师都不许剩）。</p>
      * <p>副作用：status 置 cancelled、手机号改写为占位并释放唯一键、全部 token 失效、写审计。</p>
+     *
+     * <p>注意：<b>这里不设返回值给「还剩几单」</b>。吐订单数看起来更友好，但那等于给了一个
+     * 「我有几单」的查询接口，而这个接口的鉴权口径与订单列表不同，容易越权泄露。</p>
      *
      * @param loginUser 当前认证主体
      * @return 空响应
+     * @throws com.faze.common.exception.BusinessException 401006 有余额 / 402012 有未完结订单
      */
     @DeleteMapping
     public R<Void> cancelAccount(@AuthenticationPrincipal LoginUser loginUser) {

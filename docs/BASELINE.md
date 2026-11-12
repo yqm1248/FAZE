@@ -1,18 +1,18 @@
-# 法泽 FAZE 文档基线 v1.77
+# 法泽 FAZE 文档基线 v1.78
 
 > # 后续一切文档从这里开始
 
 | 项 | 值 |
 | --- | --- |
-| 基线编号 | **v1.77** |
-| 确立日期 | 2026-11-13（DEF-017 单号撞号三件套：Redis 持久化 + `BizNoRetry` + 结算区分唯一键；DEF-016 补 `reviewer_id` 写入与出参；DRIFT-049 裁决「不改名」；新登记 DRIFT-050；见 §7.80） |
-| 上一版 | v1.76（2026-11-13，G9 回归清单落地；见 §7.79） |
+| 基线编号 | **v1.78** |
+| 确立日期 | 2026-11-13（DEF-014 律师自下单 / DEF-015 注销校验在途订单落地；DRIFT-020~023 四条待拍板全部结清；新登记并修掉 DRIFT-051（i18n 门禁给 `error.json` 多加一层前缀）；见 §7.81） |
+| 上一版 | v1.77（2026-11-13，DEF-017 单号撞号三件套 + DEF-016 收尾 + DRIFT-049 裁决 / DRIFT-050；见 §7.80） |
 | 所在分支 | `UI设计`（v1.2 及以前在 `docs` 分支） |
 | Git 标签 | `v1.13-docs-baseline`（v1.3~v1.10 当时未打标签，见 §7.13；v1.14~v1.32 亦未打标签，见 §7.33 末尾） |
-| 基线资产数 | **55**（48 份 Markdown + 7 份 JSON；v1.49~v1.66 为 45 份，v1.67 登记 48 漏算 1 份，v1.69~v1.74 逐步补到 55。**v1.75~v1.77 无新增、无删除**，只有内容变更） |
+| 基线资产数 | **55**（48 份 Markdown + 7 份 JSON；v1.49~v1.66 为 45 份，v1.67 登记 48 漏算 1 份，v1.69~v1.74 逐步补到 55。**v1.75~v1.78 无新增、无删除**，只有内容变更） |
 | 本版新增 | **0 份** |
 | 本版删除 | **0 份** |
-| 本版内容变更 | **3 份**（`docs/facts/DRIFT.md` 改 DRIFT-049 为已裁决 + 新增 DRIFT-050 + 统计 50 条、`docs/facts/DEFERRED.md` 按实测修正 DEF-016/DEF-017 描述、`docs/architecture/法泽FAZE_接口规范_v1.0.md` §5.3 加「余额字段的语义约定」+ A.5 两处字段说明；**本文件自身不计入**） |
+| 本版内容变更 | **7 份**（`docs/facts/DRIFT.md`、`docs/facts/DEFERRED.md`、`docs/architecture/法泽FAZE_错误码规范_v1.0.md`、`docs/architecture/法泽FAZE_i18n规范_v1.0.md`，以及 3 份生成型事实 `docs/facts/error-codes.json` / `docs/facts/i18n-keys.json` / `docs/facts/api.json`；**本文件自身不计入**） |
 
 ---
 
@@ -121,11 +121,11 @@
 | 4 | `docs/architecture/法泽FAZE_开发计划总纲_v1.0.md` | 999 | 89174 | `09d2786aba24e5af` 📝 |
 | 5 | `docs/architecture/法泽FAZE_技术路线_v2.3.md` | 4276 | 214134 | `e5bd39f1e66415e3` 📝 |
 | 6 | `docs/architecture/法泽FAZE_V1基线表结构_v1.0.md` | 232 | 15858 | `3569f83f4ba74328` 📝 |
-| 7 | `docs/architecture/法泽FAZE_错误码规范_v1.0.md` | 445 | 31176 | `578ba78f6576c0c7` 📝 |
+| 7 | `docs/architecture/法泽FAZE_错误码规范_v1.0.md` | 457 | 33621 | `6c0ed247805623ce` 📝 |
 | 24 | `docs/architecture/法泽FAZE_数据表规范_v1.0.md` | 731 | 55411 | `ca7dc296a0247bd1` 📝 |
 | 25 | `docs/architecture/法泽FAZE_接口规范_v1.0.md` | 1190 | 82769 | `87dbb011245b7926` 📝 |
 | 26 | `docs/architecture/法泽FAZE_后端代码规范_v1.0.md` | 1608 | 93985 | `03573f955af80606` 🆕 |
-| 27 | `docs/architecture/法泽FAZE_i18n规范_v1.0.md` | 610 | 28293 | `6db40a25005a7ae5` 📝 |
+| 27 | `docs/architecture/法泽FAZE_i18n规范_v1.0.md` | 610 | 28290 | `d3c83761141feac6` 📝 |
 | 28 | `docs/architecture/法泽FAZE_审计与日志规范_v1.0.md` | 391 | 23320 | `375aa774e73e6f0b` 📝 |
 | 29 | `docs/architecture/法泽FAZE_第0段工作流_v1.0.md` | 2995 | 274718 | `d03d3e6da992a72f` 📝 |
 | 30 | `docs/architecture/法泽FAZE_第1段工作流_v1.0.md` | 1320 | 89395 | `4e9085b58dfa61d7` 📝 |
@@ -188,15 +188,15 @@
 | # | 文件 | 行数 | 字节 | SHA256 前 16 位 | 是什么 |
 |---|---|---|---|---|---|
 | 46 | `docs/standards/说辞一致与真相源规范.md` | 297 | 15598 | `9d11a58b3ca8b879` 🆕 | **同一个事实在代码 / 文档 / 设计稿三处说法不同时听谁的**：真相源分级（P0 运行中的代码与库 / P1 Flyway / P2 文档 / P3 设计稿）、三类不一致的分界（DRIFT 漂移 / GAP 缺口 / DIRT 脏数据）、5 种处置值的裁决规则、数字口径必须机器算 |
-| 47 | `docs/facts/DRIFT.md` | 183 | 32272 | `e3252e73b0ea6a3c` 📝 | **说辞漂移登记表**：同一事物、说法不同。D1 组 25 条（逐条核查）、D2 组 17 条（全仓盘点批量登记）、D3 组 **8 条**（跑脚本量出来的）。每行给「代码实际（P0）」+ 证据强度（实测 / 通读 / 待复核） |
-| 48 | `docs/facts/DEFERRED.md` | 167 | 18492 | `6fb612005bad9ddb` 📝 | **段八挂账汇总索引**：计划有、代码无。**不是待办清单，是真相声明**。含负责人点名的 4 项、最容易被误当已做的 8 项、118 条的分类索引、以及「18 条其实是文档落后于代码」的反向提醒 |
-| 49 | `docs/facts/api.json` | 2136 | 54429 | `1dd9f6af311dd592` 🆕 | **接口清单**：`scripts/facts/api.mjs` 从 78 个 Controller 生成，260 个端点（admin 123 / app 114 / pub 22 / dev 1）。**v1.67 首次登记时漏算本文件，v1.68 补正** |
+| 47 | `docs/facts/DRIFT.md` | 215 | 39739 | `931804f43cd41312` 📝 | **说辞漂移登记表**：同一事物、说法不同。D1 组 25 条（逐条核查）、D2 组 17 条（全仓盘点批量登记）、D3 组 **8 条**（跑脚本量出来的）。每行给「代码实际（P0）」+ 证据强度（实测 / 通读 / 待复核） |
+| 48 | `docs/facts/DEFERRED.md` | 171 | 20892 | `1e344287763ae34e` 📝 | **段八挂账汇总索引**：计划有、代码无。**不是待办清单，是真相声明**。含负责人点名的 4 项、最容易被误当已做的 8 项、118 条的分类索引、以及「18 条其实是文档落后于代码」的反向提醒 |
+| 49 | `docs/facts/api.json` | 2136 | 54429 | `fd27202548d1c2c1` 🆕 | **接口清单**：`scripts/facts/api.mjs` 从 78 个 Controller 生成，260 个端点（admin 123 / app 114 / pub 22 / dev 1）。**v1.67 首次登记时漏算本文件，v1.68 补正** |
 | 50 | `docs/facts/tables.json` | 1611 | 41721 | `d8aea0398808cf08` 🆕 | **表结构**：`scripts/facts/tables.mjs` 从 information_schema + flyway_schema_history 生成，53 张业务表 / 687 列 / 188 索引 / Flyway 48 个到 V711 |
-| 51 | `docs/facts/error-codes.json` | 695 | 18518 | `2d4ebd86a2472e55` 🆕 | **错误码清单**：`scripts/facts/error-codes.mjs` 从 ErrorCode 枚举生成，94 个码，无重复。文档里同时写着 78 和 91（DRIFT-045） |
-| 52 | `docs/facts/i18n-keys.json` | 152 | 3362 | `aebfacd0817905ab` 🆕 | **i18n 事实**：`scripts/facts/extract-i18n.mjs` 从 56 个 json 生成。**三个口径同时给出**（总节点 1965 / 叶子条目 1880 / 带 namespace 前缀去重 1880），四语言覆盖各 100%。DRIFT-046、DRIFT-047 都是这张表抓出来的 |
+| 51 | `docs/facts/error-codes.json` | 709 | 18939 | `f3718b96d5ba35d1` 🆕 | **错误码清单**：`scripts/facts/error-codes.mjs` 从 ErrorCode 枚举生成，94 个码，无重复。文档里同时写着 78 和 91（DRIFT-045） |
+| 52 | `docs/facts/i18n-keys.json` | 165 | 3707 | `d8922ee221a062b7` 🆕 | **i18n 事实**：`scripts/facts/extract-i18n.mjs` 从 56 个 json 生成。**三个口径同时给出**（总节点 1965 / 叶子条目 1880 / 带 namespace 前缀去重 1880），四语言覆盖各 100%。DRIFT-046、DRIFT-047 都是这张表抓出来的 |
 | 53 | `docs/facts/pages.json` | 4292 | 133719 | `fae02c553b66f795` 🆕 | **页面事实**：`scripts/facts/extract-pages.mjs` 逐页抽取「文件 / 路由 / testID 锚点 / LocalizedText / 写死路由」。四种页面数口径的**唯一解析实现**（`page-inventory.mjs` 只 import 它打印）。抓出 6 处写死路由与 `/case-detail` 壳无对应常量 |
 | 54 | `docs/standards/公共构件与护栏规范.md` | 234 | 14981 | `6f408c9b88f30159` 🆕 | **同类缺陷为什么反复出现、用什么拦住**：六个构件（幂等键 / 法条按 id 回查 / 乐观切换 / 金额展示 / 错误文案 / 归属校验）+ 3 条 ESLint 规则 + 豁免台账 + **三处「计划前提与仓库实际不符」的如实记录**（`useFavorite` 改签名、不建 `ErrorBanner`、先补后端接口） |
-| 55 | `docs/facts/contracts.json` | 2707 | 117978 | `13eb481e87ce79bf` 🆕 | **承诺清单**：`scripts/facts/check-contracts.mjs` 扫出的 **444 条**承诺性注释（幂等 320 / 保证 99 / 重复提交 22 / 重复点 3）+ 1 条范围承诺违规（`profile.fontSizeNote` 说「影响全 App」而实现只影响设置页，DRIFT-002，台账内）。**清单不代表说错**，作用是让「新增承诺」成为可见的 diff |
+| 55 | `docs/facts/contracts.json` | 2707 | 117979 | `dcc8f4478b5e7b9e` 🆕 | **承诺清单**：`scripts/facts/check-contracts.mjs` 扫出的 **444 条**承诺性注释（幂等 320 / 保证 99 / 重复提交 22 / 重复点 3）+ 1 条范围承诺违规（`profile.fontSizeNote` 说「影响全 App」而实现只影响设置页，DRIFT-002，台账内）。**清单不代表说错**，作用是让「新增承诺」成为可见的 diff |
 
 ### 2.5 决策依据
 
@@ -2866,3 +2866,61 @@ hence column cannot be dropped or renamed.
 1. **3 次重试只能消化 2 个已占用号**。若 Redis 序号被**人为清空**（FLUSHDB / del key）且当天已建 ≥3 单，仍会 401005。根治靠持久化（已开），重试只兜「持久化也挡不住的人为误删」。**已写进 `BizNoRetry` 类注释第 6 条**，防止后人盲调重试次数。
 2. **`user_device.push_cid` 未修**：它要随 DEF-007 的推送通道一起做（要同时改 `PushMessage` 加 cid + `PushTask` 查设备 + 客户端上报），单修字段没意义。
 3. **存量 `content_review.reviewer_id` 仍为 NULL**（5 行）：它们从未被人工处置过，不是漏填；新处置会正常写入。
+
+---
+
+## §7.81 v1.78 DEF-014 / DEF-015 落地 + DRIFT-020~023 四条拍板 + DRIFT-051 新登记
+
+**本版动因**：负责人 2026-11-13 授权「按建议默认值往下做」。因此本版同时做了两件事：① 把 `DEFERRED.md` 里最后两条「有实际后果的业务缺口」（DEF-014 律师自下单 / DEF-015 注销不查在途订单）实现掉；② 把 `DRIFT.md` 里积压的 4 条待拍板按建议值结清。
+
+> **诚实前提（必须写在这里）**：4 条 DRIFT 是**按 agent 的建议默认值**落定的，不是负责人逐条确认过。`DRIFT.md` 的「2026-11-13 二次拍板」块里每条都写了「改回去要动哪里」——不同意就照那条改，不会连带塌别的东西。
+
+### 一、DEF-014：律师不能给自己下单（405031）
+
+- **代码**：`OrderCreateExecutor.create` 新增「任务 3」——比较 `lawyer.getUserId()` 与下单人 `userId`，相等抛 `405031 TRADE_SELF_ORDER_FORBIDDEN`。位置在**审核检查之后、取价之前**：命中时不产生订单、不入队关单任务、不动任何资金字段。`lawyer.user_id` 为 null（历史数据）时不拦，写成 `!= null && equals(...)`。
+- **错的是**：`DRIFT.md` 的 DRIFT-016 早在 2026-11-10 就登记过同一件事（当时实测 `orders` 22、28 的 `user_id` 等于律师自己的 `user_id`）。**两个台账各记一份、互不可见**，所以这次是在「以为它是新 GAP」的前提下做的。已写进 `DRIFT.md` §九 第 5 条。
+- **脏数据现状**：那两条订单**已在 2026-11-11 清脏数据时删除**。2026-11-13 复查 `orders JOIN lawyer ON lawyer.id = orders.lawyer_id AND orders.user_id = lawyer.user_id` 结果为 **0 条**（全表 24 行，状态分布 cancelled 5 / completed 3 / refunded 15 / refunding 1）。
+
+### 二、DEF-015：注销时校验未完结订单（402012）
+
+- **代码**：`AccountSecurityService.cancelAccount` 新增「任务 2」，查**两个身份**：「作为下单人」`orders.user_id` 与「作为服务方」`orders.lawyer_id`（后者经 `LawyerQueryService.findByUserId` 拿到 `lawyer.id`）。口径是 `OrderStatus.isTerminal()` 的**补集**——`pending` / `paid` / `in_service` / `refunding` / `refund_rejected` 五态。
+- **为什么用「非终态」而不是白名单**：段 5 会加 `DISPUTED`。白名单写法下新状态会被默默排除在「在途」之外 → 争议中的用户可以注销；派生写法下它自动落进「在途」→ 被拦。**两种写法哪天都会错，但错的方向必须选安全那侧**（多拦一次注销只是多点一步，放行一次注销不可逆）。
+- **为什么连 `pending`（还没扣钱）也拦**：待支付单靠 `task_queue` 的 15 分钟关单任务回收，而该表**已实测出 12 条死信**（DEF-016），任务机制不是 100% 可靠；用户手上的待支付单自己就能取消，不是死锁；一条「非终态即拦」的规则也写得出客服话术。
+- **新错误码 402012**：不复用 `401006`（状态非法）——注销被拒时必须让用户知道「去处理订单」，兜底文案等于让用户反复点注销然后投诉；也不与「有余额」共用（那条仍是 `401006`），两个拒绝原因要能分流到「订单列表」还是「余额页」。`402011` 是作废空号，从 `402012` 起编。
+
+### 三、DRIFT-020~023 四条拍板（全部结清，「待拍板」栏清零）
+
+| ID | 裁决 | 状态 |
+|---|---|---|
+| DRIFT-020 注销冷静期 | **要**（以设计稿「7 天后生效」为准） | **未实现**：要加「待生效」状态 + 每日生效任务 + 期间撤销入口 + 期间禁止登录判定，是独立功能 |
+| DRIFT-021 有余额能否注销 | **代码对，改法务文本**（隐私政策「余额不可恢复」→「请先提现/消费完余额再注销」） | **正文未改**：隐私政策正文属段八法务定稿，本版只登记 |
+| DRIFT-022 注销查不查在途订单 | **必须结清** | ✅ **已实现**（= DEF-015，同一件事两面） |
+| DRIFT-023 签名库加不加姓名 | **不加** | 不处置；改验收报告回写。依据：15 字段是技术路线 §5.6 原文（`Signature.java:4`、`:10`、`SignatureService.java:10` 三处注释），姓名在 `app_user.real_name` / `lawyer.real_name` 已有权威来源，复制进签名表就是第三份真相 |
+
+**统计影响**：`DRIFT.md` 待拍板 4 → **0**；改文档 26 → 27、改代码 15 → 18、不处置 2 → 3；合计 50 → **51**（新增 DRIFT-051）。**「改代码 18」里有 1 条（020）未执行、「改文档 27」里有 1 条（021）待段八**，不要读到数字就以为代码侧还有 18 件没做。
+
+### 四、DRIFT-051（新登记，已修）：i18n 门禁给 `error.json` 多加了一层前缀
+
+- **事实**：`check-i18n.ps1` 的 `Read-LangFlat` 与 `extract-i18n.mjs` 的 `readLang` 都按「文件名即 namespace」加前缀，`error.json` 不例外 → `.i18n-pending.json` 里出现 `error.error.auth.cancel-has-active-order`。但该文件的顶层 key **本身就是完整 msgKey**（i18n 规范 §4.4），且 `shared/i18n/index.ts:110-115` 查 `error.*` 是直接拿完整 msgKey 当 key 查，从不加前缀。
+- **为什么现在才发现**：这个缺陷**在登记表为空时完全不可见**（四语言同错仍能匹配），而它只在「新增 msgKey」时才会被写出来。本次给 DEF-014/015 加两个 msgKey，是待办登记表自清零以来第一次变成非空。
+- **修法**：两个脚本同时跳过 `error` 前缀（与 DRIFT-047 同一个坑，**必须两边一起改**，否则两套数字打架）。
+- **代价**：`.i18n-pending.json` 从 0 → **6 条**（bo / ug / kk 各 2）。**这不是回退**——新增文案必然先缺译再登记，是规范允许的路径；段 8 清回 0。**没有给三语言编造译文**（机翻少数民族文字会污染资源，且会让段 8 的人以为已经翻好了）。
+
+### 五、实测证据
+
+| 项 | 结果 |
+|---|---|
+| 后端全量测试 | **537 用例 / 0 失败 / 0 错误 / 1 skipped**（跳过的是 DRIFT-015 的规格） |
+| 新增单测 | `OrderCreateExecutorTest` 3 例：拒自下单（并断言「一行订单都没写」+「关单任务一次都没入队」）/ 别人下单放行 / `lawyer.user_id` 为空不 NPE |
+| 新增真库测试 | `DeactivateWithActiveOrderTest` 4 例：服务中拦 / **待支付也拦** / 律师侧已支付拦 / 只有已完成放行且副作用完整 |
+| 删掉的空规格 | `PendingBehaviorSpecsTest` 由 3 条 → **1 条**。**不保留空规格**：同一行为两份测试、一份永远跑不了，会让看清单的人以为有两条在保护，其实只有一边在跑 |
+| 接口层探针 | `logs/probe-def014-015.mjs`（未入库）：律师给自己下单 → HTTP 200 + **code 405031**、orders 未新增；有待支付订单的用户注销 → HTTP 200 + **code 402012**、status 仍 active；订单改终态后注销 → **code 200** 且 status 置 cancelled |
+| 门禁 | `npm run verify`（移动端 typecheck + eslint + raw-text + i18n）全绿；`npm run facts` / `render:docs` / `check:baseline` 重跑后一致 |
+
+### 六、本版没做的事（写清，不掩盖）
+
+1. **DRIFT-020 的冷静期没实现**——它是新功能（状态 + 定时任务 + 撤销入口），不塞进「边界校验」这条提交。
+2. **DRIFT-021 的隐私政策正文没改**——法务文本属段八。
+3. **第 3、6 条的接口层 JUnit 测试没写**——校验在 Service 上，单测与真库测试直接调 Service，绕过了 Controller 的鉴权与参数绑定；这一环靠实机 probe 覆盖。真要补，得先有「任意用户 token 的测试夹具」，那是另一件事。
+4. **`grep` 级重复登记没有根治**：DRIFT 与 DEFERRED 之间仍可能各记一份同一件事（DRIFT-016/014、DRIFT-022/015 就是）。修法（加「对照 ID」列）留到下次整理台账。
+5. **`user_device.push_cid` 仍未修**，随 DEF-007。

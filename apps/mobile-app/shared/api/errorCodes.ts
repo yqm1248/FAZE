@@ -9,6 +9,11 @@
  *      `error.common.server`，不会显示空文案。
  *   2. key 用**完整 msgKey**（`error.auth.token-expired`），不拼前缀（i18n 规范 §4.4）。
  *   3. 这里只做「码 → key」映射，不做文案——文案在 `shared/i18n/resources/**` 里。
+ *   4. **不是所有码都登记**，判据是「用户看到文案后能不能自己做点什么」：
+ *      `402012`（注销被拒：还有未完结订单）必须登记——兜底成「服务暂时不可用」
+ *      会让用户反复点注销然后投诉；`405031`（不能给自己下单）同理，律师本人在
+ *      压测/验收时最常撞到它。反例：`405008`/`405009`/`405010`（律师不可接单 /
+ *      未开通 / 不在线）**至今仍未登记**，走兜底——那是既有缺口，不是本次的决定。
  */
 
 import type { MessageKey } from './types';
@@ -32,6 +37,7 @@ export const ERROR_MSG_KEYS: Readonly<Record<number, MessageKey>> = {
   402008: 'error.auth.account-cancelled',
   402009: 'error.auth.guardian-required',
   402010: 'error.auth.password-weak',
+  402012: 'error.auth.cancel-has-active-order',
   404001: 'error.conversation.not-found',
   404002: 'error.conversation.forbidden',
   404005: 'error.conversation.not-purchased',
@@ -47,6 +53,7 @@ export const ERROR_MSG_KEYS: Readonly<Record<number, MessageKey>> = {
   506003: 'error.document.font-missing',
   405001: 'error.trade.balance-insufficient',
   405006: 'error.trade.amount-invalid',
+  405031: 'error.trade.self-order-forbidden',
   405011: 'error.trade.refund-not-found',
   405021: 'error.trade.review-not-found',
   405022: 'error.trade.review-duplicate',

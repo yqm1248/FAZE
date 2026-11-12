@@ -14,6 +14,8 @@
  *   5. 单号撞唯一键时重试（最多 3 次）：Redis 被清空/重启后序列会从 1 开始，
  *      真实运维场景里会撞上已用单号；静默 500 不如换号重试。
  *   6. 事务内**不做远程调用**（没有 HTTP/RPC）；这里只有 DB 与一次 Redis INCR（生成单号）。
+ *   7. **不许给自己下单**（DEF-014）：下单人 `app_user.id` 与 `lawyer.user_id` 相等时抛 405031。
+ *      这条不是「防手滑」，是防资金空转——理由写在 `create` 的任务 3 注释里。
  */
 package com.faze.modules.trade.service;
 
@@ -87,8 +89,8 @@ public class OrderCreateExecutor {
      * @param userId  下单用户 ID（来自 token）
      * @param request 下单请求
      * @return 新建的订单（含自增主键）
-     * @throws BusinessException 405008 律师不可接单 / 405009 服务未开通或未定价 /
-     *                           405010 律师不在线 / 405006 金额超限
+     * @throws BusinessException 405008 律师不可接单 / 405031 给自己下单 /
+     *                           405009 服务未开通或未定价 / 405010 律师不在线 / 405006 金额超限
      */
     @Transactional(rollbackFor = Exception.class)
     public Orders create(Long userId, OrderCreateBO request) {
@@ -102,20 +104,31 @@ public class OrderCreateExecutor {
             throw new BusinessException(ErrorCode.TRADE_LAWYER_UNAVAILABLE);
         }
 
-        // 任务 3：是否要求在线才可下单——**开关在 sys_config，不写死**（工作流 G2.1「卡住怎么办」）
+        // 任务 3：不许给自己下单（DEF-014，2026-11-13 补）
+        // **比较的是 app_user.id，不是 lawyer.id**：`lawyer.user_id` 才是「这个律师账号背后的人」。
+        // 不拦的后果不是体验问题：律师用自己的号下单 → 余额付款扣钱 → 结算后律师收入流回
+        // 自己的 lawyer_balance，资金转一圈回到原点，而平台按费率记的服务费是凭空多出来的
+        // 一笔应收。同时这条单在后台所有「订单 / 结算 / 对账」列表里都是正常数据，查不出来。
+        if (lawyer.getUserId() != null && lawyer.getUserId().equals(userId)) {
+            log.warn("拒绝自下单 userId={} lawyerId={}", userId, lawyer.getId());
+            throw new BusinessException(ErrorCode.TRADE_SELF_ORDER_FORBIDDEN,
+                    "下单人与承办律师是同一 app_user userId=" + userId + " lawyerId=" + lawyer.getId());
+        }
+
+        // 任务 4：是否要求在线才可下单——**开关在 sys_config，不写死**（工作流 G2.1「卡住怎么办」）
         if (sysConfigQueryService.getBoolean(CONFIG_REQUIRE_LAWYER_ONLINE, false)
                 && !LAWYER_ONLINE.equals(lawyer.getOnlineStatus())) {
             throw new BusinessException(ErrorCode.TRADE_LAWYER_OFFLINE);
         }
 
-        // 任务 4：取价（服务未上架 / 价格为空都拒，不许 0 元单）
+        // 任务 5：取价（服务未上架 / 价格为空都拒，不许 0 元单）
         long amountCents = resolvePriceCents(lawyer, serviceType);
 
-        // 任务 5：算平台服务费与律师收入（只记账，不产生流水）
+        // 任务 6：算平台服务费与律师收入（只记账，不产生流水）
         long platformFeeCents = calcPlatformFeeCents(amountCents);
         long lawyerIncomeCents = amountCents - platformFeeCents;
 
-        // 任务 6：生成单号并落库；撞唯一键则换号重试
+        // 任务 7：生成单号并落库；撞唯一键则换号重试
         for (int attempt = 1; attempt <= MAX_ORDER_NO_ATTEMPT; attempt++) {
             Orders order = buildOrder(userId, request, lawyer, serviceType,
                     amountCents, platformFeeCents, lawyerIncomeCents);
@@ -128,10 +141,10 @@ public class OrderCreateExecutor {
                 }
                 continue;
             }
-            // 任务 7：写状态流水（订单创建：from = NULL → to = pending）
+            // 任务 8：写状态流水（订单创建：from = NULL → to = pending）
             orderStatusLogService.record(order.getId(), null, OrderStatus.PENDING,
                     OperatorRole.USER, userId, "用户下单");
-            // 任务 8：投递 15 分钟关单任务（与下单同事务：下单回滚，任务也不该留下）
+            // 任务 9：投递 15 分钟关单任务（与下单同事务：下单回滚，任务也不该留下）
             taskQueueService.enqueue(TaskQueueService.TYPE_ORDER_CLOSE, order.getOrderNo(),
                     OrderTimeoutPolicy.payExpireAt(order.getCreatedAt()), MDC.get(R.TRACE_ID_MDC_KEY));
             log.info("订单创建成功 orderId={} orderNo={} userId={} lawyerId={} amountCents={}",

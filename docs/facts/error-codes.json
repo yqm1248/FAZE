@@ -1,17 +1,17 @@
 {
   "_comment": "本文件由 scripts/facts/error-codes.mjs 从 ErrorCode.java 生成，禁止手改。口径见 docs/standards/说辞一致与真相源规范.md §四。",
-  "sourceDigest": "b064bdc5b5f64289",
+  "sourceDigest": "50469ebc3ad27ec9",
   "source": "services/faze-api/src/main/java/com/faze/common/exception/ErrorCode.java",
   "totals": {
-    "codes": 94,
+    "codes": 96,
     "duplicates": 0,
     "emptyMsgKey": 0
   },
   "byPrefix": {
     "401": 8,
-    "402": 9,
+    "402": 10,
     "404": 3,
-    "405": 29,
+    "405": 30,
     "406": 7,
     "407": 9,
     "408": 5,
@@ -23,7 +23,7 @@
     "508": 2
   },
   "byHttpStatus": {
-    "200": 81,
+    "200": 83,
     "400": 1,
     "401": 2,
     "403": 6,
@@ -151,6 +151,13 @@
       "httpStatus": 200,
       "msgKey": "error.auth.password-weak",
       "msg": "密码强度不足"
+    },
+    {
+      "name": "AUTH_CANCEL_HAS_ACTIVE_ORDER",
+      "code": 402012,
+      "httpStatus": 200,
+      "msgKey": "error.auth.cancel-has-active-order",
+      "msg": "还有未完成的订单，请先处理后再注销"
     },
     {
       "name": "CONVERSATION_NOT_FOUND",
@@ -375,6 +382,13 @@
       "httpStatus": 429,
       "msgKey": "error.trade.recharge-rate-limited",
       "msg": "充值操作过于频繁，请稍后重试"
+    },
+    {
+      "name": "TRADE_SELF_ORDER_FORBIDDEN",
+      "code": 405031,
+      "httpStatus": 200,
+      "msgKey": "error.trade.self-order-forbidden",
+      "msg": "不能给自己下单"
     },
     {
       "name": "DOCUMENT_TEMPLATE_NOT_FOUND",

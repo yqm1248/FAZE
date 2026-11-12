@@ -1,6 +1,6 @@
 {
   "_comment": "本文件由 scripts/facts/check-contracts.mjs 从源码注释与 i18n 文案生成，禁止手改。用途：让「代码里承诺了什么」成为可 diff 的清单——新增一条承诺就是一次可见的改动。",
-  "sourceDigest": "8a23ea05c8b3d8de",
+  "sourceDigest": "bb5d37370fae9e48",
   "totals": {
     "promises": 447,
     "scopeViolations": 1,
@@ -425,13 +425,13 @@
     },
     {
       "file": "services/faze-api/src/main/java/com/faze/common/exception/ErrorCode.java",
-      "line": 85,
+      "line": 100,
       "keyword": "幂等",
       "text": "重复提交（幂等拦截：同一 Idempotency-Key / 重复支付）。HTTP 200。"
     },
     {
       "file": "services/faze-api/src/main/java/com/faze/common/exception/ErrorCode.java",
-      "line": 183,
+      "line": 198,
       "keyword": "重复提交",
       "text": "已立案，不能重复提交（同案重复立案）。HTTP 200。"
     },
@@ -557,7 +557,7 @@
     },
     {
       "file": "services/faze-api/src/main/java/com/faze/modules/account/service/AccountSecurityService.java",
-      "line": 343,
+      "line": 377,
       "keyword": "保证",
       "text": "* <p>三元组保证唯一（userId 本身唯一），且保留原号便于客服肉眼追溯。"
     },
@@ -1787,7 +1787,7 @@
     },
     {
       "file": "services/faze-api/src/main/java/com/faze/modules/trade/service/OrderCreateExecutor.java",
-      "line": 84,
+      "line": 86,
       "keyword": "幂等",
       "text": "* <p>前置：调用方已完成幂等占位与登录校验。本方法只负责「校验律师 → 取价 → 落库 → 记账 → 写流水」。</p>"
     },

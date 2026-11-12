@@ -1,7 +1,7 @@
 /*
  * 职责：订单只读查询接口的实现。
  * 调用方：modules/ops 的 ComplaintService、modules/conversation 的 OrderNoticeService /
- *        ConversationService。
+ *        ConversationService、modules/account 的 AccountSecurityService（注销前置校验）。
  * 数据来源：faze.orders。
  * 注意：
  *   1. 单表查询用 Wrapper，直接 `selectCount`——不需要把整行读出来再判断。
@@ -11,6 +11,8 @@
  *      前端在投诉页会提示用户「不涉具体订单的意见请走意见反馈」。
  *   4. 「有效订单」的口径单独一个常量（**paid + in_service**），会话准入与订单通知共用，
  *      避免两处各写一份、日后改一处漏一处。
+ *   5. **「在途订单」是另一套口径**（非终态，5 个状态）：会话准入与注销前置校验语义不同，
+ *      不许为了省一个常量把两者合并，理由见 `IN_FLIGHT_STATUSES` 的注释。
  */
 package com.faze.modules.trade.service.impl;
 
@@ -20,6 +22,7 @@ import com.faze.modules.trade.enums.OrderStatus;
 import com.faze.modules.trade.mapper.OrdersMapper;
 import com.faze.modules.trade.service.OrderQueryService;
 import com.faze.modules.trade.vo.OrderBriefVO;
+import java.util.Arrays;
 import java.util.List;
 import org.springframework.stereotype.Service;
 
@@ -40,6 +43,27 @@ public class OrderQueryServiceImpl implements OrderQueryService {
      */
     private static final List<String> ACTIVE_STATUSES = List.of(
             OrderStatus.PAID.getCode(), OrderStatus.IN_SERVICE.getCode());
+
+    /**
+     * 「在途订单」的状态集合 = **非终态**，从 {@link OrderStatus} 派生，不手写列表。
+     *
+     * <p>为什么派生而不是写白名单：段 5 会加 `DISPUTED`（争议中）。白名单写法下，
+     * 新状态会被默默排除在「在途」之外 → 争议中的用户可以注销；派生写法下它自动落进
+     * 「在途」→ 被拦。**两种写法都会在某天出错，但出错方向必须选安全的那一侧**：
+     * 多拦一次注销只是让用户多点一步，放行一次注销是不可逆的。</p>
+     *
+     * <p>代价（写清楚，别当它不存在）：段 5 新增状态时若忘了同步
+     * {@link OrderStatus#isTerminal()}，新加的**终态**（如 `SETTLED`）会被当成在途，
+     * 导致已结算的用户无法注销。这是可接受的错方向（安全侧），但改状态枚举的人必须回头
+     * 看这个常量和 `isTerminal()`。</p>
+     *
+     * <p>当前值：`pending` / `paid` / `in_service` / `refunding` / `refund_rejected`。
+     * 恒非空（8 态里 3 个终态），所以 `IN ()` 这种非法 SQL 不会出现。</p>
+     */
+    private static final List<String> IN_FLIGHT_STATUSES = Arrays.stream(OrderStatus.values())
+            .filter(status -> !status.isTerminal())
+            .map(OrderStatus::getCode)
+            .toList();
 
     /** 订单 Mapper。 */
     private final OrdersMapper ordersMapper;
@@ -139,5 +163,41 @@ public class OrderQueryServiceImpl implements OrderQueryService {
             }
         }
         return result;
+    }
+
+    /**
+     * 判断某用户作为下单人是否还有在途订单。
+     *
+     * @param userId 用户主键
+     * @return 存在非终态订单返回 true
+     */
+    @Override
+    public boolean existsInFlightOrderOfUser(Long userId) {
+        if (userId == null) {
+            return false;
+        }
+        Long count = ordersMapper.selectCount(Wrappers.<Orders>lambdaQuery()
+                .eq(Orders::getUserId, userId)
+                .in(Orders::getStatus, IN_FLIGHT_STATUSES)
+                .isNull(Orders::getDeletedAt));
+        return count != null && count > 0;
+    }
+
+    /**
+     * 判断某律师作为服务方是否还有在途订单。
+     *
+     * @param lawyerId 律师主键（lawyer.id）
+     * @return 存在非终态订单返回 true
+     */
+    @Override
+    public boolean existsInFlightOrderOfLawyer(Long lawyerId) {
+        if (lawyerId == null) {
+            return false;
+        }
+        Long count = ordersMapper.selectCount(Wrappers.<Orders>lambdaQuery()
+                .eq(Orders::getLawyerId, lawyerId)
+                .in(Orders::getStatus, IN_FLIGHT_STATUSES)
+                .isNull(Orders::getDeletedAt));
+        return count != null && count > 0;
     }
 }
