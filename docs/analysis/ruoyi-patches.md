@@ -60,3 +60,38 @@
 | `vite.config.js` | 本段未改（历史改动见上面 #3/#5） |
 
 证据：`docs/acceptance/seg3/H3-menu.md`、`docs/acceptance/seg3/_artifacts/h-pc-verify.json`（真实接口模式 31/31 PASS，框架层 git status 为空）。
+
+---
+
+## 第 8 段之后 · PC 后台品牌化与信息架构重整（2026-11-13）
+
+**背景**：负责人 2026-11-13 提出 4 件事——① 侧边栏菜单要按一级/二级分类，若依原生菜单按点名隐藏；
+② 左上角「若依管理系统」的名字与叶子图标换成法泽品牌；③ 登录页按 `design/admin/00-login.html` 重做；
+④ 登录后直接进数据看板。菜单部分是**数据改动**（`database/seed/admin_menu_ia.sql`），本表只记源码改动。
+
+**⚠️ 与 §记录规则第 3 条的关系（必须知道）**：规则说「条目 > 3 条时停手，改判 subtree 或 fork」。
+本节一次新增 **6 条**，累计 11 条，**已越过该阈值**。判断依据：这 6 条不是「框架 bug 补丁」，
+而是**产品化必须的品牌与主题定制**（RuoYi 官方文档本身就把主题色、logo、登录页列为「定制项」），
+且全部集中在主题变量与入口页，不改任何框架组件的行为逻辑。**若后续再往 `src/layout`、
+`src/components`、`src/store` 里加改动，应触发 §3 的 subtree/fork 讨论，不再按本节方式追加。**
+
+| # | 日期 | RuoYi 文件（相对前端根 `pc/admin-web/`） | 为什么必须改 | 影响面 | 回滚方式 |
+|---|---|---|---|---|---|
+| 6 | 2026-11-13 | `src/views/login.vue` | 原生登录页是「信纸木窗背景 + 居中白卡片 + 若依管理系统」，整页零品牌，底部还印着 `Copyright © 2018-2026 RuoYi`。负责人要求按 `design/admin/00-login.html` 重做（左 760 品牌板 + 右 360 表单 + 贴底左对齐的版权行）。**登录逻辑（验证码、记住密码 Cookie、跳转 redirect）原样保留，只重写模板与样式** | 只影响 `/login` 一个页面 | `git checkout HEAD -- pc/admin-web/src/views/login.vue` |
+| 7 | 2026-11-13 | `src/router/index.js` | 登录后落地的 `/index` 原本指向 `views/index.vue`（若依自我介绍页，含 QQ 群、作者微信/支付宝与**收款二维码**）。改成直接指向 `views/biz/ops/Dashboard`，标题「数据看板」。**不采用 redirect 到动态路由**：`/index` 是 constantRoutes 静态路由，redirect 到动态路由存在 addRoute 时序风险 | 只影响登录落地页；`views/index.vue` 保留未删，改回一行即可还原 | 把 `component` 改回 `() => import('@/views/index')`、`meta.title` 改回 `'首页'` |
+| 8 | 2026-11-13 | `src/layout/components/Sidebar/Logo.vue` | 只改样式：图标 32→30px 加 `border-radius: 7px`（法泽图标是白底方图，在深色侧边栏上不加圆角是一个刺眼白方块，见 `apps/mobile-app/assets/brand/README.md` §3），标题 14→15px | 只影响侧边栏左上角渲染，模板与逻辑未动 | `git checkout HEAD -- pc/admin-web/src/layout/components/Sidebar/Logo.vue` |
+| 9 | 2026-11-13 | `src/components/Breadcrumb/index.vue` | 面包屑首项写死 `title: "首页"`，落地页改成数据看板后会出现「点进去标题叫数据看板、面包屑叫首页」 | 所有非首页页面的面包屑首项文案 | 把 `"数据看板"` 改回 `"首页"` |
+| 10 | 2026-11-13 | `src/store/modules/settings.js` | 默认主题色 `#409EFF`（若依蓝）→ `#4a66ee`（法泽品牌蓝，见 `design/admin/tokens.css` 的 `--brand-primary`、《PC后台UI设计说明》§137） | 全局：所有 `el-button--primary` 与通过 `--el-color-primary` 取色的组件。**已被 localStorage 的 `layout-setting` 存过旧色的浏览器不会自动变**，需清该 key 或在设置面板重选一次 | 改回 `'#409EFF'` |
+| 11 | 2026-11-13 | `src/assets/styles/variables.module.scss` | 主题/侧边栏配色对齐设计稿：`$menuActiveText`/`$menuLightActiveText`/`$--color-primary` → `#4a66ee`；`$menuBg`/`$base-menu-background` `#1a1f2e` → `#22283a`；`$base-sub-menu-background` `#141824` → `#1b2030`；`$menuHover` → `#2c3350`。目的：从登录页左板（`--bg-sidebar: #22283a`）进后台时视觉不断裂 | 侧边栏底色与菜单激活色；所有引用 `$--color-primary` 的样式 | 逐项改回原值（见本条「为什么必须改」列） |
+
+**同批改动的非代码资源**（不算 patch，但影响面一样大，一并列出便于回滚）：
+
+| 资源 | 改动 | 回滚 |
+|---|---|---|
+| `pc/admin-web/.env.development` / `.env.production` / `.env.staging` | `VITE_APP_TITLE` 若依管理系统 → 法泽管理后台（侧边栏左上角与浏览器标签页共用）。**这三个文件此前被 `.gitignore` 的 `.env.*` 规则忽略、且从未入库**，已于同批修 `.gitignore` 加白名单 | 改回 `若依管理系统` |
+| `pc/admin-web/public/favicon.ico` | 若依叶子 → 法泽图标（Pillow 生成 16/32/48 三档真 ICO） | `git checkout HEAD -- pc/admin-web/public/favicon.ico` |
+| `pc/admin-web/src/assets/logo/logo.png` | 若依叶子 → 法泽图标 96×96（显示 32px，留高 DPI 余量） | `git checkout HEAD -- pc/admin-web/src/assets/logo/logo.png` |
+
+**没有动的若依痕迹（负责人 2026-11-13 明确「没提的地方保留」）**：顶栏右上角的 gitee 源码图标、
+文档图标、右上角用户名「若依」（`sys_user.nick_name`）、`src/views/index.vue` 若依介绍页本体、
+`src/components/RuoYi/` 目录、`src/views/tool/**` 与 `src/views/monitor/**` 页面。
