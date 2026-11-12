@@ -157,7 +157,7 @@ Copy-Item deploy\.env.example deploy\.env
 
 - [ ] `check:baseline` / `check:facts` / `check:render` / `check:i18n` / `check:copy-tone` 全绿
 - [ ] `cd apps/mobile-app; npm run verify` 全绿（tsc + eslint + 三项检查）
-- [ ] `.i18n-pending.json` 为空（段 8 收口前置，当前**未达成**，见 CHANGELOG）
+- [x] `.i18n-pending.json` 为空（**2026-11-13 已达成**：补齐 bo/ug/kk 各 10 条 → `{"pending": {}}`；译文由 AI 产出、**未母语复核**，见 `docs/BASELINE.md` §7.85）
 - [ ] `mvn test` 全绿（先注 `deploy/.env` 环境变量，否则集成测试上下文起不来）
 - [ ] `sys_config` 的 `app.version.latest` / `downloadUrl` 已改
 - [ ] 数据库备份已做（`.\deploy\backup.ps1`，产物在 `logs/backup/`）
@@ -188,5 +188,58 @@ Copy-Item deploy\.env.example deploy\.env
 3. **热更新通道没接**（`app.config.ts` 的 `updates.checkAutomatically='NEVER'` 是刻意设计），
    所以客户端问题只能等商店审核——这是有意的取舍，不是漏做：接了热更新就要接 EAS Update 的
    计费与合规审查，且"热更新绕过审核"本身有政策风险。
+
+---
+
+## 9. 本地测试环境怎么起（2026-11-13 实测通过，给别人测之前照这份走）
+
+> **这一节是操作步骤，不是方案。** 下面 4 条命令都实际跑过，端口与返回码见表。
+
+### 9.1 一共 4 个进程
+
+| # | 是什么 | 端口 | 起法 | 谁去开 |
+| --- | --- | --- | --- | --- |
+| 1 | MySQL 80 + Redis | 3306 / 6379 | 管理员 PowerShell：`.\deploy\start-services.ps1` | 一次就够，常驻 |
+| 2 | 业务 API `faze-api` | **8081** | `cd services\faze-api` → 先注入 `deploy/.env` 的变量（见 9.2）→ `mvn -o spring-boot:run -Dspring-boot.run.profiles=dev` | 第一个起 |
+| 3 | PC 后端 RuoYi | **8080** | `cd pc\admin-server\ruoyi-admin` → `mvn -o spring-boot:run` | 可与 2 并行 |
+| 4 | PC 前端 `admin-web` | **80** | `cd pc\admin-web` → `pnpm dev` | 3 起来之后 |
+| 5 | APP（Expo Web） | **8090** | `cd apps\mobile-app` → `npx expo start --web --port 8090` | 最后 |
+
+### 9.2 起 `faze-api` 前必须先注入环境变量（最常见的卡点）
+
+`mvn test` / `spring-boot:run` 都需要 `deploy/.env` 里的变量（`FAZE_DB_URL` / `FAZE_DB_USERNAME` / `FAZE_DB_PASSWORD` / JWT 密钥等），否则上下文起不来。一条命令搞定：
+
+```powershell
+Get-Content deploy/.env -Encoding UTF8 | Where-Object { $_ -match '^\s*[A-Z_]+=' } | ForEach-Object {
+  $kv = $_ -split '=', 2; Set-Item -Path "env:$($kv[0].Trim())" -Value $kv[1].Trim()
+}
+cd services\faze-api
+mvn -o spring-boot:run "-Dspring-boot.run.profiles=dev"
+```
+
+**不带 `-Dspring-boot.run.profiles=dev` 会直接启动失败**（`AdminTokenVerifier` 构造抛错），这是踩过的坑。
+
+### 9.3 访问地址与账号
+
+| 端 | 地址 | 账号 / 说明 |
+| --- | --- | --- |
+| PC 管理后台 | `http://localhost/`（**80 端口，不是 8080**） | `admin` / `admin123`（登录的是 `faze_admin` 库，**不是**业务库 `faze`）。验证码当前是**关闭**的（`/captchaImage` 返回 `captchaEnabled=false`），不用输 |
+| APP | `http://localhost:8090/` | 走 Expo Web，浏览器即可；改语言去「我的 — 设置」 |
+| 业务 API | `http://127.0.0.1:8081/api/v1/**` | PC 前端通过 `/biz-api` 前缀由 vite 代理到这里，**不需要**单独开跨域 |
+| 健康检查 | `http://127.0.0.1:8081/actuator/health` | 返回 `{"status":"UP"}` 才算起好 |
+
+**真机测 APP**：手机要能访问 PC 局域网 IP，`apps/mobile-app/.env` 的 `EXPO_PUBLIC_API_BASE_URL` 填 `http://<PC-IP>:8081`（当前填的是 `http://192.168.43.186:8081`，换网络要跟着改），Windows 防火墙要放行 8081。测不通时先在**手机浏览器**打开 `http://<PC-IP>:8081/api/v1/pub/ping`。
+
+### 9.4 三个必踩的坑
+
+1. **Expo 默认想占 8081**，而 8081 被 `faze-api` 占了 → 会弹「端口被占用，换一个？」。**必须显式 `--port 8090`**，否则一路错下去。
+2. **PC 前端是 80 端口**，不是 8080。8080 是 RuoYi 后端，浏览器打开 8080 看到的是接口 JSON 不是页面。
+3. **改完库里的菜单（`sys_menu`）要刷新浏览器**，RuoYi 的动态路由由 `getRouters` 现查数据库，不会热更新。
+
+### 9.5 怎么关
+
+按启动的逆序 `Ctrl+C` 停掉 2/3/4/5 各自的窗口；MySQL 与 Redis 是 Windows 服务，不用管（要停用 `.\deploy\start-services.ps1 -Stop`，只停 Redis）。
+
+---
 
 
