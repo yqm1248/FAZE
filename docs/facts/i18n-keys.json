@@ -1,6 +1,6 @@
 {
   "_comment": "本文件由 scripts/facts/extract-i18n.mjs 从 shared/i18n/resources 生成，禁止手改。口径见 docs/standards/说辞一致与真相源规范.md §四。切换语言目录后必须重跑，CI 会拦 git diff。",
-  "sourceDigest": "3feec17043cf3f19",
+  "sourceDigest": "3d1dc9f610c41171",
   "source": "apps/mobile-app/shared/i18n/resources",
   "sourceLang": "zh-Hans",
   "targetLangs": [
@@ -23,19 +23,19 @@
       "ratio": 1
     },
     "bo": {
-      "keys": 1880,
+      "keys": 1890,
       "sourceKeys": 1890,
-      "ratio": 0.9947
+      "ratio": 1
     },
     "ug-Arab-CN": {
-      "keys": 1880,
+      "keys": 1890,
       "sourceKeys": 1890,
-      "ratio": 0.9947
+      "ratio": 1
     },
     "kk-Arab-CN": {
-      "keys": 1880,
+      "keys": 1890,
       "sourceKeys": 1890,
-      "ratio": 0.9947
+      "ratio": 1
     }
   },
   "perNamespace": {
@@ -47,9 +47,9 @@
     },
     "auth": {
       "zh-Hans": 109,
-      "bo": 101,
-      "ug-Arab-CN": 101,
-      "kk-Arab-CN": 101
+      "bo": 109,
+      "ug-Arab-CN": 109,
+      "kk-Arab-CN": 109
     },
     "case": {
       "zh-Hans": 179,
@@ -83,9 +83,9 @@
     },
     "error": {
       "zh-Hans": 59,
-      "bo": 57,
-      "ug-Arab-CN": 57,
-      "kk-Arab-CN": 57
+      "bo": 59,
+      "ug-Arab-CN": 59,
+      "kk-Arab-CN": 59
     },
     "home": {
       "zh-Hans": 24,
@@ -124,51 +124,14 @@
       "kk-Arab-CN": 149
     }
   },
-  "missing": {
-    "bo": [
-      "auth.privacyConsent.agree",
-      "auth.privacyConsent.body",
-      "auth.privacyConsent.decline",
-      "auth.privacyConsent.declinedBody",
-      "auth.privacyConsent.declinedTitle",
-      "auth.privacyConsent.title",
-      "auth.privacyConsent.viewAgreement",
-      "auth.privacyConsent.viewPrivacy",
-      "error.auth.cancel-has-active-order",
-      "error.trade.self-order-forbidden"
-    ],
-    "ug-Arab-CN": [
-      "auth.privacyConsent.agree",
-      "auth.privacyConsent.body",
-      "auth.privacyConsent.decline",
-      "auth.privacyConsent.declinedBody",
-      "auth.privacyConsent.declinedTitle",
-      "auth.privacyConsent.title",
-      "auth.privacyConsent.viewAgreement",
-      "auth.privacyConsent.viewPrivacy",
-      "error.auth.cancel-has-active-order",
-      "error.trade.self-order-forbidden"
-    ],
-    "kk-Arab-CN": [
-      "auth.privacyConsent.agree",
-      "auth.privacyConsent.body",
-      "auth.privacyConsent.decline",
-      "auth.privacyConsent.declinedBody",
-      "auth.privacyConsent.declinedTitle",
-      "auth.privacyConsent.title",
-      "auth.privacyConsent.viewAgreement",
-      "auth.privacyConsent.viewPrivacy",
-      "error.auth.cancel-has-active-order",
-      "error.trade.self-order-forbidden"
-    ]
-  },
+  "missing": {},
   "placeholderMismatch": [],
   "structureMismatch": [],
   "pendingFile": {
     "path": "apps/mobile-app/shared/i18n/resources/.i18n-pending.json",
     "exists": true,
-    "registeredTotal": 30,
-    "computedTotal": 30,
+    "registeredTotal": 0,
+    "computedTotal": 0,
     "consistent": true,
     "perLangConsistent": {
       "bo": true,

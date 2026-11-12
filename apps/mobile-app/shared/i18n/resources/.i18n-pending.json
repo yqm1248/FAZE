@@ -1,41 +1,5 @@
 {
   "_comment": "本文件由 scripts/check-i18n.ps1 生成，不要手改；段 8 收口时必须为空。",
   "pending": {
-    "bo": [
-      "auth.privacyConsent.agree",
-      "auth.privacyConsent.body",
-      "auth.privacyConsent.decline",
-      "auth.privacyConsent.declinedBody",
-      "auth.privacyConsent.declinedTitle",
-      "auth.privacyConsent.title",
-      "auth.privacyConsent.viewAgreement",
-      "auth.privacyConsent.viewPrivacy",
-      "error.auth.cancel-has-active-order",
-      "error.trade.self-order-forbidden"
-    ],
-    "ug-Arab-CN": [
-      "auth.privacyConsent.agree",
-      "auth.privacyConsent.body",
-      "auth.privacyConsent.decline",
-      "auth.privacyConsent.declinedBody",
-      "auth.privacyConsent.declinedTitle",
-      "auth.privacyConsent.title",
-      "auth.privacyConsent.viewAgreement",
-      "auth.privacyConsent.viewPrivacy",
-      "error.auth.cancel-has-active-order",
-      "error.trade.self-order-forbidden"
-    ],
-    "kk-Arab-CN": [
-      "auth.privacyConsent.agree",
-      "auth.privacyConsent.body",
-      "auth.privacyConsent.decline",
-      "auth.privacyConsent.declinedBody",
-      "auth.privacyConsent.declinedTitle",
-      "auth.privacyConsent.title",
-      "auth.privacyConsent.viewAgreement",
-      "auth.privacyConsent.viewPrivacy",
-      "error.auth.cancel-has-active-order",
-      "error.trade.self-order-forbidden"
-    ]
   }
 }

@@ -47,22 +47,22 @@
 | 语言 | key 数 | 覆盖率 |
 |---|---|---|
 | `zh-Hans` | 1890 | 100.00% |
-| `bo` | 1880 | 99.47% |
-| `ug-Arab-CN` | 1880 | 99.47% |
-| `kk-Arab-CN` | 1880 | 99.47% |
+| `bo` | 1890 | 100.00% |
+| `ug-Arab-CN` | 1890 | 100.00% |
+| `kk-Arab-CN` | 1890 | 100.00% |
 
 每 namespace 的 key 数：
 
 | namespace | zh-Hans | bo | ug-Arab-CN | kk-Arab-CN |
 |---|---|---|---|---|
 | `ai` | 47 | 47 | 47 | 47 |
-| `auth` | 109 | 101 | 101 | 101 |
+| `auth` | 109 | 109 | 109 | 109 |
 | `case` | 179 | 179 | 179 | 179 |
 | `common` | 28 | 28 | 28 | 28 |
 | `content` | 92 | 92 | 92 | 92 |
 | `conversation` | 36 | 36 | 36 | 36 |
 | `document` | 161 | 161 | 161 | 161 |
-| `error` | 59 | 57 | 57 | 57 |
+| `error` | 59 | 59 | 59 | 59 |
 | `home` | 24 | 24 | 24 | 24 |
 | `lawyer` | 196 | 196 | 196 | 196 |
 | `ops` | 123 | 123 | 123 | 123 |
@@ -70,7 +70,7 @@
 | `trade` | 324 | 324 | 324 | 324 |
 | `workbench` | 149 | 149 | 149 | 149 |
 
-缺译登记：`apps/mobile-app/shared/i18n/resources/.i18n-pending.json` 登记 30 条，与本脚本实测**吻合**。
+缺译登记：`apps/mobile-app/shared/i18n/resources/.i18n-pending.json` 登记 0 条，与本脚本实测**吻合**。
 <!-- /FACTS:i18n-stats -->
 
 > 上面 §1.1 的「1 defined / 21 partial / 2 missing」是 **2026-10-28 的审计结论**，保留它是因为它说明
