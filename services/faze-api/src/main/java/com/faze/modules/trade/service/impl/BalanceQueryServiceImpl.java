@@ -41,7 +41,7 @@ public class BalanceQueryServiceImpl implements BalanceQueryService {
     @Override
     public long getAvailableCents(Long userId) {
         UserBalance row = findByUserId(userId);
-        return row == null || row.getBalanceCents() == null ? 0L : row.getBalanceCents();
+        return row == null || row.getAvailableCents() == null ? 0L : row.getAvailableCents();
     }
 
     /**

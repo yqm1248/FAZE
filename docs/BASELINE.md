@@ -1,15 +1,15 @@
-# 法泽 FAZE 文档基线 v1.74
+# 法泽 FAZE 文档基线 v1.75
 
 > # 后续一切文档从这里开始
 
 | 项 | 值 |
 | --- | --- |
-| 基线编号 | **v1.68** |
-| 确立日期 | 2026-11-11（新增表结构/错误码两份事实 + 补登 v1.67 漏算的 `api.json`；见 §7.71） |
-| 上一版 | v1.67（2026-11-11，登记 48 件资产——**其中漏算 `docs/facts/api.json`**，本版补正为 51；见 §7.70） |
+| 基线编号 | **v1.75** |
+| 确立日期 | 2026-11-13（DRIFT-043 余额表列名统一落地：迁移 V712 + 后端 24 处代码 + 10 份基线文档内容变更；见 §7.78） |
+| 上一版 | v1.74（2026-11-11，G7 不可见断言 + 数据完整性巡检、G8 承诺清单化；见 §7.77） |
 | 所在分支 | `UI设计`（v1.2 及以前在 `docs` 分支） |
 | Git 标签 | `v1.13-docs-baseline`（v1.3~v1.10 当时未打标签，见 §7.13；v1.14~v1.32 亦未打标签，见 §7.33 末尾） |
-| 基线资产数 | **51**（50 份 Markdown + 1 份令牌 JSON；v1.49~v1.66 为 45 份，v1.67 登记 48 漏算 1 份） |
+| 基线资产数 | **55**（48 份 Markdown + 7 份 JSON；v1.49~v1.66 为 45 份，v1.67 登记 48 漏算 1 份，v1.69~v1.74 逐步补到 55。**v1.75 无新增、无删除**，只有 10 份内容变更） |
 | 本版新增 | **3 份**（`docs/facts/api.json` 补登、`docs/facts/tables.json`、`docs/facts/error-codes.json`） |
 | 本版删除 | **0 份** |
 | 本版内容变更 | **1 份**（`docs/facts/DRIFT.md` 44 → 45 条：新增 DRIFT-045 错误码数不符；并补记负责人两项决策） |
@@ -118,22 +118,22 @@
 
 | # | 文件 | 行数 | 字节 | SHA256 前 16 位 |
 |---|---|---|---|---|
-| 4 | `docs/architecture/法泽FAZE_开发计划总纲_v1.0.md` | 999 | 89170 | `a471ede6d1a1a0f0` 📝 |
-| 5 | `docs/architecture/法泽FAZE_技术路线_v2.3.md` | 4276 | 214132 | `18711c99521b09b5` 📝 |
+| 4 | `docs/architecture/法泽FAZE_开发计划总纲_v1.0.md` | 999 | 89174 | `09d2786aba24e5af` 📝 |
+| 5 | `docs/architecture/法泽FAZE_技术路线_v2.3.md` | 4276 | 214134 | `e5bd39f1e66415e3` 📝 |
 | 6 | `docs/architecture/法泽FAZE_V1基线表结构_v1.0.md` | 232 | 15858 | `3569f83f4ba74328` 📝 |
 | 7 | `docs/architecture/法泽FAZE_错误码规范_v1.0.md` | 445 | 31176 | `578ba78f6576c0c7` 📝 |
- | 24 | `docs/architecture/法泽FAZE_数据表规范_v1.0.md` | 730 | 55107 | `548c2481d0d5f40b` 📝 | 
-| 25 | `docs/architecture/法泽FAZE_接口规范_v1.0.md` | 1176 | 81487 | `f4f165ddbe7c4aaa` 📝 |
+| 24 | `docs/architecture/法泽FAZE_数据表规范_v1.0.md` | 731 | 55411 | `ca7dc296a0247bd1` 📝 |
+| 25 | `docs/architecture/法泽FAZE_接口规范_v1.0.md` | 1176 | 81491 | `d0180c65e13d3132` 📝 |
 | 26 | `docs/architecture/法泽FAZE_后端代码规范_v1.0.md` | 1608 | 93985 | `03573f955af80606` 🆕 |
 | 27 | `docs/architecture/法泽FAZE_i18n规范_v1.0.md` | 610 | 28293 | `6db40a25005a7ae5` 📝 |
 | 28 | `docs/architecture/法泽FAZE_审计与日志规范_v1.0.md` | 391 | 23320 | `375aa774e73e6f0b` 📝 |
 | 29 | `docs/architecture/法泽FAZE_第0段工作流_v1.0.md` | 2995 | 274718 | `d03d3e6da992a72f` 📝 |
-| 30 | `docs/architecture/法泽FAZE_第1段工作流_v1.0.md` | 1320 | 89373 | `b7220240433d93b8` 📝 |
-| 31 | `docs/architecture/法泽FAZE_第2段工作流_v1.0.md` | 1129 | 112441 | `eab7f7e81eaa1399` 📝 |
+| 30 | `docs/architecture/法泽FAZE_第1段工作流_v1.0.md` | 1320 | 89395 | `4e9085b58dfa61d7` 📝 |
+| 31 | `docs/architecture/法泽FAZE_第2段工作流_v1.0.md` | 1129 | 112449 | `4bf51f4e43c37c47` 📝 |
 | 32 | `docs/architecture/法泽FAZE_第3段工作流_v1.0.md` | 2231 | 184422 | `bcaa7677573d8f18` 📝 |
  | 33 | `docs/architecture/法泽FAZE_第4段工作流_v1.0.md` | 1555 | 118268 | `cfb051873796ce5b` 📝 | 
 | 34 | `docs/architecture/法泽FAZE_第5段工作流_v1.0.md` | 1347 | 137726 | `06cd7ce399586af2` 📝 |
-| 35 | `docs/architecture/法泽FAZE_第6段工作流_v1.0.md` | 1069 | 129683 | `59f02436f9c1c3a5` 📝 |
+| 35 | `docs/architecture/法泽FAZE_第6段工作流_v1.0.md` | 1069 | 129693 | `452b226eece5a8d5` 📝 |
 | 36 | `docs/architecture/法泽FAZE_第7段工作流_v1.0.md` | 2539 | 219642 | `73ba1491ef192f1e` | **第 7 段唯一施工文档**：8 组 41 任务 / 10 条锚点 / 建 11 张表 / 54 个接口 / APP 11 页 + PC 8 页；含 **30 项负责人裁决**（26 + 2026-11-09 补拍 4）与 11 处上游冲突；§十一 现为 **60 条偏差** |
 | 37 | `docs/ops/运维手册.md` | 647 | 41919 | `2a7012da7d98bb30` | **值班与响应的操作性文档**：P0/P1/P2 分级与时限、告警规则与排查步骤、**进程外探活（§3.7）**、备份与恢复演练、监控启动、故障速查 |
 | 38 | `docs/architecture/依赖清单.md` | 122 | 17558 | `fb3669b1f831c0f9` 📝 |
@@ -188,15 +188,15 @@
 | # | 文件 | 行数 | 字节 | SHA256 前 16 位 | 是什么 |
 |---|---|---|---|---|---|
 | 46 | `docs/standards/说辞一致与真相源规范.md` | 297 | 15598 | `9d11a58b3ca8b879` 🆕 | **同一个事实在代码 / 文档 / 设计稿三处说法不同时听谁的**：真相源分级（P0 运行中的代码与库 / P1 Flyway / P2 文档 / P3 设计稿）、三类不一致的分界（DRIFT 漂移 / GAP 缺口 / DIRT 脏数据）、5 种处置值的裁决规则、数字口径必须机器算 |
-| 47 | `docs/facts/DRIFT.md` | 179 | 27172 | `7c20a34aabd565db` 📝 | **说辞漂移登记表**：同一事物、说法不同。D1 组 25 条（逐条核查）、D2 组 17 条（全仓盘点批量登记）、D3 组 **5 条**（跑脚本量出来的）。每行给「代码实际（P0）」+ 证据强度（实测 / 通读 / 待复核） |
+| 47 | `docs/facts/DRIFT.md` | 181 | 29529 | `09e78565c5d611a5` 📝 | **说辞漂移登记表**：同一事物、说法不同。D1 组 25 条（逐条核查）、D2 组 17 条（全仓盘点批量登记）、D3 组 **5 条**（跑脚本量出来的）。每行给「代码实际（P0）」+ 证据强度（实测 / 通读 / 待复核） |
 | 48 | `docs/facts/DEFERRED.md` | 161 | 12972 | `705158602b2685da` 🆕 | **段八挂账汇总索引**：计划有、代码无。**不是待办清单，是真相声明**。含负责人点名的 4 项、最容易被误当已做的 8 项、118 条的分类索引、以及「18 条其实是文档落后于代码」的反向提醒 |
 | 49 | `docs/facts/api.json` | 2136 | 54429 | `1dd9f6af311dd592` 🆕 | **接口清单**：`scripts/facts/api.mjs` 从 78 个 Controller 生成，260 个端点（admin 123 / app 114 / pub 22 / dev 1）。**v1.67 首次登记时漏算本文件，v1.68 补正** |
-| 50 | `docs/facts/tables.json` | 1607 | 41627 | `1792c116ada0ad42` 🆕 | **表结构**：`scripts/facts/tables.mjs` 从 information_schema + flyway_schema_history 生成，53 张业务表 / 687 列 / 188 索引 / Flyway 48 个到 V711 |
+| 50 | `docs/facts/tables.json` | 1611 | 41721 | `d8aea0398808cf08` 🆕 | **表结构**：`scripts/facts/tables.mjs` 从 information_schema + flyway_schema_history 生成，53 张业务表 / 687 列 / 188 索引 / Flyway 48 个到 V711 |
 | 51 | `docs/facts/error-codes.json` | 695 | 18518 | `2d4ebd86a2472e55` 🆕 | **错误码清单**：`scripts/facts/error-codes.mjs` 从 ErrorCode 枚举生成，94 个码，无重复。文档里同时写着 78 和 91（DRIFT-045） |
 | 52 | `docs/facts/i18n-keys.json` | 152 | 3362 | `54aaafaa18ee83d1` 🆕 | **i18n 事实**：`scripts/facts/extract-i18n.mjs` 从 56 个 json 生成。**三个口径同时给出**（总节点 1965 / 叶子条目 1880 / 带 namespace 前缀去重 1880），四语言覆盖各 100%。DRIFT-046、DRIFT-047 都是这张表抓出来的 |
 | 53 | `docs/facts/pages.json` | 4292 | 133719 | `fae02c553b66f795` 🆕 | **页面事实**：`scripts/facts/extract-pages.mjs` 逐页抽取「文件 / 路由 / testID 锚点 / LocalizedText / 写死路由」。四种页面数口径的**唯一解析实现**（`page-inventory.mjs` 只 import 它打印）。抓出 6 处写死路由与 `/case-detail` 壳无对应常量 |
 | 54 | `docs/standards/公共构件与护栏规范.md` | 206 | 12369 | `7ff5f8ddff2a8001` 🆕 | **同类缺陷为什么反复出现、用什么拦住**：六个构件（幂等键 / 法条按 id 回查 / 乐观切换 / 金额展示 / 错误文案 / 归属校验）+ 3 条 ESLint 规则 + 豁免台账 + **三处「计划前提与仓库实际不符」的如实记录**（`useFavorite` 改签名、不建 `ErrorBanner`、先补后端接口） |
-| 55 | `docs/facts/contracts.json` | 2689 | 117224 | `773fb34a42df7b5a` 🆕 | **承诺清单**：`scripts/facts/check-contracts.mjs` 扫出的 **444 条**承诺性注释（幂等 320 / 保证 99 / 重复提交 22 / 重复点 3）+ 1 条范围承诺违规（`profile.fontSizeNote` 说「影响全 App」而实现只影响设置页，DRIFT-002，台账内）。**清单不代表说错**，作用是让「新增承诺」成为可见的 diff |
+| 55 | `docs/facts/contracts.json` | 2689 | 117224 | `15004752ca84ffd5` 🆕 | **承诺清单**：`scripts/facts/check-contracts.mjs` 扫出的 **444 条**承诺性注释（幂等 320 / 保证 99 / 重复提交 22 / 重复点 3）+ 1 条范围承诺违规（`profile.fontSizeNote` 说「影响全 App」而实现只影响设置页，DRIFT-002，台账内）。**清单不代表说错**，作用是让「新增承诺」成为可见的 diff |
 
 ### 2.5 决策依据
 
@@ -2716,3 +2716,64 @@ node scripts/facts/check-baseline.mjs          # 基线登记与实测指纹一�
 1. **没有给 444 条承诺逐条验证真伪**——那是逐段读实现的工作量，不是脚本的。
 2. **`profile.fontSizeNote` 没改**（台账内）。
 3. **没有把承诺与 DRIFT 行自动关联**（计划里的 `@契约 <DRIFT-ID>`）：当前只有少数有明确关联，强制关联会大量误报。
+
+---
+
+## §7.78 v1.75 DRIFT-043 落地：余额表列名统一
+
+**本版动因**：DRIFT-043（两张余额表用两个列名表示同一个概念）经负责人 2026-11-11 拍板「统一列名」后，本版执行。**这是一次只改一个概念名字的改动，但它牵动了 4 类文件、35 处代码 + 33 处文档。**
+
+### 一、先核前提：选 `available_cents` 而不是 `balance_cents`
+
+DRIFT-043 写的是「统一列名」，没说统一成哪个。三条依据（写在 `V712__fix_balance_column_name.sql` 头部，不是事后补的）：
+
+1. **接口层的事实标准是 `available`**：C 端唯一余额接口 `GET /app/wallet/balance` 出参 `BalanceVO` 就是 `{availableCents, frozenCents, totalCents}`，App 端 `features/trade` 与 `features/workbench` 共 8 处消费它。数据库跟着接口走，才不会造出「库里叫 balance、接口叫 available」这层新分叉。
+2. **`balance` 这个名字在本仓的接口层实际指「总余额」**（实测四个 VO 全部如此）：`ProfileVO.balanceCents` ← `getTotalCentsFromFlows()`、`RechargeResultVO.balanceCents` ← `flow.balanceAfter`（总余额快照）、`AdminWalletVO.balanceCents` ← `sumDeltaByOwner()`、`AdminRechargeResultVO.balanceCents` ← 同样的流水净额。**它们都是 `SUM(delta_cents)`，含冻结。** 而 `user_balance` 那一列要存的是**可用余额**（= 总 − 冻结）。若把 `balance_cents` 定为标准列名，库里那一列就叫 `balance` 却装 `available` 的值，而接口里同一个词又指 `total`——**同一个名字在一张表和一个 VO 里指相反的东西**。`available` / `frozen` 才是那对真正的反义状态。
+3. **避开同名不同义**：`lawyer.balance_cents` 是 V4 留下的**历史缓存列**（注释明写「段 5 起禁止读写」）。若 `lawyer_balance` 也叫 `balance_cents`，库里就有两个 `balance_cents`（一个废弃、一个权威），比改前更乱。
+
+### 二、实测踩到的硬约束：CHECK 引用的列不能直接改名
+
+本地 MySQL 8.0.44 实测：
+
+```text
+ALTER TABLE _t_chk CHANGE COLUMN balance_cents available_cents BIGINT NOT NULL DEFAULT 0;
+ERROR 3959 (HY000): Check constraint 'ck_t' uses column 'balance_cents',
+hence column cannot be dropped or renamed.
+```
+
+所以迁移必须是三步：`DROP CHECK` → `CHANGE COLUMN` → `ADD CONSTRAINT`。**先写成单条 `CHANGE COLUMN` 会直接失败**，而这条错误在文档里查不到（只能实测）。V712 头部注释记了这一条，下次改列名的人不用再踩。
+
+### 三、改了什么（35 处代码 + 33 处文档）
+
+| 层 | 内容 |
+|---|---|
+| 数据库 | `V712`：`user_balance.balance_cents` → `available_cents`，CHECK 重建（`available_cents >= 0`），数据零迁移（9 行，改名不改值） |
+| 实体 / Mapper | `UserBalance.balanceCents` → `availableCents`；`UserBalanceMapper.xml` 的 SELECT 列表 |
+| Service（7 个文件 13 处） | `BalanceService` / `DeductService` / `RechargeService` / `RechargeSettleService` / `RefundCreditService` / `BalanceQueryServiceImpl` / `AdminReconciliationService` |
+| 测试（5 个文件 12 处） | `BalanceSourceOfTruthTest` / `CancelAccountBalanceTest` / `DeductServiceTest` / `RechargeSettleTest` / `RechargeIdempotentTest` |
+| 运维脚本 | `scripts/monitor/data-integrity.sql`（A08/A09）、`deploy/verify-balance.ps1`、`deploy/purge-test-data.ps1` |
+| 规范文档 | 《数据表规范》加「可用/冻结成对用 `available_`/`frozen_`」一条；总纲 `1-A6`、技术路线、接口规范、第 1/2/6 段工作流共 33 行 |
+
+### 四、**没改**的东西（每一条都是判断，不是漏做）
+
+1. **不改历史迁移 `V5__wallet.sql`**：Flyway 已校验过的文件改一个字节就 checksum 失败，已部署环境会启动不了。V5 里的旧列名是历史事实。
+2. **不改任何 HTTP 契约**：`BalanceVO.availableCents` / `ProfileVO.balanceCents` / `RechargeResultVO.balanceCents` / `AdminWalletVO.balanceCents` / `AdminRechargeResultVO.balanceCents` 一律不动。改契约是破坏性变更，前端 8 处消费、PC 后台、`api.json` 全要跟，与「统一列名」不该混在一次提交里。**接口层这四个 `balanceCents` 实际都是「总余额」（见第一节理由 2），名字与语义不符是另一个问题，已单独登记 DRIFT-049。**
+3. **不删 `lawyer.balance_cents` 废弃列**：删列不可逆，且它已在 V4 注释里标了禁止读写。与「统一列名」是两件事，留给段八。
+4. **不改历史事实类文档**：`docs/acceptance/**`（当时确实改的是 `balance_cents`）、`docs/CHANGELOG.md` 旧条目、`docs/BASELINE.md` 变更史、DRIFT-043 行里「此前叫什么」的叙述——**改了就是把历史改成假话**。
+
+### 五、回归结果
+
+| 项 | 结果 |
+|---|---|
+| 后端全量测试 | **532 用例，0 失败 0 错误，3 skipped，BUILD SUCCESS** |
+| `deploy/verify-balance.ps1` | 两条恒等式**差异 = 0**（user 侧 0 行、lawyer 侧 0 行） |
+| 数据完整性巡检 | A08 / A09 / A10 全 **0**；台账内仍为 A12=1、A20=1（与本次改动无关，各有 `closeWhen`） |
+| 事实 json | `check:facts` → 重跑后一字未变（`tables.json` 因列名变更重生成） |
+| 受控区块 | `render:docs` 更新《数据表规范》1 处后，6 个区块全部一致 |
+| 基线指纹 | 10 份重新登记 |
+
+### 六、本版没做的事
+
+1. **`lawyer.balance_cents` 未清理**（见第四节第 3 条）。
+2. **接口层 `balanceCents` 命名未统一**（见第四节第 2 条，DRIFT-049）。
+3. **没有加「列名一致性」的自动检查**：本次靠人肉 + 巡检 SQL 发现的。真正的护栏应该是「同一概念在同一类表里同名」的规则检查，那属于 G9 的 R 清单，不在本版。

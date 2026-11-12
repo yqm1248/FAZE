@@ -1,13 +1,13 @@
 {
   "_comment": "本文件由 scripts/facts/tables.mjs 从 information_schema + flyway_schema_history 生成，禁止手改。口径见 docs/standards/说辞一致与真相源规范.md §四。",
-  "sourceDigest": "6150d201ecc7ff6d",
+  "sourceDigest": "c77b5ebf777d8d22",
   "database": "faze",
   "totals": {
     "tables": 53,
     "columns": 687,
     "indexes": 188,
-    "flywayApplied": 48,
-    "flywayLatest": "711"
+    "flywayApplied": 49,
+    "flywayLatest": "712"
   },
   "flyway": {
     "applied": [
@@ -202,6 +202,10 @@
       {
         "version": "711",
         "description": "seg7 service phone hours"
+      },
+      {
+        "version": "712",
+        "description": "fix balance column name"
       }
     ]
   },
@@ -1509,7 +1513,7 @@
       "columns": [
         "id:bigint",
         "user_id:bigint",
-        "balance_cents:bigint",
+        "available_cents:bigint",
         "frozen_cents:bigint",
         "version:int",
         "created_at:datetime",

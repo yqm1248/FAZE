@@ -10,6 +10,8 @@
        规范 §11.3 禁止 .last() 拼字符串，即使是常量也不开这个口子
     3. 必须在事务内调用；事务外 FOR UPDATE 会立即释放锁，等于没锁
     4. 锁顺序固定为 user_balance 单行：多个扣费并发时按行串行，不会死锁
+    5. 可用余额列名是 `available_cents`（V712 / DRIFT-043 由 `balance_cents` 改名），
+       与 lawyer_balance 及接口出参 BalanceVO.availableCents 对齐
 -->
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
@@ -20,7 +22,7 @@
       resultType 用全类名 + map-underscore-to-camel-case 自动映射。
     -->
     <select id="selectByUserIdForUpdate" resultType="com.faze.modules.trade.entity.UserBalance">
-        SELECT id, user_id, balance_cents, frozen_cents, version, created_at, updated_at
+        SELECT id, user_id, available_cents, frozen_cents, version, created_at, updated_at
         FROM user_balance
         WHERE user_id = #{userId}
         FOR UPDATE

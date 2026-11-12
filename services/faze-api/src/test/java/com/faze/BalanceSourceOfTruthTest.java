@@ -65,7 +65,7 @@ class BalanceSourceOfTruthTest {
 
         UserBalance cache = new UserBalance();
         cache.setUserId(TEST_USER_ID);
-        cache.setBalanceCents(FLOW_SUM);
+        cache.setAvailableCents(FLOW_SUM);
         cache.setFrozenCents(0L);
         cache.setVersion(0);
         cache.setCreatedAt(now);
@@ -97,11 +97,11 @@ class BalanceSourceOfTruthTest {
     /**
      * 直接篡改缓存字段后，接口返回值必须仍是流水汇总。
      *
-     * <p>这就是锚点 `1-A6` 的现场：若实现读 `user_balance.balance_cents`，
+     * <p>这就是锚点 `1-A6` 的现场：若实现读 `user_balance.available_cents`，
      * 这里会返回 999999.00 元。</p>
      */
     @Test
-    @DisplayName("1-A6：直接改 user_balance.balance_cents 后，余额接口仍返回流水汇总")
+    @DisplayName("1-A6：直接改 user_balance.available_cents 后，余额接口仍返回流水汇总")
     void balanceComesFromFlowsNotCache() {
         BalanceVO before = balanceService.getBalance(TEST_USER_ID);
         assertEquals(FLOW_SUM, before.getTotalCents(), "篡改前：缓存与流水一致");
@@ -109,7 +109,7 @@ class BalanceSourceOfTruthTest {
         // 制造「缓存 ≠ 流水」
         UserBalance patch = new UserBalance();
         patch.setId(cacheRowId());
-        patch.setBalanceCents(TAMPERED);
+        patch.setAvailableCents(TAMPERED);
         patch.setUpdatedAt(LocalDateTime.now(ZoneOffset.UTC));
         userBalanceMapper.updateById(patch);
 
@@ -128,13 +128,13 @@ class BalanceSourceOfTruthTest {
     void recalcFixesCache() {
         UserBalance patch = new UserBalance();
         patch.setId(cacheRowId());
-        patch.setBalanceCents(TAMPERED);
+        patch.setAvailableCents(TAMPERED);
         patch.setUpdatedAt(LocalDateTime.now(ZoneOffset.UTC));
         userBalanceMapper.updateById(patch);
 
         long fixed = balanceService.recalcBalance(TEST_USER_ID);
         assertEquals(FLOW_SUM, fixed, "recalc 应返回纠正后的可用额");
-        assertEquals(FLOW_SUM, cacheRow().getBalanceCents(), "缓存应被纠回流水汇总");
+        assertEquals(FLOW_SUM, cacheRow().getAvailableCents(), "缓存应被纠回流水汇总");
     }
 
     // ── 辅助 ───────────────────────────────────────────────────────────────

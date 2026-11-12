@@ -204,7 +204,7 @@ public class AdminReconciliationService {
         long totalCache = 0L;
         // 任务 1：user_balance
         for (UserBalance row : userBalanceMapper.selectList(null)) {
-            long cache = nonNull(row.getBalanceCents()) + nonNull(row.getFrozenCents());
+            long cache = nonNull(row.getAvailableCents()) + nonNull(row.getFrozenCents());
             checked++;
             totalCache += cache;
             addIfDiff(diffs, BalanceService.OWNER_USER, row.getUserId(), cache, flowByOwner);

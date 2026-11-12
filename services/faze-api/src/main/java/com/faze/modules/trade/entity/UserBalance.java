@@ -6,6 +6,9 @@
  *   1. **这张表是缓存，真相是 balance_flow**。任何读余额的地方都必须问自己：
  *      「我读的是缓存还是真相？」——对账、注销、提现这类决策必须用流水汇总（锚点 1-A6）。
  *   2. 本段（B5 注销）只需要判断「有没有余额」，D 组会补完整的扣费/流水逻辑。
+ *   3. **可用余额列名是 `available_cents`**（V712 由 `balance_cents` 改名）：
+ *      与 lawyer_balance 对齐，也和接口出参 `BalanceVO.availableCents` 同名同义。
+ *      `balance_cents` 这个名字在本仓已被三个 VO 用成「总余额」的意思，别再用它。
  */
 package com.faze.modules.trade.entity;
 
@@ -30,8 +33,8 @@ public class UserBalance {
     /** 用户主键。 */
     private Long userId;
 
-    /** 可用余额（分）。 */
-    private Long balanceCents;
+    /** 可用余额（分）。列名 `available_cents`（V712 / DRIFT-043 统一列名）。 */
+    private Long availableCents;
 
     /** 冻结余额（分）。 */
     private Long frozenCents;

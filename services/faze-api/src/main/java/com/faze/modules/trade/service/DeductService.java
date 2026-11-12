@@ -106,7 +106,7 @@ public class DeductService {
                     ownerId, bizType, bizId, afterLock.getId());
             return new DeductResult(true, afterLock.getId(), afterLock.getBalanceAfter());
         }
-        long available = cache.getBalanceCents() == null ? 0L : cache.getBalanceCents();
+        long available = cache.getAvailableCents() == null ? 0L : cache.getAvailableCents();
         long frozen = cache.getFrozenCents() == null ? 0L : cache.getFrozenCents();
         long totalBefore = available + frozen;
 
@@ -140,7 +140,7 @@ public class DeductService {
         }
 
         // 任务 6：更新缓存（带乐观锁版本）。FOR UPDATE 已保证不会冲突。
-        cache.setBalanceCents(available - amountCents);
+        cache.setAvailableCents(available - amountCents);
         cache.setUpdatedAt(now);
         userBalanceMapper.updateById(cache);
 

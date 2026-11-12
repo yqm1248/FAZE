@@ -219,7 +219,7 @@ public class RechargeSettleService {
             // 用户没查过余额就没有行；入账必须要有行可改，补一行 0
             UserBalance created = new UserBalance();
             created.setUserId(userId);
-            created.setBalanceCents(0L);
+            created.setAvailableCents(0L);
             created.setFrozenCents(0L);
             created.setCreatedAt(now);
             created.setUpdatedAt(now);
@@ -231,7 +231,7 @@ public class RechargeSettleService {
         }
         long frozen = cache.getFrozenCents() == null ? 0L : cache.getFrozenCents();
         // balance_after 取「账户总余额」= 现有总 + 本次入账（不是可用余额）
-        long totalBefore = (cache.getBalanceCents() == null ? 0L : cache.getBalanceCents()) + frozen;
+        long totalBefore = (cache.getAvailableCents() == null ? 0L : cache.getAvailableCents()) + frozen;
         BalanceFlow flow = new BalanceFlow();
         flow.setOwnerType(BalanceService.OWNER_USER);
         flow.setOwnerId(userId);
@@ -243,7 +243,7 @@ public class RechargeSettleService {
         flow.setCreatedAt(now);
         balanceFlowMapper.insert(flow);
         // 缓存 = 可用额增加（frozen 不变）
-        cache.setBalanceCents((cache.getBalanceCents() == null ? 0L : cache.getBalanceCents()) + amountCents);
+        cache.setAvailableCents((cache.getAvailableCents() == null ? 0L : cache.getAvailableCents()) + amountCents);
         cache.setUpdatedAt(now);
         userBalanceMapper.updateById(cache);
     }

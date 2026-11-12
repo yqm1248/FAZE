@@ -89,7 +89,8 @@
 | **外键 `<单数表名>_id`** | `user_id`、`lawyer_id`、`order_id`（注意：`orders` 表的外键也叫 `order_id`，不带复数） |
 | **时间字段 `_at` 后缀** | `created_at`、`updated_at`、`deleted_at`、`paid_at`、`signed_at` |
 | **布尔 `is_` / `has_` / `can_` 前缀** | `is_minor`、`is_private`、`has_signed`；**不允许**裸 `enabled` / `success` / `passed` |
-| **金额 `_cents` 后缀** | `amount_cents`、`balance_cents`、`delta_cents`；**不允许**裸 `amount` / `balance` |
+| **金额 `_cents` 后缀** | `amount_cents`、`balance_cents`、`available_cents`、`delta_cents`；**不允许**裸 `amount` / `balance` |
+| **可用/冻结成对用 `available_` / `frozen_`** | 余额类表统一 `available_cents` + `frozen_cents`（2026-11-13 V712，DRIFT-043：`user_balance` 与 `lawyer_balance` 曾各叫一个名字，现已统一为 `available_cents`）。**新表不许再引入第三种叫法** |
 | **状态字段 `status`** | 不叫 `state` / `phase` / `stage` |
 | **类型字段 `_type` 后缀** | `login_type`、`operator_type`、`target_type`、`biz_type` |
 | **禁止拼音、禁止缩写歧义** | `shoujihao`、`addr1` 都不行；`msg`、`desc`、`img` 这类通用缩写允许 |
@@ -515,7 +516,7 @@ COMMENT='订单主表；状态枚举：created/paid/accepted/completed/cancelled
 <!-- FACTS:schema-tables -->
 > 本区块由 `scripts/facts/render-docs.mjs` 从 `docs/facts/*.json` 生成，**禁止手改**；要改先改代码再跑 `npm run facts`。
 
-已建 **53** 张业务表 / 687 列 / 188 个索引；Flyway 已应用 48 个迁移，最新 **V711**。
+已建 **53** 张业务表 / 687 列 / 188 个索引；Flyway 已应用 49 个迁移，最新 **V712**。
 
 | 表 | 列 | 主键 | 唯一键 | 表注释 |
 |---|---|---|---|---|

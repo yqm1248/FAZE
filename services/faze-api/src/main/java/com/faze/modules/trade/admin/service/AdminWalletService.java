@@ -5,7 +5,7 @@
  * 数据来源：faze.balance_flow（权威）、faze.user_balance（仅 frozen）、
  *           modules/account/vo/AccountAuthSnapshot（跨域只读，校验用户存在）。
  * 注意：
- *   1. **钱包余额只认流水汇总**（`SUM(delta_cents)`），绝不读 user_balance.balance_cents；
+ *   1. **钱包余额只认流水汇总**（`SUM(delta_cents)`），绝不读 user_balance.available_cents；
  *      frozen_cents 是唯一例外（段 1 没有冻结流水可推）。锚点 1-A6 直接拿它验收。
  *   2. **收 / 调账复用 `RechargeService`，不另写入账链路**：幂等、锁行、负向余额校验、
  *      审计动作（MANUAL_RECHARGE / MANUAL_ADJUST）全部沿用 D4 的实现。

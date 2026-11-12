@@ -73,19 +73,20 @@ SELECT '=== 账务恒等式（与 verify-balance 同口径）===' AS section;
 
 SELECT 'A08 用户余额 ≠ 最后一条流水 balance_after' AS chk, COUNT(*) AS n
 FROM user_balance ub
-WHERE ub.balance_cents + ub.frozen_cents <> COALESCE(
+WHERE ub.available_cents + ub.frozen_cents <> COALESCE(
   (SELECT b.balance_after FROM balance_flow b
    WHERE b.owner_type = 'user' AND b.owner_id = ub.user_id
    ORDER BY b.id DESC LIMIT 1), 0);
 
 SELECT 'A09 用户余额 ≠ SUM(delta_cents)' AS chk, COUNT(*) AS n
 FROM user_balance ub
-WHERE ub.balance_cents + ub.frozen_cents <> COALESCE(
+WHERE ub.available_cents + ub.frozen_cents <> COALESCE(
   (SELECT SUM(b.delta_cents) FROM balance_flow b
    WHERE b.owner_type = 'user' AND b.owner_id = ub.user_id), 0);
 
--- 注意：律师余额表的可用余额列叫 `available_cents`，用户余额表叫 `balance_cents`
--- （同一概念两个列名，见 docs/facts/DRIFT.md DRIFT-043）。写巡检/对账 SQL 时极易踩错。
+-- 两张余额表的可用余额列已统一为 `available_cents`（V712，2026-11-13，DRIFT-043 已关闭）。
+-- 此前 user_balance 叫 `balance_cents`、lawyer_balance 叫 `available_cents`，
+-- 按其中一个写 SQL 在另一张表上必报 Unknown column。
 SELECT 'A10 律师余额 ≠ SUM(delta_cents)' AS chk, COUNT(*) AS n
 FROM lawyer_balance lb
 WHERE lb.available_cents + lb.frozen_cents <> COALESCE(

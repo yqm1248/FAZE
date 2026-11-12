@@ -560,7 +560,7 @@ public class TableDataInfo<T> {
 | 舍入 | 服务端一律 `BigDecimal` 计算，`RoundingMode.HALF_UP`，保留 0 位小数后转 `long` |
 | 校验 | `@Min(0)` + 上限校验（单笔上限存 `sys_config`，不在代码里写死） |
 
-> 与数据表规范一致：`balance_flow` 是唯一真相，`user_balance.balance_cents` 是缓存。**接口返回的余额必须来自 `SUM(balance_flow)` 或已校验的缓存**，锚点 `1-A6` 验的就是这一点。
+> 与数据表规范一致：`balance_flow` 是唯一真相，`user_balance.available_cents` 是缓存。**接口返回的余额必须来自 `SUM(balance_flow)` 或已校验的缓存**，锚点 `1-A6` 验的就是这一点。
 
 ## 5.7 敏感字段输出（衔接数据表规范 §9）
 
@@ -1136,7 +1136,7 @@ GET  /admin/dashboard/ping
 **错误码**：`405006` 金额非法 / `401005` 重复（`bizNo` 已存在）/ `401002` 缺原因。
 
 **硬约束**：
-1. **必须写 `balance_flow`**，禁止直接 `UPDATE user_balance.balance_cents`（总纲 §5.2 与 `1-A6`）；
+1. **必须写 `balance_flow`**，禁止直接 `UPDATE user_balance.available_cents`（总纲 §5.2 与 `1-A6`）；
 2. 必须写 `operation_log`；
 3. `bizNo` 唯一索引，重复充值被数据库拦住（不是只靠应用层查）。
 

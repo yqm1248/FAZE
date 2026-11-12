@@ -159,7 +159,7 @@ class CancelAccountBalanceTest {
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
         UserBalance cache = new UserBalance();
         cache.setUserId(userId);
-        cache.setBalanceCents(balanceCents);
+        cache.setAvailableCents(balanceCents);
         cache.setFrozenCents(0L);
         cache.setVersion(0);
         cache.setCreatedAt(now);

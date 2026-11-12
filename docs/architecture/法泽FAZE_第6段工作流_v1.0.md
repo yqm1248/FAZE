@@ -82,7 +82,7 @@
 - **本段要跑的两条账务恒等式**（段 1 §三 D 组定、段 5 §三 E0 复用，原文照抄）：
   1. `available + frozen == 该账户最后一条 balance_flow 的 balance_after`
   2. `available + frozen == SUM(delta_cents)`（`delta = 0` 的行是冻结/解冻的转移记录，只作状态证据、不影响求和）
-  其中用户侧总余额 = `user_balance.balance_cents + user_balance.frozen_cents`。
+  其中用户侧总余额 = `user_balance.available_cents + user_balance.frozen_cents`。
 
 ### 零.4 本段六条「不许」（写在这里防走样）
 
@@ -511,7 +511,7 @@
      ① 按 order_no 查单（FOR UPDATE 或 CAS 前置）
      ② 校验：单存在、归属正确、状态 = pending、金额一致
      ③ 写 balance_flow（biz_type='recharge'，biz_id=recharge_record.id，delta=+amount_cents）
-     ④ 由流水汇总更新 user_balance.balance_cents（不是 +=，是 SUM 回写）
+     ④ 由流水汇总更新 user_balance.available_cents（不是 +=，是 SUM 回写）
      ⑤ CAS 更新 recharge_record.status = 'success'（WHERE status='pending'）
      ⑥ 更新 recharge_record.paid_at / channel_txn_id / expire_at 置空
      ```
@@ -524,7 +524,7 @@
      - 唯一键冲突（`uk_recharge_channel_txn` 或 `uk_flow_biz`）→ 说明已入过账 → **返回成功给渠道**，不再入账
   6. **入账后必须发一条事件**（本段用 `task_queue`，不引入 MQ）：`task_type='recharge_success_notify'`，供段 7 的运营通知用。段 6 只投递不消费，**消费实现留给段 7**——如果本段就把消费写了，段 7 会重复通知。
 - **产出**：`RechargeServiceImpl.applyCallback()` + `BalanceFlowService.recharge()`（复用段 1 的流水服务，**不新写一套**）+ 单测（正常入账 / 金额不符 / 重复回调 / 入账异常回滚 4 个用例）。
-- **算做完**：Mock 通道充值 100 元 → `balance_flow` 1 条（`biz_type='recharge'`、`biz_id` = 充值单 id、`delta_cents=10000`、`balance_after` = 总余额）→ `user_balance.balance_cents` 增加 10000 → `recharge_record.status='success'` + `paid_at` 非空；同一回调再打 3 次，`balance_flow` 仍 1 条、余额仍只加一次；模拟 DB 异常时事务全回滚（单仍 `pending`）。
+- **算做完**：Mock 通道充值 100 元 → `balance_flow` 1 条（`biz_type='recharge'`、`biz_id` = 充值单 id、`delta_cents=10000`、`balance_after` = 总余额）→ `user_balance.available_cents` 增加 10000 → `recharge_record.status='success'` + `paid_at` 非空；同一回调再打 3 次，`balance_flow` 仍 1 条、余额仍只加一次；模拟 DB 异常时事务全回滚（单仍 `pending`）。
 - **卡住怎么办**：若段 1 的 `BalanceFlowService` 没有「按流水汇总回写缓存」的方法 → **本段在段 1 的服务上加方法，不改其语义**；若段 1 的 `balance_flow` 写入强制要求 `remark` 非空，用 `remark='充值 RC...'` 填。**不许**绕过段 1 的流水服务直接 `INSERT INTO balance_flow`。
 
 #### C4 · 幂等三重保障（对 C1~C3 的加固与验证）
@@ -670,7 +670,7 @@
   5. **手动触发**：`POST /admin/reconciliation/run`（技术路线 §4.8.4 已有，段 1 实现的）→ 本段要保证它跑的是**两条**恒等式，不只是段 1 的那一条。
   6. 巡检只读，不改任何数据。**发现差异后不许自动「修平」**——自动改账会让真正的原因永久消失。
 - **产出**：`FinanceIdentityCheckHandler` + 两条 SQL 的 Mapper + 单测（差异 0 静默 / 人为造 1 条差异后能检出）。
-- **算做完**：正常数据下巡检**无输出、无告警**；手工 `UPDATE user_balance SET balance_cents = 99999900` 后巡检能检出 1 条且写进 `reconciliation_diff`；`6-A5` 的证据是这两次巡检的输出对比。
+- **算做完**：正常数据下巡检**无输出、无告警**；手工 `UPDATE user_balance SET available_cents = 99999900` 后巡检能检出 1 条且写进 `reconciliation_diff`；`6-A5` 的证据是这两次巡检的输出对比。
 - **卡住怎么办**：若发现「最后一条流水」的子查询在数据量大时慢（每用户一次子查询）→ 本段数据量小，直跑；在 §六 记「用户量上来后改为按时间窗口增量巡检」。
 
 #### E2 · Mock 端到端演练 + 三条挂账锚点评估
@@ -786,7 +786,7 @@
 
 ### `6-A5` 恒等式巡检
 
-- **怎么验**：① 正常数据下跑巡检 → 记下输出（应为空）；② 手工 `UPDATE user_balance SET balance_cents = 99999900` 造一条差异 → 再跑巡检；③ 恢复数据 → 再跑一次。
+- **怎么验**：① 正常数据下跑巡检 → 记下输出（应为空）；② 手工 `UPDATE user_balance SET available_cents = 99999900` 造一条差异 → 再跑巡检；③ 恢复数据 → 再跑一次。
 - **证据形式**：三次巡检的命令与输出 + `SELECT * FROM reconciliation_diff WHERE diff_type='identity_mismatch'` + 告警日志（第 2 次应命中）+ `docs/acceptance/seg6/6-A5-identity.txt`。
 - **通过标准**：
   1. 差异 = 0 时**静默**（不写库、不告警、不打 ERROR）；

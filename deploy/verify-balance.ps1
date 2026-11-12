@@ -5,12 +5,16 @@
 
 .DESCRIPTION
     校验两条恒等式，差异必须为 0：
-      1. user_balance.balance_cents + frozen_cents == SUM(balance_flow.delta_cents)   (owner_type='user')
+      1. user_balance.available_cents + frozen_cents == SUM(balance_flow.delta_cents)   (owner_type='user')
       2. lawyer_balance.available_cents + frozen_cents == SUM(balance_flow.delta_cents) (owner_type='lawyer')
 
-    为什么是「可用 + 冻结」而不是只比 balance_cents：
+    为什么是「可用 + 冻结」而不是只比可用余额：
       第 1 段 D 组第 4 条口径——流水记的是**账户总余额**，可用额只是总额减去冻结额。
-      只比 balance_cents 时，一切有冻结的账户都会报「差异」，那是口径错不是账错。
+      只比可用余额时，一切有冻结的账户都会报「差异」，那是口径错不是账错。
+
+    两张余额表的可用余额列同名 available_cents（V712，2026-11-13，DRIFT-043）：
+      以前 user_balance 叫 balance_cents、lawyer_balance 叫 available_cents，
+      按其中一张表的写法查另一张必报 Unknown column。现在两侧写法一致。
 
     只读脚本：不改任何数据，可重复执行、可放进 CI。
 
@@ -99,14 +103,14 @@ Write-Step "对账库 $dbName @ $dbHost`:$dbPort"
 # ── 2. 两条恒等式 ──────────────────────────────────────────────────────────
 $userSql = @"
 SELECT ub.user_id AS owner_id,
-       ub.balance_cents AS cached,
+       ub.available_cents AS cached,
        ub.frozen_cents AS frozen,
        COALESCE(SUM(bf.delta_cents), 0) AS computed
 FROM user_balance ub
 LEFT JOIN balance_flow bf
        ON bf.owner_type = 'user' AND bf.owner_id = ub.user_id
-GROUP BY ub.user_id, ub.balance_cents, ub.frozen_cents
-HAVING ub.balance_cents + ub.frozen_cents <> COALESCE(SUM(bf.delta_cents), 0);
+GROUP BY ub.user_id, ub.available_cents, ub.frozen_cents
+HAVING ub.available_cents + ub.frozen_cents <> COALESCE(SUM(bf.delta_cents), 0);
 "@
 
 $lawyerSql = @"

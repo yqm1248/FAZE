@@ -1,6 +1,6 @@
 {
   "_comment": "本文件由 scripts/facts/check-contracts.mjs 从源码注释与 i18n 文案生成，禁止手改。用途：让「代码里承诺了什么」成为可 diff 的清单——新增一条承诺就是一次可见的改动。",
-  "sourceDigest": "1bf018cb9304fd86",
+  "sourceDigest": "93ae63202bcf545c",
   "totals": {
     "promises": 444,
     "scopeViolations": 1,

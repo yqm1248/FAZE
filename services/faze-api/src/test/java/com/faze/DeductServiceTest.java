@@ -72,7 +72,7 @@ class DeductServiceTest {
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
         UserBalance balance = new UserBalance();
         balance.setUserId(TEST_USER_ID);
-        balance.setBalanceCents(10_000L);
+        balance.setAvailableCents(10_000L);
         balance.setFrozenCents(0L);
         balance.setVersion(0);
         balance.setCreatedAt(now);
@@ -191,6 +191,6 @@ class DeductServiceTest {
     private long currentBalance() {
         UserBalance row = userBalanceMapper.selectOne(Wrappers.<UserBalance>lambdaQuery()
                 .eq(UserBalance::getUserId, TEST_USER_ID));
-        return row == null || row.getBalanceCents() == null ? 0L : row.getBalanceCents();
+        return row == null || row.getAvailableCents() == null ? 0L : row.getAvailableCents();
     }
 }

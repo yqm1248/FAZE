@@ -93,7 +93,7 @@ class RechargeIdempotentTest {
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
         UserBalance cache = new UserBalance();
         cache.setUserId(TEST_USER_ID);
-        cache.setBalanceCents(0L);
+        cache.setAvailableCents(0L);
         cache.setFrozenCents(0L);
         cache.setVersion(0);
         cache.setCreatedAt(now);
@@ -202,10 +202,10 @@ class RechargeIdempotentTest {
                 .stream().map(BalanceFlow::getDeltaCents).reduce(0L, Long::sum);
         assertEquals(AMOUNT_CENTS, flowSum, "流水净额应为 1 份额（不是 2 份、3 份）");
         UserBalance cache = userBalanceMapper.selectByUserIdForUpdate(TEST_USER_ID);
-        assertEquals(AMOUNT_CENTS, cache.getBalanceCents(), "余额增量应为 1 份额");
+        assertEquals(AMOUNT_CENTS, cache.getAvailableCents(), "余额增量应为 1 份额");
         System.out.println("[C4] 断言通过 orderNo=" + orderNo + " successRows=" + successRows
                 + " flowRows=" + flowRows + " flowSum=" + flowSum
-                + " balance=" + cache.getBalanceCents());
+                + " balance=" + cache.getAvailableCents());
     }
 
     /**
@@ -249,6 +249,6 @@ class RechargeIdempotentTest {
                 + " | channel_txn_id 行数=" + txnRows
                 + " | balance_flow 行数=" + flows.size()
                 + " | SUM(delta_cents)=" + flowSum
-                + " | user_balance.balance_cents=" + (cache == null ? "无" : cache.getBalanceCents()));
+                + " | user_balance.available_cents=" + (cache == null ? "无" : cache.getAvailableCents()));
     }
 }

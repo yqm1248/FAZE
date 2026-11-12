@@ -367,10 +367,11 @@ if ([int]$leftover -ne 0) { $failures += "还有 $leftover 个测试号段用户
 $recon = (Invoke-Sql -NoHeaders -Sql @"
 SELECT CONCAT(
   (SELECT COALESCE(SUM(delta_cents),0) FROM balance_flow WHERE owner_type='user'), '|',
-  -- 口径与 deploy/verify-balance.ps1 一致：**可用 + 冻结**（不是只比 balance_cents）。
-  -- 只比 balance_cents 时，任何有冻结的账户都会报「差异」——那是口径错不是账错
+  -- 口径与 deploy/verify-balance.ps1 一致：**可用 + 冻结**（不是只比可用余额）。
+  -- 只比可用余额时，任何有冻结的账户都会报「差异」——那是口径错不是账错
   -- （2026-11-05 实测踩过：id=3 有 2000 分冻结，只比可用就报差 2000，白查一轮）。
-  (SELECT COALESCE(SUM(balance_cents + frozen_cents),0) FROM user_balance), '|',
+  -- 可用余额列在两张表里都叫 available_cents（V712，2026-11-13，DRIFT-043）。
+  (SELECT COALESCE(SUM(available_cents + frozen_cents),0) FROM user_balance), '|',
   (SELECT
      (SELECT COUNT(*) FROM login_log l WHERE l.user_id IS NOT NULL AND l.user_id <> 0
         AND NOT EXISTS (SELECT 1 FROM app_user a WHERE a.id = l.user_id))

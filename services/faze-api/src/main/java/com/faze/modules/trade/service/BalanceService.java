@@ -3,7 +3,7 @@
  * 调用方：modules/trade/controller/WalletController（查询）、运维与 D5 对账（重算回写）。
  * 数据来源：balance_flow（权威）、user_balance（缓存）。
  * 注意：
- *   1. **绝不能用 `user_balance.balance_cents` 当权威值**。锚点 `1-A6` 的判据是：
+ *   1. **绝不能用 `user_balance.available_cents` 当权威值**。锚点 `1-A6` 的判据是：
  *      手工把缓存改成 99999900 后，接口仍必须返回流水汇总值。
  *      所以本类的每个读余额方法都只有一个来源：`sumDeltaByOwner`。
  *   2. 缓存字段只用于 `frozen_cents`（冻结额目前没有流水可推），以及 recalc 时回写。
@@ -98,7 +98,7 @@ public class BalanceService {
     /**
      * 按流水重算并把结果写回缓存（供 D5 对账与运维使用）。
      *
-     * <p>副作用：更新 user_balance.balance_cents，带乐观锁版本。</p>
+     * <p>副作用：更新 user_balance.available_cents，带乐观锁版本。</p>
      *
      * @param userId 用户主键
      * @return 重算后的总额（分）
@@ -110,7 +110,7 @@ public class BalanceService {
         UserBalance patch = new UserBalance();
         patch.setId(cache.getId());
         patch.setVersion(cache.getVersion());
-        patch.setBalanceCents(total - frozen);
+        patch.setAvailableCents(total - frozen);
         patch.setUpdatedAt(LocalDateTime.now(ZoneOffset.UTC));
         userBalanceMapper.updateById(patch);
         log.info("余额已按流水重算 userId={} total={} 缓存已回写", userId, total);
@@ -197,7 +197,7 @@ public class BalanceService {
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
         UserBalance row = new UserBalance();
         row.setUserId(userId);
-        row.setBalanceCents(0L);
+        row.setAvailableCents(0L);
         row.setFrozenCents(0L);
         row.setVersion(0);
         row.setCreatedAt(now);

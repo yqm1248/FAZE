@@ -26,7 +26,7 @@
 ## 不可改的契约
 
 1. **`DeductService.deduct(...)` 是唯一扣款入口**。任何地方不许 `UPDATE user_balance` 或另写一套扣款 SQL（`2-A3` 专验这条）。
-2. **余额真相永远是 `balance_flow`**：`SUM(delta_cents) == user_balance.balance_cents`，巡检差异必须为 0。
+2. **余额真相永远是 `balance_flow`**：`SUM(delta_cents) == user_balance.available_cents`，巡检差异必须为 0。
 3. 幂等键 `(owner_type, owner_id, biz_type, biz_id)` 唯一，重复扣款由数据库兜底。
 4. **退款也必须写流水**（`delta_cents` 正数），不是 UPDATE 余额。
 5. 金额一律整数分（`*_cents`，`BIGINT`），计算走 `BigDecimal`，禁止 `double`/`float`。

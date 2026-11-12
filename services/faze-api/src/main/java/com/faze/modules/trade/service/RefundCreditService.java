@@ -92,7 +92,7 @@ public class RefundCreditService {
 
         // 任务 5：插流水（balanceAfter 记总余额 = 可用 + 冻结，与段 1 D 组口径一致）
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
-        long available = cache.getBalanceCents() == null ? 0L : cache.getBalanceCents();
+        long available = cache.getAvailableCents() == null ? 0L : cache.getAvailableCents();
         long frozen = cache.getFrozenCents() == null ? 0L : cache.getFrozenCents();
         long totalBefore = available + frozen;
         BalanceFlow flow = new BalanceFlow();
@@ -116,7 +116,7 @@ public class RefundCreditService {
         }
 
         // 任务 6：更新缓存
-        cache.setBalanceCents(available + amountCents);
+        cache.setAvailableCents(available + amountCents);
         cache.setUpdatedAt(now);
         userBalanceMapper.updateById(cache);
         log.info("退款入账成功 userId={} refundId={} amountCents={} flowId={} totalAfter={}",

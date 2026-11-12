@@ -2891,7 +2891,7 @@ public interface PaymentGateway {
 
 | 表 | 职责 |
 |---|---|
-| `user_balance` | 用户余额快照（`balance_cents`），**只由流水推导，不直接 UPDATE 加减** |
+| `user_balance` | 用户余额快照（`available_cents`），**只由流水推导，不直接 UPDATE 加减** |
 | `lawyer_balance` | 律师余额（`frozen_cents` / `available_cents` / `total_income_cents`） |
 | `balance_flow` | **资金流水主表**（用户与律师共用）：`biz_type`(recharge/consume/refund/income/withdraw/freeze/unfreeze)、`biz_id`、`delta_cents`、`balance_after`、`frozen_until` |
 | `recharge_record` | 充值记录：渠道、渠道单号、金额、状态 |

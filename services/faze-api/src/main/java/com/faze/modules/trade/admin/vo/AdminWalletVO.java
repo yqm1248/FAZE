@@ -4,7 +4,7 @@
  * 数据来源：faze.balance_flow（权威）+ faze.user_balance（仅 frozen）。
  * 注意：
  *   1. **`balanceCents` 必须来自 balance_flow 的 SUM(delta_cents)**，不是
- *      user_balance.balance_cents（锚点 1-A6：手工改缓存后接口仍要返回流水汇总值）。
+ *      user_balance.available_cents（锚点 1-A6：手工改缓存后接口仍要返回流水汇总值）。
  *   2. `frozenCents` 只能读缓存：段 1 没有冻结流水可推，冻结额由 user_balance 承载。
  *   3. 金额字段一律**原生 long**：JacksonConfig 只把包装类 Long 转字符串，
  *      金额必须是 JSON 数字（前端按 (cents/100).toFixed(2) 展示）。

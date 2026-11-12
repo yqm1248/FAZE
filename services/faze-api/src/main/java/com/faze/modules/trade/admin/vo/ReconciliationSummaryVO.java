@@ -6,7 +6,7 @@
  *   1. 计数用**原生 int**、总额用**原生 long**：它们不是 ID，
  *      必须保持 JSON 数字（JacksonConfig 只把包装类 Long 转字符串）。
  *   2. 口径与 `deploy/verify-balance.ps1` 完全一致（锚点 1-A7 要求页面与脚本结果一致）：
- *      - user：`user_balance.balance_cents + frozen_cents == SUM(flow.delta_cents)`
+ *      - user：`user_balance.available_cents + frozen_cents == SUM(flow.delta_cents)`
  *      - lawyer：`lawyer_balance.available_cents + frozen_cents == SUM(flow.delta_cents)`
  *      **只比「可用 + 冻结」**：只比可用额时，任何有冻结的账户都会误报差异。
  *   3. `totalCheckedCents` 是本次检查的缓存总额（Σ 各归属方 cache 值），

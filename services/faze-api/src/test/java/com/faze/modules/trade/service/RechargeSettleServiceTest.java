@@ -74,7 +74,7 @@ class RechargeSettleServiceTest {
                 .thenReturn(1);
         UserBalance cache = new UserBalance();
         cache.setUserId(USER_ID);
-        cache.setBalanceCents(100_000L);
+        cache.setAvailableCents(100_000L);
         cache.setFrozenCents(2_000L);
         when(userBalanceMapper.selectByUserIdForUpdate(USER_ID)).thenReturn(cache);
     }

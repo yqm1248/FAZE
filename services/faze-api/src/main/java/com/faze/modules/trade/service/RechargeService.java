@@ -180,7 +180,7 @@ public class RechargeService {
             return duplicated(afterLock);
         }
         // 任务 4：负向变动要校验余额（调账不能把余额调成负数）。
-        long available = cache.getBalanceCents() == null ? 0L : cache.getBalanceCents();
+        long available = cache.getAvailableCents() == null ? 0L : cache.getAvailableCents();
         long frozen = cache.getFrozenCents() == null ? 0L : cache.getFrozenCents();
         long totalBefore = available + frozen;
         if (delta < 0 && available + delta < 0) {
@@ -207,7 +207,7 @@ public class RechargeService {
             return duplicated(first);
         }
         // 任务 6：更新缓存（可用额 = 原可用 + delta）。
-        cache.setBalanceCents(available + delta);
+        cache.setAvailableCents(available + delta);
         cache.setUpdatedAt(now);
         userBalanceMapper.updateById(cache);
         // 任务 7：审计明细补 before/after（操作人由切面从 AuditContext 取）。

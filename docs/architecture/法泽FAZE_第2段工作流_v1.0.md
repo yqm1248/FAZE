@@ -25,7 +25,7 @@
 | 能力 | 段 1 提供的具体形态 | 段 2 怎么用 |
 |---|---|---|
 | **扣费引擎** | `deduct()`：幂等，基于 `balance_flow` 流水，返回扣款流水 ID | **唯一扣款入口**。下单支付必须调它，**禁止**直接 `UPDATE user_balance` 或另写一套扣款（`2-A3` 专验这条） |
-| **余额真相** | `SUM(balance_flow.delta_cents) == user_balance.balance_cents` | 退款也必须是流水（`delta_cents` 正数），不是 UPDATE |
+| **余额真相** | `SUM(balance_flow.delta_cents) == user_balance.available_cents` | 退款也必须是流水（`delta_cents` 正数），不是 UPDATE |
 | **JWT + 401** | 过滤器 → `SecurityContext`，未登录统一 401 | 交易与 IM 全部接口挂同一套，不另起鉴权 |
 | **`lawyer` 表** | 含 `rating` / `review_count` / `order_count` / `online_status` / `consult_price_cents` / `phone_price_cents` / `document_price_cents` / `balance_cents` | 律师详情、咨询下单取价、接单后的计数与评分回写都落在这张表 |
 | **审计 AOP** | `@OperationLog` + `operation_log`（只追加） | PC 端 4 页写操作全部要标；C 端聊天原文查看（本段拍板项）也要写 |
@@ -46,7 +46,7 @@
 
 ### 零.4 段 2 的四条「不许」（写在这里防走样）
 
-1. **扣款只有一个入口**：必须调段 1 的 `deduct()`。退款也必须走流水（正数 `delta_cents`）。**禁止**任何形式的 `UPDATE user_balance SET balance_cents = ...`。
+1. **扣款只有一个入口**：必须调段 1 的 `deduct()`。退款也必须走流水（正数 `delta_cents`）。**禁止**任何形式的 `UPDATE user_balance SET available_cents = ...`。
 2. **支付方式只有一个**：段 2 的支付页**只做余额支付**。微信/支付宝是「充值渠道」，段 6 才接；段 2 的支付页**不许出现渠道选择控件**（设计稿 `31-pay.html` 已按此画，自注「本页与导航树的唯一分歧：支付方式」）。
 3. **不提前建别段的表**：`notification`（段 7）、`user_violation`（段 7）、`reconciliation_diff`（段 5）、`settlement`（段 5）一律**不建**。消息中心两页按「**空态 + 入口占位**」交付（本段拍板第 3 项）。
 4. **状态只由服务端迁移**：客户端只发意图（`POST /orders/{id}/pay` 之类），**不发 `status` 字段**。任何接口出现「客户端传 status」都是缺陷。
@@ -116,7 +116,7 @@
 2. **12 张表**（附录 A 的 10 张 + 本段新增的 `order_status_log` / `task_queue` 两张）由 Flyway 建出，`git status` 里**没有手工改库痕迹**，迁移脚本可重放。
 3. **接口清单一条不少**（逐条列在 §五，不用「约」字）：App 侧与 PC 侧都有实测记录。
 4. **订单状态机可追溯**：8 个状态值、10 条状态对、14 个触发分支，**合法迁移全部有测试、非法迁移全部抛业务异常**（`5xxxx`，不得静默忽略），每次迁移在 `order_status_log` 留痕。
-5. **段 1 的余额恒等式仍然成立**：`SUM(balance_flow.delta_cents) == user_balance.balance_cents` 差异为 0（段 1 的巡检脚本重跑一次，不能因为段 2 引入退款就破功）。
+5. **段 1 的余额恒等式仍然成立**：`SUM(balance_flow.delta_cents) == user_balance.available_cents` 差异为 0（段 1 的巡检脚本重跑一次，不能因为段 2 引入退款就破功）。
 6. **推送至少在 2 个厂商 ROM 上验证**（其余厂商段 8 补）；且**杀进程后能收到**。
 
 ### 一.2 反向定义（什么不算出口）
@@ -381,7 +381,7 @@
 - **怎么做**：
   1. `balance_flow`：`owner_type='user'`、`biz_type='refund'`、`biz_id = refundRecordId`、`delta_cents = +退款金额`、`balance_after` 快照。**幂等**：`uk_flow_biz` 保证同一退款单只入账一次。
   2. `payment_record`：插一行 `channel='balance'`、`transaction_id='BAL-<flowId>'`、**`amount_cents` 为负数**（拍板第 5 项），`status='success'`、`paid_at=now()`。
-  3. `user_balance.balance_cents` **通过流水推算更新**，不许直接 UPDATE 出一个与流水不符的值（§零.4 第 1 条）。
+  3. `user_balance.available_cents` **通过流水推算更新**，不许直接 UPDATE 出一个与流水不符的值（§零.4 第 1 条）。
   4. **律师余额不扣**：段 2 没有结算，订单上的 `lawyer_income_cents` 只是数字，未真实入账到 `lawyer_balance`。**所以退款时不动律师余额**——这一点必须写进代码注释，否则段 5 做结算的人会以为漏了。
   5. **部分退的订单状态裁决**：全额退 → `REFUNDED`；部分退 → **回到退款前状态**（`PAID` / `IN_SERVICE`），因为「部分退款」不代表订单作废。这个裁决**技术路线没写**，是本段补的。
 - **产出**：`RefundService#refund`、单测（全额/部分/重复退款）。

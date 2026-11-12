@@ -10,7 +10,7 @@
     2. COALESCE(...,0)：无流水时返回 0 而不是 NULL，避免调用方到处判空
     3. 走 idx_flow_owner_time(owner_type, owner_id, created_at) 的最左前缀，
        不要在这里加 ORDER BY / LIMIT，聚合不该带排序
-    4. **这条 SQL 就是「余额」的定义**：user_balance.balance_cents 只是它的缓存。
+    4. **这条 SQL 就是「余额」的定义**：user_balance.available_cents 只是它的缓存。
        改这条 SQL 等于改账，评审必须逐字看（锚点 1-A6）
     5. selectOwnerSums 对账用：GROUP BY 后与 user_balance / lawyer_balance 的
        「可用 + 冻结」逐行比对（与 deploy/verify-balance.ps1 同一恒等式）

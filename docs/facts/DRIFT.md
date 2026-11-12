@@ -36,17 +36,17 @@
 | 改文档 | 25 | 5 | 15 | 5 |
 | 改设计稿 | 3 | 1 | 2 | 0 |
 | 改代码 | 14 | 13 | 0 | 1 |
-| 待拍板 | 4 | 4 | 0 | 0 |
+| 待拍板 | 5 | 4 | 0 | 1 |
 | 不处置 | 2 | 2 | 0 | 0 |
-| **合计** | **48** | **25** | **17** | **6** |
+| **合计** | **49** | **25** | **17** | **7** |
 
 > **已拍板的（不再待定）**：
-> - **DRIFT-043**（余额表列名）→ 负责人 2026-11-11 定「**统一列名**」。执行是独立任务，含迁移 + 实体 + Mapper + 引用处，**单独提交**。
+> - **DRIFT-043**（余额表列名）→ 负责人 2026-11-11 定「**统一列名**」。**2026-11-13 已执行并关闭**：迁移 V712 把 `user_balance.balance_cents` 改名为 `available_cents`，后端实体/Mapper/7 个 Service/5 个测试/巡检与运维脚本/33 处文档同步。选 `available_cents` 而非 `balance_cents` 的三条依据写在 V712 头部注释里（接口层事实标准 / available·frozen 成对 / 避开 `lawyer.balance_cents` 废弃列同名）。
 > - **「user 3 实名矛盾」**（`data-integrity.sql` 的 A12 红灯）→ 负责人 2026-11-11 定 **方案 C：不改数据**。等 DRIFT-015 修完（让 `realname_status` 由 `realname_auth` 派生）再一次性收敛。**在这之前 A12 会一直是 1，那是预期，不是漏修。**
 
 > **D1 组（25 条）**：逐条核查建表，每条都有代码或接口层面的直接证据。
 > **D2 组（17 条）**：2026-11-11 全仓盘点批量登记，方向是「文档落后于代码」，多数标 `待复核`。
-> **D3 组（6 条）**：**跑脚本量出来的**，不是读代码读出来的——`data-integrity.sql` 抓出列名不一致，`api.mjs` 抓出接口数不符，`error-codes.mjs` 抓出错误码数不符（且文档内部自相矛盾），`extract-i18n.mjs` 抓出「i18n key 三个口径」与「门禁自身漏检 1 条缺译」，`render-docs.mjs` 把生成表渲染进规范后，与手写表一并列就暴露 30 个「规范列了、枚举里没有」的码。这一组最能说明 G2 为什么值得做：**修完一条，下一条往往是工具的盲区，而不是业务的错误。**
+> **D3 组（7 条）**：**跑脚本量出来的**，不是读代码读出来的——`data-integrity.sql` 抓出列名不一致，`api.mjs` 抓出接口数不符，`error-codes.mjs` 抓出错误码数不符（且文档内部自相矛盾），`extract-i18n.mjs` 抓出「i18n key 三个口径」与「门禁自身漏检 1 条缺译」，`render-docs.mjs` 把生成表渲染进规范后，与手写表一并列就暴露 30 个「规范列了、枚举里没有」的码。这一组最能说明 G2 为什么值得做：**修完一条，下一条往往是工具的盲区，而不是业务的错误。** 第 7 条（DRIFT-049）是执行 DRIFT-043 时顺着列名查出来的：**改列名的人才会去逐个问「这个字段到底是什么语义」**。
 >
 > **首次建表 44 行，此后每轮新增 ≤3 行。** 超过 3 行说明当轮改动引入了成批新分叉，应停下来先修机制。
 > D2 组属于"补齐历史欠账"，不计入每轮配额。
@@ -142,18 +142,19 @@
 
 ---
 
-## 七、D3 组：工具化 / 清脏数据时发现的（6 条）
+## 七、D3 组：工具化 / 清脏数据时发现的（7 条）
 
 这一组不是"读代码读出来的"，是**跑脚本量出来的**——也正是 G2 存在的理由：人肉比对看不到的东西，一行命令就能看到。
 
 | ID | 事实 | 代码实际（P0） | 另一方说法 | 处置 | 出处 | 强度 |
 |---|---|---|---|---|---|---|
-| DRIFT-043 | 两张余额表用两个列名表示同一个概念（可用余额） | `user_balance` 用 `balance_cents`；`lawyer_balance` 用 `available_cents`。两者都配 `frozen_cents` | 《数据表规范》未对这两张表规定统一列名；写巡检/对账 SQL 时按 `balance_cents` 写会在 `lawyer_balance` 上报 `Unknown column` | **改代码：统一列名**（负责人 2026-11-11 拍板）。执行含迁移 + 实体 + Mapper + 引用处，需单独提交并跑全量回归 | 实测：`scripts/monitor/data-integrity.sql` 首次运行即因此报错 | 实测 |
+| DRIFT-043 | 两张余额表用两个列名表示同一个概念（可用余额） | **已统一（2026-11-13）**：两张表都叫 `available_cents`，V712 由 `user_balance.balance_cents` 改名而来 | 《数据表规范》原未规定统一列名，本次补上「可用/冻结成对用 `available_`/`frozen_`」一条；写巡检/对账 SQL 时按旧名写会在另一张表上报 `Unknown column` | **改代码：已执行并关闭**（见 §八 关闭记录） | 实测：`scripts/monitor/data-integrity.sql` 首次运行即因此报错；迁移后 A08/A09/A10 全 0 | 实测 |
 | DRIFT-044 | 「管理端接口有多少个」：文档说 **87**，代码实测 **123** | `node scripts/facts/api.mjs` → 按访问面分布 `{"admin":123,"app":114,"pub":22,"dev":1}`，全仓 **260** 个端点 / 78 个 Controller | **5 处文档写 87**：`docs/README.md:121`、`docs/design/未完成需备注.md:171`、`docs/design/法泽PC后台UI设计说明_v1.0.md:226`、`docs/architecture/法泽FAZE_开发计划总纲_v1.0.md:977`、`docs/BASELINE.md:385` | 改文档：把 87 改成生成值，并改为"引用 `docs/facts/api.json`"而不是写死数字 | 实测脚本输出 | 实测 |
 | DRIFT-045 | 「错误码有多少个」：文档同时写 **78** 和 **91**，代码实测 **94**。**同一份 `docs/README.md` 内部就自相矛盾** | `node scripts/facts/error-codes.mjs` → 94 个。号段：401:8 / 402:9 / 404:3 / 405:29 / 406:7 / 407:9 / 408:5 / 409:3 / 410:11 / 501:4 / 502:1 / 506:3 / 508:2。**无重复码** | `docs/README.md:61` 写「91 个码」；同一文件 `:128` 写「78 个错误码」；`docs/BASELINE.md:146`、`docs/architecture/法泽FAZE_开发计划总纲_v1.0.md:981` 写 78 | 改文档：统一改为引用 `docs/facts/error-codes.json`。**78 是 2026-10-28 冻结时的数，不是错；错的是没人更新** | 实测脚本输出 | 实测 |
 | DRIFT-046 | 「i18n 有多少个 key」有三个数，引用时都没标口径 | 三口径**同时成立**：**总节点 1965**（含中间对象）/ **叶子条目 1880**（真正可翻译）/ 带 namespace 前缀去重后 1880（与叶子相等，说明无覆盖） | `tmp/fixplan2/GUARDRAIL-PLAN.md:75` 写「1965 个 zh-Hans i18n key」——1965 是**总节点**口径，不是 key 数。该文档另写「APP 代码 71 页 / 79 个 JUnit 文件 / 164 份 md」，同类数字都缺口径 | 改文档：引用数字必须连口径一起引；机器口径以 `docs/facts/i18n-keys.json` 的 `totals` 为准 | `node scripts/facts/extract-i18n.mjs` 三个数同时输出 | 实测 |
 | DRIFT-047 | i18n 门禁把不同 namespace 的**同名 key 并成一条**，导致 1 条缺译永远不报警 | `profile.settings.title`=「设置」与 `workbench.settings.title`=「服务设置」是**两条不同译文**；旧口径扁平化后只剩一条（1880 → 1879），前者缺译不会被 `check-i18n.ps1` 报出。**2026-11-11 已修**：`check-i18n.ps1` 与 `extract-i18n.mjs` 同时改为带 namespace 前缀；改时 `.i18n-pending.json` 为空，零迁移成本 | 无文档提过这一点（属**未发现**缺陷，不是文档写错）；修后 key 数 1879 → 1880 | 改代码：已修。**两个脚本必须同时改**，只改一边就会出现两套数字 | `scripts/check-i18n.ps1` 的 `Read-LangFlat` | 实测 |
 | DRIFT-048 | 错误码规范手写表列了 **130** 个码，枚举只有 **94** 个；**方向是单向的**：代码有、文档无 = **0**，文档有、代码无 = 36（去重后 30 个真码） | `ErrorCode.java` 实测 94 个。规范 §3 手写表里 **30 个码在枚举里不存在**：401009、402007、403001~403006、404003/404004、409001~409004、410001~410004、410016/410017、501004、502002、504001/504002、505001~505003、507001、510002/510003 | 规范 §3.1~§3.10 手写表按「这是要实现的码」的口气编写。其中 `402007`（未实名 403）在 §2.2 的 HTTP 规则表里也被引用，但代码里未实名场景改抛 `405020 TRADE_RECHARGE_REALNAME_REQUIRED` | 改文档：手写表降级为「设计意图」，全量以生成表为准；**30 个未落地码逐个归因后再决定删表还是补码**（`402011` 已标作废、4 个是示例/号段说明、1 个语义被别的码覆盖，都不是缺陷） | 比对 `docs/facts/error-codes.json` 与规范手写表（`scripts/facts/render-docs.mjs` 把生成表渲染进同一节后，两表并列即暴露） | 实测 |
+| DRIFT-049 | 接口层把**总余额**叫 `balanceCents`，而库里 `available_cents` 是**可用余额**——同一个词两处指相反的东西 | **实测四个 VO 的 `balanceCents` 全部来自 `SUM(delta_cents)`（含冻结，即总余额）**：`ProfileVO.balanceCents` ← `getTotalCentsFromFlows()`；`RechargeResultVO.balanceCents` ← `flow.balanceAfter` 或 `totalBefore + delta`；`AdminWalletVO.balanceCents` ← `sumDeltaByOwner()`；`AdminRechargeResultVO.balanceCents` ← 同样的流水净额 | `BalanceVO` 用 `{availableCents, frozenCents, totalCents}` 三个字段把同一件事说清楚了；**另四个 VO 只有一个 `balanceCents` 装总余额**，读代码的人会以为它就是 `user_balance` 里那一列（可用余额） | **待拍板**：建议把四个 `balanceCents` 改名为 `totalCents`（与 `BalanceVO.totalCents` 对齐）。**这是破坏性契约变更**——`AdminWalletVO.balanceCents` 被 PC 后台 A-07 钱包概览消费、`ProfileVO.balanceCents` 在 `features/profile/api/profile.ts` 有类型声明（`MyPage` 已绕过该字段），改名前要先查清 PC 端消费点 | 读 `ProfileService:63`、`RechargeService:223,249`、`AdminWalletService:84`、`AdminRechargeResultVO` 类注释 | 通读 |
 
 > **DRIFT-044 的差异原因未逐条核对。** 87 是 V2.3（2026-10-30）时 §4.8.4 列出的计划接口数；实现比计划多了 36 个，与技术路线 §二十六 自己登记的「PC 18→24、App 23→26」是同一类现象。**在把 87 改成 123 之前，要先把多出来的 36 条归因**（合同外新增？通用 auth 端点？CRUD 拆分？），否则只是把一个数字换成另一个数字。
 >
@@ -165,6 +166,7 @@
 
 | ID | 关闭日期 | 关闭依据 | 提交 |
 |---|---|---|---|
+| DRIFT-043 | 2026-11-13 | 迁移 `V712__fix_balance_column_name.sql` 把 `user_balance.balance_cents` 改名为 `available_cents`（DROP CHECK → CHANGE COLUMN → ADD CHECK；**实测 MySQL 8.0.44 不允许直接重命名被 CHECK 引用的列**，报 ERROR 3959）。同步：实体 `UserBalance`、`UserBalanceMapper.xml`、7 个 Service 的 13 处访问器、5 个测试、`data-integrity.sql` A08/A09、`verify-balance.ps1`、`purge-test-data.ps1`、33 处文档。回归：后端 532 用例全绿 + 巡检 A08/A09/A10 全 0 + `verify-balance.ps1` 两条恒等式差异 0 | 见 CHANGELOG 2026-11-13「DRIFT-043 落地」条目 |
 | DRIFT-014 | 2026-11-11 | 删除 `SocialQueryService.unfavorite` 的「先查任意用户再判 403」预检（它既拦不住越权——真正的 UPDATE 已带 `user_id`——又会误伤合法用户）。回归：`SocialFavoriteMultiUserTest` 3 例全绿（含「别人收藏着时我取消自己的不报 403」）。证据见 `docs/acceptance/guard/G6-后端边界测试.md` | 见 CHANGELOG 2026-11-11 G6 条目的提交 |
 
 > **关闭时必须三条齐全**：日期 / 可复核的关闭依据 / 提交号。**只写「已修复」不算关闭。**
@@ -173,7 +175,7 @@
 
 ## 九、本表自身的已知局限
 
-1. **48 条不是全部。** D1 组覆盖「第三方验收报告提到的问题」+「代码通读中发现的同类问题」；D2 组覆盖一次全仓盘点；D3 组是跑脚本量出来的。**没有做过全库漂移扫描**，那是 G2/G4 的事。
+1. **49 条不是全部。** D1 组覆盖「第三方验收报告提到的问题」+「代码通读中发现的同类问题」；D2 组覆盖一次全仓盘点；D3 组是跑脚本量出来的。**没有做过全库漂移扫描**，那是 G2/G4 的事。
 2. **D2 组的 17 条里 15 条是 `待复核`**：它们来自盘点报告的二手结论，我只亲自复核了 DRIFT-026（缺译清零）与 DRIFT-032（`biz_type` 9 值）两条。**引用 D2 组前先验。**
 3. **DRIFT-011 / DRIFT-012 的处置值可能被改成 `改文档`**：如果产品决定「法院名称本来就不显示」，那就不是补写入路径而是改文档。**处置值可改，但必须在 CHANGELOG 记明是谁拍的。**
 4. **两张表之间可能串门。** 例如 DRIFT-011（`court_name` 永远为空）如果最后决定"这个字段不做"，它就该变成 GAP 移进 `DEFERRED.md`。**串门不丢人，但必须在 CHANGELOG 写清为什么改归类别。**

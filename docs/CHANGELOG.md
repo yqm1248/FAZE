@@ -4,6 +4,84 @@
 
 ---
 
+## 2026-11-13（五）· DRIFT-043 落地：余额表列名统一（`available_cents`）；基线 v1.75
+
+**一句话**：两张余额表用两个列名表示同一个概念，负责人 2026-11-11 拍板「统一列名」，本批执行完毕并关闭 DRIFT-043。**只改一个名字，但牵动 4 类文件、35 处代码 + 33 处文档。**
+
+### 一、先核前提：统一成 `available_cents`，不是 `balance_cents`
+
+DRIFT-043 只说「统一列名」，没说统一成哪个。三条依据（先写进迁移文件头部，不是事后补的）：
+
+1. **接口层的事实标准是 `available`**：C 端唯一余额接口 `GET /app/wallet/balance` 的出参 `BalanceVO` 就是 `{availableCents, frozenCents, totalCents}`，App 端 `features/trade` + `features/workbench` 共 8 处消费它。数据库跟着接口走，才不会出现「库里叫 balance、接口叫 available」这层新分叉。
+2. **`balance` 在本仓接口层实际指总余额**（实测四个 VO 全部如此，见下条「新发现」）。而 `user_balance` 那一列存的是**可用余额**（= 总 − 冻结）。若定为 `balance_cents`，库里那列叫 balance 却装 available 的值，而接口里同一个词指 total——**同一个名字在一张表和一个 VO 里指相反的东西**。
+3. **避开同名不同义**：`lawyer.balance_cents` 是 V4 留下的历史缓存列（注释明写「段 5 起禁止读写」）。若 `lawyer_balance` 也叫 `balance_cents`，库里就有两个 `balance_cents`（一个废弃、一个权威），比改前更乱。
+
+### 二、实测踩到的硬约束：CHECK 引用的列不能直接改名
+
+本地 MySQL 8.0.44 实测：
+
+```text
+ALTER TABLE _t_chk CHANGE COLUMN balance_cents available_cents BIGINT NOT NULL DEFAULT 0;
+ERROR 3959 (HY000): Check constraint 'ck_t' uses column 'balance_cents',
+hence column cannot be dropped or renamed.
+```
+
+所以 `V712` 必须是三步：`DROP CHECK` → `CHANGE COLUMN` → `ADD CONSTRAINT`。**照常规写成单条 `CHANGE COLUMN` 会直接失败**，而这条错误不在任何文档里，只能实测。V712 头部注释记了这一条。
+
+### 三、改了什么
+
+| 层 | 内容 |
+|---|---|
+| 数据库 | `V712__fix_balance_column_name.sql`（新增）：`user_balance.balance_cents` → `available_cents`，CHECK 重建为 `available_cents >= 0`。**9 行数据零迁移**（改名不改值，`verify-balance` 对账差异仍为 0） |
+| 实体 / Mapper | `UserBalance` 字段 `balanceCents` → `availableCents`；`UserBalanceMapper.xml` 的 SELECT 列表 |
+| Service（7 文件 13 处） | `BalanceService`、`DeductService`、`RechargeService`、`RechargeSettleService`、`RefundCreditService`、`BalanceQueryServiceImpl`、`AdminReconciliationService` |
+| 测试（5 文件 12 处） | `BalanceSourceOfTruthTest`、`CancelAccountBalanceTest`、`DeductServiceTest`、`RechargeSettleTest`、`RechargeIdempotentTest` |
+| 运维脚本 | `scripts/monitor/data-integrity.sql`（A08/A09）、`deploy/verify-balance.ps1`、`deploy/purge-test-data.ps1` |
+| 规范文档 | 《数据表规范》新增「可用/冻结成对用 `available_`/`frozen_`」一条；总纲 `1-A6`、技术路线、接口规范、第 1/2/6 段工作流共 33 行 |
+
+### 四、**没改**的东西（每条都是判断，不是漏做）
+
+1. **不改历史迁移 `V5__wallet.sql`**：Flyway 已校验过的文件改一个字节就 checksum 失败，已部署环境会启动不了。V5 里的旧列名是历史事实。
+2. **不改任何 HTTP 契约**：`BalanceVO.availableCents` / `ProfileVO.balanceCents` / `RechargeResultVO.balanceCents` / `AdminWalletVO.balanceCents` 一律不动。改契约是破坏性变更，前端 8 处消费 + PC 后台 + `api.json` 全要跟，与「统一列名」不该混在一次提交里。
+3. **不删 `lawyer.balance_cents` 废弃列**：删列不可逆，且它已在 V4 注释里标了禁止读写。与「统一列名」是两件事。
+4. **不改历史事实类文档**：`docs/acceptance/**`（当时确实改的是 `balance_cents`）、`docs/CHANGELOG.md` 旧条目、`docs/BASELINE.md` 变更史——**改了就是把历史改成假话**。
+
+### 五、新发现：接口层 `balanceCents` 全是「总余额」（DRIFT-049，待拍板）
+
+执行「统一列名」时被迫逐个确认每个字段到底是什么语义，查出四个 VO 的 `balanceCents` **全部来自 `SUM(delta_cents)`**：
+
+| 字段 | 实际取值 | 语义 |
+|---|---|---|
+| `ProfileVO.balanceCents` | `getTotalCentsFromFlows()` | 总余额 |
+| `RechargeResultVO.balanceCents` | `flow.balanceAfter` / `totalBefore + delta` | 总余额 |
+| `AdminWalletVO.balanceCents` | `sumDeltaByOwner()` | 总余额 |
+| `AdminRechargeResultVO.balanceCents` | 流水净额 | 总余额 |
+
+而只有 `BalanceVO` 用 `{availableCents, frozenCents, totalCents}` 把三件事说清楚了。**建议改名为 `totalCents`，但这是破坏性契约变更**（PC 后台 A-07 钱包概览在用），已登记 DRIFT-049 待拍板。
+
+### 六、回归结果
+
+| 项 | 结果 |
+|---|---|
+| 后端全量测试 | **532 用例，0 失败 0 错误，3 skipped，BUILD SUCCESS** |
+| `deploy/verify-balance.ps1` | 两条恒等式**差异 = 0**（user 0 行 / lawyer 0 行） |
+| 数据完整性巡检 | A08 / A09 / A10 全 **0**；A12/A20 各 1，台账内、与本次无关 |
+| 事实 json | `check:facts` 重跑后一字未变（`tables.json` 因列名变更重生成） |
+| 受控区块 | `render:docs` 更新《数据表规范》1 处后 6 块全一致 |
+| 基线指纹 | 10 份重新登记，v1.74 → v1.75 |
+
+### 七、一次自己踩的坑（记下来免得别人再踩）
+
+`V712` 已应用到本地库后，我为了订正注释里的一个错句又改了迁移文件——**Flyway 的 `validate-on-migrate: true` 会因此让下一次启动失败**。处理方式是：把本地库的列名改回旧名、删掉 `flyway_schema_history` 里 V712 那行、重启让 Flyway 用新文件重跑一遍。**教训：迁移文件一落库就不再是「草稿」，改注释也是改 checksum。要改就按「回滚 + 重跑」走，不能只改文件。**
+
+### 八、本批没做的事
+
+1. `lawyer.balance_cents` 废弃列未清理。
+2. 接口层 `balanceCents` 未改名（DRIFT-049 待拍板）。
+3. 没有加「同一概念同类表同名」的自动检查：本批靠人肉 + 巡检 SQL 发现。真要防下一次，得写一条规则检查，属 G9 的 R 清单。
+
+---
+
 ## 2026-11-11（三）· G7 + G8：不可见断言、数据完整性巡检、承诺清单；基线 v1.74
 
 ### 一、G7：5 条不可见断言全部通过（连真实 API）

@@ -42,7 +42,7 @@
 
 ### 零.4 段 1 的三条「不许」原则（会计与合规层面，写在这里防走样）
 
-1. **`balance_flow` 是唯一真相，`user_balance.balance_cents` 只是缓存。** 任何「改余额」的操作必须先插一条流水，再由流水推算缓存；**禁止直接 UPDATE `user_balance`**（锚点 `1-A6` 专验这条）。
+1. **`balance_flow` 是唯一真相，`user_balance.available_cents` 只是缓存。** 任何「改余额」的操作必须先插一条流水，再由流水推算缓存；**禁止直接 UPDATE `user_balance`**（锚点 `1-A6` 专验这条）。
 2. **手工充值与调账一律写流水，且必须留操作人。** PC A-07 的每一次充值/调账都要落 `operation_log`（`detail` 存 `before`/`after`），审计规范 §3.2 的 18 项必审计动作里包含它。
 3. **敏感影像（身份证正反面、律师执业证）只走私有 OSS + 短时签名 URL。** 禁止写进日志、错误上报、公开可读路径；禁止在 PC 列表页直接暴露原图 URL（先取签名 URL 再渲染）。
 
@@ -88,7 +88,7 @@
 1. `1-A1` ~ `1-A10` 十条锚点**全部二值通过**（每条都有证据文件，不接受「看起来能用」）
 2. 12 张表已由 Flyway 建出，且 `git status` 里**没有任何手工改库的痕迹**（迁移脚本可重放）
 3. 40 个接口在《接口规范》§7.2 的清单上**一个不少**，C 端 20 个与 PC 端 20 个都有实测记录
-4. 余额恒等式 `SUM(balance_flow.delta_cents) == user_balance.balance_cents` 在**差异为 0** 的状态下交付
+4. 余额恒等式 `SUM(balance_flow.delta_cents) == user_balance.available_cents` 在**差异为 0** 的状态下交付
 5. `docs/analysis/ruoyi-patches.md` 已创建并登记本段对 RuoYi 框架层的**全部**改动（预期为 0 条，非 0 必须逐条说明）
 
 **反向定义（什么不算出口）**：
@@ -226,7 +226,7 @@
 | 表 | 补什么 | 为什么 |
 |---|---|---|
 | `app_user` | `is_minor TINYINT(1) DEFAULT 0`、`guardian_phone VARCHAR(20)` | 总纲 §5.2「未成年人字段生效」。**先 `DESC app_user` 确认**，已有就不动 |
-| `user_balance` | `CHECK (balance_cents >= 0)`（MySQL 8.0.16+ 才真生效） | 余额不允许为负 |
+| `user_balance` | `CHECK (available_cents >= 0)`（MySQL 8.0.16+ 才真生效） | 余额不允许为负 |
 | `balance_flow` | 若 `uk_flow_biz` 不能覆盖 `biz_id` 查询，补 `KEY idx_flow_biz (biz_type, biz_id)` | PC A-07 按业务单号查流水 |
 | `lawyer_application` | `KEY idx_app_status (status, created_at)` | A-05 待审队列按状态分页 |
 | `realname_auth` | `KEY idx_realname_status (status, created_at)` | A-04 同上 |
@@ -611,7 +611,7 @@
 
 > **④ `balance_flow.balance_after` 记「账户总余额」，不是「可用余额」（2026-11-01 补；段 5 定稿时发现本段漏写这条口径）**
 >
-> - 用户侧总余额 = `user_balance.balance_cents + user_balance.frozen_cents`
+> - 用户侧总余额 = `user_balance.available_cents + user_balance.frozen_cents`
 > - 律师侧总余额 = `lawyer_balance.available_cents + lawyer_balance.frozen_cents`
 >
 > 由此得**两条恒等式**，段 5 的 `5-A4`、段 6 的充值、段 7 的治理都要跑：
@@ -622,7 +622,7 @@
 
 #### D1 · 账户与余额查询（**余额以流水汇总为准**）
 
-**目标**：`GET /app/wallet/balance` 返回的余额 = `SUM(balance_flow.delta_cents)`，**不是 `user_balance.balance_cents` 字段值**。这条直接对应锚点 `1-A6`。
+**目标**：`GET /app/wallet/balance` 返回的余额 = `SUM(balance_flow.delta_cents)`，**不是 `user_balance.available_cents` 字段值**。这条直接对应锚点 `1-A6`。
 
 **前置**：A1（表已建）。
 
@@ -631,13 +631,13 @@
 1. 首次访问时惰性建 `user_balance` 记录（余额 0）
 2. `GET /app/wallet/balance`：
    - **必须**用 `SELECT COALESCE(SUM(delta_cents),0) FROM balance_flow WHERE owner_type='user' AND owner_id=?` 算
-   - `user_balance.balance_cents` 只作为**缓存/校验用**，可返回但**不能作为权威值**
+   - `user_balance.available_cents` 只作为**缓存/校验用**，可返回但**不能作为权威值**
    - 响应：`{availableCents, frozenCents, totalCents}`
 3. 提供内部方法 `recalcBalance(userId)`：按流水重算并回写缓存（供 D5 与运维用）
 
 **验收（二值，`1-A6` 的核心）**：
 
-- [ ] 手工 `UPDATE user_balance SET balance_cents = 99999900` 后调接口 → **仍返回流水汇总值**（不是 9999.99 元）
+- [ ] 手工 `UPDATE user_balance SET available_cents = 99999900` 后调接口 → **仍返回流水汇总值**（不是 9999.99 元）
 - [ ] 无流水时返回 0
 - [ ] `Long` 型 ID 序列化为字符串
 
@@ -679,7 +679,7 @@
 2. 事务内顺序（**顺序不能变**）：
    1. 校验余额足够（`SELECT ... FOR UPDATE` 或乐观锁）
    2. 插 `balance_flow`（`uk_flow_biz` 唯一键兜底幂等）
-   3. `UPDATE user_balance SET balance_cents = balance_cents - ?, version = version + 1 WHERE user_id=? AND version=?`
+   3. `UPDATE user_balance SET available_cents = available_cents - ?, version = version + 1 WHERE user_id=? AND version=?`
    4. 第 3 步影响行数 = 0 → 重试（最多 3 次）或抛乐观锁冲突
    5. 唯一键冲突（第 2 步）→ **视为重复请求，返回首次结果，不报错**
 3. 金额一律 `BIGINT` 分，**禁止浮点**
@@ -1063,7 +1063,7 @@
 | 项 | 内容 |
 |---|---|
 | **验前准备** | 一个有流水的测试用户（余额已知，如 100 元） |
-| **步骤** | ① 记录当前接口返回的余额 ② 直接连 MySQL 执行 `UPDATE user_balance SET balance_cents = 99999900 WHERE user_id = <ID>;` ③ 不重启、不改任何代码，再调 `GET /app/wallet/balance` ④ 看返回值 ⑤ 恢复 `UPDATE ... SET balance_cents = 10000` |
+| **步骤** | ① 记录当前接口返回的余额 ② 直接连 MySQL 执行 `UPDATE user_balance SET available_cents = 99999900 WHERE user_id = <ID>;` ③ 不重启、不改任何代码，再调 `GET /app/wallet/balance` ④ 看返回值 ⑤ 恢复 `UPDATE ... SET available_cents = 10000` |
 | **二值判定** | ④ 返回的仍是 **100.00 元**（流水汇总），**不是 999999.00 元** |
 | **证据** | 两次接口响应体 + 那次 `UPDATE` 的 SQL 与影响行数 + `SELECT SUM(delta_cents) FROM balance_flow WHERE owner_type='user' AND owner_id=<ID>` 的结果（应等于 10000） |
 | ****可能假通过** | ① 接口返回的其实是缓存值，但**恰好等于**流水汇总（数据早就是平的）→ **必须先制造「缓存 ≠ 流水」的状态再测**；② 改完缓存后接口报错 500（不是「返回流水汇总」）→ 不算通过；③ 读了缓存但加了「对账校验」失败时降级读流水 → 这是**实现方式不同但结论正确**，可接受但要写明 |
