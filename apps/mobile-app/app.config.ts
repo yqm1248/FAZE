@@ -38,9 +38,11 @@ const config: ExpoConfig = {
   scheme: 'faze',
   userInterfaceStyle: 'light',
   newArchEnabled: true,
-  icon: './assets/legacy/logo.png',
+  // 品牌图标（2026-11-13 由负责人提供的 `faze.png` 派生，见 assets/brand/README.md）。
+  // 取代原先的 `assets/legacy/logo.png`——那是 uni-app 默认模板图标，商店不接受。
+  icon: './assets/brand/faze-icon-1024.png',
   splash: {
-    image: './assets/legacy/logo.png',
+    image: './assets/brand/faze-icon-1024.png',
     resizeMode: 'contain',
     // app 清单要求的启动底色，与设计稿页面底色一致（无法引用 TS 令牌，见文件头注释第 2 条）。
     backgroundColor: '#F7F8FA',
@@ -52,16 +54,19 @@ const config: ExpoConfig = {
   },
   android: {
     package: 'com.faze.app',
+    // 前景图是**不透明白底**、字形只占 52%（Android 自适应图标可见区是中间 66%，
+    // 超出部分会被厂商蒙版裁掉）。源图没有透明通道，所以不能做「透明前景 + 纯色底」那套；
+    // 底色填白是为了与前景图的白底一致，避免缩放时露出色差。详见 assets/brand/README.md。
     adaptiveIcon: {
-      foregroundImage: './assets/legacy/logo.png',
-      backgroundColor: '#F7F8FA',
+      foregroundImage: './assets/brand/faze-adaptive-foreground.png',
+      backgroundColor: '#FFFFFF',
     },
     edgeToEdgeEnabled: true,
   },
   web: {
     bundler: 'metro',
     output: 'single',
-    favicon: './assets/legacy/logo.png',
+    favicon: './assets/brand/faze-icon-1024.png',
   },
   plugins: [
     'expo-router',
