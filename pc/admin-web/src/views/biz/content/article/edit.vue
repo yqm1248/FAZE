@@ -313,7 +313,7 @@ async function handleSave() {
       articleId.value = String(res.data)
       isPublished.value = false
       ElMessage.success('已保存为草稿')
-      router.replace({ path: '/biz/content/article/edit', query: { id: articleId.value } })
+      router.replace({ path: '/content/article/edit', query: { id: articleId.value } })
       await loadDetail()
     }
   } catch (e) {
@@ -348,7 +348,7 @@ async function handlePublish() {
 
 /** 返回列表。 */
 function goBack() {
-  router.push('/biz/content/article')
+  router.push('/content/article')
 }
 
 onMounted(loadDetail)

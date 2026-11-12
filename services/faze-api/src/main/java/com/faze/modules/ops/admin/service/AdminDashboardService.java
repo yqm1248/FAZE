@@ -351,17 +351,17 @@ public class AdminDashboardService {
 
         List<DashboardTodoVO> list = new ArrayList<>(5);
         list.add(DashboardTodoVO.of("realname", "实名认证待审核", realname, null,
-                "/biz/verification?type=realname&status=PENDING"));
+                "/members/verification?type=realname&status=PENDING"));
         list.add(DashboardTodoVO.of("lawyerApplication", "律师入驻待审核", lawyerApp, null,
-                "/biz/lawyerApplication?status=PENDING"));
+                "/lawyer/audit?status=PENDING"));
         list.add(DashboardTodoVO.of("withdraw", "提现申请待审核", withdraw, null,
-                "/biz/trade/withdraw?status=applying"));
+                "/finance/withdraw?status=applying"));
         list.add(DashboardTodoVO.of("ticket", "投诉工单待处理", tickets,
                 overtime > 0 ? "其中 " + overtime + " 条已超时" : null,
-                // 菜单路由实测为 /biz/ops/ticket-list（sys_menu 2232）；写 /tickets 会 404
-                "/biz/ops/ticket-list?status=waiting"));
+                // 菜单路由见 database/seed/admin_menu_ia.sql（sys_menu 2232 = /ticket/list）
+                "/ticket/list?status=waiting"));
         list.add(DashboardTodoVO.of("contentReview", "内容审核待处理", reviews, null,
-                "/biz/ops/review-queue?status=pending"));
+                "/caseflow/review?status=pending"));
         return list;
     }
 

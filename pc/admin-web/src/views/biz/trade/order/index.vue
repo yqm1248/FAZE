@@ -296,7 +296,7 @@ function handleReset() {
 
 /** 打开详情。 */
 function openDetail(row) {
-  router.push({ path: '/biz/trade/order/detail', query: { id: row.id } })
+  router.push({ path: '/order/detail', query: { id: row.id } })
 }
 
 /** CSV 单元格转义。 */

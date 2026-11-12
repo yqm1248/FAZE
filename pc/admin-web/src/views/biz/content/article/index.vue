@@ -227,12 +227,12 @@ function handleReset() {
 
 /** 新建。 */
 function createArticle() {
-  router.push('/biz/content/article/edit')
+  router.push('/content/article/edit')
 }
 
 /** 编辑。 */
 function edit(row) {
-  router.push({ path: '/biz/content/article/edit', query: { id: row.id } })
+  router.push({ path: '/content/article/edit', query: { id: row.id } })
 }
 
 /** 上架（失败时服务端会说明缺哪种语言）。 */

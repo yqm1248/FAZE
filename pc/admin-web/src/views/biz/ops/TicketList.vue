@@ -174,7 +174,7 @@ function rowClass({ row }) {
  * @param {number} id 工单 id
  */
 function goDetail(id) {
-  router.push(`/biz/ops/ticket-detail/${id}`)
+  router.push(`/ticket/detail/${id}`)
 }
 
 /**

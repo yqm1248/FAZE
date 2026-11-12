@@ -20,10 +20,11 @@
     4. **趋势固定近 14 天**：接口 `trends` 没有 range 参数（§五 5.2 第 2 号），
        所以切「今日/近 7 天/近 30 天」只改 4 张卡与页头，趋势图恒为近 14 天。
        工作流「趋势图同时变」与接口现状冲突，降级处理并记录，未在前端伪造联动。
-    5. **待我处理跳转**：服务端 `link` 字段的工单路径是 `/biz/ops/tickets`，
-       与实际菜单 `/biz/ops/ticket-list` 不一致（后端 A5 的笔误，本段不改 services/），
-       所以按 `key` 走本地路由映射（DashboardTodoVO 注释本身也要求前端按 key 跳转）；
-       本地未登记的 key 才回退到服务端 link。
+    5. **待我处理跳转**：按 `key` 走本地路由映射（DashboardTodoVO 注释本身也要求
+       前端按 key 跳转）；本地未登记的 key 才回退到服务端 link。
+       ⚠️ 2026-11-13 菜单重整后前端路由不再是 `/biz/**`（见 database/seed/admin_menu_ia.sql），
+       服务端 AdminDashboardService 里那 5 条 link 已同步改成新前缀；
+       本地映射优先，所以即使后端没重新部署也不会跳错。
     6. **每 10 分钟自动刷新**：`setInterval` + `document.hidden` 时暂停，
        页面重新可见时立即刷新并重启计时；卸载时清定时器与 resize 监听、销毁图表。
     7. 链路自检条保留段 1 的 ping 自检能力（证明 RuoYi token → faze-api 鉴权桥通），
@@ -333,11 +334,11 @@ const CHART_GRID_COLOR = '#eef0f5'
 
 /** 待我处理：按 key 的本地跳转映射（服务端 link 的工单路径有笔误，见文件头注释第 5 条）。 */
 const TODO_TARGETS = {
-  realname: { path: '/biz/verification', query: { type: 'realname', status: 'PENDING' } },
-  lawyerApplication: { path: '/biz/lawyerApplication', query: { status: 'PENDING' } },
-  withdraw: { path: '/biz/trade/withdraw', query: { status: 'applying' } },
-  ticket: { path: '/biz/ops/ticket-list', query: { tab: 'processing' } },
-  contentReview: { path: '/biz/ops/review-queue', query: { status: 'pending' } }
+  realname: { path: '/members/verification', query: { type: 'realname', status: 'PENDING' } },
+  lawyerApplication: { path: '/lawyer/audit', query: { status: 'PENDING' } },
+  withdraw: { path: '/finance/withdraw', query: { status: 'applying' } },
+  ticket: { path: '/ticket/list', query: { tab: 'processing' } },
+  contentReview: { path: '/caseflow/review', query: { status: 'pending' } }
 }
 
 /** 待我处理图标（按 key，不按 label——label 会因文案调整而变化）。 */
@@ -685,7 +686,7 @@ function goContentReview() {
 
 /** 跳订单列表（稿面「查看全部」）。 */
 function goOrderList() {
-  router.push('/biz/trade/order')
+  router.push('/order/list')
 }
 
 /**

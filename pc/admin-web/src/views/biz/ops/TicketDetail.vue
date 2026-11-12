@@ -180,7 +180,7 @@ async function handleClose() {
  * 返回列表。
  */
 function goBack() {
-  router.push('/biz/ops/ticket-list')
+  router.push('/ticket/list')
 }
 
 /**

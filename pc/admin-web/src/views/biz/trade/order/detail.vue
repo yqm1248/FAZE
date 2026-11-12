@@ -391,7 +391,7 @@ async function loadAll() {
 
 /** 返回列表。 */
 function goBack() {
-  router.push('/biz/trade/order')
+  router.push('/order/list')
 }
 
 /** 打开审批弹窗。 */
