@@ -9,16 +9,20 @@ $yellow: #FEC171;
 $panGreen: #30B08F;
 
 // 默认主题变量
+// 2026-11-13：主题色从 RuoYi 默认 #409EFF 换成法泽品牌蓝 #4a66ee
+// （依据 design/admin/tokens.css 的 --brand-primary，以及《PC后台UI设计说明》§137）。
+// 侧边栏三色改到与设计稿 --bg-sidebar / --bg-sidebar-hover / --bg-sidebar-sub 同色号，
+// 这样从登录页左板进后台时视觉不断裂。
 $menuText: #bfcbd9;
-$menuActiveText: #409eff;
-$menuBg: #1a1f2e;
-$menuHover: #263445;
+$menuActiveText: #4a66ee;
+$menuBg: #22283a;
+$menuHover: #2c3350;
 
 // 浅色主题theme-light
 $menuLightBg: #ffffff;
 $menuLightHover: #f0f1f5;
 $menuLightText: #303133;
-$menuLightActiveText: #409EFF;
+$menuLightActiveText: #4a66ee;
 
 // 基础变量
 $base-sidebar-width: 200px;
@@ -27,12 +31,12 @@ $sideBarWidth: 200px;
 // 菜单暗色变量
 $base-menu-color: rgba(255,255,255,.65);
 $base-menu-color-active: #ffffff;
-$base-menu-background: #1a1f2e;
-$base-sub-menu-background: #141824;
+$base-menu-background: #22283a;
+$base-sub-menu-background: #1b2030;
 $base-sub-menu-hover: rgba(255,255,255,.06);
 
 // 组件变量
-$--color-primary: #409EFF;
+$--color-primary: #4a66ee;
 $--color-success: #67C23A;
 $--color-warning: #E6A23C;
 $--color-danger: #F56C6C;

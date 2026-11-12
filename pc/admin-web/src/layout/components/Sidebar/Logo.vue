@@ -75,10 +75,14 @@ const getLogoTextColor = computed(() => {
     width: 100%;
 
     & .sidebar-logo {
-      width: 32px;
-      height: 32px;
+      width: 30px;
+      height: 30px;
       vertical-align: middle;
-      margin-right: 12px;
+      margin-right: 10px;
+      /* 2026-11-13：品牌图标是白底方图（源图无 alpha 通道，见
+         apps/mobile-app/assets/brand/README.md §3），放在深色侧边栏上
+         不加圆角就是一个刺眼的白方块，加圆角后才像一个应用图标。 */
+      border-radius: 7px;
     }
 
     & .sidebar-title {
@@ -87,7 +91,8 @@ const getLogoTextColor = computed(() => {
       color: v-bind(getLogoTextColor);
       font-weight: 600;
       line-height: 50px;
-      font-size: 14px;
+      font-size: 15px;
+      letter-spacing: 0.02em;
       font-family: Avenir, Helvetica Neue, Arial, Helvetica, sans-serif;
       vertical-align: middle;
     }

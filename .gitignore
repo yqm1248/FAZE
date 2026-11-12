@@ -28,6 +28,16 @@ target/
 .env
 .env.*
 !.env.example
+# 例外：PC 后台的三个 .env 必须入库。
+# 为什么：RuoYi-Vue3 的 .env.development / .env.production / .env.staging 里定义
+#   VITE_APP_TITLE（侧边栏与浏览器标签页标题）和 VITE_APP_BASE_API（接口前缀），
+#   被上面两条规则一起忽略后，clone 下来的仓库根本没有这三个文件——
+#   实测 2026-11-13 时 git ls-files 查不到它们，dev server 的接口前缀会变成 undefined。
+#   这三个文件只含标题、环境名、API 前缀和压缩开关，不含任何密钥，可以入库。
+# 注意：apps/mobile-app/.env 仍然保持忽略——它装的是每台机器各自的局域网 API 地址。
+!pc/admin-web/.env.development
+!pc/admin-web/.env.production
+!pc/admin-web/.env.staging
 
 # 运行日志与临时输出
 logs/

@@ -34,7 +34,9 @@ function getBreadcrumb() {
   }
   // 判断是否为首页
   if (!isDashboard(matched[0])) {
-    matched = [{ path: "/index", meta: { title: "首页" } }].concat(matched)
+    // 2026-11-13：落地页从若依介绍页换成法泽数据看板（src/router/index.js），
+    // 面包屑首项跟着改，否则点进去写着「数据看板」、面包屑却叫「首页」。
+    matched = [{ path: "/index", meta: { title: "数据看板" } }].concat(matched)
   }
   levelList.value = matched.filter(item => item.meta && item.meta.title && item.meta.breadcrumb !== false)
 }

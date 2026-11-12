@@ -64,9 +64,14 @@ export const constantRoutes = [
     children: [
       {
         path: '/index',
-        component: () => import('@/views/index'),
+        // 2026-11-13：登录落地页从「若依介绍页」换成法泽数据看板。
+        // 为什么不 redirect 到 /biz/ops/dashboard：/index 是 constantRoutes 里的静态路由，
+        //   登录后必然命中；redirect 到动态路由存在「动态路由还没 addRoute」的时序风险。
+        //   直接换组件最稳，且侧边栏只出现一个「数据看板」入口（sys_menu 2101 已 visible=1 隐藏）。
+        // views/index.vue（若依介绍页）保留在仓库里未引用，需要时把下面这行改回去即可。
+        component: () => import('@/views/biz/ops/Dashboard'),
         name: 'Index',
-        meta: { title: '首页', icon: 'dashboard', affix: true }
+        meta: { title: '数据看板', icon: 'dashboard', affix: true }
       }
     ]
   },

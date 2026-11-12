@@ -14,7 +14,10 @@ const useSettingsStore = defineStore(
   {
     state: () => ({
       title: '',
-      theme: storageSetting.theme || '#409EFF',
+      // 2026-11-13：默认主题色从 RuoYi 的 #409EFF 换成法泽品牌蓝 #4a66ee。
+      // 注意：这里只改「没有本地布局配置时」的默认值；如果浏览器 localStorage 的
+      // layout-setting 里已经存过旧颜色，会以本地值为准（设置面板里重新选一次即可）。
+      theme: storageSetting.theme || '#4a66ee',
       sideTheme: storageSetting.sideTheme || sideTheme,
       showSettings: showSettings,
       navType: storageSetting.navType === undefined ? navType : storageSetting.navType,
