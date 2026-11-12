@@ -23,6 +23,7 @@ import com.faze.modules.account.entity.AppUser;
 import com.faze.modules.account.entity.Lawyer;
 import com.faze.modules.account.mapper.AccountMapper;
 import com.faze.modules.account.mapper.LawyerMapper;
+import com.faze.modules.account.service.RealnameStatusResolver;
 import com.faze.modules.account.service.UploadService;
 import java.util.Locale;
 import java.util.Set;
@@ -44,6 +45,7 @@ public class AdminLawyerService {
     private final LawyerMapper lawyerMapper;
     private final AccountMapper accountMapper;
     private final AdminLawyerConverter converter;
+    private final RealnameStatusResolver realnameStatusResolver;
     private final UploadService uploadService;
 
     /**
@@ -91,7 +93,9 @@ public class AdminLawyerService {
                         .eq(AppUser::getId, lawyer.getUserId())
                         .isNull(AppUser::getDeletedAt));
         String licenseImageUrl = uploadService.downloadUrlForAdmin(lawyer.getLicenseImage());
-        return converter.toLawyerDetail(lawyer, user, licenseImageUrl);
+        // 用户摘要里的实名状态走派生（DRIFT-015），不读 app_user.realname_status 缓存列
+        String realnameStatus = user == null ? null : realnameStatusResolver.resolve(user.getId());
+        return converter.toLawyerDetail(lawyer, user, licenseImageUrl, realnameStatus);
     }
 
     // ── 内部 ───────────────────────────────────────────────────────────────

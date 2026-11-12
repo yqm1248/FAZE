@@ -122,9 +122,11 @@ public class AdminLawyerConverter {
      * @param lawyer          律师实体
      * @param user            关联用户（可为 null：已注销）
      * @param licenseImageUrl 执业证签名 URL（60 秒，可为 null）
+     * @param realnameStatus  用户的实名状态（小写口径，由 RealnameStatusResolver 派生，DRIFT-015）
      * @return 详情
      */
-    public AdminLawyerDetailVO toLawyerDetail(Lawyer lawyer, AppUser user, String licenseImageUrl) {
+    public AdminLawyerDetailVO toLawyerDetail(Lawyer lawyer, AppUser user, String licenseImageUrl,
+                                              String realnameStatus) {
         AdminLawyerDetailVO vo = new AdminLawyerDetailVO();
         vo.setId(lawyer.getId());
         vo.setUserId(lawyer.getUserId());
@@ -151,7 +153,7 @@ public class AdminLawyerConverter {
         vo.setServiceDocOn(lawyer.getServiceDocOn());
         vo.setAutoAccept(lawyer.getAutoAccept());
         vo.setWithdrawBankAccountTail(accountConverter.bankTail(lawyer.getWithdrawBankAccount()));
-        vo.setUser(toUserBrief(user));
+        vo.setUser(toUserBrief(user, realnameStatus));
         return vo;
     }
 
@@ -196,10 +198,11 @@ public class AdminLawyerConverter {
     /**
      * 用户实体 → 详情里的用户摘要。
      *
-     * @param user 用户实体（可为 null）
+     * @param user           用户实体（可为 null）
+     * @param realnameStatus 实名状态（小写口径，可为 null → NONE）
      * @return 摘要；为 null 时整个字段输出 null
      */
-    private AdminLawyerDetailVO.UserBrief toUserBrief(AppUser user) {
+    private AdminLawyerDetailVO.UserBrief toUserBrief(AppUser user, String realnameStatus) {
         if (user == null) {
             return null;
         }
@@ -207,7 +210,7 @@ public class AdminLawyerConverter {
         brief.setId(user.getId());
         brief.setNickname(user.getNickname());
         brief.setPhoneMasked(accountConverter.maskPhone(user.getPhone()));
-        brief.setRealnameStatus(accountConverter.toRealnameStatus(user.getRealnameStatus()));
+        brief.setRealnameStatus(accountConverter.toRealnameStatus(realnameStatus));
         return brief;
     }
 

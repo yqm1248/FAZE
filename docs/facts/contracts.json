@@ -1,15 +1,15 @@
 {
   "_comment": "本文件由 scripts/facts/check-contracts.mjs 从源码注释与 i18n 文案生成，禁止手改。用途：让「代码里承诺了什么」成为可 diff 的清单——新增一条承诺就是一次可见的改动。",
-  "sourceDigest": "bb5d37370fae9e48",
+  "sourceDigest": "6650bd4bfffcbbdc",
   "totals": {
-    "promises": 447,
+    "promises": 448,
     "scopeViolations": 1,
     "knownViolations": 1
   },
   "byKeyword": {
     "重复提交": 22,
     "幂等": 323,
-    "保证": 99,
+    "保证": 100,
     "重复点": 3
   },
   "note": "promises 只说明「注释里提到了承诺性措辞」，**不代表它说错了**。绝大多数是对的。scopeViolations 才是机器能判定为假的那一类。",
@@ -539,7 +539,7 @@
     },
     {
       "file": "services/faze-api/src/main/java/com/faze/modules/account/admin/converter/AdminAccountConverter.java",
-      "line": 183,
+      "line": 188,
       "keyword": "保证",
       "text": "* 手机号脱敏（委托 C 端 AccountConverter，保证全项目一个实现）。"
     },
@@ -611,9 +611,15 @@
     },
     {
       "file": "services/faze-api/src/main/java/com/faze/modules/account/service/RealnameService.java",
-      "line": 70,
+      "line": 77,
       "keyword": "重复提交",
       "text": "任务 3：一对一 upsert。重复提交把状态改回 pending，并清掉上次的驳回信息。"
+    },
+    {
+      "file": "services/faze-api/src/main/java/com/faze/modules/account/service/RealnameStatusResolver.java",
+      "line": 69,
+      "keyword": "保证",
+      "text": "* <p>返回的 Map **保证每个入参 userId 都有值**：查不到记录的填 {@link #STATUS_NONE}，"
     },
     {
       "file": "services/faze-api/src/main/java/com/faze/modules/account/service/RegionOptionsService.java",

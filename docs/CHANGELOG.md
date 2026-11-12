@@ -4,6 +4,67 @@
 
 ---
 
+## 2026-11-13（六）· DRIFT-015 实名状态派生（基线 v1.80）：两套真相收敛成一套
+
+**一句话**：实名状态原来「实名页读 `realname_auth`、我的页读 `app_user.realname_status`」，同一用户同一时刻能显示两种结论（9416 一个说「审核中」一个说「未实名」，user 3 更极端：auth=rejected 而列=approved）。现在真相源收敛为 `realname_auth` 一张表，列降级为冗余缓存，App 端「审核中」「已驳回」两个死分支变成活代码。
+
+### 一、根因（不是"显示 bug"，是写入漏了一半）
+
+| 路径 | 原来 | 修复后 |
+|---|---|---|
+| 用户提交实名（`RealnameService#submit`） | 只 upsert `realname_auth`，**不写 `app_user.realname_status`** | 两条一起写（同一事务） |
+| 后台审核（`AdminVerificationAuditExecutor`） | 写 `realname_auth` + 写列 | 不变（但现在这一列只是缓存） |
+| 4 类读取路径 | 全读缓存列 → 永远看不到 pending/rejected | 全走派生 `RealnameStatusResolver` |
+
+**这就是为什么列里从来只有 `approved` / `none`**：`pending` 和 `rejected` 的唯一写入点在后台审核，而「已提交待审」这一段永远写不进列。
+
+### 二、代码改动（11 个文件 + 1 新类）
+
+- **新增 `RealnameStatusResolver`**（`modules/account/service`）：唯一派生入口，`none/pending/approved/rejected` **总值**（无记录、status=null、脏值一律归 `none`，不返回第五种值给下游 `switch`），只读、不开事务、不缓存；另有 `resolveBatch` 给后台列表（一次 IN 查询，保证每个 id 都有值）。
+- **读取路径全部改派生**：`AuthService#issue`（登录响应）、`ProfileService`（资料页）、`AccountQueryServiceImpl#findRealnameStatus`（充值门禁，**这条最关键：原来信缓存列会让"审核被驳回的人按已实名额度充值"**）、`AdminUserService`（列表 + 筛选）、`AdminLawyerService`（详情里的用户摘要）。
+- **三个 Converter 的实名状态改成必传参数**（`AccountConverter` / `AdminAccountConverter` / `AdminLawyerConverter`）：漏传编译不过，而不是运行时静默读错列——这是刻意的设计，注释里写了原因。
+- **后台列表筛选改 `EXISTS` 子查询**：原来 `eq(app_user.realname_status, ...)` 筛「已实名」可能筛出被驳回的人。新口径里「未实名」不是 `status='none'`（auth 表没有这个值），而是**没有任何一条有效审核记录**，所以用 `NOT EXISTS`。
+- **`AdminVerificationAuditExecutor#syncUserRealnameStatus` 保留但重新定位**：注释明写「删掉这次写库也不会改变任何页面显示」——列现在是缓存，不是真相源。
+
+### 三、存量数据收敛（迁移 V800）
+
+`V800__fix_realname_status_derive.sql` 按 auth 重算 `app_user.realname_status`，口径与 `resolveFromAuth` 完全一致，**幂等**（WHERE 只更新不一致行；以后再有同类漂移，重跑同一条语句即可）。
+
+实测更新 **3 行**：user 3（approved→rejected）、9416（none→pending）、9418（none→pending）。库内分布从 `approved 4 / none 11` 变成 `approved 3 / pending 2 / rejected 1 / none 9`，与 `realname_auth` 完全对齐。
+
+> **user 3 改成 rejected 的争议已实测排除**：它是 `deploy/verify-admin-api.mjs` 硬编码的 `walletUser = 3`，但该脚本只把它用在 `/admin/wallets/3` 与手工充值两个管理端接口上，**这两条不走 `RechargeQuotaPolicy`**（管理端充值不校验 C 端实名门禁）。脚本里唯一涉及实名状态的断言是 A-03 列表的四值枚举检查——派生后值更准，断言只会更稳。当时 `data-integrity.sql` 头部写的「改成 rejected 会断管理端验收」是**未经核实的推测**，本次已改正。
+
+### 四、巡检口径同步
+
+| 项 | 原来 | 现在 |
+|---|---|---|
+| A12 | 「auth 与 app_user 结论相反」（已知红灯 = 1） | 「**缓存列有没有跟上真相源**」，口径与 V800 / `resolveFromAuth` 同构，NULL-safe（`<=>`），正常 0 |
+| A13 | `NOT IN ('approved','none')` | `NOT IN ('none','pending','approved','rejected')` |
+
+实测：**A12 = 0、A13 = 0**。
+
+### 五、验证
+
+- **单测**：新增 `RealnameStatusResolverTest` 7 例（null 用户不查库 / 无记录 / 三态 / status=null 或脏值归 none / 大写输入小写输出 / 批量保证每 id 有值 / 空集合不查库）。
+- **端到端（同一批账号，两接口对比）**：
+
+| 账号 | `GET /app/account/realname` | `GET /app/account/profile` |
+|---|---|---|
+| 9416（auth=pending） | `PENDING` | `PENDING` ✅（修复前是 `NONE`） |
+| user 3（auth=rejected） | `REJECTED` | `REJECTED` ✅（修复前是 `APPROVED`） |
+| user 1（auth=approved） | `APPROVED` | `APPROVED` |
+
+- **后台筛选 SQL**：`EXISTS` 三种条件在 MySQL 8.0.44 实跑，结果与预期一致（pending → 9416/9418；none → 9 个无 auth 记录的用户；approved → 1/9080/9415）。
+- **迁移**：Flyway `installed_rank 50 / version 800 / success 1`。
+
+### 六、遗留
+
+1. **管理端接口没有实跑**（`GET /admin/users?realnameStatus=PENDING` 需要 RuoYi 登录态 + Redis session，本次只验证了等价 SQL 语义）。留给段八联调时光跑一次 `deploy/verify-admin-api.mjs`。
+2. **`app_user.realname_status` 列没删**：删列不可逆，且导出/直查仍在读。它现在的定位是缓存，写路径两处维护——**如果将来出现第三处写入或有人又开始读它，就是本问题复发**，A12 会亮。
+3. `data-integrity.sql` 里另一条已知红灯 A20（案例引用 733 条号但法条库无正文）**不在本次范围**，仍挂段八。
+
+---
+
 ## 2026-11-13（六）· 第 8 段工作流产出（基线 v1.79）：收口段可施工 + 3 处文档漂移
 
 **一句话**：总纲 §11.2 里挂了一个多月的「第 8 段工作流——待产出」写出来了；顺带把写文档过程中撞出来的 3 处文档漂移修掉（「51 张表」旧口径、`docs/README.md` 漏登第 6 段、基线号与错误码数字过期）。

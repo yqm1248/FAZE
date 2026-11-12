@@ -51,16 +51,20 @@ public class AdminAccountConverter {
     /**
      * 用户实体 → 列表行。
      *
-     * @param user 用户实体
+     * <p>实名状态由调用方传入：真相源是 `realname_auth`（DRIFT-015），
+     * 本类不再读 `app_user.realname_status` 缓存列。</p>
+     *
+     * @param user           用户实体
+     * @param realnameStatus 派生出的实名状态（小写口径，可为 null → NONE）
      * @return 列表行；消费类字段本段固定 0（无 legal_order，段 2 接入）
      */
-    public AdminUserRowVO toUserRow(AppUser user) {
+    public AdminUserRowVO toUserRow(AppUser user, String realnameStatus) {
         AdminUserRowVO vo = new AdminUserRowVO();
         vo.setId(user.getId());
         vo.setNickname(user.getNickname());
         vo.setPhoneMasked(accountConverter.maskPhone(user.getPhone()));
         vo.setAvatarUrl(user.getAvatarUrl());
-        vo.setRealnameStatus(toRealnameStatus(user.getRealnameStatus()));
+        vo.setRealnameStatus(toRealnameStatus(realnameStatus));
         vo.setAccountStatus(toAccountStatus(user.getStatus()));
         // 段 1 没有 legal_order 表（契约明确固定 0，段 2 接入）
         vo.setTotalConsumeCents(0L);
@@ -89,7 +93,8 @@ public class AdminAccountConverter {
         vo.setIsMinor(Boolean.TRUE.equals(user.getIsMinor()));
         vo.setLang(user.getLang());
         vo.setRole(user.getRole());
-        vo.setRealnameStatus(toRealnameStatus(user.getRealnameStatus()));
+        // 详情已经拿到了实名记录本身，直接由它推状态，不用再查一次（DRIFT-015）
+        vo.setRealnameStatus(toRealnameStatus(realname == null ? null : realname.getStatus()));
         vo.setAccountStatus(toAccountStatus(user.getStatus()));
         vo.setCreatedAt(user.getCreatedAt());
         vo.setLastLoginAt(user.getLastLoginAt());

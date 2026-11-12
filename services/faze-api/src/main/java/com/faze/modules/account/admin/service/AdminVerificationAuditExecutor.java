@@ -10,7 +10,7 @@
  *   2. 事务边界在本类的 public 方法上（一个审核动作 = 一个事务），rollbackFor 必须写 Exception。
  *   3. 状态迁移必须 CAS（`eq(status,'pending')`）：两个管理员同时点「通过」时，
  *      后到的 rows=0 → 401006，不会产生两次审计 + 两条 lawyer 风险。
- *   4. **不动 `app_user.role`**（契约 A-04 明确）：实名审核只同步 realname_status。
+ *   4. **不动 `app_user.role`**（契约 A-04 明确）：实名审核只同步 realname_status 缓存列。
  *   5. 审计 detail 写 before/after 状态 + 结论 + 理由；理由进 detail 前由 AuditContext 承载，
  *      不进日志正文（日志只打 id 与结论）。
  */
@@ -230,7 +230,12 @@ public class AdminVerificationAuditExecutor {
     }
 
     /**
-     * 同步 app_user.realname_status（实名审核的唯一用户侧后果）。
+     * 同步 `app_user.realname_status` **冗余缓存列**（DRIFT-015）。
+     *
+     * <p><b>它不是真相源</b>：真相源是 `realname_auth`，所有读取路径（登录响应、资料页、
+     * 充值门禁、后台列表与详情）都走 `RealnameStatusResolver` 派生。这一列只给
+     * 导出、直查、历史脚本用；在这里维护是为了别让直查的人看到两套结论，
+     * 但**删掉这次写库也不会改变任何页面显示**——这正是不该再信任它的原因。</p>
      *
      * <p>用户已注销时更新 0 行：不报错——审核动作本身要留下，注销用户不必回写。</p>
      *

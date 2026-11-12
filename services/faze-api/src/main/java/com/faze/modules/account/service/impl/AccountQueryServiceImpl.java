@@ -17,6 +17,7 @@ import com.faze.modules.account.entity.UserDevice;
 import com.faze.modules.account.mapper.AccountMapper;
 import com.faze.modules.account.mapper.UserDeviceMapper;
 import com.faze.modules.account.service.AccountQueryService;
+import com.faze.modules.account.service.RealnameStatusResolver;
 import com.faze.modules.account.vo.AccountAuthSnapshot;
 import com.faze.modules.account.vo.DeviceVO;
 import java.util.List;
@@ -45,6 +46,7 @@ public class AccountQueryServiceImpl implements AccountQueryService {
 
     private final AccountMapper accountMapper;
     private final UserDeviceMapper userDeviceMapper;
+    private final RealnameStatusResolver realnameStatusResolver;
 
     /**
      * 按用户主键取认证快照。
@@ -73,8 +75,12 @@ public class AccountQueryServiceImpl implements AccountQueryService {
     /**
      * 取用户的实名认证状态（第 6 段 B3）。
      *
-     * <p>只读 `realname_status` 一列，不查 `realname_auth` 表：充值拦截只需要「是否已通过」，
-     * 去查审核记录会把充值链路和审核链路耦合起来，且多一次 JOIN 没有收益。</p>
+     * <p>**读 `realname_auth` 派生，不读 `app_user.realname_status`**（DRIFT-015）：
+     * 后者是冗余缓存列，曾出现「auth=rejected 而列=approved」的矛盾数据，
+     * 充值门禁如果信它，就会出现「审核被驳回的人还能按已实名额度充值」。</p>
+     *
+     * <p>这是一次按唯一索引（uk_realname_user）的点查，代价与读缓存列同一量级；
+     * 之所以不缓存到列上，是因为缓存一致性只能靠写路径自觉，而写路径已经漏过一次。</p>
      *
      * @param userId 用户主键
      * @return 状态值；用户不存在或已软删时返回空
@@ -88,7 +94,7 @@ public class AccountQueryServiceImpl implements AccountQueryService {
         if (user == null || user.getDeletedAt() != null) {
             return Optional.empty();
         }
-        return Optional.ofNullable(user.getRealnameStatus());
+        return Optional.of(realnameStatusResolver.resolve(userId));
     }
 
     /**

@@ -90,6 +90,7 @@ public class AuthService {
     private final LoginGuardService loginGuardService;
     private final LoginLogService loginLogService;
     private final AccountConverter accountConverter;
+    private final RealnameStatusResolver realnameStatusResolver;
     private final DeviceService deviceService;
     private final Duration refreshTtl;
 
@@ -116,6 +117,8 @@ public class AuthService {
      * @param loginLogService   登录日志
      * @param riskControlService 账号风控（异常注册检测 / 新设备提醒）
      * @param regionOptionsService 地区枚举（注册时的白名单校验）
+     * @param accountConverter 用户实体 → 出参（手机号脱敏唯一入口）
+     * @param realnameStatusResolver 实名状态派生（DRIFT-015：真相源是 realname_auth）
      * @param jwtProperties     JWT 配置（取 refresh 有效期）
      */
     public AuthService(AccountMapper accountMapper,
@@ -126,6 +129,7 @@ public class AuthService {
                        LoginGuardService loginGuardService,
                        LoginLogService loginLogService,
                        AccountConverter accountConverter,
+                       RealnameStatusResolver realnameStatusResolver,
                        DeviceService deviceService,
                        RiskControlService riskControlService,
                        RegionOptionsService regionOptionsService,
@@ -138,6 +142,7 @@ public class AuthService {
         this.loginGuardService = loginGuardService;
         this.loginLogService = loginLogService;
         this.accountConverter = accountConverter;
+        this.realnameStatusResolver = realnameStatusResolver;
         this.deviceService = deviceService;
         this.riskControlService = riskControlService;
         this.regionOptionsService = regionOptionsService;
@@ -459,7 +464,8 @@ public class AuthService {
         response.setRefreshToken(refreshTokenStore.issue(user.getId(), refreshTtl));
         response.setExpiresIn((int) tokenProvider.getAccessTtlSeconds());
         response.setTokenType(TOKEN_TYPE_BEARER);
-        response.setUser(accountConverter.toUserVO(user));
+        // 实名状态走派生（DRIFT-015）：读 realname_auth，不读 app_user.realname_status 缓存列
+        response.setUser(accountConverter.toUserVO(user, realnameStatusResolver.resolve(user.getId())));
         return response;
     }
 

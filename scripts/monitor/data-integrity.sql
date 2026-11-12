@@ -23,12 +23,13 @@
 --     · 历史快照过期 → 重算快照（如 JSON 冗余字段）
 --
 -- 已知未清项（2026-11-11 首次巡检基线，跑出来不是 0 属预期）：
---   A12 realname 两列矛盾 = 1 条（user 3：realname_auth=rejected 但 app_user.realname_status=approved）
---       负责人 2026-11-11 已定 **方案 C：不改数据**。理由是根因在代码（DRIFT-015 两套真相），
---       改数据只是让两边一致、不解决问题。等代码修成「realname_status 由 realname_auth 派生」
---       之后一次性收敛。**在此之前 A12 恒为 1，这是预期，不是漏修。**
---       补充：该用户是 `deploy/verify-admin-api.mjs` 硬编码的钱包验收账号（walletUser=3），
---       改成 rejected 会断管理端验收，改成 approved 等于伪造审核记录——两个方向都不能选。
+--   ~~A12 realname 两列矛盾 = 1 条~~ **2026-11-13 已清（DRIFT-015 修复）**：
+--       代码改为「实名状态由 realname_auth 派生」，A12 从此是「缓存列有没有跟上真相源」
+--       的告警，正常应为 0。存量 3 行（user 3 / 9416 / 9418）由
+--       `V800__fix_realname_status_derive.sql` 按 auth 重算收敛。
+--       当时的顾虑「user 3 改成 rejected 会断管理端验收」实测不成立：
+--       `deploy/verify-admin-api.mjs` 只把 walletUser=3 用在管理端钱包与手工充值，
+--       不经 C 端实名门禁；脚本里涉及实名状态的断言只有 A-03 的四值枚举检查。
 --   A20 案例引用快照自相矛盾 = 1 条（case_library.law_refs 写「第七百三十三条」，
 --       但其 lawItemId=23 经 V710 已正名为「第七百二十二条」）
 --       不在此处清，原因是根因是**法条库缺真正的 733 正文**（V710 明确不补录、等人工核对原文），
@@ -100,15 +101,20 @@ WHERE (b.owner_type = 'user' AND NOT EXISTS (SELECT 1 FROM app_user a WHERE a.id
 
 SELECT '=== 身份与关系 ===' AS section;
 
-SELECT 'A12 实名两列矛盾（auth 与 app_user 结论相反）' AS chk, COUNT(*) AS n
-FROM realname_auth r
-JOIN app_user u ON u.id = r.user_id
-WHERE (r.status = 'approved' AND u.realname_status <> 'approved')
-   OR (r.status <> 'approved' AND u.realname_status = 'approved');
+-- A12（DRIFT-015 修复后）：`app_user.realname_status` 是**冗余缓存列**，真相源是 `realname_auth`。
+-- 本项查「缓存有没有跟上真相源」，口径与 V800 迁移、`RealnameStatusResolver#resolveFromAuth`
+-- 完全一致（auth 三值之一 → 原值；无记录/脏值 → none）。正常应为 0。
+SELECT 'A12 实名缓存列与真相源不一致（realname_status 未跟上 realname_auth）' AS chk, COUNT(*) AS n
+FROM app_user u
+LEFT JOIN realname_auth r ON r.user_id = u.id
+WHERE NOT (u.realname_status <=> CASE
+      WHEN r.status IN ('pending', 'approved', 'rejected') THEN r.status
+      ELSE 'none'
+    END);
 
 SELECT 'A13 实名状态值不在代码值域内' AS chk, COUNT(*) AS n
 FROM app_user
-WHERE realname_status NOT IN ('approved', 'none');
+WHERE realname_status NOT IN ('none', 'pending', 'approved', 'rejected');
 
 SELECT 'A14 收藏/关注的 target 已不存在（article）' AS chk, COUNT(*) AS n
 FROM social_action s

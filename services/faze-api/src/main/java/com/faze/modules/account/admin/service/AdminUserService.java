@@ -36,6 +36,7 @@ import com.faze.modules.account.entity.UserDevice;
 import com.faze.modules.account.mapper.AccountMapper;
 import com.faze.modules.account.mapper.RealnameAuthMapper;
 import com.faze.modules.account.mapper.UserDeviceMapper;
+import com.faze.modules.account.service.RealnameStatusResolver;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.LinkedHashMap;
@@ -68,12 +69,15 @@ public class AdminUserService {
     private static final String ORDER_CREATED = "createdAt";
     private static final String ORDER_LAST_LOGIN = "lastLoginAt";
     private static final Set<String> REALNAME_STATUS = Set.of("NONE", "PENDING", "APPROVED", "REJECTED");
+    /** 实名状态「未实名」的大写出参值（筛选时要走「无有效记录」的反向条件）。 */
+    private static final String ENUM_REALNAME_NONE = "NONE";
     private static final Set<String> ACCOUNT_STATUS = Set.of("NORMAL", "BANNED", "CANCELLED");
 
     private final AccountMapper accountMapper;
     private final UserDeviceMapper userDeviceMapper;
     private final RealnameAuthMapper realnameAuthMapper;
     private final AdminAccountConverter converter;
+    private final RealnameStatusResolver realnameStatusResolver;
     private final JsonMapper jsonMapper;
 
     /**
@@ -89,7 +93,10 @@ public class AdminUserService {
     public IPage<AdminUserRowVO> list(AdminUserQueryBO query) {
         LambdaQueryWrapper<AppUser> wrapper = buildListWrapper(query);
         IPage<AppUser> page = accountMapper.selectPage(Pages.of(query.getPageNum(), query.getPageSize()), wrapper);
-        return page.convert(converter::toUserRow);
+        // 实名状态批量派生（DRIFT-015）：一次 IN 查询换掉逐行读缓存列
+        Map<Long, String> realnameStatuses = realnameStatusResolver.resolveBatch(
+                page.getRecords().stream().map(AppUser::getId).toList());
+        return page.convert(user -> converter.toUserRow(user, realnameStatuses.get(user.getId())));
     }
 
     /**
@@ -228,8 +235,8 @@ public class AdminUserService {
                 .isNull(AppUser::getDeletedAt)
                 .like(StringUtils.hasText(query.getNickname()), AppUser::getNickname, query.getNickname());
         applyPhoneFilter(wrapper, query.getPhone());
-        wrapper.eq(realnameStatus != null, AppUser::getRealnameStatus, realnameStatus)
-                .eq(accountStatus != null, AppUser::getStatus, toDbAccountStatus(accountStatus))
+        applyRealnameFilter(wrapper, realnameStatus);
+        wrapper.eq(accountStatus != null, AppUser::getStatus, toDbAccountStatus(accountStatus))
                 .ge(query.getBeginTime() != null, AppUser::getCreatedAt, query.getBeginTime())
                 .le(query.getEndTime() != null, AppUser::getCreatedAt, query.getEndTime());
         applyOrder(wrapper, query.getOrderBy());
@@ -252,6 +259,35 @@ public class AdminUserService {
         } else {
             wrapper.likeLeft(AppUser::getPhone, value);
         }
+    }
+
+    /**
+     * 实名状态过滤（DRIFT-015）：走 `realname_auth` 的 EXISTS 子查询，不查缓存列。
+     *
+     * <p>为什么不能用 `app_user.realname_status` 筛：那一列可能滞后于真相源。
+     * 「筛选『已实名』却筛出被驳回的人」比列表显示错更难发现——用户看不到筛选口径，
+     * 只会觉得名单少人/多人。所以筛选与显示必须用同一个真相源。</p>
+     *
+     * <p>「未实名」不是 `status='none'`，而是**没有任何一条有效审核记录**：
+     * auth 表没有 none 这个值，none 是「无记录」派生出来的。</p>
+     *
+     * @param wrapper        查询条件
+     * @param realnameStatus 大写枚举 NONE/PENDING/APPROVED/REJECTED；null 表示不筛
+     */
+    private void applyRealnameFilter(LambdaQueryWrapper<AppUser> wrapper, String realnameStatus) {
+        if (realnameStatus == null) {
+            return;
+        }
+        if (ENUM_REALNAME_NONE.equals(realnameStatus)) {
+            wrapper.notExists("SELECT 1 FROM realname_auth ra"
+                    + " WHERE ra.user_id = app_user.id"
+                    + " AND ra.status IN ('pending', 'approved', 'rejected')");
+            return;
+        }
+        // realnameStatus 已过白名单（normalizeEnum），小写后拼进 {0} 无注入面
+        wrapper.exists("SELECT 1 FROM realname_auth ra"
+                + " WHERE ra.user_id = app_user.id AND ra.status = {0}",
+                realnameStatus.toLowerCase(Locale.ROOT));
     }
 
     /**

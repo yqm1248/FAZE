@@ -41,6 +41,7 @@ public class ProfileService {
 
     private final AccountMapper accountMapper;
     private final AccountConverter accountConverter;
+    private final RealnameStatusResolver realnameStatusResolver;
     private final LawyerApplicationService lawyerApplicationService;
     private final BalanceQueryService balanceQueryService;
 
@@ -58,7 +59,7 @@ public class ProfileService {
         if (user == null || user.getDeletedAt() != null) {
             throw new BusinessException(ErrorCode.AUTH_TOKEN_INVALID);
         }
-        ProfileVO vo = accountConverter.toProfileVO(user);
+        ProfileVO vo = accountConverter.toProfileVO(user, realnameStatusResolver.resolve(userId));
         vo.setLawyerStatus(resolveLawyerStatus(userId));
         vo.setBalanceCents(balanceQueryService.getTotalCentsFromFlows(userId));
         return vo;

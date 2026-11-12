@@ -6,8 +6,8 @@
     "tables": 53,
     "columns": 687,
     "indexes": 188,
-    "flywayApplied": 49,
-    "flywayLatest": "712"
+    "flywayApplied": 50,
+    "flywayLatest": "800"
   },
   "flyway": {
     "applied": [
@@ -206,6 +206,10 @@
       {
         "version": "712",
         "description": "fix balance column name"
+      },
+      {
+        "version": "800",
+        "description": "fix realname status derive"
       }
     ]
   },

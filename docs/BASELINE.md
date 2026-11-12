@@ -1,18 +1,18 @@
-# 法泽 FAZE 文档基线 v1.79
+# 法泽 FAZE 文档基线 v1.80
 
 > # 后续一切文档从这里开始
 
 | 项 | 值 |
 | --- | --- |
-| 基线编号 | **v1.79** |
-| 确立日期 | 2026-11-13（第 8 段工作流产出——收口段从「待产出」变为可施工；8 处上游冲突逐条裁决、11 项负责人裁决落定，**其中最关键一条是「本段整类不做测试」**；同步修 3 处文档漂移：`AGENTS.md` 与 `docs/README.md` 的「51 张表」旧口径、`docs/README.md` 缺第 6 段索引、`docs/README.md` 的基线与错误码数字过期；见 §7.82） |
-| 上一版 | v1.78（2026-11-13，DEF-014 / DEF-015 落地 + DRIFT-020~023 四条拍板 + DRIFT-051；见 §7.81） |
+| 基线编号 | **v1.80** |
+| 确立日期 | 2026-11-13（DRIFT-015 实名状态派生——真相源从「两套」收敛为 `realname_auth` 一张表，`app_user.realname_status` 降级为冗余缓存；顺带清掉 A12 已知红灯，巡检 A12/A13 归零；见 §7.83） |
+| 上一版 | v1.79（2026-11-13，第 8 段工作流产出 + 3 处文档漂移；见 §7.82） |
 | 所在分支 | `UI设计`（v1.2 及以前在 `docs` 分支） |
 | Git 标签 | `v1.13-docs-baseline`（v1.3~v1.10 当时未打标签，见 §7.13；v1.14~v1.32 亦未打标签，见 §7.33 末尾） |
-| 基线资产数 | **56**（49 份 Markdown + 7 份 JSON；v1.49~v1.66 为 45 份，v1.67 登记 48 漏算 1 份，v1.69~v1.74 逐步补到 55。**v1.79 新增 1 份**：第 8 段工作流） |
-| 本版新增 | **1 份**（`docs/architecture/法泽FAZE_第8段工作流_v1.0.md`，落款 v1.79） |
+| 基线资产数 | **56**（49 份 Markdown + 7 份 JSON；v1.49~v1.66 为 45 份，v1.67 登记 48 漏算 1 份，v1.69~v1.74 逐步补到 55，v1.79 补到 56。**v1.80 无新增无删除**） |
+| 本版新增 | **0 份** |
 | 本版删除 | **0 份** |
-| 本版内容变更 | **5 份**（`docs/architecture/法泽FAZE_开发计划总纲_v1.0.md` §11.2 第 8 段状态行「待产出」→「已产出」、`docs/README.md`（3 处：索引行、基线号、表数量口径；并补登遗漏的第 6 段）、`AGENTS.md` §4.6 表数量「51 张」→「55 张唯一名 / 53 张已建」、`docs/README.md` 索引里的错误码「94 个」→「96 个」；另 `docs/CHANGELOG.md` 属叙述。**本文件自身不计入**） |
+| 本版内容变更 | **4 份**（`docs/facts/DRIFT.md`：DRIFT-015 行改为「已修」并补修复前后的对照实测、§八 加关闭记录、统计区上方「user 3 实名矛盾」说明改为「已清」；`docs/architecture/法泽FAZE_数据表规范_v1.0.md`：受控区块 `FACTS:schema-tables` 重渲染，Flyway 已应用 49→**50**、最新 **V712**→**V800**；`docs/facts/tables.json`：flyway 计数同步；`docs/facts/contracts.json`：承诺性注释 447→**448**，新增的是 `RealnameStatusResolver#resolveBatch` 的「保证每个入参 userId 都有值」；另 `docs/CHANGELOG.md` 属叙述。**本文件自身不计入**） |
 
 ---
 
@@ -122,7 +122,7 @@
 | 5 | `docs/architecture/法泽FAZE_技术路线_v2.3.md` | 4276 | 214134 | `e5bd39f1e66415e3` 📝 |
 | 6 | `docs/architecture/法泽FAZE_V1基线表结构_v1.0.md` | 232 | 15858 | `3569f83f4ba74328` 📝 |
 | 7 | `docs/architecture/法泽FAZE_错误码规范_v1.0.md` | 457 | 33621 | `6c0ed247805623ce` 📝 |
-| 24 | `docs/architecture/法泽FAZE_数据表规范_v1.0.md` | 731 | 55411 | `ca7dc296a0247bd1` 📝 |
+| 24 | `docs/architecture/法泽FAZE_数据表规范_v1.0.md` | 731 | 55411 | `535f6b46c47fb18e` 📝 |
 | 25 | `docs/architecture/法泽FAZE_接口规范_v1.0.md` | 1190 | 82769 | `87dbb011245b7926` 📝 |
 | 26 | `docs/architecture/法泽FAZE_后端代码规范_v1.0.md` | 1608 | 93985 | `03573f955af80606` 🆕 |
 | 27 | `docs/architecture/法泽FAZE_i18n规范_v1.0.md` | 610 | 28290 | `d3c83761141feac6` 📝 |
@@ -188,15 +188,15 @@
 | # | 文件 | 行数 | 字节 | SHA256 前 16 位 | 是什么 |
 |---|---|---|---|---|---|
 | 46 | `docs/standards/说辞一致与真相源规范.md` | 297 | 15598 | `9d11a58b3ca8b879` 🆕 | **同一个事实在代码 / 文档 / 设计稿三处说法不同时听谁的**：真相源分级（P0 运行中的代码与库 / P1 Flyway / P2 文档 / P3 设计稿）、三类不一致的分界（DRIFT 漂移 / GAP 缺口 / DIRT 脏数据）、5 种处置值的裁决规则、数字口径必须机器算 |
-| 47 | `docs/facts/DRIFT.md` | 215 | 39739 | `931804f43cd41312` 📝 | **说辞漂移登记表**：同一事物、说法不同。D1 组 25 条（逐条核查）、D2 组 17 条（全仓盘点批量登记）、D3 组 **8 条**（跑脚本量出来的）。每行给「代码实际（P0）」+ 证据强度（实测 / 通读 / 待复核） |
+| 47 | `docs/facts/DRIFT.md` | 216 | 41535 | `e5c337adbac0c3d5` 📝 | **说辞漂移登记表**：同一事物、说法不同。D1 组 25 条（逐条核查）、D2 组 17 条（全仓盘点批量登记）、D3 组 **8 条**（跑脚本量出来的）。每行给「代码实际（P0）」+ 证据强度（实测 / 通读 / 待复核） |
 | 48 | `docs/facts/DEFERRED.md` | 171 | 20892 | `1e344287763ae34e` 📝 | **段八挂账汇总索引**：计划有、代码无。**不是待办清单，是真相声明**。含负责人点名的 4 项、最容易被误当已做的 8 项、118 条的分类索引、以及「18 条其实是文档落后于代码」的反向提醒 |
 | 49 | `docs/facts/api.json` | 2136 | 54429 | `fd27202548d1c2c1` 🆕 | **接口清单**：`scripts/facts/api.mjs` 从 78 个 Controller 生成，260 个端点（admin 123 / app 114 / pub 22 / dev 1）。**v1.67 首次登记时漏算本文件，v1.68 补正** |
-| 50 | `docs/facts/tables.json` | 1611 | 41721 | `d8aea0398808cf08` 🆕 | **表结构**：`scripts/facts/tables.mjs` 从 information_schema + flyway_schema_history 生成，53 张业务表 / 687 列 / 188 索引 / Flyway 48 个到 V711 |
+| 50 | `docs/facts/tables.json` | 1615 | 41816 | `1cf84e518a0d7e18` 🆕 | **表结构**：`scripts/facts/tables.mjs` 从 information_schema + flyway_schema_history 生成，53 张业务表 / 687 列 / 188 索引 / Flyway 48 个到 V711 |
 | 51 | `docs/facts/error-codes.json` | 709 | 18939 | `f3718b96d5ba35d1` 🆕 | **错误码清单**：`scripts/facts/error-codes.mjs` 从 ErrorCode 枚举生成，94 个码，无重复。文档里同时写着 78 和 91（DRIFT-045） |
 | 52 | `docs/facts/i18n-keys.json` | 165 | 3707 | `d8922ee221a062b7` 🆕 | **i18n 事实**：`scripts/facts/extract-i18n.mjs` 从 56 个 json 生成。**三个口径同时给出**（总节点 1965 / 叶子条目 1880 / 带 namespace 前缀去重 1880），四语言覆盖各 100%。DRIFT-046、DRIFT-047 都是这张表抓出来的 |
 | 53 | `docs/facts/pages.json` | 4292 | 133719 | `fae02c553b66f795` 🆕 | **页面事实**：`scripts/facts/extract-pages.mjs` 逐页抽取「文件 / 路由 / testID 锚点 / LocalizedText / 写死路由」。四种页面数口径的**唯一解析实现**（`page-inventory.mjs` 只 import 它打印）。抓出 6 处写死路由与 `/case-detail` 壳无对应常量 |
 | 54 | `docs/standards/公共构件与护栏规范.md` | 234 | 14981 | `6f408c9b88f30159` 🆕 | **同类缺陷为什么反复出现、用什么拦住**：六个构件（幂等键 / 法条按 id 回查 / 乐观切换 / 金额展示 / 错误文案 / 归属校验）+ 3 条 ESLint 规则 + 豁免台账 + **三处「计划前提与仓库实际不符」的如实记录**（`useFavorite` 改签名、不建 `ErrorBanner`、先补后端接口） |
-| 55 | `docs/facts/contracts.json` | 2707 | 117979 | `dcc8f4478b5e7b9e` 🆕 | **承诺清单**：`scripts/facts/check-contracts.mjs` 扫出的 **444 条**承诺性注释（幂等 320 / 保证 99 / 重复提交 22 / 重复点 3）+ 1 条范围承诺违规（`profile.fontSizeNote` 说「影响全 App」而实现只影响设置页，DRIFT-002，台账内）。**清单不代表说错**，作用是让「新增承诺」成为可见的 diff |
+| 55 | `docs/facts/contracts.json` | 2713 | 118271 | `d6271754403c0af7` 🆕 | **承诺清单**：`scripts/facts/check-contracts.mjs` 扫出的 **444 条**承诺性注释（幂等 320 / 保证 99 / 重复提交 22 / 重复点 3）+ 1 条范围承诺违规（`profile.fontSizeNote` 说「影响全 App」而实现只影响设置页，DRIFT-002，台账内）。**清单不代表说错**，作用是让「新增承诺」成为可见的 diff |
 | 56 | `docs/architecture/法泽FAZE_第8段工作流_v1.0.md` | 423 | 38245 | `5fadbef9d10b6382` 🆕 | **第 8 段（收口段）施工细则**：把总纲 §5.9 的 9 条锚点展开成任务分组；**本段做 4 组 15 任务，2 组 10 任务移出，9 条锚点只执行 3 条**（`8-A2` 术语冻结 / `8-A5` 合规材料 / `8-A9` 材料齐备）。**8 处上游冲突逐条裁决** + **11 项负责人裁决**，其中第 11 条「**本段整类不做测试**」推翻了真机/性能/渗透三条，测试清单移交到文件 §七 7.1（性能实测 / 真机走查 / 多厂商兼容 / 渗透 / 4×69 逐页走查 / 必测六类 / 崩溃率口径）。另含 A-17 多语言翻译管理页（PC，稿有码无）与深色模式令牌。总纲 §11.2 的「待产出」已同步改为「已产出」 |
 
 ### 2.5 决策依据
@@ -2974,3 +2974,48 @@ hence column cannot be dropped or renamed.
 2. **`AGENTS.md` §7 最后一条仍是失效的**：它要求「在 `docs/design/页面清单与信息架构.md` 的状态列标记为已完成」，而那份文档开头已声明自己是复刻期历史清单、"不要拿它当 69 页清单用"。本版**没有**改这一条——它牵涉"页面完成状态的权威登记处放哪"，需要单独定，不适合夹在段 8 工作流里顺手改。**已登记为待决（见 §九 速查表之后的口径说明）**。
 3. **PC 后台 28 屏与实现之间仍无映射机制**（`PAGE-MAP._scope` 明说只覆盖 APP），A-17 做完也没有门禁保证它与 `16-translation.html` 一致。段 8 只做单点登记（任务 E-3）。
 4. **`design/ui/07b-privacy-prompt.html` 仍是"稿有码无"**（`check:pages` 报 1 项），本版只把它写进段 8 的 §六 风险，没排期。
+
+---
+
+## §7.83 v1.80 DRIFT-015 实名状态派生：两套真相收敛成一套（无新增，内容变更 4 份）
+
+**一句话**：实名状态原来「实名页读 `realname_auth`、我的页读 `app_user.realname_status`」，同一用户同一时刻能显示两种结论。本版把真相源收敛为 `realname_auth` 一张表，列降级为冗余缓存。这是**代码修复**，不改任何接口契约——`realnameStatus` 的四值枚举不变，只是值终于对了。
+
+### 一、根因不是"显示 bug"，是写入漏了一半
+
+| 路径 | 原来 | 现在 |
+|---|---|---|
+| 用户提交实名（`RealnameService#submit`） | 只 upsert `realname_auth`，**不写列** | 同一事务里两条一起写 |
+| 后台审核（`AdminVerificationAuditExecutor`） | 写 auth + 写列 | 不变（列现在只是缓存） |
+| 4 类读取路径 | 全读缓存列 | 全走派生 `RealnameStatusResolver` |
+
+**这就是为什么列里从来只有 `approved` / `none`**：`pending` / `rejected` 的唯一写入点在后台审核，而「已提交待审」这一段永远写不进列——于是 App 端「审核中」「已驳回」两个分支是死代码。
+
+### 二、代码改动（11 个文件 + 1 个新类 + 1 个测试）
+
+- **新增 `RealnameStatusResolver`**：唯一派生入口，总值（无记录 / status=null / 脏值一律归 `none`），只读、不缓存；`resolveBatch` 给后台列表（一次 IN 查询）。
+- **读取路径**：`AuthService#issue`、`ProfileService`、`AccountQueryServiceImpl#findRealnameStatus`（充值门禁）、`AdminUserService`（列表 + 筛选）、`AdminLawyerService`（详情摘要）。
+- **三个 Converter 的实名状态改成必传参数**：漏传编译不过，而不是运行时静默读错列。
+- **后台列表筛选改 `EXISTS` 子查询**：原来按缓存列筛「已实名」可能筛出被驳回的人；新口径里「未实名」= 没有任何有效审核记录（auth 表没有 `none` 这个值）。
+- **写路径补漏**：`RealnameService#submit` 加缓存列同步（原来漏的就是这一步）。
+
+### 三、存量收敛与巡检口径
+
+- 迁移 `V800__fix_realname_status_derive.sql` 按 auth 重算，**幂等**（WHERE 只更新不一致行）。实测更新 **3 行**：user 3（approved→rejected）、9416（none→pending）、9418（none→pending）。库内分布 `approved 4 / none 11` → `approved 3 / pending 2 / rejected 1 / none 9`，与 auth 完全对齐。
+- A12 从「auth 与列结论相反」（已知红灯 = 1）改为「**缓存列有没有跟上真相源**」（NULL-safe `<=>`，与 V800 / `resolveFromAuth` 同构）；A13 值域加 `pending` / `rejected`。实测 **A12 = 0、A13 = 0**。
+
+### 四、验证
+
+- 单测：新增 `RealnameStatusResolverTest` **7 例**全绿。
+- 端到端（两接口对比，同一 token）：9416 `PENDING`/`PENDING`（修复前是 `NONE`）、user 3 `REJECTED`/`REJECTED`（修复前是 `APPROVED`）、user 1 `APPROVED`/`APPROVED`。
+- 后台筛选 `EXISTS` 三种条件在 MySQL 8.0.44 实跑，结果与预期一致。
+- 迁移：Flyway `installed_rank 50 / version 800 / success 1`。
+
+> **user 3 改成 rejected 的争议已实测排除**：它是 `deploy/verify-admin-api.mjs` 的 `walletUser = 3`，但该脚本只把它用在管理端钱包与手工充值两个接口上，**这两条不走 `RechargeQuotaPolicy`**。`data-integrity.sql` 头部原来写的「改成 rejected 会断管理端验收」是**未经核实的推测**，本版已改正并写明依据。
+
+### 五、本版没做的事
+
+1. **管理端接口没有实跑**（`GET /admin/users?realnameStatus=PENDING` 要 RuoYi 登录态 + Redis session），只验证了等价 SQL 语义。留给段 8 联调时跑一次 `deploy/verify-admin-api.mjs`。
+2. **`app_user.realname_status` 列没有删**：删列不可逆，导出/直查仍在读。它现在的定位是缓存，写路径两处维护。**如果将来出现第三处写入或有人又开始读它，就是本问题复发**——A12 会亮。
+3. **A20（案例引用 733 条号但法条库无正文）没动**，仍挂段八。
+4. **集成测试的 5 个 error 是环境问题不是回归**：`TaskQueueIntegrationTest` / `OrderNoGeneratorTest` 在未加载 `deploy/.env`（`FAZE_DB_URL` 等）时上下文起不来。加载后重跑 **5/5 全过**。

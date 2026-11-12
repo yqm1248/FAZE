@@ -7,6 +7,10 @@
  *      手写显式 set 而不是 BeanUtils（同名字段静默覆盖，改名不报错）。
  *   2. **Converter 里不做校验、不查库**——需要数据库信息的转换说明分层错了。
  *   3. 手机号脱敏是唯一入口：别处再写一遍 substring 就一定会有一处漏。
+ *   4. **实名状态必须由调用方传进来**（DRIFT-015）：真相源是 `realname_auth`，
+ *      由 `RealnameStatusResolver` 派生。本类曾直接读 `AppUser#getRealnameStatus`，
+ *      那个列是冗余缓存，已出现过「auth=rejected 而列=approved」的矛盾数据。
+ *      改成必传参数是为了让编译器兜住——漏传编译不过，而不是运行时静默读错列。
  */
 package com.faze.modules.account.converter;
 
@@ -31,16 +35,17 @@ public class AccountConverter {
      *
      * <p>**不包含任何敏感字段**：password_hash 不声明、手机号脱敏、身份证不在本 VO 里。</p>
      *
-     * @param user 用户实体
+     * @param user           用户实体
+     * @param realnameStatus 实名状态（小写口径，由 {@code RealnameStatusResolver} 派生）
      * @return 用户出参
      */
-    public UserVO toUserVO(AppUser user) {
+    public UserVO toUserVO(AppUser user, String realnameStatus) {
         UserVO vo = new UserVO();
         vo.setId(user.getId());
         vo.setNickname(user.getNickname());
         vo.setAvatarUrl(user.getAvatarUrl());
         vo.setPhoneMasked(maskPhone(user.getPhone()));
-        vo.setRealnameStatus(toRealnameStatus(user.getRealnameStatus()));
+        vo.setRealnameStatus(toRealnameStatus(realnameStatus));
         vo.setIsMinor(Boolean.TRUE.equals(user.getIsMinor()));
         vo.setRoles(List.of(user.getRole() == null ? DEFAULT_ROLE : user.getRole()));
         vo.setPayPasswordSet(hasPayPassword(user));
@@ -53,16 +58,17 @@ public class AccountConverter {
      * <p>律师状态与余额都要查别的表，本类不查库，由 ProfileService 补齐
      * （见 modules/account/service/ProfileService）。</p>
      *
-     * @param user 用户实体
+     * @param user           用户实体
+     * @param realnameStatus 实名状态（小写口径，由 {@code RealnameStatusResolver} 派生）
      * @return 资料出参
      */
-    public ProfileVO toProfileVO(AppUser user) {
+    public ProfileVO toProfileVO(AppUser user, String realnameStatus) {
         ProfileVO vo = new ProfileVO();
         vo.setId(user.getId());
         vo.setNickname(user.getNickname());
         vo.setAvatarUrl(user.getAvatarUrl());
         vo.setPhoneMasked(maskPhone(user.getPhone()));
-        vo.setRealnameStatus(toRealnameStatus(user.getRealnameStatus()));
+        vo.setRealnameStatus(toRealnameStatus(realnameStatus));
         vo.setIsMinor(Boolean.TRUE.equals(user.getIsMinor()));
         vo.setRoles(List.of(user.getRole() == null ? DEFAULT_ROLE : user.getRole()));
         vo.setPayPasswordSet(hasPayPassword(user));

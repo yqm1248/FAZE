@@ -10,6 +10,9 @@
  *   3. 影像 key 必须**属于当前用户且场景是 realname**：只校验格式不校验归属，
  *      等于允许把别人的证件 key 填进自己的申请。
  *   4. 审核动作在 PC A-04（F2），不在本段。
+ *   5. **提交后要同步 `app_user.realname_status` 缓存列**（DRIFT-015）：真相源是
+ *      `realname_auth`，那一列只是冗余缓存（导出、直查、历史脚本会读它），
+ *      漏写就会重新漂移——9416/9418 就是这么变成「auth=pending 而列=none」的。
  */
 package com.faze.modules.account.service;
 
@@ -20,7 +23,9 @@ import com.faze.common.exception.ErrorCode;
 import com.faze.infra.crypto.CryptoService;
 import com.faze.infra.storage.StorageKeyRules;
 import com.faze.modules.account.bo.RealnameBO;
+import com.faze.modules.account.entity.AppUser;
 import com.faze.modules.account.entity.RealnameAuth;
+import com.faze.modules.account.mapper.AccountMapper;
 import com.faze.modules.account.mapper.RealnameAuthMapper;
 import com.faze.modules.account.vo.RealnameVO;
 import java.time.LocalDateTime;
@@ -44,13 +49,15 @@ public class RealnameService {
     private static final String SCENE_REALNAME = "realname";
 
     private final RealnameAuthMapper realnameAuthMapper;
+    private final AccountMapper accountMapper;
     private final CryptoService cryptoService;
 
     /**
      * 提交实名认证。
      *
      * <p>前置：身份证号格式合法；两个影像 key 都属于当前用户且场景为 realname。</p>
-     * <p>副作用：插入或更新 realname_auth（状态回 pending）；写 operation_log。</p>
+     * <p>副作用：插入或更新 realname_auth（状态回 pending）；同步 app_user.realname_status
+     * 缓存列；写 operation_log。</p>
      *
      * @param userId  当前用户
      * @param request 提交请求
@@ -98,6 +105,13 @@ public class RealnameService {
             patch.setUpdatedAt(now);
             realnameAuthMapper.updateById(patch);
         }
+        // 任务 4：同步冗余缓存列（DRIFT-015）。真相源是 realname_auth，
+        // 这一列只给导出/直查/历史脚本用；不写就会重新漂移，写错不影响页面（页面读 auth）。
+        accountMapper.update(null, Wrappers.<AppUser>lambdaUpdate()
+                .set(AppUser::getRealnameStatus, STATUS_PENDING)
+                .set(AppUser::getUpdatedAt, now)
+                .eq(AppUser::getId, userId)
+                .isNull(AppUser::getDeletedAt));
         // 日志只打掩码，绝不打明文或密文
         log.info("实名认证已提交 userId={} idCard={}", userId, masked);
     }

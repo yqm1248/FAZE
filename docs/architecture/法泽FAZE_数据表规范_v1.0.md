@@ -516,7 +516,7 @@ COMMENT='订单主表；状态枚举：created/paid/accepted/completed/cancelled
 <!-- FACTS:schema-tables -->
 > 本区块由 `scripts/facts/render-docs.mjs` 从 `docs/facts/*.json` 生成，**禁止手改**；要改先改代码再跑 `npm run facts`。
 
-已建 **53** 张业务表 / 687 列 / 188 个索引；Flyway 已应用 49 个迁移，最新 **V712**。
+已建 **53** 张业务表 / 687 列 / 188 个索引；Flyway 已应用 50 个迁移，最新 **V800**。
 
 | 表 | 列 | 主键 | 唯一键 | 表注释 |
 |---|---|---|---|---|
