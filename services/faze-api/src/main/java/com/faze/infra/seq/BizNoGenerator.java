@@ -1,9 +1,9 @@
 /*
- * 职责：段 5 的业务单号生成器（案件 CS / 提现 WD / 结算 JS / 送达回执 SD / 案例 CL），
- *       第 6 段在此基础上追加充值单前缀 RC（`nextRechargeNo`），机制未变。
- * 调用方：caseflow 的 CaseService、trade 的 WithdrawService / SettlementService、
- *         caseflow 的 DeliveryService、content 的 CaseLibraryService、
- *         第 6 段 trade 的 RechargeCreateExecutor。
+ * 职责：业务单号生成器——段 5 建 5 个（案件 CS / 提现 WD / 结算 JS / 送达回执 SD / 案例 CL），
+ *       第 6 段补充值 RC，第 7 段补客服工单 TK / 公告 AN。
+ * 调用方：caseflow 的 CaseServiceImpl / DeliveryServiceImpl、content 的 AdminCaseLibraryService、
+ *         ops 的 TicketService / AdminAnnouncementService、
+ *         trade 的 WithdrawService / SettlementService / RechargeCreateExecutor。
  * 数据来源：Redis key `faze:seq:{前缀}:{yyyyMMdd}`；数据库唯一键是最后一道防线。
  * 注意：
  *   1. **禁止用 MAX(单号)+1**（并发必撞、表大了还慢）——《第 5 段工作流》§三 A3。
@@ -14,6 +14,10 @@
  *      仍是合法的 6 位序号，唯一索引兜底；**与段 2 的 OrderNoGenerator「硬依赖 Redis」不同**，
  *      这是段 5 的显式裁决，差异已记入段 5 偏差清单。
  *   5. 与段 2 的 OrderNoGenerator 并存而非合并：段 2 已验收，不动它；两套前缀空间不重叠。
+ *   6. **投诉 / 反馈不生成业务单号**：`complaint` 与 `feedback` 表**没有编号列**
+ *      （2026-11-13 核对 V700 建表语句确认）。原先的 `nextComplaintNo` / `nextFeedbackNo`
+ *      是**零调用方的死方法**，已删除。将来若要编号，必须**先加列、再接入调用点、最后加生成器**——
+ *      只加生成器方法就是这次死方法的来源。
  */
 package com.faze.infra.seq;
 
@@ -232,24 +236,6 @@ public class BizNoGenerator {
     }
 
     /**
-     * 生成投诉编号（第 7 段 C2）。
-     *
-     * @return 形如 {@code CP20261108000001}
-     */
-    public String nextComplaintNo() {
-        return next(BizPrefix.COMPLAINT);
-    }
-
-    /**
-     * 生成反馈编号（第 7 段 C2）。
-     *
-     * @return 形如 {@code FB20261108000001}
-     */
-    public String nextFeedbackNo() {
-        return next(BizPrefix.FEEDBACK);
-    }
-
-    /**
      * 生成公告编号（第 7 段 D1）。
      *
      * @return 形如 {@code AN20261108000001}
@@ -276,10 +262,6 @@ public class BizNoGenerator {
         RECHARGE("RC"),
         /** 客服工单（第 7 段）。 */
         TICKET("TK"),
-        /** 投诉（第 7 段）。 */
-        COMPLAINT("CP"),
-        /** 意见反馈（第 7 段）。 */
-        FEEDBACK("FB"),
         /** 公告（第 7 段）。 */
         ANNOUNCEMENT("AN");
 

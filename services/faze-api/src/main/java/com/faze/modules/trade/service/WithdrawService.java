@@ -30,6 +30,7 @@ import com.faze.common.exception.ErrorCode;
 import com.faze.common.pojo.PageResult;
 import com.faze.common.pojo.TableDataInfo;
 import com.faze.infra.seq.BizNoGenerator;
+import com.faze.infra.seq.BizNoRetry;
 import com.faze.infra.storage.FileRecordService;
 import com.faze.infra.storage.entity.FileRecord;
 import com.faze.modules.account.entity.Lawyer;
@@ -166,7 +167,6 @@ public class WithdrawService {
         // 任务 4：建单（先落单再动账：动账失败会整单回滚，不会留下没单的冻结）
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
         WithdrawRecord record = new WithdrawRecord();
-        record.setWithdrawNo(bizNoGenerator.nextWithdrawNo());
         record.setLawyerId(lawyer.getId());
         record.setAmountCents(amount);
         record.setFeeCents(fee);
@@ -179,7 +179,10 @@ public class WithdrawService {
         record.setStatus(WithdrawStatus.APPLYING.getCode());
         record.setCreatedAt(now);
         record.setUpdatedAt(now);
-        withdrawRecordMapper.insert(record);
+        BizNoRetry.insertWithNo("uk_withdraw_no", bizNoGenerator::nextWithdrawNo, withdrawNo -> {
+            record.setWithdrawNo(withdrawNo);
+            return withdrawRecordMapper.insert(record);
+        });
 
         // 任务 5：冻结（available -= amount, frozen += amount，总余额不变）
         LawyerBalance balance = lawyerBalanceLocker.lock(lawyer.getId());

@@ -7,15 +7,9 @@
   ],
   "known": [
     {
-      "field": "content_review.reviewer_id",
-      "reason": "内容审核记录的**处置人**。当前只有系统/自动判定，没有「人工处置并记录处置人」的写入路径——全仓搜 setReviewerId **0 处**，实库 content_review 5 行记录的 reviewer_id **全为 NULL**。定为缺口而不是「设计允许为空」：管理端内容审核页要能回答「这条是谁处置的」，现在答不上。",
-      "closeWhen": "补人工处置审核的写入路径（处置时写 reviewer_id）后，本检查会报「过期」，届时删掉这一条并关闭 DEF-016。",
-      "owner": "DEF-016"
-    },
-    {
       "field": "user_device.push_cid",
-      "reason": "设备的**推送 CID**。DeviceService.insert 只写 deviceId / deviceName，不写 push_cid；全仓搜 setPushCid **0 处**，实库 user_device 153 行设备记录的 push_cid **全为 NULL**。这比「推送通道未接」（DEF-007）更深一层：即使段八接了个推，也找不到投递目标。",
-      "closeWhen": "客户端上报 CID + 设备注册接口接收并落库 push_cid 后，删掉这一条；与 DEF-007（个推通道）一起验收。",
+      "reason": "设备的**推送 CID**。DeviceService.insert 只写 deviceId / deviceName，不写 push_cid；全仓搜 setPushCid **0 处**，实库 user_device 153 行设备记录的 push_cid **全为 NULL**。**2026-11-13 实测把原描述修正了一层**：这不只是「推送找不到投递目标」——`PushSender.send(PushMessage)` 的 `PushMessage` 只有 `{userId, title, body, payload}`，**结构里根本没有 cid 字段**，`PushTask` 也不查 `push_cid`。所以它是「没接进链路的预留字段」，不是「接个推就能用」。",
+      "closeWhen": "四处齐全后删掉这一条：① 客户端上报 CID；② 设备注册接口接收并落库；③ `PushMessage` 带上 cid；④ `PushTask` 按设备投递。与 DEF-007（个推通道）一起验收——只做①②不做③④，字段仍是死字段。",
       "owner": "DEF-007 / DEF-016"
     }
   ]

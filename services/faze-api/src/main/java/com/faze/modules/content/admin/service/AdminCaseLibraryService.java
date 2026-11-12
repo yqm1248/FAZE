@@ -25,6 +25,7 @@ import com.faze.common.exception.BusinessException;
 import com.faze.common.exception.ErrorCode;
 import com.faze.common.pojo.TableDataInfo;
 import com.faze.infra.seq.BizNoGenerator;
+import com.faze.infra.seq.BizNoRetry;
 import com.faze.modules.ai.service.ArticleNoValidator;
 import com.faze.modules.content.admin.bo.AdminCaseLibraryQueryBO;
 import com.faze.modules.content.admin.bo.AdminCaseLibrarySaveBO;
@@ -169,14 +170,16 @@ public class AdminCaseLibraryService {
         validateLawRefs(bo.getLawRefs());
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
         CaseLibrary entity = new CaseLibrary();
-        entity.setCaseNo(bizNoGenerator.nextCaseLibraryNo());
         entity.setStatus(STATUS_DRAFT);
         entity.setViewCount(0);
         applyFields(entity, bo);
         entity.setSourceUpdatedAt(now);
         entity.setCreatedAt(now);
         entity.setUpdatedAt(now);
-        caseLibraryMapper.insert(entity);
+        BizNoRetry.insertWithNo("uk_case_library_no", bizNoGenerator::nextCaseLibraryNo, caseNo -> {
+            entity.setCaseNo(caseNo);
+            return caseLibraryMapper.insert(entity);
+        });
         saveTranslations(entity.getId(), bo.getTranslations(), now);
         AuditContext.mark("content", "CASE_LIBRARY_CREATE", "CASE_LIBRARY",
                 String.valueOf(entity.getId()),

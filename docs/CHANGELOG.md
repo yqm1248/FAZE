@@ -4,6 +4,50 @@
 
 ---
 
+## 2026-11-13（六）· DEF-017 单号撞号三件套 + DEF-016 收尾 + DRIFT-049 裁决 / DRIFT-050 新登记
+
+**一句话**：把「单号撞号」从「查出来的缺口」修成「实测验证过的防线」——**实测推翻了此前三条描述**（撞号不是 500 而是 HTTP 200 + 401005；触发条件是「必丢」不是「可能」；`push_cid` 不是「找不到目标」而是整条链路压根不读它），并顺着查出一个新的配置漂移：Redis 库号有三处说法不一致。
+
+### 一、实测推翻的三条说法
+
+| 原说法（v1.76 登记时写的） | 实测 | 证据 |
+|---|---|---|
+| 「撞号即 500」 | **HTTP 200 + 业务码 401005「资源已存在」** | `GlobalExceptionHandler:331-334` 把 `DuplicateKeyException` 统一转 `COMMON_ALREADY_EXISTS`；实测建单撞号返回该码，i18n 文案「该内容已存在，请勿重复提交」**在劝退唯一有效的解法** |
+| 「触发条件是 Redis 重启」 | 更硬：Redis 实测 **零持久化**（`CONFIG GET save` 为空 + `appendonly no`），任何重启都丢当天序号；丢后**每建一单撞一个**已用号，不是偶发 | `redis-cli` 实测；且旧 `dump.rdb` 停在 2026-10-16，db0/db14 的 `OBJECT IDLETIME` ≈ 进程寿命（2.54 天） |
+| 「`push_cid` 全 NULL → 推送找不到目标」 | **整条链路不读它**：`PushMessage` 只有 `{userId,title,body,payload}`，无 deviceId/cid 字段；`PushTask` 也不查设备 | 读 `PushSender`/`PushMessage`/`PushTask`；`task_queue` 里 push 任务 **12 条 dead + 2 条 done** |
+
+DEF-016 的 `reviewer_id` 也从「完全无写入」修正为「**写了 `reviewed_at` 却没写 `reviewer_id`**，且 `ContentReviewVO` 不返回该字段」——是「处置人必然缺失且页面看不到」，不是「从来没处置过」。
+
+### 二、修了什么（4 件 + 1 处清理）
+
+| # | 改动 | 为什么 |
+|---|---|---|
+| 1 | `deploy/redis-faze.conf` 开 RDB + AOF（`save 900 1 / 300 10 / 60 10000` + `appendonly yes` + `appendfsync everysec`），并用 `CONFIG SET` 让运行实例立即生效 | **根因**：零持久化 → 重启丢序号 → 当天业务全部撞号。动配置前先 `BGSAVE`，否则重启会加载 10-16 的旧快照导致数据回退 |
+| 2 | 新增 `infra/seq/BizNoRetry`，**8 个单号写入点**全部接入（CS/WD/JS/SD/CL/TK/AN + 原有 RC 统一） | **防线**：撞单号唯一键就换号重试；**只认单号唯一键名**，撞业务唯一键原样抛出 |
+| 3 | `SettlementService` 区分 `uk_settlement_no` 与 `uk_settlement_lawyer_period` | 原 `catch (DuplicateKeyException)` 把**单号冲突也当成「同账期并发」静默跳过** → 撞号 = 丢单 + 日志误报「并发重复」 |
+| 4 | `content_review.reviewer_id` 在处置时写入 + `ContentReviewVO` 补 `reviewerId` | DEF-016：处置人原本永久缺失且管理端页面看不到（详情页内嵌同一 VO，自动生效） |
+| 5 | 删除 `BizNoGenerator.nextComplaintNo` / `nextFeedbackNo` | `complaint` / `feedback` 表**没有编号列**（核对 V700 建表语句），这两个方法零调用方，是死代码 |
+
+### 三、实测证据
+
+- 后端全量测试：**532 用例，0 失败 0 错误，3 skipped，BUILD SUCCESS**
+- 撞号实测（`logs/probe-bizno-retry.mjs`）：建单 `CS20261113000001` → 回退 Redis 序号到 0 → 再建单**内部换号重试成功**得 `CS20261113000002`（HTTP 200，非 401005）
+- Redis 持久化：`aof_enabled:1`、`aof_last_write_status:ok`、三库 key 数不变（23/53/21）
+- 文档基线：**55/55 一致**
+
+### 四、DRIFT-049 裁决 + DRIFT-050 新登记
+
+- **DRIFT-049（接口层 `balanceCents` 是总余额）**：定 **不改名**。裁决前实测改名成本：PC 后台 `wallet/index.vue` **9 处消费**（L457-461 自己算 `balanceCents - frozenCents`，L18-19 注释已写明「balanceCents 是流水汇总的总余额」→ **PC 端没误解**），App 端只有 `profile.ts:33` 类型声明、**0 处实际消费**。改为在《接口规范》§5.3 加「余额字段的语义约定」+ A.5 两处字段说明。**这是判断不是事实**——出现第 10 处消费点或误读案例时应重新评估。
+- **DRIFT-050（新登记）**：Redis **库号三处说法不一致**——`.env` 写 `/14`、`redis-faze.conf` 注释写「段 0/1 用独立 db 14」、**实际代码用 db 1**（`application-dev.yml` 的 `${FAZE_REDIS_DATABASE:1}`）。`.env` 里根本没有 `FAZE_REDIS_DATABASE` 键；`FAZE_REDIS_URL` 只被 `start-services.ps1:146` / `verify-all.ps1:74` 用正则取 **host:port**，`/14` 被丢弃。**本次实测被这个坑骗了三次**（往 db14 `SET` 静默无效，连续三次误判「撞号不会发生」）。已修：`redis-faze.conf` 注释改正、`.env` / `.env.example` 补 `FAZE_REDIS_DATABASE=1`。
+
+### 五、仍存的局限（写清，不掩盖）
+
+1. **3 次重试只能消化 2 个已占用号**：Redis 序号若被**人为清空**（FLUSHDB / del key）且当天已建 ≥3 单，仍会返回 401005。根治靠持久化（已开），重试只兜「持久化也挡不住的人为误删」。已写进 `BizNoRetry` 类注释第 6 条，防止后人盲调重试次数。
+2. **`user_device.push_cid` 未修**：要随 DEF-007 的推送通道一起做（同时改 `PushMessage` 加 cid + `PushTask` 查设备 + 客户端上报），单修字段没意义。
+3. **存量 `content_review.reviewer_id` 仍为 NULL**（5 行）：它们从未被人工处置过，不是漏填。
+
+---
+
 ## 2026-11-13（五）· G9：回归清单 R-01~R-20 落地——4 个新机制 + PR 模板
 
 **一句话**：20 条规则里 **11 条有机器门禁、7 条落到 PR 模板、1 条部分落地、1 条登记为缺口**。**新写的两个检查各抓到 2 个真缺陷**——不是"补了个脚本"，是"补完就发现了东西"。

@@ -1,18 +1,18 @@
-# 法泽 FAZE 文档基线 v1.76
+# 法泽 FAZE 文档基线 v1.77
 
 > # 后续一切文档从这里开始
 
 | 项 | 值 |
 | --- | --- |
-| 基线编号 | **v1.76** |
-| 确立日期 | 2026-11-13（G9 回归清单落地：新增 4 个检查机制 + PR 模板，DEFERRED 加 2 条缺口；见 §7.79） |
-| 上一版 | v1.75（2026-11-13，DRIFT-043 余额表列名统一；见 §7.78） |
+| 基线编号 | **v1.77** |
+| 确立日期 | 2026-11-13（DEF-017 单号撞号三件套：Redis 持久化 + `BizNoRetry` + 结算区分唯一键；DEF-016 补 `reviewer_id` 写入与出参；DRIFT-049 裁决「不改名」；新登记 DRIFT-050；见 §7.80） |
+| 上一版 | v1.76（2026-11-13，G9 回归清单落地；见 §7.79） |
 | 所在分支 | `UI设计`（v1.2 及以前在 `docs` 分支） |
 | Git 标签 | `v1.13-docs-baseline`（v1.3~v1.10 当时未打标签，见 §7.13；v1.14~v1.32 亦未打标签，见 §7.33 末尾） |
-| 基线资产数 | **55**（48 份 Markdown + 7 份 JSON；v1.49~v1.66 为 45 份，v1.67 登记 48 漏算 1 份，v1.69~v1.74 逐步补到 55。**v1.75/v1.76 无新增、无删除**，只有内容变更——G9 新增的验收文档在 `docs/acceptance/` 下，按规则不进基线） |
-| 本版新增 | **0 份**（G9 的验收文档在 `docs/acceptance/guard/G9-回归清单落地.md`，按规则「acceptance 不进基线」处理） |
+| 基线资产数 | **55**（48 份 Markdown + 7 份 JSON；v1.49~v1.66 为 45 份，v1.67 登记 48 漏算 1 份，v1.69~v1.74 逐步补到 55。**v1.75~v1.77 无新增、无删除**，只有内容变更） |
+| 本版新增 | **0 份** |
 | 本版删除 | **0 份** |
-| 本版内容变更 | **5 份**（`docs/facts/DEFERRED.md` 加 DEF-016/017、`docs/standards/公共构件与护栏规范.md` 加「§五·补 G9 新增的四个检查」、`docs/CHANGELOG.md` 加 G9 条目、`docs/facts/i18n-keys.json` 与 `docs/facts/contracts.json` 因两条文案修改重生成；**本文件自身不计入**） |
+| 本版内容变更 | **3 份**（`docs/facts/DRIFT.md` 改 DRIFT-049 为已裁决 + 新增 DRIFT-050 + 统计 50 条、`docs/facts/DEFERRED.md` 按实测修正 DEF-016/DEF-017 描述、`docs/architecture/法泽FAZE_接口规范_v1.0.md` §5.3 加「余额字段的语义约定」+ A.5 两处字段说明；**本文件自身不计入**） |
 
 ---
 
@@ -123,7 +123,7 @@
 | 6 | `docs/architecture/法泽FAZE_V1基线表结构_v1.0.md` | 232 | 15858 | `3569f83f4ba74328` 📝 |
 | 7 | `docs/architecture/法泽FAZE_错误码规范_v1.0.md` | 445 | 31176 | `578ba78f6576c0c7` 📝 |
 | 24 | `docs/architecture/法泽FAZE_数据表规范_v1.0.md` | 731 | 55411 | `ca7dc296a0247bd1` 📝 |
-| 25 | `docs/architecture/法泽FAZE_接口规范_v1.0.md` | 1176 | 81491 | `d0180c65e13d3132` 📝 |
+| 25 | `docs/architecture/法泽FAZE_接口规范_v1.0.md` | 1190 | 82769 | `87dbb011245b7926` 📝 |
 | 26 | `docs/architecture/法泽FAZE_后端代码规范_v1.0.md` | 1608 | 93985 | `03573f955af80606` 🆕 |
 | 27 | `docs/architecture/法泽FAZE_i18n规范_v1.0.md` | 610 | 28293 | `6db40a25005a7ae5` 📝 |
 | 28 | `docs/architecture/法泽FAZE_审计与日志规范_v1.0.md` | 391 | 23320 | `375aa774e73e6f0b` 📝 |
@@ -188,15 +188,15 @@
 | # | 文件 | 行数 | 字节 | SHA256 前 16 位 | 是什么 |
 |---|---|---|---|---|---|
 | 46 | `docs/standards/说辞一致与真相源规范.md` | 297 | 15598 | `9d11a58b3ca8b879` 🆕 | **同一个事实在代码 / 文档 / 设计稿三处说法不同时听谁的**：真相源分级（P0 运行中的代码与库 / P1 Flyway / P2 文档 / P3 设计稿）、三类不一致的分界（DRIFT 漂移 / GAP 缺口 / DIRT 脏数据）、5 种处置值的裁决规则、数字口径必须机器算 |
-| 47 | `docs/facts/DRIFT.md` | 181 | 29529 | `09e78565c5d611a5` 📝 | **说辞漂移登记表**：同一事物、说法不同。D1 组 25 条（逐条核查）、D2 组 17 条（全仓盘点批量登记）、D3 组 **5 条**（跑脚本量出来的）。每行给「代码实际（P0）」+ 证据强度（实测 / 通读 / 待复核） |
-| 48 | `docs/facts/DEFERRED.md` | 167 | 15611 | `7b408749c91b48a4` 🆕 | **段八挂账汇总索引**：计划有、代码无。**不是待办清单，是真相声明**。含负责人点名的 4 项、最容易被误当已做的 8 项、118 条的分类索引、以及「18 条其实是文档落后于代码」的反向提醒 |
+| 47 | `docs/facts/DRIFT.md` | 183 | 32272 | `e3252e73b0ea6a3c` 📝 | **说辞漂移登记表**：同一事物、说法不同。D1 组 25 条（逐条核查）、D2 组 17 条（全仓盘点批量登记）、D3 组 **8 条**（跑脚本量出来的）。每行给「代码实际（P0）」+ 证据强度（实测 / 通读 / 待复核） |
+| 48 | `docs/facts/DEFERRED.md` | 167 | 18492 | `6fb612005bad9ddb` 📝 | **段八挂账汇总索引**：计划有、代码无。**不是待办清单，是真相声明**。含负责人点名的 4 项、最容易被误当已做的 8 项、118 条的分类索引、以及「18 条其实是文档落后于代码」的反向提醒 |
 | 49 | `docs/facts/api.json` | 2136 | 54429 | `1dd9f6af311dd592` 🆕 | **接口清单**：`scripts/facts/api.mjs` 从 78 个 Controller 生成，260 个端点（admin 123 / app 114 / pub 22 / dev 1）。**v1.67 首次登记时漏算本文件，v1.68 补正** |
 | 50 | `docs/facts/tables.json` | 1611 | 41721 | `d8aea0398808cf08` 🆕 | **表结构**：`scripts/facts/tables.mjs` 从 information_schema + flyway_schema_history 生成，53 张业务表 / 687 列 / 188 索引 / Flyway 48 个到 V711 |
 | 51 | `docs/facts/error-codes.json` | 695 | 18518 | `2d4ebd86a2472e55` 🆕 | **错误码清单**：`scripts/facts/error-codes.mjs` 从 ErrorCode 枚举生成，94 个码，无重复。文档里同时写着 78 和 91（DRIFT-045） |
 | 52 | `docs/facts/i18n-keys.json` | 152 | 3362 | `aebfacd0817905ab` 🆕 | **i18n 事实**：`scripts/facts/extract-i18n.mjs` 从 56 个 json 生成。**三个口径同时给出**（总节点 1965 / 叶子条目 1880 / 带 namespace 前缀去重 1880），四语言覆盖各 100%。DRIFT-046、DRIFT-047 都是这张表抓出来的 |
 | 53 | `docs/facts/pages.json` | 4292 | 133719 | `fae02c553b66f795` 🆕 | **页面事实**：`scripts/facts/extract-pages.mjs` 逐页抽取「文件 / 路由 / testID 锚点 / LocalizedText / 写死路由」。四种页面数口径的**唯一解析实现**（`page-inventory.mjs` 只 import 它打印）。抓出 6 处写死路由与 `/case-detail` 壳无对应常量 |
 | 54 | `docs/standards/公共构件与护栏规范.md` | 234 | 14981 | `6f408c9b88f30159` 🆕 | **同类缺陷为什么反复出现、用什么拦住**：六个构件（幂等键 / 法条按 id 回查 / 乐观切换 / 金额展示 / 错误文案 / 归属校验）+ 3 条 ESLint 规则 + 豁免台账 + **三处「计划前提与仓库实际不符」的如实记录**（`useFavorite` 改签名、不建 `ErrorBanner`、先补后端接口） |
-| 55 | `docs/facts/contracts.json` | 2689 | 117212 | `a43174d5f0f1d29e` 🆕 | **承诺清单**：`scripts/facts/check-contracts.mjs` 扫出的 **444 条**承诺性注释（幂等 320 / 保证 99 / 重复提交 22 / 重复点 3）+ 1 条范围承诺违规（`profile.fontSizeNote` 说「影响全 App」而实现只影响设置页，DRIFT-002，台账内）。**清单不代表说错**，作用是让「新增承诺」成为可见的 diff |
+| 55 | `docs/facts/contracts.json` | 2707 | 117978 | `13eb481e87ce79bf` 🆕 | **承诺清单**：`scripts/facts/check-contracts.mjs` 扫出的 **444 条**承诺性注释（幂等 320 / 保证 99 / 重复提交 22 / 重复点 3）+ 1 条范围承诺违规（`profile.fontSizeNote` 说「影响全 App」而实现只影响设置页，DRIFT-002，台账内）。**清单不代表说错**，作用是让「新增承诺」成为可见的 diff |
 
 ### 2.5 决策依据
 
@@ -2825,3 +2825,44 @@ hence column cannot be dropped or renamed.
 2. 没把 R 清单接成 GitHub required checks（仓库设置属运维动作）。
 3. R-20 的自动化没做（CDP 截图脚本已有，但「该不该截」仍是人工判断）。
 4. **基线表头自 v1.69 起就没更新过**（一直写着「本版新增 3 份」「内容变更 1 份」这些 v1.68 时代的数字）。本版顺手改成真实值——这类「表头漂移」正是《说辞一致规范》要防的东西，而它自己漂了 8 个版本没人发现。
+
+---
+
+## §7.80 v1.77 DEF-017 单号撞号三件套 + DEF-016 收尾 + DRIFT-049 裁决 / DRIFT-050 新登记
+
+**本版动因**：v1.76 把 DEF-016 / DEF-017 登记为缺口后，负责人要求「先把事实测一遍再动手」。实测**推翻了此前三条描述**，也牵出一个新的配置漂移。
+
+### 一、实测推翻的三条说法
+
+| 原说法 | 实测 |
+|---|---|
+| DEF-017「撞号即 500」 | **HTTP 200 + 业务码 401005「资源已存在」**（`GlobalExceptionHandler:331-334` 把所有 `DuplicateKeyException` 统一转码），i18n 文案「该内容已存在，请勿重复提交」——**这句在劝退唯一有效的解法**（实测删掉撞订单后重试即成功） |
+| DEF-017「触发条件是 Redis 重启」 | 比这更硬：Redis 实测 `CONFIG GET save` 为空 + `appendonly no` = **零持久化**，任何重启都丢当天序号；丢后**每建一单撞一个**已用号，不是偶发 |
+| DEF-016「`push_cid` 全 NULL → 推送找不到目标」 | 不是「找不到目标」，是**整条链路不读它**：`PushMessage` 只有 `{userId, title, body, payload}`，**没有 deviceId/cid 字段**；`task_queue` 里 push 任务 **12 条 dead + 2 条 done** |
+
+另外 DEF-016 的 `reviewer_id` 也从「完全无写入」修正为「**写了 `reviewed_at` 却没写 `reviewer_id`**，且 `ContentReviewVO` 原本不返回该字段」——所以是「处置人必然缺失且页面看不到」，不是「从来没处置过」（实库 5 行 3 pending + 2 ignored 均为系统自动，人工处置确实从未发生）。
+
+### 二、修了什么
+
+1. **Redis 持久化（根因）**：`deploy/redis-faze.conf` 加 `save 900 1 / 300 10 / 60 10000` + `appendonly yes` + `appendfsync everysec`；并用 `CONFIG SET` 让**运行实例立即生效**（服务重启后配置文件同样生效）。**动配置前先 `BGSAVE`**——旧 `dump.rdb` 停在 2026-10-16，直接重启会让数据回退到一个月前（实测 `dump.rdb` 时间戳 + db0/db14 的 `OBJECT IDLETIME` ≈ 进程寿命 ≈2.54 天 共同证明）。
+2. **`infra/seq/BizNoRetry`（防线）**：统一封装「撞单号唯一键就换号重试」，**只认单号唯一键名**——撞业务唯一键（如 `uk_settlement_lawyer_period`）原样抛出。8 个单号写入点全部接入（CS/WD/JS/SD/CL/TK/AN + 原有 RC 改为同一实现）。
+3. **`SettlementService` 的静默丢单隐患**：该表有 `uk_settlement_no` + `uk_settlement_lawyer_period` **两个**唯一键，原 `catch (DuplicateKeyException)` 把**单号冲突也当成「同账期并发」**跳过 → 撞号 = 丢单 + 日志误报「并发重复」。现在单号冲突在 `BizNoRetry` 内重试，只有业务唯一键才幂等跳过。
+4. **`content_review.reviewer_id`（DEF-016）**：`casUpdateResult` 写入处置人 + `ContentReviewVO` 补 `reviewerId`（`ContentReviewDetailVO` 内嵌同一 VO，详情页自动生效）。
+5. **删除 2 个死方法**：`BizNoGenerator.nextComplaintNo` / `nextFeedbackNo` —— `complaint` / `feedback` 表**没有编号列**（核对 V700 建表语句确认），这两个方法零调用方，属「有定义无调用」的死代码。
+
+### 三、实测证据
+
+- 后端全量测试：**532 用例，0 失败 0 错误，3 skipped，BUILD SUCCESS**（含改动后的 8 处重试；第一次跑失败是因为新 shell 没加载 `deploy/.env`，报 `Could not resolve placeholder 'FAZE_DB_URL'`，与改动无关）。
+- 撞号实测（`logs/probe-bizno-retry.mjs`）：建单 `CS20261113000001` → 回退 Redis 序号到 0 → 再建单 **内部换号重试成功**得 `CS20261113000002`（HTTP 200，非 401005）。
+- Redis 持久化实测：`CONFIG GET save` = `900 1 300 10 60 10000`、`appendonly` = `yes`、`aof_last_write_status:ok`，三库 key 数不变（23/53/21）。
+
+### 四、DRIFT-049 裁决 + DRIFT-050 新登记
+
+- **DRIFT-049（接口层 `balanceCents` 是总余额）**：负责人 2026-11-13 定 **不改名**。裁决前实测改名成本：PC 后台 `wallet/index.vue` 9 处消费（其中 L457-461 自己算 `balanceCents - frozenCents`，L18-19 注释已写明语义 → **PC 端没误解**），App 端 0 处实际消费。改为在《接口规范》§5.3 加「余额字段的语义约定」+ A.5 两处字段说明。**这是判断不是事实**，出现第 10 处消费点或误读案例时应重新评估。
+- **DRIFT-050（新登记，改代码 + 改文档）**：Redis 库号三处说法不一致——`.env` 写 `/14`、`redis-faze.conf` 注释写「用独立 db 14」、**实际代码用 db 1**。`.env` 里根本没有 `FAZE_REDIS_DATABASE` 键；`FAZE_REDIS_URL` 只被 `start-services.ps1:146` / `verify-all.ps1:74` 用正则取 **host:port**，`/14` 被丢弃。**本次实测就是被这个坑骗了三次**（往 db14 `SET` 静默无效，连续三次误判「撞号不会发生」）。已修：`redis-faze.conf` 注释改正、`.env` / `.env.example` 补 `FAZE_REDIS_DATABASE=1`。
+
+### 五、仍存的局限（写清，不掩盖）
+
+1. **3 次重试只能消化 2 个已占用号**。若 Redis 序号被**人为清空**（FLUSHDB / del key）且当天已建 ≥3 单，仍会 401005。根治靠持久化（已开），重试只兜「持久化也挡不住的人为误删」。**已写进 `BizNoRetry` 类注释第 6 条**，防止后人盲调重试次数。
+2. **`user_device.push_cid` 未修**：它要随 DEF-007 的推送通道一起做（要同时改 `PushMessage` 加 cid + `PushTask` 查设备 + 客户端上报），单修字段没意义。
+3. **存量 `content_review.reviewer_id` 仍为 NULL**（5 行）：它们从未被人工处置过，不是漏填；新处置会正常写入。

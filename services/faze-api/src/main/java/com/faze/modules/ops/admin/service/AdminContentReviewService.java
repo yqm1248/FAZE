@@ -220,16 +220,21 @@ public class AdminContentReviewService {
      */
     private void casUpdateResult(ContentReview entity, ReviewResult result, String reason) {
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+        Long reviewerId = currentAdminId();
         int rows = contentReviewMapper.update(null, Wrappers.<ContentReview>lambdaUpdate()
                 .set(ContentReview::getReviewResult, result.getCode())
                 .set(ContentReview::getReviewedAt, now)
+                // DEF-016：原实现只写 reviewedAt 不写 reviewerId，导致「谁处置的」永久缺失；
+                // 审计表 operation_log 有记录，但 content_review 行本身查不出来
+                .set(ContentReview::getReviewerId, reviewerId)
                 .eq(ContentReview::getId, entity.getId())
                 .eq(ContentReview::getReviewResult, ReviewResult.PENDING.getCode()));
         if (rows == 0) {
             // 并发下已被别人处置
             throw new BusinessException(ErrorCode.OPS_REVIEW_ALREADY_HANDLED);
         }
-        log.info("内容审核处置 id={} result={} reason={}", entity.getId(), result.getCode(), reason);
+        log.info("内容审核处置 id={} result={} reviewerId={} reason={}",
+                entity.getId(), result.getCode(), reviewerId, reason);
     }
 
     /**
@@ -326,6 +331,7 @@ public class AdminContentReviewService {
         vo.setLevel(entity.getLevel());
         vo.setEngine(entity.getEngine());
         vo.setReviewResult(entity.getReviewResult());
+        vo.setReviewerId(entity.getReviewerId());
         vo.setReviewedAt(entity.getReviewedAt());
         vo.setCreatedAt(entity.getCreatedAt());
         return vo;

@@ -34,6 +34,7 @@ import com.faze.common.exception.BusinessException;
 import com.faze.common.exception.ErrorCode;
 import com.faze.common.pojo.TableDataInfo;
 import com.faze.infra.seq.BizNoGenerator;
+import com.faze.infra.seq.BizNoRetry;
 import com.faze.modules.account.entity.Lawyer;
 import com.faze.modules.account.service.LawyerQueryService;
 import com.faze.modules.ops.service.SysConfigQueryService;
@@ -534,7 +535,6 @@ public class SettlementService {
                                   long incomeCents, long feeCents, long settleCents) {
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
         LawyerIncomeSettlement entity = new LawyerIncomeSettlement();
-        entity.setSettlementNo(bizNoGenerator.nextSettlementNo());
         entity.setLawyerId(lawyerId);
         entity.setPeriod(period);
         entity.setOrderCount(orderCount);
@@ -545,9 +545,13 @@ public class SettlementService {
         entity.setCreatedAt(now);
         entity.setUpdatedAt(now);
         try {
-            settlementMapper.insert(entity);
+            BizNoRetry.insertWithNo("uk_settlement_no", bizNoGenerator::nextSettlementNo, settlementNo -> {
+                entity.setSettlementNo(settlementNo);
+                return settlementMapper.insert(entity);
+            });
         } catch (DuplicateKeyException e) {
-            // 并发生成：另一个请求刚插了同律师同账期，按幂等跳过处理
+            // 单号冲突已在 BizNoRetry 内换号重试，能走到这里的只剩 uk_settlement_lawyer_period：
+            // 并发生成时另一个请求刚插了同律师同账期，按幂等跳过处理
             log.info("结算批次并发重复，跳过 lawyerId={} period={}", lawyerId, period);
         }
     }

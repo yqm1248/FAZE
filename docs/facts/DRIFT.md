@@ -33,20 +33,21 @@
 
 | 处置 | 条数 | 其中 D1 组（逐条核查） | 其中 D2 组（盘点批量） | 其中 D3 组（脚本量出） |
 |---|---|---|---|---|
-| 改文档 | 25 | 5 | 15 | 5 |
+| 改文档 | 26 | 5 | 15 | 6 |
 | 改设计稿 | 3 | 1 | 2 | 0 |
-| 改代码 | 14 | 13 | 0 | 1 |
-| 待拍板 | 5 | 4 | 0 | 1 |
+| 改代码 | 15 | 13 | 0 | 2 |
+| 待拍板 | 4 | 4 | 0 | 0 |
 | 不处置 | 2 | 2 | 0 | 0 |
-| **合计** | **49** | **25** | **17** | **7** |
+| **合计** | **50** | **25** | **17** | **8** |
 
 > **已拍板的（不再待定）**：
 > - **DRIFT-043**（余额表列名）→ 负责人 2026-11-11 定「**统一列名**」。**2026-11-13 已执行并关闭**：迁移 V712 把 `user_balance.balance_cents` 改名为 `available_cents`，后端实体/Mapper/7 个 Service/5 个测试/巡检与运维脚本/33 处文档同步。选 `available_cents` 而非 `balance_cents` 的三条依据写在 V712 头部注释里（接口层事实标准 / available·frozen 成对 / 避开 `lawyer.balance_cents` 废弃列同名）。
 > - **「user 3 实名矛盾」**（`data-integrity.sql` 的 A12 红灯）→ 负责人 2026-11-11 定 **方案 C：不改数据**。等 DRIFT-015 修完（让 `realname_status` 由 `realname_auth` 派生）再一次性收敛。**在这之前 A12 会一直是 1，那是预期，不是漏修。**
+> - **DRIFT-049**（接口层 `balanceCents` 是总余额）→ 负责人 2026-11-13 定 **不改名，保留 `balanceCents`，按「改文档」处置**。裁决前实测了改名成本：PC 后台 `pc/admin-web/src/views/biz/wallet/index.vue` 有 **9 处消费**（其中 L457-461 用 `availableCents = balanceCents - frozenCents` 自己算，L18-19 注释已写明「balanceCents 是流水汇总的总余额」→ **PC 端根本没误解语义**），App 端只有 `features/profile/api/profile.ts:33` 一个类型声明、**0 处实际消费**。改名收益仅为「名字与语义一致」，代价是 9 处代码 + 4 处注释 + `api.json` 重生成 + 前端回归，而**没有任何「因误解导致 bug」的证据**。改为在《接口规范》A.5 写清字段语义（同批提交）。**这是判断，不是事实——若将来出现第 10 处消费点或新人误读案例，应重新评估。**
 
 > **D1 组（25 条）**：逐条核查建表，每条都有代码或接口层面的直接证据。
 > **D2 组（17 条）**：2026-11-11 全仓盘点批量登记，方向是「文档落后于代码」，多数标 `待复核`。
-> **D3 组（7 条）**：**跑脚本量出来的**，不是读代码读出来的——`data-integrity.sql` 抓出列名不一致，`api.mjs` 抓出接口数不符，`error-codes.mjs` 抓出错误码数不符（且文档内部自相矛盾），`extract-i18n.mjs` 抓出「i18n key 三个口径」与「门禁自身漏检 1 条缺译」，`render-docs.mjs` 把生成表渲染进规范后，与手写表一并列就暴露 30 个「规范列了、枚举里没有」的码。这一组最能说明 G2 为什么值得做：**修完一条，下一条往往是工具的盲区，而不是业务的错误。** 第 7 条（DRIFT-049）是执行 DRIFT-043 时顺着列名查出来的：**改列名的人才会去逐个问「这个字段到底是什么语义」**。
+> **D3 组（8 条）**：**跑脚本量出来的**，不是读代码读出来的——`data-integrity.sql` 抓出列名不一致，`api.mjs` 抓出接口数不符，`error-codes.mjs` 抓出错误码数不符（且文档内部自相矛盾），`extract-i18n.mjs` 抓出「i18n key 三个口径」与「门禁自身漏检 1 条缺译」，`render-docs.mjs` 把生成表渲染进规范后，与手写表一并列就暴露 30 个「规范列了、枚举里没有」的码。这一组最能说明 G2 为什么值得做：**修完一条，下一条往往是工具的盲区，而不是业务的错误。** 第 7 条（DRIFT-049）是执行 DRIFT-043 时顺着列名查出来的：**改列名的人才会去逐个问「这个字段到底是什么语义」**。第 8 条（DRIFT-050）是核 DEF-017 撞号时**被自己的实测打脸三次**才查出来的：按 `.env` 的 `FAZE_REDIS_URL` 往 db14 写，`SET` 静默无效，前三次「撞号不会发生」全是误判。
 >
 > **首次建表 44 行，此后每轮新增 ≤3 行。** 超过 3 行说明当轮改动引入了成批新分叉，应停下来先修机制。
 > D2 组属于"补齐历史欠账"，不计入每轮配额。
@@ -142,7 +143,7 @@
 
 ---
 
-## 七、D3 组：工具化 / 清脏数据时发现的（7 条）
+## 七、D3 组：工具化 / 清脏数据时发现的（8 条）
 
 这一组不是"读代码读出来的"，是**跑脚本量出来的**——也正是 G2 存在的理由：人肉比对看不到的东西，一行命令就能看到。
 
@@ -154,7 +155,8 @@
 | DRIFT-046 | 「i18n 有多少个 key」有三个数，引用时都没标口径 | 三口径**同时成立**：**总节点 1965**（含中间对象）/ **叶子条目 1880**（真正可翻译）/ 带 namespace 前缀去重后 1880（与叶子相等，说明无覆盖） | `tmp/fixplan2/GUARDRAIL-PLAN.md:75` 写「1965 个 zh-Hans i18n key」——1965 是**总节点**口径，不是 key 数。该文档另写「APP 代码 71 页 / 79 个 JUnit 文件 / 164 份 md」，同类数字都缺口径 | 改文档：引用数字必须连口径一起引；机器口径以 `docs/facts/i18n-keys.json` 的 `totals` 为准 | `node scripts/facts/extract-i18n.mjs` 三个数同时输出 | 实测 |
 | DRIFT-047 | i18n 门禁把不同 namespace 的**同名 key 并成一条**，导致 1 条缺译永远不报警 | `profile.settings.title`=「设置」与 `workbench.settings.title`=「服务设置」是**两条不同译文**；旧口径扁平化后只剩一条（1880 → 1879），前者缺译不会被 `check-i18n.ps1` 报出。**2026-11-11 已修**：`check-i18n.ps1` 与 `extract-i18n.mjs` 同时改为带 namespace 前缀；改时 `.i18n-pending.json` 为空，零迁移成本 | 无文档提过这一点（属**未发现**缺陷，不是文档写错）；修后 key 数 1879 → 1880 | 改代码：已修。**两个脚本必须同时改**，只改一边就会出现两套数字 | `scripts/check-i18n.ps1` 的 `Read-LangFlat` | 实测 |
 | DRIFT-048 | 错误码规范手写表列了 **130** 个码，枚举只有 **94** 个；**方向是单向的**：代码有、文档无 = **0**，文档有、代码无 = 36（去重后 30 个真码） | `ErrorCode.java` 实测 94 个。规范 §3 手写表里 **30 个码在枚举里不存在**：401009、402007、403001~403006、404003/404004、409001~409004、410001~410004、410016/410017、501004、502002、504001/504002、505001~505003、507001、510002/510003 | 规范 §3.1~§3.10 手写表按「这是要实现的码」的口气编写。其中 `402007`（未实名 403）在 §2.2 的 HTTP 规则表里也被引用，但代码里未实名场景改抛 `405020 TRADE_RECHARGE_REALNAME_REQUIRED` | 改文档：手写表降级为「设计意图」，全量以生成表为准；**30 个未落地码逐个归因后再决定删表还是补码**（`402011` 已标作废、4 个是示例/号段说明、1 个语义被别的码覆盖，都不是缺陷） | 比对 `docs/facts/error-codes.json` 与规范手写表（`scripts/facts/render-docs.mjs` 把生成表渲染进同一节后，两表并列即暴露） | 实测 |
-| DRIFT-049 | 接口层把**总余额**叫 `balanceCents`，而库里 `available_cents` 是**可用余额**——同一个词两处指相反的东西 | **实测四个 VO 的 `balanceCents` 全部来自 `SUM(delta_cents)`（含冻结，即总余额）**：`ProfileVO.balanceCents` ← `getTotalCentsFromFlows()`；`RechargeResultVO.balanceCents` ← `flow.balanceAfter` 或 `totalBefore + delta`；`AdminWalletVO.balanceCents` ← `sumDeltaByOwner()`；`AdminRechargeResultVO.balanceCents` ← 同样的流水净额 | `BalanceVO` 用 `{availableCents, frozenCents, totalCents}` 三个字段把同一件事说清楚了；**另四个 VO 只有一个 `balanceCents` 装总余额**，读代码的人会以为它就是 `user_balance` 里那一列（可用余额） | **待拍板**：建议把四个 `balanceCents` 改名为 `totalCents`（与 `BalanceVO.totalCents` 对齐）。**这是破坏性契约变更**——`AdminWalletVO.balanceCents` 被 PC 后台 A-07 钱包概览消费、`ProfileVO.balanceCents` 在 `features/profile/api/profile.ts` 有类型声明（`MyPage` 已绕过该字段），改名前要先查清 PC 端消费点 | 读 `ProfileService:63`、`RechargeService:223,249`、`AdminWalletService:84`、`AdminRechargeResultVO` 类注释 | 通读 |
+| DRIFT-049 | 接口层把**总余额**叫 `balanceCents`，而库里 `available_cents` 是**可用余额**——同一个词两处指相反的东西 | **实测四个 VO 的 `balanceCents` 全部来自 `SUM(delta_cents)`（含冻结，即总余额）**：`ProfileVO.balanceCents` ← `getTotalCentsFromFlows()`；`RechargeResultVO.balanceCents` ← `flow.balanceAfter` 或 `totalBefore + delta`；`AdminWalletVO.balanceCents` ← `sumDeltaByOwner()`；`AdminRechargeResultVO.balanceCents` ← 同样的流水净额 | `BalanceVO` 用 `{availableCents, frozenCents, totalCents}` 三个字段把同一件事说清楚了；**另四个 VO 只有一个 `balanceCents` 装总余额**，读代码的人会以为它就是 `user_balance` 里那一列（可用余额） | **已裁决（2026-11-13，负责人）：不改名，保留 `balanceCents`**。裁决前实测了影响面：PC 后台 `pc/admin-web/src/views/biz/wallet/index.vue` 有 **9 处消费**（L457-461 用 `availableCents = balanceCents - frozenCents` 自己算，L18-19 注释已写明「balanceCents 是流水汇总的总余额」→ **PC 端没误解**），App 端只有 `features/profile/api/profile.ts:33` 一个类型声明、**0 处实际消费**（`MyPage` 读的是 `BalanceVO.availableCents`）。改名收益仅为「名字与语义一致」，代价是 9 处代码 + 4 处注释 + `api.json` 重生成 + 前端回归，而**没有「因误解导致 bug」的证据**。改为在《接口规范》A.5 写清字段语义 | 读 `ProfileService:63`、`RechargeService:223,249`、`AdminWalletService:84`、`AdminRechargeResultVO` 类注释 + **2026-11-13 实测消费点** | 实测 |
+| DRIFT-050 | Redis **库号**有三处说法：`.env` 的 `FAZE_REDIS_URL` 写 `/14`、`redis-faze.conf` 注释写「段 0/1 用独立 db 14」、**实际代码用 db 1** | 实测：`application-dev.yml:11` 是 `database: ${FAZE_REDIS_DATABASE:1}` → **db 1**；`.env` 里**没有** `FAZE_REDIS_DATABASE` 这个键；`FAZE_REDIS_URL` 只被 `deploy/start-services.ps1:146` 与 `deploy/verify-all.ps1:74` 用正则 `^redis://([^/:]+):(\d+)` 取 **host:port**，**`/14` 段被正则丢弃**，对任何组件都不生效；RuoYi 侧 `pc/admin-server/ruoyi-admin/src/main/resources/application.yml` 明确写 `database: 0` | `deploy/.env.example:39`、`deploy/redis-faze.conf:15` 两处都指向 14 | **改代码 + 改文档（2026-11-13 已执行）**：`redis-faze.conf` 的库号注释改正为「db 0 = RuoYi / db 1 = faze 业务，库号由 `FAZE_REDIS_DATABASE` 决定，不由 URL 的 path 决定」；`.env` 与 `.env.example` 补 `FAZE_REDIS_DATABASE=1` | 实测：按 `.env` 往 db14 `SET` 静默无效，连续 3 次误判「撞号不会发生」；db14 实际只有 21 个 **2.5 天前**从旧 `dump.rdb` 加载的 `sys_dict:*` 残留（`OBJECT IDLETIME` 全部 ≈220005 秒 = Redis 进程寿命） | 实测 |
 
 > **DRIFT-044 的差异原因未逐条核对。** 87 是 V2.3（2026-10-30）时 §4.8.4 列出的计划接口数；实现比计划多了 36 个，与技术路线 §二十六 自己登记的「PC 18→24、App 23→26」是同一类现象。**在把 87 改成 123 之前，要先把多出来的 36 条归因**（合同外新增？通用 auth 端点？CRUD 拆分？），否则只是把一个数字换成另一个数字。
 >
@@ -175,7 +177,7 @@
 
 ## 九、本表自身的已知局限
 
-1. **49 条不是全部。** D1 组覆盖「第三方验收报告提到的问题」+「代码通读中发现的同类问题」；D2 组覆盖一次全仓盘点；D3 组是跑脚本量出来的。**没有做过全库漂移扫描**，那是 G2/G4 的事。
+1. **50 条不是全部。** D1 组覆盖「第三方验收报告提到的问题」+「代码通读中发现的同类问题」；D2 组覆盖一次全仓盘点；D3 组是跑脚本量出来的。**没有做过全库漂移扫描**，那是 G2/G4 的事。
 2. **D2 组的 17 条里 15 条是 `待复核`**：它们来自盘点报告的二手结论，我只亲自复核了 DRIFT-026（缺译清零）与 DRIFT-032（`biz_type` 9 值）两条。**引用 D2 组前先验。**
 3. **DRIFT-011 / DRIFT-012 的处置值可能被改成 `改文档`**：如果产品决定「法院名称本来就不显示」，那就不是补写入路径而是改文档。**处置值可改，但必须在 CHANGELOG 记明是谁拍的。**
 4. **两张表之间可能串门。** 例如 DRIFT-011（`court_name` 永远为空）如果最后决定"这个字段不做"，它就该变成 GAP 移进 `DEFERRED.md`。**串门不丢人，但必须在 CHANGELOG 写清为什么改归类别。**

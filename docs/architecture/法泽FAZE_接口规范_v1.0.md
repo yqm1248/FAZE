@@ -508,6 +508,20 @@ public class TableDataInfo<T> {
 | 枚举 | **传枚举名字符串**（大写下划线），传码值需在契约里写明码表 | `"msgType": "IMAGE"` |
 | 集合 | 空集合返回 `[]`，**不返回 `null`** | `"list": []` |
 
+**余额字段的语义约定（DRIFT-049 裁决，2026-11-13）**
+
+- `availableCents` = **可用余额**（能消费、能提现的部分）
+- `frozenCents` = **冻结余额**
+- `totalCents` = **总余额** = `availableCents + frozenCents`
+- **`balanceCents` 是历史命名，语义等于「总余额」**，**不是** `user_balance.available_cents` 那一列。
+  它只出现在「只给一个数」的接口里（`ProfileVO` / `RechargeResultVO` / `AdminWalletVO` /
+  `AdminRechargeResultVO`）；能用 `BalanceVO` 那套三字段的表达同一件事时，**不要用它**。
+- **本次不把 `balanceCents` 改名为 `totalCents`**（原建议被否决）：实测 PC 后台 9 处消费、App 端
+  0 处实际消费，改名成本大于「名字更准」的收益，且**没有任何因误读导致 bug 的证据**。
+  详细裁决见 `docs/facts/DRIFT.md` 的 DRIFT-049（该裁决是判断，不是事实；出现第 10 处消费点
+  或误读案例时应重新评估）。
+- **新增接口一律用 `{availableCents, frozenCents, totalCents}` 三字段**，不得新增 `balanceCents` 字段。
+
 **裁决 5：所有 Long 型 ID 必须序列化为字符串**
 
 依据：MySQL 主键是 `BIGINT`（数据表规范），Java `Long` 最大值远超 JavaScript `Number.MAX_SAFE_INTEGER`（2^53−1）。一旦服务端直接返回 `1234567890123456789`，JS 端 `JSON.parse` 会静默丢精度——**不出错，但 ID 变了**，表现为「查不到刚创建的记录」这种极难排查的 bug。
@@ -1118,7 +1132,7 @@ GET  /admin/dashboard/ping
 
 ### `GET /api/v1/admin/wallets/{userId}`
 
-**响应 `data`**：`userId`(string) / `balanceCents`(long，**来自流水汇总**) / `frozenCents`(long) / `totalRechargeCents` / `totalConsumeCents` / `lastFlowAt`。
+**响应 `data`**：`userId`(string) / `balanceCents`(long，**总余额 = 可用 + 冻结**，来自 `balance_flow` 的 `SUM(delta_cents)`；**不是** `user_balance.available_cents`，见 §5.3 余额字段语义约定) / `frozenCents`(long) / `totalRechargeCents` / `totalConsumeCents` / `lastFlowAt`。
 
 ### `POST /api/v1/admin/wallets/{userId}/recharge`
 
@@ -1131,7 +1145,7 @@ GET  /admin/dashboard/ping
 | `bizNo` | string(≤64) | ✅ | 线下转账的凭证号/流水号，用于对账 |
 | `remark` | string(≤500) | ❌ | |
 
-**响应 `data`**：`flowId`(string) / `balanceCents`(long，充值后) / `bizNo` / `createdAt`。
+**响应 `data`**：`flowId`(string) / `balanceCents`(long，**充值后的总余额**，同上口径) / `bizNo` / `createdAt`。
 
 **错误码**：`405006` 金额非法 / `401005` 重复（`bizNo` 已存在）/ `401002` 缺原因。
 

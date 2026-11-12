@@ -19,6 +19,7 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.faze.common.exception.BusinessException;
 import com.faze.common.exception.ErrorCode;
 import com.faze.infra.seq.BizNoGenerator;
+import com.faze.infra.seq.BizNoRetry;
 import com.faze.modules.ops.entity.ServiceTicket;
 import com.faze.modules.ops.enums.TicketPriority;
 import com.faze.modules.ops.enums.TicketStatus;
@@ -89,7 +90,6 @@ public class TicketService {
         int slaHours = sysConfig.getInt(KEY_SLA_HOURS, DEFAULT_SLA_HOURS);
 
         ServiceTicket ticket = new ServiceTicket();
-        ticket.setTicketNo(bizNoGenerator.nextTicketNo());
         ticket.setUserId(userId);
         ticket.setCategory(category);
         ticket.setTypeId(typeId);
@@ -99,7 +99,10 @@ public class TicketService {
         ticket.setSlaDueAt(now.plusHours(slaHours));
         ticket.setCreatedAt(now);
         ticket.setUpdatedAt(now);
-        ticketMapper.insert(ticket);
+        BizNoRetry.insertWithNo("uk_ticket_no", bizNoGenerator::nextTicketNo, ticketNo -> {
+            ticket.setTicketNo(ticketNo);
+            return ticketMapper.insert(ticket);
+        });
         log.info("工单已创建 ticketNo={} userId={} category={}", ticket.getTicketNo(), userId, category);
         return ticket;
     }

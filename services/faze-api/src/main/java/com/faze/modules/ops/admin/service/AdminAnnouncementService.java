@@ -25,6 +25,7 @@ import com.faze.common.exception.BusinessException;
 import com.faze.common.exception.ErrorCode;
 import com.faze.common.pojo.PageResult;
 import com.faze.infra.seq.BizNoGenerator;
+import com.faze.infra.seq.BizNoRetry;
 import com.faze.modules.account.service.AccountQueryService;
 import com.faze.modules.ops.admin.bo.AnnouncementSaveBO;
 import com.faze.modules.ops.admin.vo.AnnouncementDetailVO;
@@ -132,7 +133,6 @@ public class AdminAnnouncementService {
         }
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
         Announcement entity = new Announcement();
-        entity.setAnnouncementNo(bizNoGenerator.nextAnnouncementNo());
         entity.setTitle(bo.getTitle());
         entity.setContent(bo.getContent());
         entity.setTargetType(bo.getTargetType());
@@ -146,7 +146,10 @@ public class AdminAnnouncementService {
         entity.setCreatedBy(operatorId);
         entity.setCreatedAt(now);
         entity.setUpdatedAt(now);
-        announcementMapper.insert(entity);
+        BizNoRetry.insertWithNo("uk_announcement_no", bizNoGenerator::nextAnnouncementNo, announcementNo -> {
+            entity.setAnnouncementNo(announcementNo);
+            return announcementMapper.insert(entity);
+        });
         mark(entity.getId(), "{\"announcementNo\":" + quote(entity.getAnnouncementNo())
                 + ",\"status\":" + quote(entity.getStatus()) + "}");
         return entity.getId();

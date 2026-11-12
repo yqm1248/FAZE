@@ -16,6 +16,7 @@ import com.faze.common.exception.BusinessException;
 import com.faze.common.exception.ErrorCode;
 import com.faze.common.pojo.PageResult;
 import com.faze.infra.seq.BizNoGenerator;
+import com.faze.infra.seq.BizNoRetry;
 import com.faze.modules.account.entity.Lawyer;
 import com.faze.modules.account.service.LawyerQueryService;
 import com.faze.modules.caseflow.bo.CaseCreateBO;
@@ -127,10 +128,9 @@ public class CaseServiceImpl implements CaseService {
             }
         }
 
-        // 任务 2：生成单号 + 冻结四步表单快照
+        // 任务 2：生成单号 + 冻结四步表单快照（撞单号唯一键自动换号重试，见 BizNoRetry）
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
         LegalCase entity = new LegalCase();
-        entity.setCaseNo(bizNoGenerator.nextCaseNo());
         entity.setUserId(userId);
         entity.setTitle(buildTitle(bo));
         entity.setCaseType(bo.getCaseType());
@@ -142,7 +142,10 @@ public class CaseServiceImpl implements CaseService {
                 ? null : jsonMapper.writeValueAsString(bo.getEvidenceUrls()));
         entity.setCreatedAt(now);
         entity.setUpdatedAt(now);
-        legalCaseMapper.insert(entity);
+        BizNoRetry.insertWithNo("uk_legal_case_no", bizNoGenerator::nextCaseNo, caseNo -> {
+            entity.setCaseNo(caseNo);
+            return legalCaseMapper.insert(entity);
+        });
 
         // 任务 3：写第一条进度（submitted），与立案同事务
         insertProgress(entity.getId(), 1, "submitted", "材料已提交",

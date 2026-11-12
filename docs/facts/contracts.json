@@ -1,14 +1,14 @@
 {
   "_comment": "本文件由 scripts/facts/check-contracts.mjs 从源码注释与 i18n 文案生成，禁止手改。用途：让「代码里承诺了什么」成为可 diff 的清单——新增一条承诺就是一次可见的改动。",
-  "sourceDigest": "ac13b400733b6b4b",
+  "sourceDigest": "8a23ea05c8b3d8de",
   "totals": {
-    "promises": 444,
+    "promises": 447,
     "scopeViolations": 1,
     "knownViolations": 1
   },
   "byKeyword": {
     "重复提交": 22,
-    "幂等": 320,
+    "幂等": 323,
     "保证": 99,
     "重复点": 3
   },
@@ -520,6 +520,24 @@
       "text": "*      调用方必须保证在事务提交之后（PushTask 是独立的事务外消费者）。"
     },
     {
+      "file": "services/faze-api/src/main/java/com/faze/infra/seq/BizNoRetry.java",
+      "line": 11,
+      "keyword": "幂等",
+      "text": "*      把幂等跳过变成静默丢单（SettlementService 的既有行为就依赖这个区分）。"
+    },
+    {
+      "file": "services/faze-api/src/main/java/com/faze/infra/seq/BizNoRetry.java",
+      "line": 17,
+      "keyword": "幂等",
+      "text": "*      或 SettlementService 按幂等跳过），本类不改变对外错误码。"
+    },
+    {
+      "file": "services/faze-api/src/main/java/com/faze/infra/seq/BizNoRetry.java",
+      "line": 81,
+      "keyword": "幂等",
+      "text": "撞的是业务唯一键，不归本类管，原样抛出（调用方的幂等/错误语义依赖它）"
+    },
+    {
       "file": "services/faze-api/src/main/java/com/faze/modules/account/admin/converter/AdminAccountConverter.java",
       "line": 183,
       "keyword": "保证",
@@ -953,55 +971,55 @@
     },
     {
       "file": "services/faze-api/src/main/java/com/faze/modules/caseflow/service/CaseServiceImpl.java",
-      "line": 59,
+      "line": 60,
       "keyword": "幂等",
       "text": "立案幂等键前缀。"
     },
     {
       "file": "services/faze-api/src/main/java/com/faze/modules/caseflow/service/CaseServiceImpl.java",
-      "line": 62,
+      "line": 63,
       "keyword": "幂等",
       "text": "补正幂等键前缀：和立案分开，避免「同一次表单提交」的键在两套语义之间互串。"
     },
     {
       "file": "services/faze-api/src/main/java/com/faze/modules/caseflow/service/CaseServiceImpl.java",
-      "line": 65,
+      "line": 66,
       "keyword": "幂等",
       "text": "幂等结果保留 24 小时（与订单幂等一致）。"
     },
     {
       "file": "services/faze-api/src/main/java/com/faze/modules/caseflow/service/CaseServiceImpl.java",
-      "line": 95,
+      "line": 96,
       "keyword": "幂等",
       "text": "* @param redis              Redis（幂等）"
     },
     {
       "file": "services/faze-api/src/main/java/com/faze/modules/caseflow/service/CaseServiceImpl.java",
-      "line": 120,
+      "line": 121,
       "keyword": "幂等",
       "text": "任务 1：幂等命中直接返回首次结果（不产生第二单）"
     },
     {
       "file": "services/faze-api/src/main/java/com/faze/modules/caseflow/service/CaseServiceImpl.java",
-      "line": 151,
+      "line": 154,
       "keyword": "幂等",
       "text": "任务 4：记幂等结果（失败不回滚业务，幂等只是防重）"
     },
     {
       "file": "services/faze-api/src/main/java/com/faze/modules/caseflow/service/CaseServiceImpl.java",
-      "line": 299,
+      "line": 302,
       "keyword": "幂等",
       "text": "任务 1：幂等键必填（与 create 一致，缺了由参数错误码承接，不是 500）"
     },
     {
       "file": "services/faze-api/src/main/java/com/faze/modules/caseflow/service/CaseServiceImpl.java",
-      "line": 304,
+      "line": 307,
       "keyword": "幂等",
       "text": "任务 2：幂等命中直接返首次结果，不重复写进度、不重复发「重新提交」通知"
     },
     {
       "file": "services/faze-api/src/main/java/com/faze/modules/caseflow/service/CaseServiceImpl.java",
-      "line": 356,
+      "line": 359,
       "keyword": "幂等",
       "text": "任务 9：幂等键写入失败只告警不回滚业务（幂等是防重，不是业务结果本身）"
     },
@@ -2387,33 +2405,33 @@
     },
     {
       "file": "services/faze-api/src/main/java/com/faze/modules/trade/service/SettlementService.java",
-      "line": 129,
+      "line": 130,
       "keyword": "幂等",
       "text": "* @return 真的入账了返回 true；幂等跳过 / 金额为 0 / 参数不全返回 false"
     },
     {
       "file": "services/faze-api/src/main/java/com/faze/modules/trade/service/SettlementService.java",
-      "line": 157,
+      "line": 158,
       "keyword": "幂等",
       "text": "任务 2：锁内二次幂等——挡住「检查通过后、加锁前」被别人插入的并发窗口"
     },
     {
       "file": "services/faze-api/src/main/java/com/faze/modules/trade/service/SettlementService.java",
-      "line": 277,
+      "line": 278,
       "keyword": "保证",
       "text": "* 解冻单笔收入流水（内部方法，调用方保证已在事务内）。"
     },
     {
       "file": "services/faze-api/src/main/java/com/faze/modules/trade/service/SettlementService.java",
-      "line": 372,
+      "line": 373,
       "keyword": "幂等",
       "text": "uk_settlement_lawyer_period 命中：幂等跳过，不报错（E4 第 4 条）"
     },
     {
       "file": "services/faze-api/src/main/java/com/faze/modules/trade/service/SettlementService.java",
-      "line": 550,
+      "line": 554,
       "keyword": "幂等",
-      "text": "并发生成：另一个请求刚插了同律师同账期，按幂等跳过处理"
+      "text": "并发生成时另一个请求刚插了同律师同账期，按幂等跳过处理"
     },
     {
       "file": "services/faze-api/src/main/java/com/faze/modules/trade/service/SocialActionService.java",
@@ -2507,31 +2525,31 @@
     },
     {
       "file": "services/faze-api/src/main/java/com/faze/modules/trade/service/WithdrawService.java",
-      "line": 128,
+      "line": 129,
       "keyword": "幂等",
       "text": "* <p>幂等：同一 `Idempotency-Key` 重复提交返回**同一张单**，不冻第二次。</p>"
     },
     {
       "file": "services/faze-api/src/main/java/com/faze/modules/trade/service/WithdrawService.java",
-      "line": 132,
+      "line": 133,
       "keyword": "幂等",
       "text": "* @param idempotencyKey 客户端幂等键（可空）"
     },
     {
       "file": "services/faze-api/src/main/java/com/faze/modules/trade/service/WithdrawService.java",
-      "line": 133,
+      "line": 134,
       "keyword": "幂等",
       "text": "* @return 新建（或幂等命中）的提现单"
     },
     {
       "file": "services/faze-api/src/main/java/com/faze/modules/trade/service/WithdrawService.java",
-      "line": 135,
+      "line": 136,
       "keyword": "重复提交",
       "text": "*                           405025 未绑卡或状态非法 / 405027 单日过于频繁 / 405004 重复提交"
     },
     {
       "file": "services/faze-api/src/main/java/com/faze/modules/trade/service/WithdrawService.java",
-      "line": 140,
+      "line": 141,
       "keyword": "幂等",
       "text": "任务 1：幂等闸门（命中且单据还在 → 直接返回；单据已删/不存在则释放后继续）"
     },

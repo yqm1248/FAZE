@@ -8,8 +8,9 @@
  *      落单（本类，事务）→ prepay（编排层，事务外）→ 回写 prepay_id（本类，事务）。
  *   2. **落单时 `channel_txn_id` 必须为 NULL**：它由回调/主动查询回填；pending 期间填了，
  *      晚到回调的补偿单就会撞 `uk_recharge_channel_txn`（工作流 A2 第 4 条）。
- *   3. **单号撞唯一键要重试换号**：Redis 被清空/重启后序号会从 1 重来，真实运维场景会撞上
- *      历史单号；静默 500 不如换号重试（与段 2 OrderCreateExecutor 同一处理方式）。
+ *   3. **单号撞唯一键要重试换号**：Redis 序号丢失后序号会从 1 重来，真实运维场景会撞上
+ *      历史单号；静默 500 不如换号重试。统一走 infra/seq/BizNoRetry（只认 uk_recharge_order_no，
+ *      次数用尽仍转本类的 501001「充值单号生成失败」，对外错误码与改造前一致）。
  *   4. `markFailed` 走状态机校验 + CAS：只有 pending 能变 failed，已成功的单不许被覆盖。
  */
 package com.faze.modules.trade.service;
@@ -18,6 +19,7 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.faze.common.exception.BusinessException;
 import com.faze.common.exception.ErrorCode;
 import com.faze.infra.seq.BizNoGenerator;
+import com.faze.infra.seq.BizNoRetry;
 import com.faze.modules.trade.entity.RechargeRecord;
 import com.faze.modules.trade.enums.PayChannel;
 import com.faze.modules.trade.enums.RechargeStatus;
@@ -38,9 +40,6 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 @Slf4j
 public class RechargeCreateExecutor {
-
-    /** 单号撞唯一键时的最大尝试次数。 */
-    private static final int MAX_ORDER_NO_ATTEMPT = 3;
 
     private final RechargeRecordMapper rechargeRecordMapper;
 
@@ -63,31 +62,32 @@ public class RechargeCreateExecutor {
     public RechargeRecord createPending(Long userId, long amountCents, PayChannel channel,
                                         LocalDateTime expireAt) {
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
-        for (int attempt = 1; attempt <= MAX_ORDER_NO_ATTEMPT; attempt++) {
-            RechargeRecord record = new RechargeRecord();
-            record.setUserId(userId);
-            record.setOrderNo(bizNoGenerator.nextRechargeNo());
-            record.setChannel(channel.getCode());
-            // channel_txn_id 留 NULL，见类注释第 2 条
-            record.setChannelTxnId(null);
-            record.setChannelPrepayId(null);
-            record.setAmountCents(amountCents);
-            record.setStatus(RechargeStatus.PENDING.getCode());
-            record.setPaidAt(null);
-            record.setExpireAt(expireAt);
-            record.setRawPayload(null);
-            record.setCreatedAt(now);
-            record.setUpdatedAt(now);
-            try {
-                rechargeRecordMapper.insert(record);
-                log.info("充值单落库 userId={} orderNo={} amount={} channel={}",
-                        userId, record.getOrderNo(), amountCents, channel.getCode());
-                return record;
-            } catch (DuplicateKeyException e) {
-                log.warn("充值单号冲突，换号重试 attempt={} orderNo={}", attempt, record.getOrderNo());
-            }
+        RechargeRecord record = new RechargeRecord();
+        record.setUserId(userId);
+        record.setChannel(channel.getCode());
+        // channel_txn_id 留 NULL，见类注释第 2 条
+        record.setChannelTxnId(null);
+        record.setChannelPrepayId(null);
+        record.setAmountCents(amountCents);
+        record.setStatus(RechargeStatus.PENDING.getCode());
+        record.setPaidAt(null);
+        record.setExpireAt(expireAt);
+        record.setRawPayload(null);
+        record.setCreatedAt(now);
+        record.setUpdatedAt(now);
+        try {
+            // 只对 uk_recharge_order_no 换号重试；uk_recharge_channel_txn 因该列为 NULL 不会撞
+            BizNoRetry.insertWithNo("uk_recharge_order_no", bizNoGenerator::nextRechargeNo, orderNo -> {
+                record.setOrderNo(orderNo);
+                return rechargeRecordMapper.insert(record);
+            });
+        } catch (DuplicateKeyException e) {
+            // BizNoRetry 用尽次数后抛的是原始异常，这里转成本类既有的 501001 语义（对外错误码不变）
+            throw new BusinessException(ErrorCode.COMMON_INTERNAL, "充值单号生成失败");
         }
-        throw new BusinessException(ErrorCode.COMMON_INTERNAL, "充值单号生成失败");
+        log.info("充值单落库 userId={} orderNo={} amount={} channel={}",
+                userId, record.getOrderNo(), amountCents, channel.getCode());
+        return record;
     }
 
     /**

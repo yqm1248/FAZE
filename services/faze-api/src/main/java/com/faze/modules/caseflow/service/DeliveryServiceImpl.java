@@ -17,6 +17,7 @@ import com.faze.common.exception.BusinessException;
 import com.faze.common.exception.ErrorCode;
 import com.faze.common.pojo.PageResult;
 import com.faze.infra.seq.BizNoGenerator;
+import com.faze.infra.seq.BizNoRetry;
 import com.faze.modules.account.entity.Lawyer;
 import com.faze.modules.account.service.LawyerQueryService;
 import com.faze.modules.caseflow.bo.DeliveryCreateBO;
@@ -114,11 +115,13 @@ public class DeliveryServiceImpl implements DeliveryService {
         entity.setUserId(legalCase.getUserId());
         entity.setMethod(method.getCode());
         entity.setSentAt(now);
-        entity.setReceiptNo(bizNoGenerator.nextDeliveryNo());
         entity.setStatus(DeliveryStatus.PENDING.getCode());
         entity.setCreatedAt(now);
         entity.setUpdatedAt(now);
-        caseDeliveryMapper.insert(entity);
+        BizNoRetry.insertWithNo("uk_delivery_receipt", bizNoGenerator::nextDeliveryNo, receiptNo -> {
+            entity.setReceiptNo(receiptNo);
+            return caseDeliveryMapper.insert(entity);
+        });
         log.info("送达已发起 deliveryId={} caseId={} documentId={} method={} receiptNo={}",
                 entity.getId(), caseId, document.getId(), method.getCode(), entity.getReceiptNo());
         return toRowVO(entity, legalCase, document, lawyerNameOf(legalCase.getLawyerId()));

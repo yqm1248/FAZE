@@ -50,6 +50,14 @@ public class ContentReviewVO {
     /** 处置结果：pending / ignored / warned / banned。 */
     private String reviewResult;
 
+    /**
+     * 处置人（管理员 `sys_user.user_id`）。
+     *
+     * <p>处置后才有值，行内残留 NULL 表示「未被任何管理员处置过」（pending，
+     * 或 warn 级被系统自动忽略）。DEF-016：本字段原先无写入路径，2026-11-13 补上。</p>
+     */
+    private Long reviewerId;
+
     /** 处置时间（UTC）。 */
     private LocalDateTime reviewedAt;
 
