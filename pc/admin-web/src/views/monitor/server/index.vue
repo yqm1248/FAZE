@@ -180,16 +180,28 @@ const { proxy } = getCurrentInstance()
  *
  * 服务监控页原来把服务器绝对路径原样渲染（如 `E:\dshcode\FAZE\pc\admin-server`），
  * 等于把部署目录结构暴露给任何能进这个页面的管理员，也会被截屏/录屏/浏览器历史带走。
- * 只保留最后一级目录名：运维仍能看出是哪个组件（jdk-17 / ruoyi-admin），
+ * 只保留最后一级目录名：运维仍能看出是哪个组件，
  * 但看不到盘符和上层目录。
  *
+ * 最后一级目录名本身也可能暴露技术栈（`ruoyi-admin` 直接说明这是若依脚手架），
+ * 所以对已知的框架目录名做中性化映射——这不是安全边界，只是别把框架名写在运维页面上。
+ */
+const TAIL_ALIAS = {
+  'ruoyi-admin': '业务服务',
+  'jdk17': 'JDK 17',
+  'jdk-17': 'JDK 17'
+}
+
+/**
  * @param {string} p 服务端返回的绝对路径
- * @returns {string} 最后一级目录名；拿不到时返回破折号
+ * @returns {string} 最后一级目录名（已知框架目录名换成中性名）；拿不到时返回破折号
  */
 function tailPath(p) {
   if (!p || typeof p !== 'string') return '—'
   const parts = p.split(/[\\/]+/).filter(Boolean)
-  return parts.length === 0 ? '—' : parts[parts.length - 1]
+  if (parts.length === 0) return '—'
+  const last = parts[parts.length - 1]
+  return TAIL_ALIAS[last.toLowerCase()] || last
 }
 
 /**

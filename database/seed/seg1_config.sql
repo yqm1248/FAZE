@@ -20,8 +20,8 @@ VALUES
     ('login_lock_minutes',     '15',    'int',   'security', '登录锁定分钟数（与支付密码的 30 分钟分开）', 1, UTC_TIMESTAMP(), UTC_TIMESTAMP()),
     ('pay_pwd_max_fail',       '5',     'int',   'security', '支付密码连续错误次数上限（负责人 2026-11-01 拍板）', 1, UTC_TIMESTAMP(), UTC_TIMESTAMP()),
     ('pay_pwd_lock_minutes',   '30',    'int',   'security', '支付密码锁定时长（分钟）', 1, UTC_TIMESTAMP(), UTC_TIMESTAMP()),
-    ('platform_fee_rate',      '0.15',  'decimal','trade',   '平台服务费比例（占位 15%，段 2 订单生效）', 1, UTC_TIMESTAMP(), UTC_TIMESTAMP()),
-    ('order_no_format',        'PREFIX2+yyyyMMdd+SEQ6', 'string', 'trade', '平台单号格式（段 2 建 orders.order_no 时生效）', 0, UTC_TIMESTAMP(), UTC_TIMESTAMP()),
+    ('platform_fee_rate',      '0.15',  'decimal','trade',   '平台服务费比例（当前 15%，下单时生效）', 1, UTC_TIMESTAMP(), UTC_TIMESTAMP()),
+    ('order_no_format',        'PREFIX2+yyyyMMdd+SEQ6', 'string', 'trade', '平台单号格式（生成订单号时使用）', 0, UTC_TIMESTAMP(), UTC_TIMESTAMP()),
     -- 以下两条是 G1「用户服务协议页 / 隐私政策页」的正文来源（裁决 #12：正文走配置、页面只渲染）。
     -- 值里是**占位文本**，上线前必须由法务定稿替换；不可回退为写死在页面里。
     -- 分类用 legal：与 sms/security/trade 分开，PC A-08 按分类筛时一眼能看出这两条不是技术参数。

@@ -68,7 +68,7 @@
             <el-tag v-if="pingOk" type="success" size="small" effect="plain">已连通</el-tag>
             <el-tag v-else-if="pingError" type="danger" size="small" effect="plain">未连通</el-tag>
             <el-tag v-else type="info" size="small" effect="plain">自检中</el-tag>
-            <span class="self-check__hint">RuoYi 登录态 → faze-api(8081) → 管理端鉴权</span>
+            <span class="self-check__hint">业务服务 → 管理端鉴权</span>
           </span>
         </template>
         <el-alert
@@ -556,6 +556,9 @@ function formatCount(value) {
 /**
  * 金额格式化：整数分 → 带千分位的元（**整数运算，不浮点累加**）。
  *
+ * 换算本体在 `shared/format.js` 的 `formatCents`，这里只多一条「空值回破折号」——
+ * KPI 卡片拿不到数时显示 `—` 比显示 `0.00` 诚实。
+ *
  * @param {number|string|null|undefined} cents 金额（分）
  * @returns {string} 形如 `12,860.00`；空值回 `—`
  */
@@ -563,12 +566,7 @@ function formatMoney(cents) {
   if (cents === null || cents === undefined || cents === '') {
     return '—'
   }
-  const value = toNumber(cents)
-  const negative = value < 0
-  const abs = Math.abs(value)
-  const yuan = String(Math.floor(abs / 100)).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
-  const fen = String(abs % 100).padStart(2, '0')
-  return `${negative ? '-' : ''}${yuan}.${fen}`
+  return formatCents(cents)
 }
 
 /**

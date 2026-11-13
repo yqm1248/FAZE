@@ -105,8 +105,8 @@
         <el-empty v-else-if="!summaryLoading && !summaryError" description="尚未取得巡检摘要" :image-size="72" />
       </div>
       <div class="card-foot">
-        说明：「差异总额」由差异列表的 |diffCents| 求和得出（契约的 summary 未提供该字段）；
-        「被检查余额合计」是服务端 totalCheckedCents，两者含义不同，不要混读。
+        说明：「差异总额」由差异列表逐条绝对值求和得出；
+        「被检查余额合计」是本次巡检覆盖到的账户余额之和，两者含义不同，不要混读。
       </div>
     </el-card>
 

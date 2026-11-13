@@ -22,7 +22,7 @@
       <div>
         <h1 class="page-head__title">律师列表</h1>
         <p class="page-head__desc">
-          已完成入驻审核的律师档案。本页只做查询与详情；违规处置、接单开关等管理动作排在段 7。
+          已完成入驻审核的律师档案。本页只做查询与详情；违规处置、接单开关等管理动作暂未开放。
         </p>
       </div>
       <div class="page-head__actions">
@@ -294,7 +294,7 @@
 
           <div class="section-title">
             服务开关
-            <span class="section-title__hint">本段只读：开关修改接口属于段 7</span>
+            <span class="section-title__hint">当前为只读视图</span>
           </div>
           <div class="switch-grid">
             <div class="switch-item">
@@ -340,7 +340,7 @@
 
       <template #footer>
         <div class="drawer-footer">
-          <span class="drawer-footer__tip">本段不提供违规处置 / 限流 / 下架 / 清退（段 7 实现）</span>
+          <span class="drawer-footer__tip">违规处置 / 限流 / 下架 / 清退暂未开放</span>
           <el-button @click="drawerVisible = false">关闭</el-button>
         </div>
       </template>
