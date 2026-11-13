@@ -102,6 +102,13 @@ export const PAGE_ROUTES = {
   messages: '/messages' as Href,
   /** 消息详情（段 2 G8.3，占位）。 */
   messageDetail: '/message-detail' as Href,
+  /**
+   * 我的咨询（用户端会话列表，2026-11-14 补）。
+   *
+   * 律师端的同类页是 `/workbench-consultations`（客户咨询），**两者不是一页**：
+   * 那边对端是用户、带「客户付没付钱」标签；这边对端是律师。
+   */
+  conversations: '/conversations' as Href,
   /** 搜索页（段 2 G8；首页搜索框与案件列表的搜索入口）。 */
   search: '/search' as Href,
 

@@ -1,18 +1,18 @@
-# 法泽 FAZE 文档基线 v1.83
+# 法泽 FAZE 文档基线 v1.84
 
 > # 后续一切文档从这里开始
 
 | 项 | 值 |
 | --- | --- |
-| 基线编号 | **v1.83** |
-| 确立日期 | 2026-11-13（交接复核——`AGENTS.md` 技术栈表 AI 一栏从「豆包 API」回写成 DeepSeek（OpenAI 兼容 / SSE 流式 / `deepseek-flash` / 请求体固定 `thinking.type=disabled`），消除规则文档与实现的冲突；见 §7.86） |
-| 上一版 | v1.82（2026-11-13，第 8 段补漏——bo/ug/kk 补齐 30 条缺译使 `.i18n-pending.json` 归零、应用图标换正式图、A-17 与三端本地联调实测通过；见 §7.85） |
+| 基线编号 | **v1.84** |
+| 确立日期 | 2026-11-14（演示前补「我的咨询」会话列表页——页面导航树 v1.6 → v1.7、模块 8 从 2 页 → 3 页、APP 页面总数 69 → 70；同时重跑 facts 带出 3 处历史漏跑修正；见 §7.87） |
+| 上一版 | v1.83（2026-11-13，交接复核——`AGENTS.md` 技术栈表 AI 一栏从「豆包 API」回写成 DeepSeek；见 §7.86） |
 | 所在分支 | `UI设计`（v1.2 及以前在 `docs` 分支） |
 | Git 标签 | `v1.13-docs-baseline`（v1.3~v1.10 当时未打标签，见 §7.13；v1.14~v1.32 亦未打标签，见 §7.33 末尾） |
-| 基线资产数 | **56**（49 份 Markdown + 7 份 JSON；v1.49~v1.66 为 45 份，v1.67 登记 48 漏算 1 份，v1.69~v1.74 逐步补到 55，v1.79 补到 56。**v1.82 无新增无删除**——第 8 段的验收证据 `docs/acceptance/seg8/F-1-商店材料清单.md` 与本次新增的 `apps/mobile-app/assets/brand/README.md` **都不是**基线资产，见 §一 第 1456 行的口径） |
+| 基线资产数 | **56**（49 份 Markdown + 7 份 JSON；v1.49~v1.66 为 45 份，v1.67 登记 48 漏算 1 份，v1.69~v1.74 逐步补到 55，v1.79 补到 56。**v1.82 与 v1.84 均无新增无删除**） |
 | 本版新增 | **0 份** |
 | 本版删除 | **0 份** |
-| 本版内容变更 | **1 份**（`AGENTS.md`：§1 项目性质表与 §2 技术栈表的 AI 一栏「豆包 API」→「DeepSeek API（OpenAI 兼容，SSE 流式；模型 `deepseek-flash`，请求体固定 `thinking.type=disabled`）」。另 `docs/CHANGELOG.md` 属叙述。**本文件自身不计入**） |
+| 本版内容变更 | **6 份**（#8 页面导航树、#10 页面清单与信息架构、#27 i18n 规范、#51 error-codes.json、#52 i18n-keys.json、#53 pages.json。前三份是正文 + FACTS 区块的实际改动，后三份是重跑 facts 的生成物。**`docs/CHANGELOG.md` 属叙述，不计入**；本文件自身亦不计入） |
 
 ---
 
@@ -112,7 +112,7 @@
 |---|---|---|---|---|
 | 1 | `AGENTS.md` | 200 | 19190 | `de1bccb5ee2314c9` 📝 |
 | 2 | `README.md` | 127 | 6650 | `e73e69e54d114ac0` |
- | 3 | `docs/README.md` | 363 | 46544 | `b3564f799a7c6128` 📝 | 
+ | 3 | `docs/README.md` | 363 | 46544 | `00fb75219b4ad811` 📝 | 
 
 ### 2.2 架构与实施（★ 核心）
 
@@ -125,7 +125,7 @@
 | 24 | `docs/architecture/法泽FAZE_数据表规范_v1.0.md` | 731 | 55411 | `da050582b0789124` 📝 |
 | 25 | `docs/architecture/法泽FAZE_接口规范_v1.0.md` | 1190 | 82769 | `29c4d54dc0581f33` 📝 |
 | 26 | `docs/architecture/法泽FAZE_后端代码规范_v1.0.md` | 1608 | 93985 | `03573f955af80606` 🆕 |
-| 27 | `docs/architecture/法泽FAZE_i18n规范_v1.0.md` | 610 | 28293 | `b5e7a1a23ce0075e` 📝 |
+| 27 | `docs/architecture/法泽FAZE_i18n规范_v1.0.md` | 610 | 28293 | `4683cc123a1dd8fa` 📝 |
 | 28 | `docs/architecture/法泽FAZE_审计与日志规范_v1.0.md` | 391 | 23320 | `375aa774e73e6f0b` 📝 |
 | 29 | `docs/architecture/法泽FAZE_第0段工作流_v1.0.md` | 2995 | 274718 | `d03d3e6da992a72f` 📝 |
 | 30 | `docs/architecture/法泽FAZE_第1段工作流_v1.0.md` | 1320 | 89395 | `4e9085b58dfa61d7` 📝 |
@@ -157,9 +157,9 @@
 
 | # | 文件 | 行数 | 字节 | SHA256 前 16 位 |
 |---|---|---|---|---|
-| 8 | `docs/design/法泽APP_页面导航树_v1.4.md` | 832 | 45366 | `b54df4f78073f9a5` |
+| 8 | `docs/design/法泽APP_页面导航树_v1.4.md` | 853 | 47641 | `9e9105fef9991d8a` |
 | 9 | `docs/design/法泽APP_UI设计顺序_v1.0.md` | 1921 | 136753 | `81f2c17fe42255ae` 📝 |
-| 10 | `docs/design/页面清单与信息架构.md` | 261 | 21551 | `b990ad4d85e3b559` |
+| 10 | `docs/design/页面清单与信息架构.md` | 262 | 21647 | `4257b4966f54483f` |
 | 11 | `docs/design/设计令牌.md` | 188 | 14053 | `ea3d66e1914f1054` |
 | 12 | `docs/design/组件清单.md` | 89 | 5374 | `07b41a5d37138251` |
 | 13 | `docs/design/README.md` | 76 | 5114 | `c658713ae7156da3` 📝 |
@@ -192,9 +192,9 @@
 | 48 | `docs/facts/DEFERRED.md` | 171 | 20892 | `1e344287763ae34e` 📝 | **段八挂账汇总索引**：计划有、代码无。**不是待办清单，是真相声明**。含负责人点名的 4 项、最容易被误当已做的 8 项、118 条的分类索引、以及「18 条其实是文档落后于代码」的反向提醒 |
 | 49 | `docs/facts/api.json` | 2176 | 55476 | `e6129bd3d32faf1e` 🆕 | **接口清单**：`scripts/facts/api.mjs` 从 78 个 Controller 生成，260 个端点（admin 123 / app 114 / pub 22 / dev 1）。**v1.67 首次登记时漏算本文件，v1.68 补正** |
 | 50 | `docs/facts/tables.json` | 1620 | 41938 | `dfe01a578dfc5a43` 🆕 | **表结构**：`scripts/facts/tables.mjs` 从 information_schema + flyway_schema_history 生成，53 张业务表 / 687 列 / 188 索引 / Flyway 48 个到 V711 |
-| 51 | `docs/facts/error-codes.json` | 709 | 18939 | `f3718b96d5ba35d1` 🆕 | **错误码清单**：`scripts/facts/error-codes.mjs` 从 ErrorCode 枚举生成，94 个码，无重复。文档里同时写着 78 和 91（DRIFT-045） |
-| 52 | `docs/facts/i18n-keys.json` | 152 | 3362 | `e2119643772bc86a` 🆕 | **i18n 事实**：`scripts/facts/extract-i18n.mjs` 从 56 个 json 生成。**三个口径同时给出**（总节点 1976 / 叶子条目 1890 / 带 namespace 前缀去重 1890），四语言覆盖各 100%，`.i18n-pending.json` **登记 0 条**（v1.82 补齐 bo/ug/kk 各 10 条后归零）。DRIFT-046、DRIFT-047 都是这张表抓出来的 |
-| 53 | `docs/facts/pages.json` | 4304 | 134020 | `0591846d5e7f0d15` 🆕 | **页面事实**：`scripts/facts/extract-pages.mjs` 逐页抽取「文件 / 路由 / testID 锚点 / LocalizedText / 写死路由」。四种页面数口径的**唯一解析实现**（`page-inventory.mjs` 只 import 它打印）。抓出 6 处写死路由与 `/case-detail` 壳无对应常量 |
+| 51 | `docs/facts/error-codes.json` | 709 | 18939 | `1428fff46a4a01e1` 🆕 | **错误码清单**：`scripts/facts/error-codes.mjs` 从 ErrorCode 枚举生成，94 个码，无重复。文档里同时写着 78 和 91（DRIFT-045） |
+| 52 | `docs/facts/i18n-keys.json` | 172 | 3740 | `0db87518b9a4157d` 🆕 | **i18n 事实**：`scripts/facts/extract-i18n.mjs` 从 56 个 json 生成。**三个口径同时给出**（总节点 1976 / 叶子条目 1890 / 带 namespace 前缀去重 1890），四语言覆盖各 100%，`.i18n-pending.json` **登记 0 条**（v1.82 补齐 bo/ug/kk 各 10 条后归零）。DRIFT-046、DRIFT-047 都是这张表抓出来的 |
+| 53 | `docs/facts/pages.json` | 4389 | 136773 | `f35226b03bf46e66` 🆕 | **页面事实**：`scripts/facts/extract-pages.mjs` 逐页抽取「文件 / 路由 / testID 锚点 / LocalizedText / 写死路由」。四种页面数口径的**唯一解析实现**（`page-inventory.mjs` 只 import 它打印）。抓出 6 处写死路由与 `/case-detail` 壳无对应常量 |
 | 54 | `docs/standards/公共构件与护栏规范.md` | 234 | 14981 | `6f408c9b88f30159` 🆕 | **同类缺陷为什么反复出现、用什么拦住**：六个构件（幂等键 / 法条按 id 回查 / 乐观切换 / 金额展示 / 错误文案 / 归属校验）+ 3 条 ESLint 规则 + 豁免台账 + **三处「计划前提与仓库实际不符」的如实记录**（`useFavorite` 改签名、不建 `ErrorBanner`、先补后端接口） |
 | 55 | `docs/facts/contracts.json` | 2713 | 118271 | `b3b25b4b7b534eb8` 🆕 | **承诺清单**：`scripts/facts/check-contracts.mjs` 扫出的 **448 条**承诺性注释（幂等 323 / 保证 100 / 重复提交 22 / 重复点 3）+ 1 条范围承诺违规（`profile.fontSizeNote` 说「影响全 App」而实现只影响设置页，DRIFT-002，台账内）。**清单不代表说错**，作用是让「新增承诺」成为可见的 diff。⚠️ v1.81 登记的是 444 条的指纹——**该版提交时 facts 已重算但基线没跟上**，v1.82 一并纠正（详见 §7.85） |
 | 56 | `docs/architecture/法泽FAZE_第8段工作流_v1.0.md` | 608 | 55454 | `df7f626e2156ca39` 🆕 | **第 8 段（收口段）施工细则**：把总纲 §5.9 的 9 条锚点展开成任务分组；**本段做 4 组 15 任务，2 组 10 任务移出，9 条锚点只执行 3 条**（`8-A2` 术语冻结 / `8-A5` 合规材料 / `8-A9` 材料齐备）。**8 处上游冲突逐条裁决** + **11 项负责人裁决**，其中第 11 条「**本段整类不做测试**」推翻了真机/性能/渗透三条，测试清单移交到文件 §七 7.1（性能实测 / 真机走查 / 多厂商兼容 / 渗透 / 4×69 逐页走查 / 必测六类 / 崩溃率口径）。另含 A-17 多语言翻译管理页（PC，稿有码无）与深色模式令牌。总纲 §11.2 的「待产出」已同步改为「已产出」 |
@@ -3144,4 +3144,34 @@ v1.81 提交时 `check-baseline` 报告的是 56/56 全绿，但本次重跑发�
 
 ---
 
-> **【文档基线 v1.83】** 本文件属于「法泽 FAZE 文档基线」；当前基线版本见文件头 §表「基线编号」。后续一切文档从这里开始。
+## §7.87 v1.84 演示前补「我的咨询」会话列表页（新增 0 份，内容变更 6 份，含 3 处历史漏跑修正）
+
+> 触发：2026-11-14 演示前。负责人真机试用发现「付款咨询、聊了几句、退出后，APP 里再也回不到那个会话」——会话数据在，但用户端**没有任何会话列表入口**；订单一旦退款/完成，服务端 `actions` 变空，订单详情页一个按钮都没有。审查后决定补第 70 页「我的咨询」。
+
+### 一、改了什么
+
+| 文档 | 改动 |
+| --- | --- |
+| `docs/design/法泽APP_页面导航树_v1.4.md` | 内容版本 v1.6 → **v1.7**：模块 8 从 2 页 → 3 页，新增第 70 页「我的咨询」（`/conversations`，**无设计稿**，依据 `63-consultations.html` 的同族列表范式）；APP 页面总数 69 → 70 |
+| `docs/design/页面清单与信息架构.md` | FACTS 区块重渲染：产品页 69 → 70、路由常量 71 → 72、路由壳 72 → 73、页面实现 71 → 72；新增 `/conversations` 行；`/messages` 的 testID 0 → 1（入口条） |
+| `docs/architecture/法泽FAZE_i18n规范_v1.0.md` | FACTS 区块重渲染：zh-Hans 1890 → 1909 key；`conversation` namespace 36 → 49 |
+| `docs/facts/pages.json` | 重跑生成：+1 页 |
+| `docs/facts/i18n-keys.json` | 重跑生成：+13 key（`conversation.list.*`） |
+| `docs/facts/error-codes.json` | **仅 `sourceDigest` 变，码表内容（96 条）完全不变**：`ErrorCode.java` 在 `89e5142`（AI 换 DeepSeek）改过却没重跑 facts，属历史漏跑，本次重跑顺带修正 |
+
+### 二、为什么这次补页
+
+事实（2026-11-13 真机实测）：订单 `OR20261113000710` 21:16 支付 ¥60、21:46 因「超时无人接单」被系统自动全额退款（`OrderTimeoutPolicy.ACCEPT_TIMEOUT=30min`）；退款后 `OrderActionResolver` 对 `REFUNDED` 返回空列表，订单详情页无任何动作按钮；全仓 `getConversations()` 有定义但**零调用方**，`features/conversation/pages/` 下只有聊天页。浏览器版可以手改 URL 进会话（服务端对已存在会话不校验购买），**手机上无解**。所以补这一页是在补缺口，不是加功能。
+
+### 三、核对
+
+- `check-baseline` 改前 6 份不一致（#8 #10 #27 #51 #52 #53）→ `--fix` 后 **56/56 全部一致**。
+- `npm run verify`（mobile）：`tsc --noEmit` + `eslint` + `check-raw-text` + `check-i18n` 全过。
+- CDP 实测（390×844）：列表 1 行「验收律师甲」、摘要显示「[图片]」而非服务端原始标记 `[image]`；点击 → `/chat?conversationId=2`，38 条历史正常；四语言（zh / ug / kk / bo）**0 处文本溢出**，RTL 方向正确。
+- 两个入口实测可达：消息中心顶部入口条、我的页「资产与订单」组菜单行。
+
+> **历史漏跑说明（如实记录）**：本次重跑 facts 除本次改动外，还带出 3 处**不是本轮引入**的漂移——`case` namespace +2 key、`content` namespace +3 key、`/case-filing` testID 11 → 12、`error-codes.json` 源指纹变化。它们来自此前某次提交改了源码/文案却没跑 `npm run facts`。facts 是「当前真相快照」，重跑后即为真相，故一并纳入本版；但**根因未逐个追溯**，若后续要审计，查 `git log -- docs/facts/` 与对应源码的提交时间差即可。
+
+---
+
+> **【文档基线 v1.84】** 本文件属于「法泽 FAZE 文档基线」；当前基线版本见文件头 §表「基线编号」。后续一切文档从这里开始。

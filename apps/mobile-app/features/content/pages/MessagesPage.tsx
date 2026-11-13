@@ -22,6 +22,7 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import type { AppError } from '@/shared/api/types';
 import { AppHeader } from '@/shared/components/AppHeader';
 import { useToast } from '@/shared/components/AppToast';
+import { DirectionalIcon } from '@/shared/components/DirectionalIcon';
 import { ErrorState } from '@/shared/components/ErrorState';
 import { LoadingState } from '@/shared/components/LoadingState';
 import { LocalizedText } from '@/shared/components/LocalizedText';
@@ -31,7 +32,7 @@ import { useI18n } from '@/shared/i18n';
 import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
 import { useRefreshOnFocus } from '@/shared/hooks/useRefreshOnFocus';
 import { PAGE_ROUTES } from '@/shared/navigation/routes';
-import { color, radius, spacing, typography } from '@/shared/theme';
+import { color, radius, size, spacing, typography } from '@/shared/theme';
 import { formatServerDateTime } from '@/shared/utils/serverTime';
 
 import { listNotifications, markNotificationRead } from '../api/notifications';
@@ -227,6 +228,30 @@ export function MessagesPage() {
     <Screen edges={['top', 'left', 'right', 'bottom']}>
       <AppHeader title={t('content.messages.title')} />
       <ScrollView contentContainerStyle={styles.scroll}>
+        {/*
+          「我的咨询」入口条（2026-11-14 补）。
+          会话列表没有独立一级入口（底部 5 tab 已定稿），而用户找「那个律师对话」时
+          第一站是消息中心，所以这里放在最顶——**任何状态下都显示**（不依赖站内信是否加载成功，
+          它只是导航）。未读数不在这里算：站内信未读与会话未读是两个口径，混在一起会互相打架。
+        */}
+        <Pressable
+          testID="messages-conversations-entry"
+          accessibilityRole="button"
+          accessibilityLabel={t('conversation.list.title')}
+          onPress={() => router.push(PAGE_ROUTES.conversations)}
+          style={({ pressed }) => [styles.convEntry, pressed ? styles.convEntryPressed : null]}
+        >
+          <View style={styles.convEntryIcon}>
+            <Ionicons name="chatbubbles-outline" size={22} color={color.brand.primary} />
+          </View>
+          <View style={styles.convEntryBody}>
+            <LocalizedText numberOfLines={1} style={styles.convEntryTitle}>
+              {t('conversation.list.title')}
+            </LocalizedText>
+          </View>
+          <DirectionalIcon name="chevron-forward" size={18} color={color.text.muted} />
+        </Pressable>
+
         {state.phase === 'loading' ? <LoadingState rows={5} /> : null}
 
         {state.phase === 'error' ? (
@@ -273,6 +298,33 @@ const styles = StyleSheet.create({
     paddingTop: spacing.md,
     // 页面无固定底栏；底部留白保证最后一条完整可见。
     paddingBottom: spacing.xxl,
+  },
+  convEntry: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    backgroundColor: color.background.surface,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+  },
+  convEntryPressed: { opacity: 0.85 },
+  convEntryIcon: {
+    width: size.avatarSmall,
+    height: size.avatarSmall,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: color.brand.primarySoft,
+  },
+  convEntryBody: { flex: 1, gap: spacing.xxs },
+  convEntryTitle: {
+    ...typography.bodyLarge,
+    color: color.text.primary,
+  },
+  convEntryDesc: {
+    ...typography.caption,
+    color: color.text.muted,
   },
   empty: {
     flex: 1,

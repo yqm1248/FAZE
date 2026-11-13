@@ -4,6 +4,56 @@
 
 ---
 
+## 2026-11-14（一）· 补第 70 页「我的咨询」会话列表：付完钱退出后，终于能找回那个对话
+
+**一句话**：用户端一直**没有会话列表**（`getConversations()` 定义了但零调用方），订单一旦退款/完成，聊天记录就变成孤儿数据。新增 `/conversations` 一页 + 两个入口（消息中心顶部入口条、我的页菜单行），后端零改动——接口、字段、排序全是现成的。
+
+**触发**：负责人真机试用时自己踩到（见上一版 §2026-11-13（十三））：订单 30 分钟无人接单被系统自动退款后，APP 里没有任何入口能回到那个会话。上一轮先用订单详情的「查看聊天记录」兜住，这一轮补的是治本的结构。
+
+### 改了什么
+
+| 文件 | 性质 | 内容 |
+| --- | --- | --- |
+| `apps/mobile-app/features/conversation/pages/ConversationsPage.tsx` | 新建 | 会话列表：头像（`peerAvatarUrl` 为空时用姓名首字兜底）+ 未读角标 + 姓名 + 相对时间 + 摘要；四态齐全；下拉刷新 + 加载更多（页码分页）；点行按 `conversationId` 直达聊天页 |
+| `apps/mobile-app/app/conversations.tsx` | 新建 | 路由壳（一行导出） |
+| `apps/mobile-app/shared/utils/relativeTime.ts` | 新建 | 从 `ConsultationsPage` 抽出的相对时间格式化（今天 `HH:mm` / 昨天 / `M-D`），两个会话列表共用一份 |
+| `apps/mobile-app/features/workbench/pages/ConsultationsPage.tsx` | 改 | 改引用共享的时间函数，删掉本地副本（行为不变） |
+| `apps/mobile-app/shared/navigation/routes.ts` | 改 | 加 `PAGE_ROUTES.conversations` |
+| `apps/mobile-app/features/content/pages/MessagesPage.tsx` | 改 | 顶部加「我的咨询」入口条（任何状态下都显示，不依赖站内信加载结果） |
+| `apps/mobile-app/features/profile/pages/MyPage.tsx` | 改 | 「资产与订单」组加「我的咨询」菜单行 |
+| 四语言 `conversation.json` | 改 | 新增 `conversation.list.*`（13 key），ug / kk / bo 的译法全部由现有词组合，未新造 |
+
+### 为什么这么改
+
+**后端一行没动**：`GET /api/v1/app/conversations` 实测返回 `peerName` / `lastMessage` / `lastMsgAt` / `unread` / `peerAvatarUrl`，按 `lastMsgAt DESC` 排序，页码分页带 `hasMore`——字段与排序都够，缺的只是前端那一页。
+
+**三个容易漏的点**（都实测过）：
+1. **`lastMessage` 是 ASCII 标记不是文案**：服务端对图片/文件/文书存 `[image]` / `[file]` / `[doc]`（`MessageService.SUMMARY_*`，注释写明「中文文案由客户端 i18n 渲染」）。不翻的话列表里会明晃晃一个 `[image]`。实测改后显示「[图片]」。
+2. **按 `conversationId` 直达，不按 `lawyerId`**：后者走「创建或获取」，列表里会话已存在，用 `chatByConversationHref` 才少一次建会话、且退款后的会话也能进。
+3. **页码分页不是游标**：必须做「加载更多」，否则第 21 条以后永远看不到；加载更多失败只 toast，不清空已加载数据。
+
+**视觉依据**：`design/ui/` 的 69 屏里**没有用户端会话列表**，只有律师端的 `63-consultations.html`。照它的同族列表范式改造型（头像 + 姓名 + 相对时间 + 摘要），用户端不加「订单状态标签」。已在页面导航树里注明**不得声称有设计稿**。
+
+### 核对
+
+- `npm run verify`（`tsc --noEmit` + `eslint` + `check-raw-text` + `check-i18n`）：**exit 0**（扫描 189 个 tsx，裸 Text 命中 0；四语言目录同构、缺译登记为空）。
+- CDP 实测（390×844，重启 8090 后）：
+
+| 判据 | 结果 |
+| --- | --- |
+| 列表渲染 | 1 行「验收律师甲」，时间「昨天」，摘要「**[图片]**」（无 `[image]` 残留） |
+| 点击进会话 | URL → `/chat?conversationId=2`，38 条历史正常 |
+| 消息中心入口条 | 存在，文本「我的咨询」，在最顶部 |
+| 我的页菜单行 | 存在，位于「我的订单」之后 |
+| 四语言溢出（逐叶子节点量 `scrollWidth-clientWidth`） | zh / ug / kk / bo **均为 0 处**；ug、kk 的 `dir=rtl` 正确；摘要分别显示 `[رەسىم]` / `[سۋرەت]` / `[པར]` |
+| `demo-preflight.mjs` | **13/13 通过** |
+
+- 文档：页面导航树 v1.6 → **v1.7**（模块 8 从 2 页 → 3 页，总数 69 → 70）；`npm run facts` + `npm run render:docs` 重渲染 FACTS 区块；基线 **v1.83 → v1.84**，`check-baseline` **56/56 全绿**。
+
+> **重跑 facts 带出的历史漏跑（如实记录，不是本轮引入）**：`case` namespace +2 key、`content` namespace +3 key、`/case-filing` testID 11 → 12、`error-codes.json` 仅源指纹变（码表 96 条不变）。根因是此前某次提交改了源码/文案却没跑 `npm run facts`。facts 是当前真相快照，重跑后即为真相，故一并纳入。
+
+---
+
 ## 2026-11-13（十四）· 开发期 CORS 白名单补局域网来源：手机浏览器打开 APP 不再全线 403
 
 **一句话**：手机真机演示的前提被一个 dev 配置挡住了——`application-dev.yml` 的 CORS 白名单只有 `localhost` / `127.0.0.1`，手机浏览器访问 `http://192.168.43.186:8090` 时所有接口被拦成 **403**，现象是「手机上每屏都报网络错误、像服务挂了」，而同机 `localhost` 完全正常。

@@ -38,5 +38,20 @@
   "orderNotice": "您已购买{{service}}，订单号 {{orderNo}}，金额 {{amount}}，现在可以和律师沟通了。",
   "orderNoticeLawyer": "对方已购买{{service}}，订单号 {{orderNo}}，金额 {{amount}}，可以与对方沟通了。",
   "needPurchase": "还没有购买这位律师的咨询服务，暂不能发起会话。",
-  "goPurchase": "去购买咨询服务"
+  "goPurchase": "去购买咨询服务",
+  "list": {
+    "title": "我的咨询",
+    "sortHint": "按最近消息排序，点开可继续沟通",
+    "unnamed": "律师",
+    "noMessage": "还没有消息",
+    "yesterday": "昨天",
+    "emptyTitle": "还没有咨询记录",
+    "emptyDesc": "找律师咨询后，对话会出现在这里，随时可以回来继续。",
+    "emptyAction": "去找律师",
+    "loadMore": "加载更多",
+    "loadingMore": "加载中",
+    "noMore": "没有更多了",
+    "summaryFile": "[文件]",
+    "summaryDoc": "[文书]"
+  }
 }

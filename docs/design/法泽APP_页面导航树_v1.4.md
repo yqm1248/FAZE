@@ -1,12 +1,24 @@
 # 法泽 App 页面导航树（完整信息架构）
 
-> 版本：v1.6
-> 日期：2026-10-29（v1.6 于 2026-11-09 追加）
+> 版本：v1.7
+> 日期：2026-10-29（v1.7 于 2026-11-14 追加）
 > 对应技术路线：`法泽FAZE_技术路线_v2.3.md`
 > 说明：本文档只列出**要做的页面与跳转关系**，不绑定具体技术栈
 >
 > 关于文件名：仍叫 `_v1.4.md`，不改名。改名会打断 `AGENTS.md` 文档索引和其余文档里的引用，
 > 收益不抵成本。**版本以本行 v1.6 为准**，与 `_v1.0.md` 那份实际是 V1.8 的做法一致。
+>
+> v1.7 变更（2026-11-14，演示前补缺口；总数 69 → 70）：
+> - **新增第 70 页「我的咨询」（用户端会话列表）**（路由 `/conversations`，模块 8）。
+>   它**不是设计稿画的页**——`design/ui/` 的 69 屏里没有用户端会话列表，只有律师端的
+>   `63-consultations.html`。视觉依据是那一屏的同族列表范式（头像 + 姓名 + 相对时间 + 摘要），
+>   用户端**不加**「订单状态标签」（那是律师关心客户付没付钱）。**不得声称有设计稿。**
+> - 补这一页的原因：用户端一直没有会话列表入口，**订单一旦退款/完成，用户就再也回不到历史会话**。
+>   2026-11-13 真机实测：付 60 元图文咨询、聊了几句退出后，订单因 30 分钟无人接单被系统自动
+>   全额退款，`actions` 变空、订单详情页一个按钮都没有，APP 里无任何入口能回到那个会话
+>   （当时只能靠浏览器手改 URL `?lawyerId=2`，手机上无解）。
+> - 入口两处：消息中心页顶部「我的咨询」入口条、我的页「资产与订单」组的「我的咨询」菜单行。
+> - 模块 8 从 2 页 → **3 页**，APP 页面总数 69 → **70 页**；PC 后台 28 页不变。
 >
 > v1.6 变更（2026-11-09，负责人拍板新增；总数 68 → 69）：
 > - **新增第 69 页「我的投诉」列表页**（路由 `/complaint-list`，模块 10，**第 7 段**交付）。
@@ -411,17 +423,25 @@
 │       ├─ 忘记支付密码（短信验证码重置）
 │       └─ 说明：支付密码只用于余额消费，与登录密码是两个不同的密码
 │
-├─【模块 8】消息中心（2 页）
+├─【模块 8】消息中心（3 页）
 │   │
 │   ├─ 📄 消息中心页 🔒 🌐
 │   │   ├─ 分类 Tab：全部 / 系统通知 / 律师回复 / 案件进度 / 客服
 │   │   ├─ 消息条目（标题 / 摘要 / 时间 / 未读红点）
 │   │   ├─ 一键全部已读
+│   │   ├─ 顶部入口条「我的咨询」──→ 我的咨询页（v1.7 新增）
 │   │   └─ 点击 ──→ 消息详情页
 │   │
-│   └─ 📄 消息详情页 🔒 🌐
-│       ├─ 消息正文
-│       └─ 关联跳转（案件 / 订单 / 律师 / IM）
+│   ├─ 📄 消息详情页 🔒 🌐
+│   │   ├─ 消息正文
+│   │   └─ 关联跳转（案件 / 订单 / 律师 / IM）
+│   │
+│   └─ 📄 我的咨询页 🔒 🌐（第 70 页，2026-11-14 新增；**无设计稿**，依据 63 咨询列表的列表范式）
+│       ├─ 会话列表（头像 / 未读角标 / 律师姓名 / 相对时间 / 最近消息摘要）
+│       ├─ 摘要里的 `[image]` / `[file]` / `[doc]` 是服务端 ASCII 标记，**客户端必须翻成当前语言**
+│       ├─ 点击 ──→ IM 一对一聊天页（按 conversationId 直达，不再按 lawyerId 建会话）
+│       ├─ 下拉刷新 + 加载更多（页码分页 pageNum/pageSize）
+│       └─ 入口：消息中心顶部入口条、我的页「资产与订单」组的「我的咨询」
 │
 ├─【模块 9】全局搜索（1 页）
 │   │
@@ -656,7 +676,7 @@
 <!-- FACTS:pages -->
 > 本区块由 `scripts/facts/render-docs.mjs` 从 `docs/facts/*.json` 生成，**禁止手改**；要改先改代码再跑 `npm run facts`。
 
-产品页 **69**（路由常量 71 − 开发探测 2）；路由壳 72；页面实现 71；设计稿主屏 68（HTML 71 − 补充屏 3）；PC 后台 28。
+产品页 **70**（路由常量 72 − 开发探测 2）；路由壳 73；页面实现 72；设计稿主屏 68（HTML 71 − 补充屏 3）；PC 后台 28。
 
 四个数都对但**构成不同**，引用时必须连口径一起引。逐页明细（含 `testID` 锚点、`LocalizedText` 使用、写死路由）见 `docs/facts/pages.json`。
 
@@ -676,16 +696,17 @@
 | /case-delivery | caseDelivery | `features/case/pages/CaseDeliveryPage.tsx` | 8 |  |
 | /case-progress | caseProgress | `features/case/pages/CaseProgressPage.tsx` | 18 |  |
 | /case-filing-done | caseFilingDone | `features/case/pages/FilingDonePage.tsx` | 8 |  |
-| /case-filing | caseFiling | `features/case/pages/FilingPage.tsx` | 11 |  |
+| /case-filing | caseFiling | `features/case/pages/FilingPage.tsx` | 12 |  |
 | /case-my | caseMy | `features/case/pages/MyCasesPage.tsx` | 8 |  |
 | /article | article | `features/content/pages/ArticleDetailPage.tsx` | 0 |  |
 | /articles | articles | `features/content/pages/ArticleListPage.tsx` | 0 |  |
 | /case-detail | — | `features/content/pages/CaseDetailPage.tsx` | 11 |  |
 | /case | case | `features/content/pages/CaseListPage.tsx` | 5 |  |
 | /message-detail | messageDetail | `features/content/pages/MessageDetailPage.tsx` | 0 |  |
-| /messages | messages | `features/content/pages/MessagesPage.tsx` | 0 |  |
+| /messages | messages | `features/content/pages/MessagesPage.tsx` | 1 |  |
 | /search | search | `features/content/pages/SearchPage.tsx` | 9 |  |
 | /chat | chat | `features/conversation/pages/ChatPage.tsx` | 0 |  |
+| /conversations | conversations | `features/conversation/pages/ConversationsPage.tsx` | 7 |  |
 | /dev/probe | devProbe | `features/dev/pages/ProbePage.tsx` | 0 | 是 |
 | /dev/rtl | devRtl | `features/dev/pages/RtlProbePage.tsx` | 0 | 是 |
 | /doc/form | docForm | `features/document/pages/DocFormPage.tsx` | 0 |  |
@@ -736,7 +757,7 @@
 <!-- /FACTS:pages -->
 
 > 上面这张表是**机器按路由与文件**数出来的（`features/**/*Page.tsx` + `PAGE_ROUTES` + `app/**`），
-> 一行一个页面实现。下面那张表是**按业务模块归类**的手写口径，两者**合计都是 69**，
+> 一行一个页面实现。下面那张表是**按业务模块归类**的手写口径，两者**合计都是 70**，
 > 只是分组方式不同。要查「某页在哪个文件、路由是什么、有没有 `testID`」，看上面这张。
 
 | 模块 | 页面数 | 包含页面 |
@@ -749,11 +770,11 @@
 | 5 我的 | 1 | 我的页（入口聚合） |
 | 6 文书中心 | 6 | 模板列表、起诉状表单、其他文书表单、预览、我的文书、签章管理 |
 | 7 订单与支付 | 9 | 订单列表、订单详情、支付、支付结果、退款、评价、**账户余额与明细**、**充值**、**支付密码** |
-| 8 消息中心 | 2 | 消息中心、消息详情 |
+| 8 消息中心 | 3 | 消息中心、消息详情、**我的咨询**（会话列表，v1.7 新增，2 → 3） |
 | 9 全局搜索 | 1 | 全局搜索 |
 | 10 设置与其他 | 22 | 设置、账号安全、改密、换绑、注销、实名、企业、通知、隐私、资料编辑、收藏、关注、我的案件、案件进度、客服、FAQ、投诉、**我的投诉列表**、反馈、关于、语言切换、功能总览（v1.6 新增「我的投诉列表」，21 → 22） |
 | 11 律师工作台 | 7 | 工作台首页、客户咨询、订单管理、文书管理、收入提现、服务设置、律师资料 |
-| **合计** | **69** | （v1.4 为 65；v1.5 在模块 7 补了余额与明细、充值、支付密码 3 页 → 68；**v1.6 在模块 10 补「我的投诉」列表 1 页 → 69**） |
+| **合计** | **70** | （v1.4 为 65；v1.5 在模块 7 补了余额与明细、充值、支付密码 3 页 → 68；v1.6 在模块 10 补「我的投诉」列表 1 页 → 69；**v1.7 在模块 8 补「我的咨询」会话列表 1 页 → 70**） |
 
 ---
 

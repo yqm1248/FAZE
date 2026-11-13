@@ -1,6 +1,6 @@
 {
   "_comment": "本文件由 scripts/facts/extract-i18n.mjs 从 shared/i18n/resources 生成，禁止手改。口径见 docs/standards/说辞一致与真相源规范.md §四。切换语言目录后必须重跑，CI 会拦 git diff。",
-  "sourceDigest": "3d1dc9f610c41171",
+  "sourceDigest": "9318f854a933f285",
   "source": "apps/mobile-app/shared/i18n/resources",
   "sourceLang": "zh-Hans",
   "targetLangs": [
@@ -11,30 +11,30 @@
   "totals": {
     "namespaces": 14,
     "jsonFiles": 56,
-    "sourceKeys": 1890,
-    "leafCount": 1890,
-    "nodeCount": 1976,
+    "sourceKeys": 1909,
+    "leafCount": 1909,
+    "nodeCount": 1996,
     "countNote": "sourceKeys=带 namespace 前缀去重后的 key 数；leafCount=可翻译叶子条目数；nodeCount=含中间对象的总节点数。三者都可查，引用数字时必须连口径一起引。"
   },
   "coverage": {
     "zh-Hans": {
-      "keys": 1890,
-      "sourceKeys": 1890,
+      "keys": 1909,
+      "sourceKeys": 1909,
       "ratio": 1
     },
     "bo": {
-      "keys": 1890,
-      "sourceKeys": 1890,
+      "keys": 1909,
+      "sourceKeys": 1909,
       "ratio": 1
     },
     "ug-Arab-CN": {
-      "keys": 1890,
-      "sourceKeys": 1890,
+      "keys": 1909,
+      "sourceKeys": 1909,
       "ratio": 1
     },
     "kk-Arab-CN": {
-      "keys": 1890,
-      "sourceKeys": 1890,
+      "keys": 1909,
+      "sourceKeys": 1909,
       "ratio": 1
     }
   },
@@ -52,10 +52,10 @@
       "kk-Arab-CN": 109
     },
     "case": {
-      "zh-Hans": 179,
-      "bo": 179,
-      "ug-Arab-CN": 179,
-      "kk-Arab-CN": 179
+      "zh-Hans": 181,
+      "bo": 181,
+      "ug-Arab-CN": 181,
+      "kk-Arab-CN": 181
     },
     "common": {
       "zh-Hans": 28,
@@ -64,16 +64,16 @@
       "kk-Arab-CN": 28
     },
     "content": {
-      "zh-Hans": 92,
-      "bo": 92,
-      "ug-Arab-CN": 92,
-      "kk-Arab-CN": 92
+      "zh-Hans": 95,
+      "bo": 95,
+      "ug-Arab-CN": 95,
+      "kk-Arab-CN": 95
     },
     "conversation": {
-      "zh-Hans": 36,
-      "bo": 36,
-      "ug-Arab-CN": 36,
-      "kk-Arab-CN": 36
+      "zh-Hans": 49,
+      "bo": 49,
+      "ug-Arab-CN": 49,
+      "kk-Arab-CN": 49
     },
     "document": {
       "zh-Hans": 161,
@@ -112,10 +112,10 @@
       "kk-Arab-CN": 363
     },
     "trade": {
-      "zh-Hans": 324,
-      "bo": 324,
-      "ug-Arab-CN": 324,
-      "kk-Arab-CN": 324
+      "zh-Hans": 325,
+      "bo": 325,
+      "ug-Arab-CN": 325,
+      "kk-Arab-CN": 325
     },
     "workbench": {
       "zh-Hans": 149,
@@ -140,8 +140,28 @@
     }
   },
   "duplicateKeyNames": {
-    "count": 1,
+    "count": 6,
     "keys": {
+      "list.title": [
+        "content",
+        "conversation"
+      ],
+      "list.emptyTitle": [
+        "content",
+        "conversation"
+      ],
+      "list.emptyDesc": [
+        "content",
+        "conversation"
+      ],
+      "list.loadMore": [
+        "content",
+        "conversation"
+      ],
+      "list.noMore": [
+        "content",
+        "conversation"
+      ],
       "settings.title": [
         "profile",
         "workbench"

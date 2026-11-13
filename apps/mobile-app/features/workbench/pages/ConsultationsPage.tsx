@@ -33,40 +33,7 @@ import { useRefreshOnFocus } from '@/shared/hooks/useRefreshOnFocus';
 import { chatByConversationHref } from '@/shared/navigation/routes';
 import type { AppError } from '@/shared/api/types';
 import { color, radius, size, spacing, typography } from '@/shared/theme';
-
-/**
- * 把 UTC 时间格式化成相对时间（今天显示 HH:mm，昨天显示「昨天」，更早显示 M-D）。
- *
- * @param raw UTC 无时区字符串
- * @returns 展示文本；空或非法返回空串
- */
-function formatRelative(raw: string | null): string {
-  if (raw === null || raw === '') {
-    return '';
-  }
-  const date = new Date(raw.endsWith('Z') ? raw : `${raw}Z`);
-  if (Number.isNaN(date.getTime())) {
-    return '';
-  }
-  const now = new Date();
-  const sameDay =
-    date.getFullYear() === now.getFullYear() &&
-    date.getMonth() === now.getMonth() &&
-    date.getDate() === now.getDate();
-  const pad = (value: number): string => String(value).padStart(2, '0');
-  if (sameDay) {
-    return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
-  }
-  const yesterday = new Date(now.getTime() - 86_400_000);
-  if (
-    date.getFullYear() === yesterday.getFullYear() &&
-    date.getMonth() === yesterday.getMonth() &&
-    date.getDate() === yesterday.getDate()
-  ) {
-    return 'yesterday';
-  }
-  return `${date.getMonth() + 1}-${date.getDate()}`;
-}
+import { formatRelativeMessageTime } from '@/shared/utils/relativeTime';
 
 /**
  * 渲染客户咨询列表。
@@ -172,7 +139,7 @@ export function ConsultationsPage() {
             }
             renderItem={({ item }) => {
               const unread = item.unreadCount > 0;
-              const time = formatRelative(item.lastMsgAt);
+              const time = formatRelativeMessageTime(item.lastMsgAt);
               return (
                 <Pressable
                   testID={`consultations-row-${item.conversationId}`}

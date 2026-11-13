@@ -392,6 +392,12 @@ export function MyPage() {
                       label={t('profile.my.menuOrders')}
                       onPress={() => router.push(PAGE_ROUTES.orders)}
                     />
+                    {/* 我的咨询（2026-11-14 补）：会话列表没有一级入口，
+                        这里是第二个入口——「消息」里找不到时从「我的」也能进。 */}
+                    <SettingRow
+                      label={t('conversation.list.title')}
+                      onPress={() => router.push(PAGE_ROUTES.conversations)}
+                    />
                     <SettingRow
                       label={t('document.mine.menuMine')}
                       onPress={() => router.push(PAGE_ROUTES.docMine)}
