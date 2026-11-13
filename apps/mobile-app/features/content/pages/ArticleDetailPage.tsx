@@ -36,6 +36,8 @@ import { useI18n } from '@/shared/i18n';
 import { color, radius, spacing, typography } from '@/shared/theme';
 import { formatServerDate } from '@/shared/utils/serverTime';
 
+import { categoryLabel } from '../utils/categoryLabel';
+
 /**
  * 文章详情页。
  *
@@ -68,6 +70,9 @@ export function ArticleDetailPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // 分类原值来自接口（中文），必须过一层翻译，否则非中文界面会显示中文 chip。
+  const categoryText = categoryLabel(article?.category ?? null, t);
 
   const empty = article !== null && article.blocks.length === 0;
 
@@ -102,7 +107,7 @@ export function ArticleDetailPage() {
 
           <LocalizedText numberOfLines={3} style={styles.title}>{article.title}</LocalizedText>
           <View style={styles.meta}>
-            {article.category === null ? null : <TagChip label={article.category} variant="soft" size="sm" />}
+            {categoryText === null ? null : <TagChip label={categoryText} variant="soft" size="sm" />}
             <LtrText numberOfLines={1} style={styles.metaText}>{formatServerDate(article.publishedAt)}</LtrText>
             <LtrText numberOfLines={1} style={styles.metaText}>
               {t('content.list.viewCount', { count: article.viewCount })}

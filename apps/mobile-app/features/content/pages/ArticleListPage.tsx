@@ -29,24 +29,19 @@ import { PrimaryButton } from '@/shared/components/PrimaryButton';
 import { Screen } from '@/shared/components/Screen';
 import { TagChip } from '@/shared/components/TagChip';
 import { useI18n } from '@/shared/i18n';
-import type { MessageKey } from '@/shared/i18n';
 import { useRefreshOnFocus } from '@/shared/hooks/useRefreshOnFocus';
 import { articleHref } from '@/shared/navigation/routes';
 import { useRouter } from 'expo-router';
 import { color, spacing, typography } from '@/shared/theme';
 import { formatServerDate } from '@/shared/utils/serverTime';
 
+import { ARTICLE_CATEGORIES, categoryLabel } from '../utils/categoryLabel';
+
 /** 每页条数。 */
 const PAGE_SIZE = 10;
 
-/** 分类档位（显示走 i18n，提交给服务端的是固定业务值）。 */
-const CATEGORIES: ReadonlyArray<{ key: string; labelKey: MessageKey; value: string }> = [
-  { key: 'all', labelKey: 'content.list.categoryAll', value: '' },
-  { key: 'loan', labelKey: 'content.list.categoryLoan', value: '借款纠纷' },
-  { key: 'family', labelKey: 'content.list.categoryFamily', value: '婚姻家事' },
-  { key: 'labor', labelKey: 'content.list.categoryLabor', value: '劳动争议' },
-  { key: 'contract', labelKey: 'content.list.categoryContract', value: '合同纠纷' },
-];
+/** 分类档位（显示走 i18n，提交给服务端的是固定业务值）——与卡片 tag 同源，见 `utils/categoryLabel`。 */
+const CATEGORIES = ARTICLE_CATEGORIES;
 
 /**
  * 文章列表页。
@@ -185,11 +180,14 @@ export function ArticleListPage() {
 
       {phase === 'ready' && items.length > 0 ? (
         <ScrollView contentContainerStyle={styles.body}>
-          {items.map((item) => (
+          {items.map((item) => {
+            // 分类原值来自接口（中文），必须过一层翻译，否则非中文界面会显示中文 chip。
+            const categoryText = categoryLabel(item.category, t);
+            return (
             <Pressable key={item.id} onPress={() => router.push(articleHref(item.id))} accessibilityRole="button">
               <AppCard style={styles.card}>
                 <View style={styles.cardHead}>
-                  {item.category === null ? null : <TagChip label={item.category} variant="soft" size="sm" />}
+                  {categoryText === null ? null : <TagChip label={categoryText} variant="soft" size="sm" />}
                   {item.langFallback ? <TagChip label={t('content.list.langFallback')} variant="outline" size="sm" /> : null}
                 </View>
                 <LocalizedText numberOfLines={2} style={styles.cardTitle}>{item.title}</LocalizedText>
@@ -206,7 +204,8 @@ export function ArticleListPage() {
                 </View>
               </AppCard>
             </Pressable>
-          ))}
+            );
+          })}
 
           {hasMore ? (
             <PrimaryButton

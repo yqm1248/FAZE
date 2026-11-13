@@ -32,6 +32,7 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { getArticles } from '@/features/content/api/articles';
 import type { ArticleCard } from '@/features/content/api/articles';
+import { categoryLabel } from '@/features/content/utils/categoryLabel';
 import { fetchTemplates } from '@/features/document/api/client';
 import { AppCard } from '@/shared/components/AppCard';
 import { useToast } from '@/shared/components/AppToast';
@@ -281,7 +282,10 @@ export function HomePage() {
           */}
           {phase === 'ready' && articles.length > 0 ? (
             <AppCard style={styles.lawCard}>
-              {articles.map((article, index) => (
+              {articles.map((article, index) => {
+                // 分类原值来自接口（中文），必须过一层翻译，否则非中文界面会显示中文分类。
+                const lawCategoryText = categoryLabel(article.category, t);
+                return (
                 <Pressable
                   key={article.id}
                   onPress={() => router.push(articleHref(article.id))}
@@ -293,15 +297,16 @@ export function HomePage() {
                 >
                   <LocalizedText numberOfLines={2} style={styles.lawTitle}>{article.title}</LocalizedText>
                   <View style={styles.lawMetaRow}>
-                    {article.category === null ? null : (
-                      <LocalizedText numberOfLines={1} style={styles.lawCategory}>{article.category}</LocalizedText>
+                    {lawCategoryText === null ? null : (
+                      <LocalizedText numberOfLines={1} style={styles.lawCategory}>{lawCategoryText}</LocalizedText>
                     )}
                     <LtrText numberOfLines={1} style={styles.lawDate}>
                       {formatServerDate(article.publishedAt)}
                     </LtrText>
                   </View>
                 </Pressable>
-              ))}
+                );
+              })}
             </AppCard>
           ) : null}
         </View>
