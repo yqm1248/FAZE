@@ -186,6 +186,7 @@ import {
   listAppeals,
   auditAppeal
 } from '@/api/biz/ops'
+import { formatDateTime } from '@/views/biz/shared/format';
 
 const categories = [
   { value: 'POLITICS', label: '政治' },
@@ -394,12 +395,7 @@ function levelTagType(level) {
  * @param {string} time ISO 时间
  * @returns {string} 本地时间
  */
-function formatTime(time) {
-  if (!time) return '—'
-  const d = new Date(time)
-  const pad = n => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
-}
+const formatTime = formatDateTime
 
 /**
  * 触发浏览器下载。

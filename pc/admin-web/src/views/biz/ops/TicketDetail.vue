@@ -114,6 +114,7 @@ import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getTicket, replyTicket, closeTicket } from '@/api/biz/ops'
+import { formatDateTime } from '@/views/biz/shared/format'
 
 const route = useRoute()
 const router = useRouter()
@@ -189,12 +190,7 @@ function goBack() {
  * @param {string} time ISO 时间
  * @returns {string} 本地时间
  */
-function formatTime(time) {
-  if (!time) return '—'
-  const d = new Date(time)
-  const pad = n => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
-}
+const formatTime = formatDateTime
 
 onMounted(load)
 </script>

@@ -147,6 +147,7 @@ import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { listDocTemplates, previewDocTemplate } from '@/api/biz/document/template'
 import { parseTime } from '@/utils/ruoyi'
+import { formatDateTime } from '@/views/biz/shared/format'
 
 /** 分类建议值（与导航树 L303 一致）；后端不强制。 */
 const CATEGORY_OPTIONS = ['诉讼文书', '合同文书', '劳动文书', '跨境电商']
@@ -179,9 +180,7 @@ function statusTagType(status) {
  * 后端返回 LocalDateTime，Jackson 序列化成 ISO 的 `2026-11-07T11:54:16`（带 T），
  * 直接展示对运营不友好且 170px 也会被固定列压掉右半，这里统一成 `YYYY-MM-DD HH:mm:ss`。
  */
-function formatTime(t) {
-  return t ? parseTime(t) : '—'
-}
+const formatTime = formatDateTime
 
 /**
  * 拉列表。

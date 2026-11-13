@@ -150,6 +150,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { listContentReviews, getContentReview, auditContentReview } from '@/api/biz/ops'
+import { formatDateTime } from '@/views/biz/shared/format'
 
 const loading = ref(false)
 const auditing = ref(false)
@@ -265,12 +266,7 @@ function resultLabel(result) {
  * @param {string} time ISO 时间
  * @returns {string} 本地时间
  */
-function formatTime(time) {
-  if (!time) return '—'
-  const d = new Date(time)
-  const pad = n => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
-}
+const formatTime = formatDateTime
 
 onMounted(load)
 </script>

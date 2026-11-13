@@ -109,6 +109,7 @@ import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { listTickets, assignTicket, batchAssignTickets, closeTicket, exportTickets } from '@/api/biz/ops'
+import { formatDateTime } from '@/views/biz/shared/format'
 
 const router = useRouter()
 const loading = ref(false)
@@ -236,12 +237,7 @@ async function handleExport() {
  * @param {string} time ISO 时间
  * @returns {string} 本地时间
  */
-function formatTime(time) {
-  if (!time) return '—'
-  const d = new Date(time)
-  const pad = n => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
-}
+const formatTime = formatDateTime
 
 onMounted(load)
 </script>

@@ -346,6 +346,7 @@ import {
   updateGlossary,
   updateTranslation
 } from '@/api/biz/i18n'
+import { formatDateTime } from '@/views/biz/shared/format'
 
 /** 译文队列。 */
 const translations = reactive({ rows: [], total: 0 })
@@ -435,12 +436,7 @@ function statusTagType(status) {
  * @param {string} value 时间串
  * @returns {string} 形如 2026-11-13 10:20
  */
-function formatTime(value) {
-  if (!value) {
-    return '—'
-  }
-  return String(value).replace('T', ' ').slice(0, 16)
-}
+const formatTime = formatDateTime
 
 /** 加载译文队列。 */
 async function loadTranslations() {

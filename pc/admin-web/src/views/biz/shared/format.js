@@ -37,13 +37,24 @@ export function toNumber(value) {
 }
 
 /**
- * 整数分 → 元，保留两位小数。
+ * 整数分 → 元，保留两位小数、带千分位。
+ *
+ * 口径（2026-11-13 负责人拍板，与 APP 的 `formatAmount` 对齐）：
+ *   - **单位是元**：接口与库里永远是整数分，只有展示层换算成元；
+ *   - **固定两位小数**：`60` 分 → `0.60`，`6000` 分 → `60.00`；
+ *   - **千分位**：`123456` 分 → `1,234.56`，这是金额的标准写法，也避免六位数难读。
+ * 用整数运算拼字符串，不做 `Number/100` 的浮点累加（AGENTS §4.5）。
  *
  * @param {number|string|null|undefined} cents 金额（分）
- * @returns {string} 形如 `1280.00`（不带千分位、不带货币符号，模板里自己加 ¥）
+ * @returns {string} 形如 `1,234.56`（不带货币符号，模板里自己加 ¥）
  */
 export function formatCents(cents) {
-  return (toNumber(cents) / 100).toFixed(2)
+  const value = toNumber(cents)
+  const negative = value < 0
+  const abs = Math.abs(value)
+  const yuan = String(Math.floor(abs / 100)).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+  const fen = String(abs % 100).padStart(2, '0')
+  return `${negative ? '-' : ''}${yuan}.${fen}`
 }
 
 /**
@@ -54,8 +65,9 @@ export function formatCents(cents) {
  */
 export function formatSignedCents(cents) {
   const value = toNumber(cents)
-  const text = (value / 100).toFixed(2)
-  return value > 0 ? `+${text}` : text
+  const text = formatCents(Math.abs(value))
+  if (value > 0) return `+${text}`
+  return value < 0 ? `-${text}` : text
 }
 
 /**
