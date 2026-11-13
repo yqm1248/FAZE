@@ -67,6 +67,24 @@ public class NotificationController {
     }
 
     /**
+     * 一条通知的详情（消息详情页，2026-11-14 补）。
+     *
+     * <p>在此之前 APP 点通知只标已读、不跳页，详情页是个永远显示「没有可展示的消息」的
+     * 结构占位。本接口让详情页有真实数据源；归属校验在 Service 里做（不是自己的 → 403）。</p>
+     *
+     * <p>注意路径优先级：`/unread-count` 是字面路径，Spring 会优先匹配它，
+     * 不会被 `/{id}` 抢走。</p>
+     *
+     * @param loginUser 当前用户
+     * @param id        通知 id
+     * @return 通知详情
+     */
+    @GetMapping("/{id}")
+    public R<NotificationVO> detail(@AuthenticationPrincipal LoginUser loginUser, @PathVariable Long id) {
+        return R.ok(notificationQueryService.detail(requireLogin(loginUser).getUserId(), id));
+    }
+
+    /**
      * 未读数（角标）。
      *
      * @param loginUser 当前用户

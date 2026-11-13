@@ -31,7 +31,7 @@ import { Screen } from '@/shared/components/Screen';
 import { useI18n } from '@/shared/i18n';
 import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
 import { useRefreshOnFocus } from '@/shared/hooks/useRefreshOnFocus';
-import { PAGE_ROUTES } from '@/shared/navigation/routes';
+import { messageDetailHref, PAGE_ROUTES } from '@/shared/navigation/routes';
 import { color, radius, size, spacing, typography } from '@/shared/theme';
 import { formatServerDateTime } from '@/shared/utils/serverTime';
 
@@ -159,11 +159,15 @@ export function MessagesPage() {
   };
 
   /**
-   * 点击一条站内信：未读则先本地置读（乐观），再调接口，失败回滚。
+   * 点击一条站内信：先跳详情页，未读则同时本地置读（乐观）再调接口，失败回滚。
+   *
+   * **跳转与标已读都要做**：2026-11-14 之前这里只标已读、不跳页，已读的通知点了完全没反应
+   * （`isRead === 1` 直接 return），用户以为消息中心是死的。详情页见 `MessageDetailPage`。
    *
    * @param item 站内信
    */
   const handlePress = (item: NotificationItem) => {
+    router.push(messageDetailHref(item.id));
     if (item.isRead === 1) {
       return;
     }

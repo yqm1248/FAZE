@@ -79,19 +79,52 @@ public class NotificationQueryService {
                 .last("LIMIT " + size));
         List<NotificationVO> out = new ArrayList<>(rows.size());
         for (Notification row : rows) {
-            NotificationVO vo = new NotificationVO();
-            vo.setId(row.getId());
-            vo.setType(row.getType());
-            vo.setTitle(row.getTitle());
-            vo.setContent(row.getContent());
-            vo.setBizType(row.getBizType());
-            vo.setBizId(row.getBizId());
-            vo.setIsRead(row.getIsRead());
-            vo.setReadAt(row.getReadAt());
-            vo.setCreatedAt(row.getCreatedAt());
-            out.add(vo);
+            out.add(toVO(row));
         }
         return out;
+    }
+
+    /**
+     * 查一条通知的详情（消息详情页，2026-11-14 补）。
+     *
+     * <p>副作用：无（只读）。**不在这里标已读**——标已读由页面在点开时单独调
+     * {@link #markRead}，两个动作分开才能在失败时分别重试。</p>
+     *
+     * @param userId 当前用户
+     * @param id     通知 id
+     * @return 通知详情
+     * @throws BusinessException 通知不存在、已软删、或不属于该用户时抛 403
+     */
+    public NotificationVO detail(Long userId, Long id) {
+        if (id == null) {
+            throw new BusinessException(ErrorCode.COMMON_FORBIDDEN);
+        }
+        Notification row = notificationMapper.selectById(id);
+        // 不存在 / 已软删 / 不是你的，统一 403：不泄露「这条通知存在」
+        if (row == null || row.getDeletedAt() != null || !userId.equals(row.getUserId())) {
+            throw new BusinessException(ErrorCode.COMMON_FORBIDDEN);
+        }
+        return toVO(row);
+    }
+
+    /**
+     * 实体转 VO（列表与详情共用，避免两处漏字段）。
+     *
+     * @param row 通知实体
+     * @return 通知 VO
+     */
+    private NotificationVO toVO(Notification row) {
+        NotificationVO vo = new NotificationVO();
+        vo.setId(row.getId());
+        vo.setType(row.getType());
+        vo.setTitle(row.getTitle());
+        vo.setContent(row.getContent());
+        vo.setBizType(row.getBizType());
+        vo.setBizId(row.getBizId());
+        vo.setIsRead(row.getIsRead());
+        vo.setReadAt(row.getReadAt());
+        vo.setCreatedAt(row.getCreatedAt());
+        return vo;
     }
 
     /**

@@ -5,6 +5,7 @@
  * 调用方：`features/content/pages/MessagesPage.tsx`。
  * 数据来源：
  *  - `GET  /api/v1/app/notifications?cursor=&type=&limit=`（游标分页）
+ *  - `GET  /api/v1/app/notifications/{id}`（单条详情，消息详情页用）
  *  - `POST /api/v1/app/notifications/{id}/read`
  *  - `GET  /api/v1/app/notifications/unread-count`
  * 注意：
@@ -88,6 +89,20 @@ export function listNotifications(
  */
 export function markNotificationRead(id: string): Promise<ApiResult<void>> {
   return post<void>(`/api/v1/app/notifications/${encodeURIComponent(id)}/read`);
+}
+
+/**
+ * 查询一条站内信的详情。
+ *
+ * 副作用：无（只读，**不会**顺带标已读）。
+ *
+ * 归属校验在服务端：不是当前用户的通知一律 403（不泄露「这条存在」）。
+ *
+ * @param id 站内信主键
+ * @returns 统一响应，`data` 是单条通知
+ */
+export function getNotification(id: string): Promise<ApiResult<NotificationItem>> {
+  return get<NotificationItem>(`/api/v1/app/notifications/${encodeURIComponent(id)}`);
 }
 
 /**

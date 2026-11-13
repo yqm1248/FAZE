@@ -334,6 +334,18 @@ export function articleHref(articleId: string): Href {
 }
 
 /**
+ * 拼消息详情路由（带 `id` 查询参数）。
+ *
+ * 消息中心点任意一条都要跳到详情页看全文——列表里正文被截断到 2 行。
+ *
+ * @param notificationId 站内信主键
+ * @returns 可传给 `router.push` 的 Href
+ */
+export function messageDetailHref(notificationId: string): Href {
+  return `${String(PAGE_ROUTES.messageDetail)}?id=${encodeURIComponent(notificationId)}` as Href;
+}
+
+/**
  * 拼意见反馈路由（段 7 C5）。
  *
  * 为什么要带 `from`：从 55 客服中心「留言」进来时，反馈页要把预选类型改成「其他」
