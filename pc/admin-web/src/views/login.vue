@@ -205,13 +205,16 @@ const { proxy } = getCurrentInstance()
 /**
  * 账号密码表单。
  *
- * TODO（上线前必做）：删掉这里的默认账号密码。
- *   原 RuoYi 版把 admin/admin123 写死在初始值里，是给开发者省事的；真实上线的
- *   管理后台不能预填口令。测试期先保留，方便测试人员直接点登录。
+ * **初始值必须为空**（盲测 B01 / 工单 W12）：RuoYi 原版把 `admin` / `admin123` 写死在
+ * 初始值里，是给开发者省事的；管理后台一旦预填口令，等于把默认凭据印在登录页上——
+ * 任何能打开这个页面的人都能直接进后台。测试期请手动输入，浏览器「记住密码」会代劳
+ * 后续登录（RuoYi 的 rememberMe 存的是加密后的密码，不是明文）。
+ *
+ * 不要为了「方便测试」把它改回来：这一处是上线阻断项，改了等于没修。
  */
 const loginForm = ref({
-  username: 'admin',
-  password: 'admin123',
+  username: '',
+  password: '',
   rememberMe: false,
   code: '',
   uuid: ''

@@ -117,16 +117,16 @@
                   <td class="el-table__cell is-leaf"><div class="cell" v-if="server.jvm">{{ server.jvm.runTime }}</div></td>
                 </tr>
                 <tr>
-                  <td colspan="1" class="el-table__cell is-leaf"><div class="cell">安装路径</div></td>
-                  <td colspan="3" class="el-table__cell is-leaf"><div class="cell" v-if="server.jvm">{{ server.jvm.home }}</div></td>
+                  <td colspan="1" class="el-table__cell is-leaf"><div class="cell">安装路径（仅末级目录）</div></td>
+                  <td colspan="3" class="el-table__cell is-leaf"><div class="cell" v-if="server.jvm">{{ tailPath(server.jvm.home) }}</div></td>
                 </tr>
                 <tr>
-                  <td colspan="1" class="el-table__cell is-leaf"><div class="cell">项目路径</div></td>
-                  <td colspan="3" class="el-table__cell is-leaf"><div class="cell" v-if="server.sys">{{ server.sys.userDir }}</div></td>
+                  <td colspan="1" class="el-table__cell is-leaf"><div class="cell">项目路径（仅末级目录）</div></td>
+                  <td colspan="3" class="el-table__cell is-leaf"><div class="cell" v-if="server.sys">{{ tailPath(server.sys.userDir) }}</div></td>
                 </tr>
                 <tr>
                   <td colspan="1" class="el-table__cell is-leaf"><div class="cell">运行参数</div></td>
-                  <td colspan="3" class="el-table__cell is-leaf"><div class="cell" v-if="server.jvm">{{ server.jvm.inputArgs }}</div></td>
+                  <td colspan="3" class="el-table__cell is-leaf"><div class="cell" v-if="server.jvm">{{ maskArgs() }}</div></td>
                 </tr>
               </tbody>
             </table>
@@ -174,6 +174,35 @@ import { getServer } from '@/api/monitor/server'
 
 const server = ref([])
 const { proxy } = getCurrentInstance()
+
+/**
+ * 路径脱敏（工单 W13 / 盲测 S50）。
+ *
+ * 服务监控页原来把服务器绝对路径原样渲染（如 `E:\dshcode\FAZE\pc\admin-server`），
+ * 等于把部署目录结构暴露给任何能进这个页面的管理员，也会被截屏/录屏/浏览器历史带走。
+ * 只保留最后一级目录名：运维仍能看出是哪个组件（jdk-17 / ruoyi-admin），
+ * 但看不到盘符和上层目录。
+ *
+ * @param {string} p 服务端返回的绝对路径
+ * @returns {string} 最后一级目录名；拿不到时返回破折号
+ */
+function tailPath(p) {
+  if (!p || typeof p !== 'string') return '—'
+  const parts = p.split(/[\\/]+/).filter(Boolean)
+  return parts.length === 0 ? '—' : parts[parts.length - 1]
+}
+
+/**
+ * 运行参数脱敏（工单 W13）。
+ *
+ * `jvm.inputArgs` 里可能带 `-Dspring.datasource.password=...`、`-Dfaze.jwt.secret=...`
+ * 这类启动参数——比路径更敏感，属凭据泄露，整格不展示。
+ *
+ * @returns {string} 固定占位文案
+ */
+function maskArgs() {
+  return '已隐藏（可能含凭据）'
+}
 
 function getList() {
   proxy.$modal.loading("正在加载服务监控数据，请稍候！")

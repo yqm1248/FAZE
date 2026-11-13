@@ -242,7 +242,10 @@
                   class="image-cell__img"
                 >
                   <template #error>
-                    <div class="image-cell__fallback">影像加载失败（链接已过期，请重新打开抽屉）</div>
+                    <div class="image-cell__fallback">
+                      影像加载失败（链接已过期）
+                      <el-button type="primary" link size="small" @click="reloadImages">重新加载</el-button>
+                    </div>
                   </template>
                 </el-image>
                 <div v-else class="image-cell__fallback">未上传</div>
@@ -258,7 +261,10 @@
                   class="image-cell__img"
                 >
                   <template #error>
-                    <div class="image-cell__fallback">影像加载失败（链接已过期，请重新打开抽屉）</div>
+                    <div class="image-cell__fallback">
+                      影像加载失败（链接已过期）
+                      <el-button type="primary" link size="small" @click="reloadImages">重新加载</el-button>
+                    </div>
                   </template>
                 </el-image>
                 <div v-else class="image-cell__fallback">未上传</div>
@@ -300,7 +306,10 @@
                   class="image-cell__img"
                 >
                   <template #error>
-                    <div class="image-cell__fallback">影像加载失败（链接已过期，请重新打开抽屉）</div>
+                    <div class="image-cell__fallback">
+                      影像加载失败（链接已过期）
+                      <el-button type="primary" link size="small" @click="reloadImages">重新加载</el-button>
+                    </div>
                   </template>
                 </el-image>
                 <div v-else class="image-cell__fallback">未上传</div>
@@ -327,7 +336,7 @@
 </template>
 
 <script setup name="BizVerification">
-import { onMounted, reactive, ref } from 'vue'
+import { onMounted, onUnmounted, reactive, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { auditVerification, getVerificationDetail, listVerifications } from '@/api/biz/verification'
@@ -419,6 +428,20 @@ const actionError = ref('')
 
 /** 详情对象。 */
 const detail = ref(null)
+
+/**
+ * 影像签名 URL 的静默续签定时器（工单 W07 / 盲测 B51）。
+ *
+ * 后端给的影像是**60 秒有效期的预签名地址**（`application.yml` 的
+ * `download-ttl-seconds: 60`），地址一过期，放大预览、浏览器重新请求都会 403，
+ * 表现为「抽屉开久了图片就打不开，只能关掉重开」。
+ *
+ * 这里在抽屉打开期间每 50 秒静默重取一次详情，只替换三个 URL 字段、不动 loading 态，
+ * 所以画面不闪。**不写审计**：详情 GET 没有 `@OperationLog`，`downloadUrlForAdmin`
+ * 本身也只签名不记录，续签不会把 operation_log 刷脏。
+ */
+const RESIGN_INTERVAL_MS = 50_000
+let resignTimer = null
 
 /** 当前认证记录 ID（字符串）。 */
 const currentId = ref('')
@@ -521,6 +544,72 @@ async function openDetail(row) {
   actionError.value = ''
   drawerVisible.value = true
   await loadDetail()
+  startResign()
+}
+
+/**
+ * 启动影像 URL 静默续签（见 `RESIGN_INTERVAL_MS` 的说明）。
+ *
+ * @returns {void}
+ */
+function startResign() {
+  stopResign()
+  resignTimer = setInterval(() => {
+    void resignImages()
+  }, RESIGN_INTERVAL_MS)
+}
+
+/**
+ * 停止静默续签（抽屉关闭时必须调，否则定时器会在组件之外继续跑）。
+ *
+ * @returns {void}
+ */
+function stopResign() {
+  if (resignTimer !== null) {
+    clearInterval(resignTimer)
+    resignTimer = null
+  }
+}
+
+/**
+ * 静默重签影像地址：只替换 URL 字段，不改 loading / error 态。
+ *
+ * 失败**故意不提示**：旧地址在浏览器缓存里通常还能显示，弹错只会干扰审核。
+ * 真失败时用户点图片会走 `#error` 插槽里的「重新加载」。
+ *
+ * @returns {Promise<void>} 无返回值
+ */
+async function resignImages() {
+  if (!currentId.value || !drawerVisible.value || detail.value === null) {
+    return
+  }
+  try {
+    const res = await getVerificationDetail(currentId.value, currentType.value)
+    const fresh = res.data
+    if (!fresh || detail.value === null) {
+      return
+    }
+    detail.value.frontUrl = fresh.frontUrl
+    detail.value.backUrl = fresh.backUrl
+    detail.value.licenseUrl = fresh.licenseUrl
+  } catch (e) {
+    // 静默：续签失败不打扰审核员，旧 URL 仍可能命中浏览器缓存
+  }
+}
+
+/** 组件卸载（切路由/刷新）时停掉续签定时器，避免定时器泄漏到组件之外。 */
+onUnmounted(stopResign)
+
+/**
+ * 影像加载失败时的兜底：手动重新拉详情换新签名地址。
+ *
+ * 定时续签万一漏了（例如浏览器休眠后 timer 被节流），用户还有这条出路，
+ * 不用关掉抽屉重开。
+ *
+ * @returns {Promise<void>} 无返回值
+ */
+async function reloadImages() {
+  await loadDetail()
 }
 
 /**
@@ -551,6 +640,7 @@ async function loadDetail() {
  * @returns {void}
  */
 function handleDrawerClosed() {
+  stopResign()
   detail.value = null
   detailError.value = ''
   actionError.value = ''
