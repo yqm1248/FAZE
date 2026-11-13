@@ -34,7 +34,7 @@ import { Screen } from '@/shared/components/Screen';
 import { useI18n } from '@/shared/i18n';
 import type { MessageKey } from '@/shared/i18n';
 import type { AppError } from '@/shared/api/types';
-import { color, radius, size, spacing, typography } from '@/shared/theme';
+import { color, radius, size, spacing, typography, WEB_FOCUS_RESET } from '@/shared/theme';
 
 /** 三类服务的标识。 */
 type ServiceKey = 'text' | 'phone' | 'doc';
@@ -330,6 +330,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xxs,
     ...typography.bodySmall,
     color: color.text.primary,
+    // 去掉浏览器默认焦点环；只保留下划线是本页的设计意图，黑框会盖住它。
+    ...WEB_FOCUS_RESET,
   },
   priceSuffix: { ...typography.bodySmall, color: color.text.muted },
   priceHint: { ...typography.micro, color: color.text.muted, marginTop: spacing.sm },

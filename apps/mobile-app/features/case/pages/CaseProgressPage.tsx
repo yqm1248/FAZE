@@ -56,7 +56,7 @@ import { useI18n } from '@/shared/i18n';
 import type { MessageKey } from '@/shared/i18n';
 import { chatHref, PAGE_ROUTES } from '@/shared/navigation/routes';
 import type { AppError } from '@/shared/api/types';
-import { color, radius, size, spacing, typography } from '@/shared/theme';
+import { color, radius, size, spacing, typography, WEB_FOCUS_RESET } from '@/shared/theme';
 
 /** 8 个节点的展示文案 key（`nodeCode` → 静态 key，禁止运行时拼 key）。 */
 const NODE_KEYS: Record<CaseNodeCode, MessageKey> = {
@@ -849,6 +849,8 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: color.text.primary,
     backgroundColor: color.background.canvas,
+    // 去掉浏览器默认焦点环；本输入框自带描边，聚焦态不必另补。
+    ...WEB_FOCUS_RESET,
   },
   modalTextarea: {
     minHeight: 88,

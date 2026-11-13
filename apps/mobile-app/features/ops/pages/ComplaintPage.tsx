@@ -43,7 +43,7 @@ import { PAGE_ROUTES } from '@/shared/navigation/routes';
 import { getOrders } from '@/features/trade/api/orders';
 import type { OrderItem } from '@/features/trade/api/orders';
 import { uploadFile } from '@/features/account/api/upload';
-import { color, radius, size, spacing, typography } from '@/shared/theme';
+import { color, radius, size, spacing, typography, WEB_FOCUS_RESET } from '@/shared/theme';
 
 import { submitComplaint } from '../api/complaint';
 import type { ComplaintSubmitInput, ComplaintTargetType } from '../types';
@@ -594,6 +594,8 @@ const styles = StyleSheet.create({
     color: color.text.primary,
     minHeight: 120,
     padding: 0,
+    // 去掉浏览器默认焦点环（黑框画在纯文本区、比外层灰底卡片小一圈）。
+    ...WEB_FOCUS_RESET,
   },
   count: {
     ...typography.micro,

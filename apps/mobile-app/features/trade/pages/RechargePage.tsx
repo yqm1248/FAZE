@@ -51,7 +51,7 @@ import { useI18n } from '@/shared/i18n';
 import type { MessageKey } from '@/shared/i18n';
 import { formatAmount } from '@/shared/i18n/datetime';
 import { PAGE_ROUTES } from '@/shared/navigation/routes';
-import { color, radius, spacing, typography } from '@/shared/theme';
+import { color, radius, spacing, typography, WEB_FOCUS_RESET } from '@/shared/theme';
 import { centsFromServer } from '@/shared/utils/money';
 
 /** 轮询次数：Mock 回调是本机回环，5 次足够；真实渠道由用户主动刷新兜底。 */
@@ -723,6 +723,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     ...typography.bodyLarge,
     color: color.text.primary,
+    // 去掉浏览器默认焦点环：它画在输入控件上、比外层金额框小一圈。
+    ...WEB_FOCUS_RESET,
   },
   inputError: {
     marginTop: spacing.sm,

@@ -9,12 +9,16 @@
  *   2. 文案方向：RN 的 `textAlign` 没有 start/end，这里用 `'auto'` 跟随语言方向，
  *      验证码/手机号等数字串不受影响（数字在 BiDi 中本身按 LTR 排列）。
  *   3. 尾部插槽（`trailing`）用于「获取验证码」「显示/隐藏密码」这类行内按钮。
+ *   4. **Web 端焦点环由本组件接管**（与 `DynamicForm` 同一套凭证）：浏览器默认在
+ *      `<input>` 上画黑色焦点环，它套在圆角灰底容器内侧、看起来「黑框比灰底小一圈」。
+ *      做法是把输入控件自身轮廓清零（`WEB_FOCUS_RESET`），聚焦态改由外层灰底容器
+ *      `inputRowFocused` 画主色细边框。原生端（安装包）不受影响。
  */
 
-import type { ReactNode } from 'react';
-import { StyleSheet, TextInput, View, type KeyboardTypeOptions } from 'react-native';
+import { useState, type ReactNode } from 'react';
+import { Platform, StyleSheet, TextInput, View, type KeyboardTypeOptions } from 'react-native';
 
-import { color, radius, size, spacing, typography } from '@/shared/theme';
+import { color, radius, size, spacing, typography, WEB_FOCUS_RESET } from '@/shared/theme';
 
 import { LocalizedText } from './LocalizedText';
 
@@ -65,12 +69,21 @@ export function FormField({
   trailing,
   editable = true,
 }: FormFieldProps) {
+  // 聚焦态由本组件接管：Web 端去掉浏览器黑色焦点环后，改由外层灰底容器画主色细边框，
+  // 否则鼠标点进输入框会觉得「没反应」。
+  const [focused, setFocused] = useState(false);
   return (
     <View style={styles.field}>
       <LocalizedText numberOfLines={1} style={styles.label}>
         {label}
       </LocalizedText>
-      <View style={[styles.inputRow, multiline ? styles.inputRowMultiline : null]}>
+      <View
+        style={[
+          styles.inputRow,
+          multiline ? styles.inputRowMultiline : null,
+          focused ? styles.inputRowFocused : null,
+        ]}
+      >
         <TextInput
           value={value}
           onChangeText={onChangeText}
@@ -81,7 +94,13 @@ export function FormField({
           maxLength={maxLength}
           multiline={multiline}
           editable={editable}
-          style={[styles.input, multiline ? styles.inputMultiline : null]}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          style={[
+            styles.input,
+            multiline ? styles.inputMultiline : null,
+            Platform.OS === 'web' ? WEB_FOCUS_RESET : null,
+          ]}
           placeholderTextColor={color.text.muted}
         />
         {trailing === undefined ? null : <View style={styles.trailing}>{trailing}</View>}
@@ -115,6 +134,11 @@ const styles = StyleSheet.create({
   inputRowMultiline: {
     alignItems: 'flex-start',
     paddingVertical: spacing.sm,
+  },
+  /** 聚焦态：主色细边框取代浏览器默认焦点环（见 `WEB_FOCUS_RESET`）。 */
+  inputRowFocused: {
+    borderWidth: size.hairline,
+    borderColor: color.brand.primary,
   },
   input: {
     ...typography.body,

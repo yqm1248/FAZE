@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LocalizedText } from './LocalizedText';
 import { Pressable, StyleSheet, TextInput, View, type StyleProp, type ViewStyle } from 'react-native';
 
-import { color, radius, size, spacing, typography } from '@/shared/theme';
+import { color, radius, size, spacing, typography, WEB_FOCUS_RESET } from '@/shared/theme';
 
 /**
  * 搜索框。
@@ -111,5 +111,8 @@ const styles = StyleSheet.create({
     marginStart: spacing.sm,
     color: color.text.body,
     paddingVertical: 0,
+    // 去掉浏览器默认焦点环：它画在无圆角的输入控件上，会嵌在胶囊描边内部、
+    // 看起来「黑框比胶囊小一圈」。外层 `containerPill` 自带 1px 描边，聚焦态不另补。
+    ...WEB_FOCUS_RESET,
   },
 });

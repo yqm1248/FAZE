@@ -31,7 +31,7 @@ import { PrimaryButton } from '@/shared/components/PrimaryButton';
 import { Screen } from '@/shared/components/Screen';
 import { PAGE_ROUTES } from '@/shared/navigation/routes';
 import { useI18n } from '@/shared/i18n';
-import { color, radius, size, spacing, typography } from '@/shared/theme';
+import { color, radius, size, spacing, typography, WEB_FOCUS_RESET } from '@/shared/theme';
 
 /** 手机号格式（与后端 Bean Validation 一致）。 */
 const PHONE_PATTERN = /^1[3-9]\d{9}$/;
@@ -264,6 +264,8 @@ const styles = StyleSheet.create({
     color: color.text.body,
     // RN 的 textAlign 无 start/end；auto 跟随语言方向（数字顺序不受影响）。
     textAlign: 'auto',
+    // 去掉浏览器默认焦点环（手机安装包无此属性效果，见 `WEB_FOCUS_RESET` 注释）。
+    ...WEB_FOCUS_RESET,
   },
   errorRow: {
     marginTop: spacing.md,

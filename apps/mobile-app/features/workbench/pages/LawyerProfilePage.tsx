@@ -32,7 +32,7 @@ import { Screen } from '@/shared/components/Screen';
 import { useI18n } from '@/shared/i18n';
 import type { MessageKey } from '@/shared/i18n';
 import type { AppError } from '@/shared/api/types';
-import { color, radius, size, spacing, typography } from '@/shared/theme';
+import { color, radius, size, spacing, typography, WEB_FOCUS_RESET } from '@/shared/theme';
 
 /** 简介字数上限（D5 第 1 条）。 */
 const BIO_MAX = 200;
@@ -317,6 +317,8 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: color.text.primary,
     backgroundColor: color.background.canvas,
+    // 去掉浏览器默认焦点环；本输入框自带描边，聚焦态不必另补。
+    ...WEB_FOCUS_RESET,
   },
   inputMultiline: { minHeight: 88 },
   counter: { ...typography.micro, color: color.text.muted },

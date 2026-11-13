@@ -47,7 +47,7 @@ import type { MessageKey } from '@/shared/i18n';
 import { PAGE_ROUTES } from '@/shared/navigation/routes';
 import { readStringListPref, writeStringListPref } from '@/shared/utils/prefStore';
 import type { AppError } from '@/shared/api/types';
-import { color, radius, size, spacing, typography } from '@/shared/theme';
+import { color, radius, size, spacing, typography, WEB_FOCUS_RESET } from '@/shared/theme';
 
 /** 本地搜索历史的存储键。 */
 const HISTORY_KEY = 'faze.search.history';
@@ -488,6 +488,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     ...typography.bodySmall,
     color: color.text.body,
+    // 去掉浏览器默认焦点环：它画在输入控件上、不跟随外层胶囊圆角。
+    ...WEB_FOCUS_RESET,
   },
   cancelBtn: { paddingVertical: spacing.xs },
   cancelText: { ...typography.bodySmall, color: color.text.secondary },

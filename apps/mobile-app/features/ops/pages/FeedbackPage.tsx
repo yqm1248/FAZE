@@ -35,7 +35,7 @@ import { WebFileButton } from '@/shared/components/WebFileButton';
 import { useI18n } from '@/shared/i18n';
 import type { MessageKey } from '@/shared/i18n';
 import { uploadFile } from '@/features/account/api/upload';
-import { color, radius, size, spacing, typography } from '@/shared/theme';
+import { color, radius, size, spacing, typography, WEB_FOCUS_RESET } from '@/shared/theme';
 
 import { submitFeedback } from '../api/feedback';
 import type { FeedbackSubmitInput, FeedbackType } from '../types';
@@ -368,6 +368,8 @@ const styles = StyleSheet.create({
     color: color.text.primary,
     minHeight: 100,
     padding: 0,
+    // 去掉浏览器默认焦点环（黑框画在纯文本区、比外层灰底卡片小一圈）。
+    ...WEB_FOCUS_RESET,
   },
   count: {
     ...typography.micro,
@@ -412,6 +414,8 @@ const styles = StyleSheet.create({
     color: color.text.primary,
     flex: 1,
     padding: 0,
+    // 同上：联系方式是嵌在灰底行里的无边框输入。
+    ...WEB_FOCUS_RESET,
   },
   optionalTag: {
     ...typography.micro,

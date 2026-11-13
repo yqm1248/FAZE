@@ -23,7 +23,7 @@ import { LocalizedText } from '@/shared/components/LocalizedText';
 import { LoadingState } from '@/shared/components/LoadingState';
 import { Screen } from '@/shared/components/Screen';
 import { useI18n } from '@/shared/i18n';
-import { color, radius, size, spacing, typography } from '@/shared/theme';
+import { color, radius, size, spacing, typography, WEB_FOCUS_RESET } from '@/shared/theme';
 
 /** 检索状态。 */
 type SearchPhase = 'idle' | 'loading' | 'ready' | 'error';
@@ -164,6 +164,8 @@ const styles = StyleSheet.create({
     color: color.text.body,
     backgroundColor: color.background.input,
     borderRadius: radius.lg,
+    // 去掉浏览器默认焦点环（它不跟随 lg 圆角）。
+    ...WEB_FOCUS_RESET,
   },
   searchButton: {
     height: size.inputHeight,

@@ -59,7 +59,7 @@ import { useI18n } from '@/shared/i18n';
 import type { MessageKey } from '@/shared/i18n';
 import { formatAmount } from '@/shared/i18n/datetime';
 import { PAGE_ROUTES, lawyerDetailHref } from '@/shared/navigation/routes';
-import { color, radius, size, spacing, typography } from '@/shared/theme';
+import { color, radius, size, spacing, typography, WEB_FOCUS_RESET } from '@/shared/theme';
 import { centsFromServer } from '@/shared/utils/money';
 import { parseServerTime } from '@/shared/utils/serverTime';
 
@@ -1135,6 +1135,8 @@ const styles = StyleSheet.create({
     backgroundColor: color.background.input,
     color: color.text.primary,
     ...typography.body,
+    // 去掉浏览器默认焦点环：它画在输入控件上、比外层灰底圆角小一圈。
+    ...WEB_FOCUS_RESET,
   },
   sendButton: {
     width: size.inputHeight,

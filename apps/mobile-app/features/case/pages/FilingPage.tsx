@@ -59,7 +59,7 @@ import { useIdempotencyKey } from '@/shared/hooks/useIdempotencyKey';
 import type { MessageKey } from '@/shared/i18n';
 import { PAGE_ROUTES } from '@/shared/navigation/routes';
 import type { AppError } from '@/shared/api/types';
-import { color, radius, size, spacing, typography } from '@/shared/theme';
+import { color, radius, size, spacing, typography, WEB_FOCUS_RESET } from '@/shared/theme';
 
 /** 案件类型选项（5 类，与后端 `CaseType` 一致）。`key` 是静态字面量，供 `t()` 类型校验。 */
 const CASE_TYPES: { code: CaseTypeCode; key: MessageKey }[] = [
@@ -1033,6 +1033,9 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: color.text.primary,
     backgroundColor: color.background.surface,
+    // 本页 9 个输入框共用这条样式：去掉浏览器默认焦点环（黑框比灰框小一圈的那条）。
+    // 本输入框自带 1px 描边，聚焦态不必另补；原生端（安装包）无可见效果。
+    ...WEB_FOCUS_RESET,
   },
   inputMultiline: {
     minHeight: 96,

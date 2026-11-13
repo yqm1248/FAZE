@@ -55,7 +55,7 @@ import { Screen } from '@/shared/components/Screen';
 import { useI18n } from '@/shared/i18n';
 import type { MessageKey } from '@/shared/i18n';
 import { PAGE_ROUTES } from '@/shared/navigation/routes';
-import { color, radius, size, spacing, typography } from '@/shared/theme';
+import { color, radius, size, spacing, typography, WEB_FOCUS_RESET } from '@/shared/theme';
 
 /**
  * 计算气泡里要显示的文本（思考中 / 已停止 / 正常内容）。
@@ -457,6 +457,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 0,
     ...typography.body,
     color: color.text.body,
+    // 去掉浏览器默认焦点环（黑框画在无边框输入控件上、会缩进外层灰底条里）。
+    ...WEB_FOCUS_RESET,
   },
   send: {
     minWidth: 56,
