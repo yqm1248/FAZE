@@ -157,7 +157,9 @@ export function CaseProgressPage() {
   /** 并发拉详情 + 时间轴。 */
   const load = useCallback(async (): Promise<void> => {
     if (caseId === '') {
-      setError({ kind: 'business', code: 407001, msgKey: 'error.case.notFound', traceId: null });
+      // key 必须与语言包同名：`error.json` 里是 `error.case.not-found`（连字符），
+      // 写成驼峰会查不到、界面显示 `⟦error.case.notFound⟧` 原文。见 2026-11-13 演示体检。
+      setError({ kind: 'business', code: 407001, msgKey: 'error.case.not-found', traceId: null });
       setLoading(false);
       return;
     }

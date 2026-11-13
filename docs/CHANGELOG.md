@@ -4,6 +4,42 @@
 
 ---
 
+## 2026-11-13（十二）· 演示前体检修掉两处 caseflow 显示缺陷（多语言文本被裁、错误 key 拼错）
+
+**一句话**：演示准备体检（CDP 逐屏 + 真实接口）抓到两处只在特定条件下才现形的显示缺陷——维吾尔语下立案页合规说明被裁掉半行、案件 id 缺失时错误提示露出 `⟦error.case.notFound⟧` 原文；各改一行修掉，中文界面零变化。
+
+**触发**：负责人决定近期做演示，要求按演示脚本逐屏体检。体检报告在桌面 `FAZE-演示准备清单-2026-11-13.md`（不在仓库内）；与本 commit 相关的只有这两条代码缺陷。
+
+### 改了什么
+
+| 位置 | 原文 | 改为 |
+| --- | --- | --- |
+| `apps/mobile-app/features/case/pages/FilingPage.tsx`（合规说明条） | `numberOfLines={4}` | `numberOfLines={8}`，并加注释说明「行数上限按最长语言给」 |
+| `apps/mobile-app/features/case/pages/CaseProgressPage.tsx`（`caseId` 为空的分支） | `msgKey: 'error.case.notFound'` | `msgKey: 'error.case.not-found'`（与 `error.json` 同名），并加注释 |
+
+### 为什么改
+
+**缺陷 1 · 多语言文本被裁**：`LocalizedText` 约定 `numberOfLines` 必填（阿拉伯系连写折行需要上限），但 4 是按中文留的余量。同一句话中文 3 行、维吾尔语 5 行，实测容器 108px / 内容 118px，**被 `overflow: clip` 裁掉 10px（半行）**。这段是法律告知文本，截断等于告知不完整，不只是难看。
+
+全仓扫描过一遍确认影响面：7 个主要页面在中文下真裁切 0 处，维吾尔语下 13 处只差 3~5px（阿拉伯字母字头字尾的字体度量差异，肉眼不可见），**只有这一处差 10px、肉眼可见**。所以是单点问题，不是普遍性缺陷。
+
+**缺陷 2 · 错误 key 拼错**：语言包里是 `error.case.not-found`（连字符），代码写的是 `error.case.notFound`（驼峰）。查不到 key 时界面把 key 原样裹在 `⟦⟧` 里显示。**能编译通过是因为 `shared/api/types.ts:34` 的 `MessageKey` 仍是 `string`**（该文件注释自述「B3 会收窄为 `keyof typeof zhHans`，在此之前先用 string」）——这是技术债兑现，不是手滑。收窄类型会一次性暴露全仓所有拼错的 key，不在本轮范围，留作独立技术债。
+
+### 核对
+
+- `npm run lint`（`tsc --noEmit` + `eslint .`）：**exit 0**。
+- 浏览器复验（重启 8090 避开 Metro 缓存后，CDP 实测）：
+
+| 判据 | 改前 | 改后 |
+| --- | --- | --- |
+| 合规说明 · 中文 `scrollHeight - clientHeight` | 0px（3 行） | **0px（仍 3 行，零变化）** |
+| 合规说明 · 维吾尔语 `scrollHeight - clientHeight` | **10px（被裁）** | **0px（129px 完整显示 5 行）** |
+| 案件进度页（不带 `caseId`）文案 | `⟦error.case.notFound⟧` | **「案件不存在」** |
+
+- 未改动 `LocalizedText` 组件本身：`numberOfLines` 必填是 `i18n 规范 §7.1` 的有意约束，不因这一处放开。
+
+---
+
 ## 2026-11-13（十一）· 交接复核：AGENTS.md 的 AI 技术栈回写 DeepSeek（基线 v1.82 → v1.83）
 
 **一句话**：交接文档第二轮核查发现 `AGENTS.md` 两处技术栈仍写「豆包 API」，与已实现的 DeepSeek 上游冲突；按 `docs/BASELINE.md` §4 第 6 条重算指纹并出基线 **v1.83**（无新增无删除，内容变更 2 份：`AGENTS.md` + `docs/README.md` 基线号）。

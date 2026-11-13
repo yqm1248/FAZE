@@ -543,7 +543,13 @@ export function FilingPage() {
 
         {step === 1 ? (
           <View testID="filing-step-1">
-            <LocalizedText numberOfLines={4} style={styles.compliance} testID="filing-compliance">
+            {/*
+              合规说明的行数上限按**最长语言**给：原来是 4 行，中文 3 行放得下，
+              维吾尔语同样内容要 5 行，实测被裁 10px（半行，2026-11-13 演示体检）。
+              这段是法律告知文本，截断不只是难看，是告知不完整，所以留到 8 行。
+              `numberOfLines` 按 `LocalizedText` 约定必须显式传，不能省。
+            */}
+            <LocalizedText numberOfLines={8} style={styles.compliance} testID="filing-compliance">
               {t('case.filing.complianceNote')}
             </LocalizedText>
 
