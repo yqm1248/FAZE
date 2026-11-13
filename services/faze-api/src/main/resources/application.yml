@@ -84,10 +84,13 @@ faze:
   probe:
     ai:
       mock: ${FAZE_PROBE_AI_MOCK:true}
-      api-key: ${FAZE_DOUBAO_API_KEY:}
-      base-url: ${FAZE_DOUBAO_BASE_URL:https://ark.cn-beijing.volces.com/api/v3/chat/completions}
-      # 推理接入点 ID（形如 ep-xxxxxxxx），不是模型名字；用错会 404
-      model: ${FAZE_DOUBAO_MODEL:}
+      # 上游 2026-11-13 由火山方舟豆包切到 DeepSeek；旧键名 FAZE_DOUBAO_* 不再使用。
+      api-key: ${FAZE_DEEPSEEK_API_KEY:}
+      base-url: ${FAZE_DEEPSEEK_BASE_URL:https://api.deepseek.com/chat/completions}
+      # DeepSeek 模型名：deepseek-flash（官方在售最便宜的一个，默认）/ deepseek-v4-pro。
+      # 注意 deepseek-flash 直连默认开思考模式（输出 token 多 4.4 倍），请求体由
+      # infra/ai/dto/ChatRequest 固定带 thinking.type=disabled 关掉，配置这边不需要再加参数。
+      model: ${FAZE_DEEPSEEK_MODEL:deepseek-flash}
       timeout-seconds: 120
   api:
     # 对外可访问的服务地址，用于拼本地存储的签名 URL；

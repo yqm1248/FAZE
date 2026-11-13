@@ -70,7 +70,7 @@ public class DoubaoClientStub implements DoubaoClient {
      */
     @PostConstruct
     void logMockActive() {
-        log.warn("AI_MOCK_ACTIVE faze.ai.mock=true：豆包调用走本地 Stub，不联网、不花钱；"
+        log.warn("AI_MOCK_ACTIVE faze.ai.mock=true：大模型调用走本地 Stub，不联网、不花钱；"
                 + "验收记录必须注明「本次为 mock，3-A2/3-A3/3-A4/3-A8 不判过」");
     }
 

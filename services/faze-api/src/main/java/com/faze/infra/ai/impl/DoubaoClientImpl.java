@@ -1,10 +1,13 @@
 /*
- * 职责：`DoubaoClient` 的真实实现——用 WebClient 调火山方舟 OpenAI 兼容接口，支持流式与非流式。
+ * 职责：`DoubaoClient` 的真实实现——用 WebClient 调 OpenAI 兼容接口，支持流式与非流式。
+ * **上游供应商：DeepSeek（2026-11-13 由火山方舟豆包切换）。接口名与类名保留 `Doubao*` 不改名**：
+ *   改名波及 AiStreamService / AiQuestionService / 测试与文档 20+ 处，漏改风险大于收益；
+ *   看到 `Doubao` 字样按「LLM 客户端」理解即可。
  * 调用方：Spring 容器（`faze.ai.mock=false` 或缺省时生效）；AiStreamService 订阅它的 `stream()`。
  * 数据来源：
  *   - 模型 / 超时：`sys_config`（AiProperties）；
- *   - Key：环境变量 `FAZE_ARK_API_KEY`（本地 deploy/.env），为空则 `FAZE_DOUBAO_API_KEY` 兼容旧键名；
- *   - 地址：`sys_config.ai_ark_base_url` → `FAZE_ARK_BASE_URL` → 兜底默认值。
+ *   - Key：环境变量 `FAZE_DEEPSEEK_API_KEY`（本地 deploy/.env），为空则兼容旧键名 `FAZE_ARK_API_KEY`；
+ *   - 地址：`sys_config.ai_ark_base_url` → `FAZE_DEEPSEEK_BASE_URL` → 兜底默认值。
  * 注意：
  *   1. **连接超时 5s、读超时 ai_timeout_seconds**：连接超时给 HttpClient 的
  *      `CONNECT_TIMEOUT_MILLIS`，读超时同时给 Netty 的 `responseTimeout`（等响应头）与
@@ -28,7 +31,6 @@ import com.faze.infra.ai.dto.ChatResult;
 import com.faze.modules.ai.config.AiProperties;
 import io.netty.channel.ChannelOption;
 import java.time.Duration;
-import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -46,15 +48,21 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * 豆包客户端真实实现（WebClient + 流式 SSE 解析 + 重试 + 错误映射）。
+ * LLM 客户端真实实现（WebClient + 流式 SSE 解析 + 重试 + 错误映射），上游 DeepSeek。
  */
 @Component
 @ConditionalOnProperty(name = "faze.ai.mock", havingValue = "false", matchIfMissing = true)
 @Slf4j
 public class DoubaoClientImpl implements DoubaoClient {
 
-    /** 上游聊天补全路径（技术路线 §11.2：OpenAI 兼容 `/api/v3/chat/completions`）。 */
-    private static final String CHAT_COMPLETIONS_PATH = "/api/v3/chat/completions";
+    /**
+     * 上游聊天补全路径（OpenAI 兼容）。
+     *
+     * <p>DeepSeek 端点是 `{base}/chat/completions`，base 为 `https://api.deepseek.com`
+     * （也接受 `https://api.deepseek.com/v1`，那时 path 要相应写成 `/v1/chat/completions`）。
+     * 切到 DeepSeek 前这里是豆包的 `/api/v3/chat/completions` —— 两家的版本段位置不同，别照抄。</p>
+     */
+    private static final String CHAT_COMPLETIONS_PATH = "/chat/completions";
 
     /** 连接超时（C1 要求固定 5s）。 */
     private static final int CONNECT_TIMEOUT_MILLIS = 5_000;
@@ -120,8 +128,10 @@ public class DoubaoClientImpl implements DoubaoClient {
                         Mono.error(new ApiException(
                                 "上游 5xx status=" + response.statusCode().value(), true)))
                 .bodyToFlux(String.class)
-                .map(this::parseChunk)
-                .filter(Objects::nonNull)
+                // 必须用 mapNotNull 而不是 map + filter：Reactor 的 map 不允许 mapper 返回 null，
+                // 而 parseChunk 对 [DONE] / 心跳帧 / 无 choices 帧明确返回 null（见其方法注释）。
+                // 2026-11-13 首次真实上游调用才暴露这个既有缺陷——此前全程走 mock，从未执行到这里。
+                .mapNotNull(this::parseChunk)
                 .doOnNext(chunk -> emitted.set(true))
                 // 读超时：相邻 chunk 间隔超过 ai_timeout_seconds 视为上游卡死
                 .timeout(timeout)
@@ -214,7 +224,7 @@ public class DoubaoClientImpl implements DoubaoClient {
                     .build();
             cachedClient = built;
             cachedClientKey = cacheKey;
-            log.info("豆包客户端已重建 baseUrl={} timeoutSeconds={}", baseUrl, timeoutSeconds);
+            log.info("LLM 客户端已重建 baseUrl={} timeoutSeconds={}", baseUrl, timeoutSeconds);
             return built;
         }
     }
@@ -226,7 +236,7 @@ public class DoubaoClientImpl implements DoubaoClient {
      * @return 规整后的地址
      */
     private String normalizeBaseUrl(String raw) {
-        String baseUrl = StringUtils.hasText(raw) ? raw.trim() : "https://ark.cn-beijing.volces.com";
+        String baseUrl = StringUtils.hasText(raw) ? raw.trim() : "https://api.deepseek.com";
         while (baseUrl.endsWith("/")) {
             baseUrl = baseUrl.substring(0, baseUrl.length() - 1);
         }
@@ -235,6 +245,11 @@ public class DoubaoClientImpl implements DoubaoClient {
 
     /**
      * 生成流式/非流式请求副本（不改调用方对象）。
+     *
+     * <p><b>思考模式在这里兜底关闭</b>：`deepseek-flash` 直连时上游默认开思考，输出 token
+     * 是关闭后的 4.4 倍（实测 completion 168 vs 38，其中 reasoning 138），而本项目只需要
+     * 「法条 + 短答」，思维链纯属白花钱还会拖慢首字节。调用方显式设了 `thinking` 就尊重它，
+     * 没设则一律 `disabled`。要开思考请构造 `ChatRequest.Thinking.enabled()`。</p>
      *
      * @param request 原请求
      * @param stream  是否流式
@@ -245,6 +260,9 @@ public class DoubaoClientImpl implements DoubaoClient {
         copy.setModel(request.getModel());
         copy.setMessages(request.getMessages());
         copy.setStream(stream);
+        copy.setThinking(request.getThinking() != null
+                ? request.getThinking()
+                : ChatRequest.Thinking.disabled());
         return copy;
     }
 
@@ -370,7 +388,8 @@ public class DoubaoClientImpl implements DoubaoClient {
         if (error instanceof ApiException) {
             return error;
         }
-        log.warn("豆包上游调用失败 type={} message={}", error.getClass().getSimpleName(), safeMessage(error));
+        log.warn("LLM 上游调用失败 type={} message={}", error.getClass().getSimpleName(),
+                safeMessage(error), error);
         return new ApiException("上游调用失败：" + error.getClass().getSimpleName(), isRetryable(error));
     }
 

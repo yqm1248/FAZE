@@ -14,7 +14,7 @@ faze:
     id-card-key: ${FAZE_IDCARD_SECRET}
     config-key: ${FAZE_CONFIG_SECRET}
   ai:
-    # 第 3 段 C1：生产**一律走真实豆包**（mock 只用于本地开发自测）。
+    # 第 3 段 C1：生产**一律走真实大模型**（上游 2026-11-13 起为 DeepSeek；mock 只用于本地开发自测）。
     # 显式 false 而不是省略：万一有人把 FAZE_AI_MOCK=true 带进生产环境变量，
     # 这里也会把它覆盖成 false——生产绝不能出现「mock 回答被当成 AI 回答」。
     mock: false

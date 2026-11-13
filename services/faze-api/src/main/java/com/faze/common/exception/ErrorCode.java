@@ -155,7 +155,7 @@ public enum ErrorCode {
     AI_OUT_OF_SCOPE(408004, 200, "error.ai.out-of-scope", "超出可咨询范围"),
     /** 检测到 Prompt 注入企图。HTTP 200。 */
     AI_PROMPT_INJECTED(408005, 200, "error.ai.prompt-injected", "检测到 Prompt 注入企图"),
-    /** 豆包服务不可用 / 5 秒内未出首字节。HTTP 200。 */
+    /** AI 上游服务不可用 / 5 秒内未出首字节（上游 2026-11-13 起为 DeepSeek）。HTTP 200。 */
     AI_SERVICE_DOWN(508001, 200, "error.ai.service-down", "AI 服务暂不可用"),
     /** AI 输出校验失败（回答里所有条文号都不存在且无法降级）。HTTP 200。 */
     AI_OUTPUT_INVALID(508002, 200, "error.ai.output-invalid", "AI 输出校验失败，请重试"),

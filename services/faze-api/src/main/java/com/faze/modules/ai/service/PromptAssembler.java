@@ -43,10 +43,16 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class PromptAssembler {
 
-    /** 模型 id 的 sys_config 键，值形如 doubao-seed-1.6-32k（带上下文后缀）。 */
+    /** 模型 id 的 sys_config 键，值形如 deepseek-flash（DeepSeek 模型名不带上下文后缀）。 */
     public static final String CONFIG_AI_MODEL = "ai_model";
-    /** 模型 id 兜底值（技术路线 §11.1 主力模型；sys_config 读不到时用）。 */
-    public static final String DEFAULT_MODEL = "doubao-seed-1.6-32k";
+    /**
+     * 模型 id 兜底值（sys_config 读不到时用）。
+     *
+     * <p>**必须是上游真实存在的模型名**：2026-11-13 上游由火山方舟豆包切到 DeepSeek，
+     * 豆包时代的 `doubao-seed-1.6-32k` 在这里退化成兜底值会让整条 AI 链路直接 400。
+     * 官方两个模型：`deepseek-flash`（最便宜，默认）/ `deepseek-v4-pro`（贵 3~4 倍）。</p>
+     */
+    public static final String DEFAULT_MODEL = "deepseek-flash";
 
     /** 历史上下文最多最近 10 轮（技术路线 §11.5「上下文｜最多最近 10 轮，超出截断」）。 */
     static final int MAX_HISTORY_ROUNDS = 10;

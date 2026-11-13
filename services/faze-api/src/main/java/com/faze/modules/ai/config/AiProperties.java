@@ -7,8 +7,8 @@
  *   1. **代码里不留业务默认值**：`ai_enabled` / `ai_model` / `ai_daily_quota` / `ai_search_topn` /
  *      `ai_timeout_seconds` / `ai_first_byte_timeout_ms` 全部从库里读；本类只保留「读不到时」的兜底值
  *      （DEFAULT_* 常量，逐一注明依据）。兜底值不是配置来源，运营改配置永远以库为准。
- *   2. **API Key 不走 sys_config**：走环境变量 `FAZE_ARK_API_KEY`（本地在 deploy/.env，已被 .gitignore），
- *      兼容旧键名 `FAZE_DOUBAO_API_KEY`。技术路线 §11.2 的「Jasypt 加密」是**备选方案**——
+ *   2. **API Key 不走 sys_config**：走环境变量 `FAZE_DEEPSEEK_API_KEY`（本地在 deploy/.env，已被
+ *      .gitignore），兼容旧键名 `FAZE_ARK_API_KEY` / `FAZE_DOUBAO_API_KEY`。技术路线 §11.2 的「Jasypt 加密」是**备选方案**——
  *      Jasypt 是为「密钥必须落配置文件」准备的，本项目用环境变量更短，**仓库里永远不会出现明文 API Key**。
  *   3. **缓存策略：实例字段 + 5 秒 TTL**（不是 static，不用 Spring Cache）。
  *      原因：一次 SSE 请求里会读到「开关/模型/超时/首字节/检索条数」5~8 次，每次都查 sys_config
@@ -66,8 +66,20 @@ public class AiProperties {
     /** 兜底：AI 默认开启（与 seed 的 'true' 一致；正式上线若灰度关闭由 A-08 改库）。 */
     private static final boolean DEFAULT_ENABLED = true;
 
-    /** 兜底：模型 id（§5.5 默认值；**必须带上下文后缀**，否则长对话会中途截断且不报错）。 */
-    private static final String DEFAULT_MODEL = "doubao-seed-1.6-32k";
+    /**
+     * 兜底：模型 id。**2026-11-13 起上游为 DeepSeek**——豆包时代「必须带上下文后缀，否则长对话
+     * 中途截断且不报错」的口径已失效，DeepSeek 模型名不带后缀。
+     *
+     * <p>官方在售两个模型（`GET /models` 实测）：`deepseek-flash` 与 `deepseek-v4-pro`。
+     * 本项目取**最便宜**的 `deepseek-flash`（官方定价：输出 0.6~1.2 美元/百万 token，
+     * pro 为 1.98~3.96，约 3.3 倍；输入 cache-miss 0.15~0.3 对 0.66~1.32，约 4.4 倍）。</p>
+     *
+     * <p><b>坑</b>：`deepseek-flash` 直连时上游**默认开思考模式**，实测同一问题
+     * completion_tokens 168（其中 reasoning 138），关掉后仅 38——即默认状态下输出 token 多 4.4 倍，
+     * 反而比选 pro 更贵。所以请求体固定带 `thinking.type=disabled`
+     * （见 {@code infra/ai/dto/ChatRequest}），本兜底值写 flash 才是真便宜。</p>
+     */
+    private static final String DEFAULT_MODEL = "deepseek-flash";
 
     /** 兜底：每日 50 轮（§5.5）。 */
     private static final int DEFAULT_DAILY_QUOTA = 50;
@@ -81,8 +93,8 @@ public class AiProperties {
     /** 兜底：首字节 5000 毫秒（§5.5）；C4 验收会临时改成 1，所以下限必须允许 1。 */
     private static final int DEFAULT_FIRST_BYTE_TIMEOUT_MS = 5_000;
 
-    /** 兜底：火山方舟北京区地址（技术路线 §11.2 的开放平台域名）。 */
-    private static final String DEFAULT_ARK_BASE_URL = "https://ark.cn-beijing.volces.com";
+    /** 兜底：DeepSeek 官方地址（2026-11-13 起；切换前是火山方舟北京区）。 */
+    private static final String DEFAULT_ARK_BASE_URL = "https://api.deepseek.com";
 
     /** 缓存 TTL：5 秒（见类注释第 3 条）。 */
     private static final long CACHE_TTL_MILLIS = 5_000L;
@@ -146,7 +158,7 @@ public class AiProperties {
     /**
      * AI 总开关（`3-A7` 降级依据）。
      *
-     * @return true 表示允许调用豆包
+     * @return true 表示允许调用大模型（上游 DeepSeek）
      */
     public boolean enabled() {
         return current().enabled();
@@ -288,7 +300,8 @@ public class AiProperties {
     }
 
     /**
-     * 解析上游地址：sys_config 覆盖（排障口子，本段不种）→ 环境变量 `FAZE_ARK_BASE_URL` → 兜底。
+     * 解析上游地址：sys_config 覆盖（排障口子，本段不种）→ 环境变量 `FAZE_DEEPSEEK_BASE_URL`
+     * （兼容旧键名 `FAZE_ARK_BASE_URL`）→ 兜底。
      *
      * <p>注意来源优先级与用途（lead 2026-11-07 定）：</p>
      * <ol>
@@ -307,7 +320,7 @@ public class AiProperties {
             // 交给外层 load() 的兜底路径处理即可；这里单独吞掉会让地址回退不透传
             log.debug("读取 {} 失败：{}", KEY_ARK_BASE_URL, e.getClass().getSimpleName());
         }
-        String candidate = StringUtils.hasText(fromDb) ? fromDb.trim() : System.getenv("FAZE_ARK_BASE_URL");
+        String candidate = StringUtils.hasText(fromDb) ? fromDb.trim() : resolveBaseUrlFromEnv();
         String baseUrl = StringUtils.hasText(candidate) ? candidate.trim() : DEFAULT_ARK_BASE_URL;
         while (baseUrl.endsWith("/")) {
             baseUrl = baseUrl.substring(0, baseUrl.length() - 1);
@@ -316,14 +329,33 @@ public class AiProperties {
     }
 
     /**
-     * 读环境变量里的 API Key（`FAZE_ARK_API_KEY`，兼容旧键名 `FAZE_DOUBAO_API_KEY`）。
+     * 读环境变量里的上游地址（`FAZE_DEEPSEEK_BASE_URL`，兼容旧键 `FAZE_ARK_BASE_URL`）。
+     *
+     * @return 地址；都没有时返回 null，由调用方走兜底
+     */
+    private String resolveBaseUrlFromEnv() {
+        String url = System.getenv("FAZE_DEEPSEEK_BASE_URL");
+        if (StringUtils.hasText(url)) {
+            return url;
+        }
+        return System.getenv("FAZE_ARK_BASE_URL");
+    }
+
+    /**
+     * 读环境变量里的 API Key（`FAZE_DEEPSEEK_API_KEY`，兼容旧键名 `FAZE_ARK_API_KEY` 与更早的
+     * `FAZE_DOUBAO_API_KEY`）。三段兼容是为了「换 key 不用同时改机器上的 .env」——
+     * 新键名优先，旧键名只在未配新键时兜底。
      *
      * @return Key；都没有时为空串
      */
     private String readApiKeyFromEnv() {
-        String key = System.getenv("FAZE_ARK_API_KEY");
+        String key = System.getenv("FAZE_DEEPSEEK_API_KEY");
         if (StringUtils.hasText(key)) {
             return key.trim();
+        }
+        String ark = System.getenv("FAZE_ARK_API_KEY");
+        if (StringUtils.hasText(ark)) {
+            return ark.trim();
         }
         String legacy = System.getenv("FAZE_DOUBAO_API_KEY");
         return StringUtils.hasText(legacy) ? legacy.trim() : "";

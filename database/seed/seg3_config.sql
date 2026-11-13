@@ -23,12 +23,15 @@ VALUES
     -- C1 / F4 / 3-A7：AI 总开关。false 时 App 的 AI 页降级为纯法条检索，C2 直接返回 degraded。
     --   默认 true（本地开发要能跑通链路）；上线前若要灰度关闭，在 PC A-08 改成 false 即可，不用发版。
     ('ai_enabled', 'true', 'bool', 'ai',
-     'AI 法律顾问总开关（false=App 端降级为纯法条检索，不调豆包）',
+     'AI 法律顾问总开关（false=App 端降级为纯法条检索，不调大模型）',
      1, UTC_TIMESTAMP(), UTC_TIMESTAMP()),
-    -- C1：模型 id。**必须带完整上下文后缀**（技术路线 L2867 警告：不带后缀会被平台按默认上下文处理，
-    --   长对话中途截断且不报错）。值以火山方舟控制台实际 id 为准，改这里即可，不用改代码。
-    ('ai_model', 'doubao-seed-1.6-32k', 'string', 'ai',
-     '豆包模型 id，必须含上下文后缀（如 doubao-seed-1.6-32k）；以火山控制台为准',
+    -- C1：模型 id。**2026-11-13 上游由火山方舟豆包切到 DeepSeek**，所以这里必须是 DeepSeek
+    --   官方在售模型名。旧的「必须带上下文后缀」口径随豆包一起作废，深度求索的模型名不带后缀。
+    --   现取最便宜的 deepseek-flash（可选 deepseek-v4-pro，贵 3~4 倍）。
+    --   注意：思考模式由请求体 thinking.type 控制（代码固定 disabled），不靠换模型名——
+    --   flash 直连默认开思考，输出 token 会多 4.4 倍。
+    ('ai_model', 'deepseek-flash', 'string', 'ai',
+     'DeepSeek 官方在售最便宜模型（pro 贵 3~4 倍）；上游 2026-11-13 由火山方舟豆包切换',
      1, UTC_TIMESTAMP(), UTC_TIMESTAMP()),
     -- C5：每用户每日轮次。总纲已裁决 AI 不计费（§零之二 第 5 项），所以是「配额」不是「计费」。
     ('ai_daily_quota', '50', 'int', 'ai',
