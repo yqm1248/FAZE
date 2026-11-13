@@ -39,7 +39,6 @@ import {
   StyleSheet,
   TextInput,
   View,
-  type TextStyle,
 } from 'react-native';
 
 import {
@@ -71,7 +70,7 @@ import type { MessageKey } from '@/shared/i18n';
 import { useAsyncResource } from '@/shared/hooks/useAsyncResource';
 import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
 import { PAGE_ROUTES } from '@/shared/navigation/routes';
-import { color, radius, size, spacing, typography } from '@/shared/theme';
+import { color, radius, size, spacing, typography, WEB_FOCUS_RESET } from '@/shared/theme';
 
 /** 自动保存的防抖时长（毫秒）。工作流 E2 第 3 条：改动后 5 秒。 */
 const AUTOSAVE_DELAY_MS = 5000;
@@ -563,20 +562,10 @@ function groupFields(
 }
 
 /**
- * 去掉浏览器默认焦点轮廓。
- *
- * 为什么要同时写 `outlineStyle` 和 `outlineWidth`：Chrome 的 UA 焦点环是
- * `outline-style: auto`，而 **`auto` 会忽略 `outline-width`**（宽度由浏览器决定）——
- * 实测只写 `outlineWidth: 0` 时，真实鼠标点击后仍会画出黑色方框。所以把 `outlineStyle`
- * 显式改成 `'solid'`（覆盖 UA 的 `auto`）再配 `outlineWidth: 0`，浏览器就不画轮廓了。
- * 为什么不用 `outlineStyle: 'none'`：RN 0.81 的 `TextStyle` 只允许
- * `'solid' | 'dotted' | 'dashed'`（`StyleSheetTypes.d.ts:417`），没有 `'none'`，
- * 写 `'none'` 会被 TS 拒绝；`solid + 0` 等价于不画，且类型原生支持。
- * 原生端这两个属性不产生可见效果（宽度为 0）。
- *
- * 聚焦态改由外层灰底容器 `styles.inputRowFocused`（主色细边框）表达，见 `ScalarField`。
+ * 去掉浏览器默认焦点轮廓的常量已抽到 `@/shared/theme`（`focusRing.ts`），
+ * 注册 / 登录 / 立案 / 支付密码 / 搜索等自绘输入框共用同一份，别再在本文件复制。
+ * 聚焦态仍由外层灰底容器 `styles.inputRowFocused`（主色细边框）表达，见 `ScalarField`。
  */
-const WEB_FOCUS_RESET: TextStyle = { outlineStyle: 'solid', outlineWidth: 0 };
 
 /** Web 日期输入的属性类型（DOM 类型只在这个文件出现一次）。 */
 type DateInputProps = React.InputHTMLAttributes<HTMLInputElement> & {

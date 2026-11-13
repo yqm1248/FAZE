@@ -30,7 +30,7 @@ import { Path, Svg } from 'react-native-svg';
 import { LocalizedText } from '@/shared/components/LocalizedText';
 import { PrimaryButton } from '@/shared/components/PrimaryButton';
 import { useI18n } from '@/shared/i18n';
-import { color, radius, size, spacing, typography } from '@/shared/theme';
+import { color, radius, size, spacing, typography, IMAGE_BOX_LTR } from '@/shared/theme';
 
 /** 画布上的一个点（局部坐标，单位 dp = SVG 用户单位）。 */
 type Point = {
@@ -247,7 +247,8 @@ const styles = StyleSheet.create({
   board: {
     position: 'relative',
     // 手写板是图像区域：坐标恒定 LTR，不跟随 App 的 RTL 镜像。
-    direction: 'ltr',
+    // 用共享常量而不是直接写 `direction`——Web 端 react-native-web 不认该属性会报警。
+    ...IMAGE_BOX_LTR,
     borderWidth: 1,
     borderStyle: 'dashed',
     borderColor: color.border.outline,

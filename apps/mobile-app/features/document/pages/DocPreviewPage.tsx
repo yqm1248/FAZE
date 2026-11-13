@@ -67,7 +67,7 @@ import { TagChip } from '@/shared/components/TagChip';
 import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
 import { useI18n } from '@/shared/i18n';
 import { PAGE_ROUTES } from '@/shared/navigation/routes';
-import { color, radius, shadow, size, spacing, typography } from '@/shared/theme';
+import { color, radius, shadow, size, spacing, typography, IMAGE_BOX_LTR } from '@/shared/theme';
 import { formatServerDateTime } from '@/shared/utils/serverTime';
 
 import {
@@ -1131,8 +1131,9 @@ const styles = StyleSheet.create({
     borderRadius: radius.xs,
     backgroundColor: color.background.surface,
     overflow: 'hidden',
-    // 预览页是图像区域：坐标恒定 LTR（选落款位置靠像素比例，不能跟 App 的 RTL 镜像）
-    direction: 'ltr',
+    // 预览页是图像区域：坐标恒定 LTR（选落款位置靠像素比例，不能跟 App 的 RTL 镜像）。
+    // 用共享常量而不是直接写 `direction`——Web 端 react-native-web 不认该属性会报警。
+    ...IMAGE_BOX_LTR,
     ...shadow.card,
   },
   pageImage: {

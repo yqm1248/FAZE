@@ -29,3 +29,9 @@ export type { ColorScheme, ThemeModeValue } from './darkMode';
 export { typography, lineHeightFor } from './typography';
 
 export { FONT_ASSETS, FONT_FAMILY } from './fonts';
+
+// Web 输入框焦点环复位：自绘输入框统一从这里取，别各写一份（原生端无可见效果）。
+export { WEB_FOCUS_RESET } from './focusRing';
+
+// 图像区域（画布 / 预览纸张）的 LTR 布局隔离：Web 端必须为空，否则控制台报警。
+export { IMAGE_BOX_LTR } from './imageBoxLtr';
