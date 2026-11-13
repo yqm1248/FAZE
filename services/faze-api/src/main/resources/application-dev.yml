@@ -58,8 +58,15 @@ faze:
     #   于是写接口（封禁/审核/充值/保存）会被 CORS 拦成 HTTP 403 `Invalid CORS request`，
     #   而 GET 列表接口正常——2026-11-05 实测踩过，表现是「只有写操作 403」。
     # 8090 保留给 expo web 自测。生产 profile 不加载本文件、也不注册这个 bean。
+    #
+    # **手机真机用浏览器演示时必须加局域网那条**（2026-11-13 实测加）：
+    # 手机浏览器打开 http://192.168.43.186:8090 时，页面里的 fetch 会带
+    # `Origin: http://192.168.43.186:8090`，不在白名单里就会被拦成 403，
+    # 表现是「手机上每屏都报网络错误、像服务挂了」，而同一台电脑上 localhost 一切正常。
+    # 原生 RN（Expo Go / 安装包）不受影响——原生 fetch 没有 CORS。
+    # 换热点导致电脑 IP 变化时，这里要跟着改（与 apps/mobile-app/.env 的 IP 保持一致）。
     web:
-      allowed-origins: http://localhost,http://127.0.0.1,http://localhost:80,http://127.0.0.1:80,http://localhost:8090,http://127.0.0.1:8090
+      allowed-origins: http://localhost,http://127.0.0.1,http://localhost:80,http://127.0.0.1:80,http://localhost:8090,http://127.0.0.1:8090,http://192.168.43.186:8090
 
 logging:
   level:
