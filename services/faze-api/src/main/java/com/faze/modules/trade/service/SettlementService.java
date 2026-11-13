@@ -457,6 +457,11 @@ public class SettlementService {
                 .isNull(Orders::getDeletedAt)
                 .ge(Orders::getFinishedAt, periodBeginUtc(ym))
                 .lt(Orders::getFinishedAt, periodEndUtc(ym))
+                // 只算「批次生成时已经完成」的订单（2026-11-13 修 B82）：生成之后才完成的
+                // 同账期订单属于下一批，若也列进来，明细条数会永远大于批次里的 orderCount、
+                // 明细合计也永远对不上 incomeCents。实测批次 11-08 生成，之后又完成 2 单，
+                // 明细查出 4 条 vs 订单数 2。
+                .le(entity.getCreatedAt() != null, Orders::getFinishedAt, entity.getCreatedAt())
                 .orderByAsc(Orders::getFinishedAt)
                 .orderByAsc(Orders::getId));
         List<SettlementItemVO> items = new ArrayList<>(orders.size());
@@ -470,13 +475,18 @@ public class SettlementService {
             item.setFeeCents(nz(order.getPlatformFeeCents()));
             item.setIncomeCents(nz(order.getLawyerIncomeCents()));
             items.add(item);
-            total += nz(order.getLawyerIncomeCents());
+            // 口径（2026-11-13 负责人拍板）：明细合计按**订单成交额**累加，
+            // 与批次头 incomeCents（SettlementAgg 里就是 SUM(amount_cents)）同源。
+            // 原来累加的是 lawyer_income_cents（律师净收入），导致头部是成交额、明细是净收入，
+            // 两个数恒差平台服务费——盲测 B83/B85 报的就是这个。
+            total += nz(order.getAmountCents());
         }
         SettlementDetailVO vo = new SettlementDetailVO();
         vo.setSettlement(head);
         vo.setItems(items);
         vo.setItemsTotalCents(total);
-        vo.setConsistent(total == nz(head.getSettleCents()));
+        // 对照对象是「订单收入」，不是「应结金额」：应结 = 订单收入 − 平台服务费，本来就不相等。
+        vo.setConsistent(total == nz(head.getIncomeCents()));
         return vo;
     }
 
