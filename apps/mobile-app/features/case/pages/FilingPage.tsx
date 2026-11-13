@@ -42,13 +42,18 @@ import {
   resubmitCase,
 } from '@/features/case/api/client';
 import type { CaseCreatePayload, CaseTypeCode } from '@/features/case/api/client';
+import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { AppHeader } from '@/shared/components/AppHeader';
+import { useToast } from '@/shared/components/AppToast';
 import { ConfirmDialog } from '@/shared/components/ConfirmDialog';
 import { ErrorState } from '@/shared/components/ErrorState';
 import { LoadingState } from '@/shared/components/LoadingState';
 import { LocalizedText } from '@/shared/components/LocalizedText';
 import { PrimaryButton } from '@/shared/components/PrimaryButton';
 import { Screen } from '@/shared/components/Screen';
+import { WebFileButton } from '@/shared/components/WebFileButton';
+import { getDownloadUrl, uploadFile } from '@/features/account/api/upload';
 import { useI18n } from '@/shared/i18n';
 import { useIdempotencyKey } from '@/shared/hooks/useIdempotencyKey';
 import type { MessageKey } from '@/shared/i18n';
@@ -92,6 +97,9 @@ const STEP_TITLE_KEYS: MessageKey[] = [
 /** 案情陈述的字数上限（设计稿计数 `0/2000`）。 */
 const STATEMENT_MAX = 2000;
 
+/** 证据材料最多几张（与后端 `CaseCreateBO.evidenceUrls` 的 `@Size(max=5)` 对齐）。 */
+const EVIDENCE_MAX = 5;
+
 /**
  * 把「字符串形式的 Long 分值」转成金额输入框里的元字符串。
  *
@@ -122,6 +130,7 @@ function centsToYuanInput(cents: string | null): string {
 export function FilingPage() {
   const { t } = useI18n();
   const router = useRouter();
+  const toast = useToast();
   const { caseId } = useLocalSearchParams<{ caseId?: string }>();
   /** 补正模式的原案件 id；正常立案为 `null`（两套文案/接口/跳转都按它分支）。 */
   const resubmitId = typeof caseId === 'string' && caseId !== '' ? caseId : null;
@@ -138,6 +147,12 @@ export function FilingPage() {
   const [statement, setStatement] = useState('');
   const [claims, setClaims] = useState('');
   const [amountYuan, setAmountYuan] = useState('');
+  /** 证据材料的对象 key 列表（提交时原样回传，最多 `EVIDENCE_MAX` 张）。 */
+  const [evidenceKeys, setEvidenceKeys] = useState<string[]>([]);
+  /** key → 短时签名展示地址（缩略图用；拿不到就不占位）。 */
+  const [evidencePreview, setEvidencePreview] = useState<Record<string, string>>({});
+  /** 是否正在上传证据（防连点、上传中禁用提交）。 */
+  const [evidenceUploading, setEvidenceUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   /**
    * 提交幂等键：页面挂载时固定，成功后换新键，失败复用（见 `useIdempotencyKey` 注释）。
@@ -340,11 +355,70 @@ export function FilingPage() {
     router.back();
   };
 
+  /**
+   * 选择一张证据材料并上传（W11）。
+   *
+   * 副作用：以 `case_evidence` 场景上传；成功后追加对象 key，并异步取短时签名地址做缩略图。
+   * 上传失败只 toast，不改变已上传列表——让用户能重试单张而不是整批重来。
+   *
+   * @param file 浏览器 File 对象
+   */
+  const handlePickEvidence = useCallback(
+    async (file: File): Promise<void> => {
+      if (evidenceKeys.length >= EVIDENCE_MAX) {
+        return;
+      }
+      setEvidenceUploading(true);
+      const uploaded = await uploadFile('case_evidence', {
+        fileName: file.name,
+        size: file.size,
+        contentType: file.type,
+        body: file,
+      });
+      setEvidenceUploading(false);
+      if (!uploaded.ok) {
+        toast.show(t('case.filing.evidenceUploadFailed'));
+        return;
+      }
+      const key = uploaded.data;
+      setEvidenceKeys((current) => (current.length >= EVIDENCE_MAX ? current : [...current, key]));
+      // 缩略图地址是短时的；拿不到就只显示占位块，不影响提交
+      const url = await getDownloadUrl(key);
+      if (url.ok) {
+        setEvidencePreview((current) => ({ ...current, [key]: url.data.url }));
+      }
+    },
+    [evidenceKeys.length, t, toast],
+  );
+
+  /**
+   * 移除一张已上传的证据。
+   *
+   * 副作用：只改本地列表，**不删服务端对象**（私有桶里的孤儿对象由运维清理策略处理）。
+   *
+   * @param key 对象 key
+   */
+  const removeEvidence = useCallback((key: string): void => {
+    setEvidenceKeys((current) => current.filter((item) => item !== key));
+    setEvidencePreview((current) => {
+      const next = { ...current };
+      delete next[key];
+      return next;
+    });
+  }, []);
+
   /** 提交（仅第 4 步）。 */
   const submit = async (): Promise<void> => {
     if (caseType === null) {
       setErrorKey('case.filing.error.caseTypeRequired');
       setStep(1);
+      return;
+    }
+    // 证据是立案的必填项（W11）：后端 CaseCreateBO 用 @NotEmpty 把最后一道关，
+    // 这里先拦一次是为了让用户停在第 4 步看到原因，而不是提交失败后重新翻四步。
+    if (evidenceKeys.length === 0) {
+      setErrorKey('case.filing.error.evidenceRequired');
+      setStep(4);
       return;
     }
     setSubmitting(true);
@@ -366,7 +440,7 @@ export function FilingPage() {
       statement: statement.trim(),
       claims: claims.trim() === '' ? null : claims.trim(),
       amountCents,
-      evidenceUrls: [],
+      evidenceUrls: evidenceKeys,
     };
     // 补正模式：同一份四步表单全量重填到原案件（P0-6），不新建第二张案件。
     const res =
@@ -396,7 +470,7 @@ export function FilingPage() {
       caseType,
       submittedAt: res.data.submittedAt,
       amountYuan: amountYuan.trim(),
-      evidenceCount: '0',
+      evidenceCount: String(evidenceKeys.length),
     });
     // 先把「已提交」置位（不再拦离开），再由 effect 跳转：同 tick 直接 replace 会被守卫拦下。
     setSubmitted(true);
@@ -663,11 +737,55 @@ export function FilingPage() {
             <LocalizedText numberOfLines={1} style={styles.label}>
               {t('case.filing.field.evidence')}
             </LocalizedText>
-            <View style={styles.evidenceBox}>
-              <LocalizedText numberOfLines={3} style={styles.evidenceHint}>
-                {t('case.filing.field.evidenceHint')}
-              </LocalizedText>
+            {/* 证据上传（W11）：至少 1 张才能提交，最多 EVIDENCE_MAX 张 */}
+            <View style={styles.evidenceGrid}>
+              {evidenceKeys.map((key, index) => (
+                <View key={key} style={styles.evidenceTile} testID={`filing-evidence-${index}`}>
+                  {evidencePreview[key] ? (
+                    <Image
+                      source={{ uri: evidencePreview[key] }}
+                      style={styles.evidenceImage}
+                      contentFit="cover"
+                    />
+                  ) : (
+                    <View style={styles.evidencePlaceholder}>
+                      <Ionicons name="document-outline" size={20} color={color.text.muted} />
+                    </View>
+                  )}
+                  <Pressable
+                    onPress={() => removeEvidence(key)}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('common.action.close')}
+                    style={styles.evidenceRemove}
+                    testID={`filing-evidence-remove-${index}`}
+                  >
+                    <Ionicons name="close" size={13} color={color.text.onBrand} />
+                  </Pressable>
+                </View>
+              ))}
+              {evidenceKeys.length < EVIDENCE_MAX ? (
+                <WebFileButton
+                  disabled={evidenceUploading}
+                  onPick={(file) => {
+                    void handlePickEvidence(file);
+                  }}
+                >
+                  <View style={styles.evidenceAddTile} testID="filing-evidence-add">
+                    <Ionicons
+                      name={evidenceUploading ? 'hourglass-outline' : 'add'}
+                      size={22}
+                      color={color.text.muted}
+                    />
+                    <LocalizedText numberOfLines={2} style={styles.evidenceAddText}>
+                      {t('case.filing.field.evidence')}
+                    </LocalizedText>
+                  </View>
+                </WebFileButton>
+              ) : null}
             </View>
+            <LocalizedText numberOfLines={3} style={styles.evidenceHint}>
+              {t('case.filing.field.evidenceHint')}
+            </LocalizedText>
 
             <LocalizedText numberOfLines={1} style={styles.sectionTitle}>
               {t('case.filing.summaryTitle')}
@@ -699,7 +817,7 @@ export function FilingPage() {
               />
               <SummaryRow
                 label={t('case.filing.field.evidence')}
-                value={t('case.filing.evidenceCount', { count: 0 })}
+                value={t('case.filing.evidenceCount', { count: evidenceKeys.length })}
               />
             </View>
 
@@ -965,14 +1083,55 @@ const styles = StyleSheet.create({
     color: color.text.muted,
     marginStart: spacing.xs,
   },
-  evidenceBox: {
+  evidenceGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  evidenceTile: {
+    width: 84,
+    height: 84,
+    borderRadius: radius.sm,
+    overflow: 'hidden',
+    backgroundColor: color.background.input,
+  },
+  evidenceImage: {
+    width: '100%',
+    height: '100%',
+  },
+  evidencePlaceholder: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  evidenceRemove: {
+    position: 'absolute',
+    top: spacing.xxs,
+    end: spacing.xxs,
+    width: 20,
+    height: 20,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: color.state.danger,
+  },
+  evidenceAddTile: {
+    width: 84,
+    height: 84,
+    borderRadius: radius.sm,
     borderWidth: size.hairline,
     borderStyle: 'dashed',
     borderColor: color.border.outline,
-    borderRadius: radius.sm,
-    padding: spacing.lg,
-    marginBottom: spacing.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xxs,
     backgroundColor: color.background.surface,
+  },
+  evidenceAddText: {
+    ...typography.micro,
+    color: color.text.muted,
+    textAlign: 'center',
   },
   evidenceHint: {
     ...typography.caption,

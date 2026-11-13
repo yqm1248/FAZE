@@ -16,6 +16,7 @@ import com.faze.common.exception.BusinessException;
 import com.faze.common.exception.ErrorCode;
 import com.faze.common.pojo.PageResult;
 import com.faze.infra.seq.BizNoGenerator;
+import com.faze.infra.storage.StorageKeyRules;
 import com.faze.infra.seq.BizNoRetry;
 import com.faze.modules.account.entity.Lawyer;
 import com.faze.modules.account.service.LawyerQueryService;
@@ -127,6 +128,11 @@ public class CaseServiceImpl implements CaseService {
                 return toSubmitVO(exist);
             }
         }
+
+        // 任务 1.5：证据 key 的归属与场景校验（2026-11-13 为 W11 补）。
+        // 光有 `@NotEmpty` 不够：key 是客户端传的自由字符串，不校验就能把别人家的对象 key
+        // 塞进自己的案件里——那等于在立案接口上开了一条「查看他人证件影像」的路。
+        assertEvidenceOwned(bo.getEvidenceUrls(), userId);
 
         // 任务 2：生成单号 + 冻结四步表单快照（撞单号唯一键自动换号重试，见 BizNoRetry）
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
@@ -338,6 +344,9 @@ public class CaseServiceImpl implements CaseService {
                     "补正次数已用完 caseId=" + caseId + " resubmitCount=" + used);
         }
 
+        // 任务 5.5：补正同样要校验证据 key 归属（口径与 create 一致，见任务 1.5）
+        assertEvidenceOwned(bo.getEvidenceUrls(), userId);
+
         // 任务 6：组装字段，口径与 create 完全一致（快照是整体替换，不是增量合并）
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
         String formSnapshot = jsonMapper.writeValueAsString(bo);
@@ -531,6 +540,35 @@ public class CaseServiceImpl implements CaseService {
         }
         CaseType type = CaseType.ofOrNull(bo.getCaseType());
         return (type == null ? "案件" : type.getLabel() + "案件");
+    }
+
+    /**
+     * 校验证据 key 的格式、场景与归属（W11）。
+     *
+     * <p>三个条件缺一不可：</p>
+     * <ol>
+     *   <li>`StorageKeyRules.isValid()` —— 必须是本系统签发的 key 形态；</li>
+     *   <li>场景必须是 `case_evidence` —— 否则用户能把自己的身份证影像当成证据传上来；</li>
+     *   <li>归属必须是当前用户 —— 否则能把别人的 key 塞进自己的案件，审核端会给他看图。</li>
+     * </ol>
+     *
+     * @param keys   证据对象 key 列表（可空，空由 BO 上的 `@NotEmpty` 先拦）
+     * @param userId 当前用户
+     * @throws BusinessException 401001 格式/场景非法；403001 不是本人对象
+     */
+    private void assertEvidenceOwned(List<String> keys, Long userId) {
+        if (keys == null || keys.isEmpty()) {
+            return;
+        }
+        for (String key : keys) {
+            if (!StorageKeyRules.isValid(key) || !key.startsWith("private/case_evidence/")) {
+                throw new BusinessException(ErrorCode.COMMON_PARAM_INVALID);
+            }
+            Long owner = StorageKeyRules.ownerOf(key);
+            if (owner == null || !owner.equals(userId)) {
+                throw new BusinessException(ErrorCode.COMMON_FORBIDDEN);
+            }
+        }
     }
 
     private String defaultNodeTitle(String nodeCode) {

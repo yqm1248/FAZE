@@ -46,7 +46,7 @@ public final class StorageKeyRules {
     public static final Set<String> ALLOWED_SCENES = Set.of(
             "realname", "identity", "license", "avatar", "chat",
             "signature", "document", "doc_template", "withdraw", "reconcile_bill",
-            "complaint", "feedback");
+            "complaint", "feedback", "case_evidence");
 
     /**
      * 允许的扩展名白名单。
@@ -67,7 +67,7 @@ public final class StorageKeyRules {
      */
     private static final Pattern KEY_PATTERN = Pattern.compile(
             "^private/(realname|identity|license|avatar|chat|signature|document|doc_template|withdraw"
-                    + "|reconcile_bill|complaint|feedback)"
+                    + "|reconcile_bill|complaint|feedback|case_evidence)"
                     + "/\\d{6}/\\d+/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
                     + "\\.(jpg|jpeg|png|webp|pdf|csv|zip)$");
 

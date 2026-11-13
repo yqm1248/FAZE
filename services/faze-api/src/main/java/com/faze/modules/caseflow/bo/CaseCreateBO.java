@@ -14,6 +14,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -63,7 +64,18 @@ public class CaseCreateBO {
     @Max(value = 999_999_999_99L, message = "争议金额超出上限")
     private Long amountCents;
 
-    /** 第 4 步：证据 file_record 的 key 数组（最多 20 个）。 */
+    /**
+     * 第 4 步：证据材料的对象 key 数组。
+     *
+     * <p><b>至少 1 份是硬要求</b>（2026-11-13 为 W11 补 `@NotEmpty`）：
+     * 之前这里只有 `@Size(max=20)`，等于「有就给、没有也能立案」，
+     * 而 APP 第 4 步当时根本没有上传入口——两边合起来就是「无证据也能立案」。
+     * APP 侧同步加了第 4 步上传 UI 与提交前拦截，这里是最前一道服务端关。</p>
+     *
+     * <p>key 必须来自 `case_evidence` 场景（`StorageKeyRules.ALLOWED_SCENES`），
+     * 由 `CaseCreateService` 校验归属与场景，不是随便一个字符串都能进来。</p>
+     */
+    @NotEmpty(message = "请至少上传 1 份证据材料")
     @Size(max = 20, message = "证据材料最多 20 个")
     private List<@NotBlank @Size(max = 500) String> evidenceUrls;
 

@@ -25,11 +25,13 @@ import lombok.Data;
 public class UploadBO {
 
     /**
-     * 场景：realname / identity / license / avatar / chat / signature / complaint / feedback。
+     * 场景：realname / identity / license / avatar / chat / signature / complaint / feedback /
+     * case_evidence（立案证据，2026-11-13 为 W11 新增）。
      *
      * <p>段 4 的 `document`（文书 PDF）与 `doc_template`（模板预览图）**故意不在此白名单内**：
      * 它们由服务端生成后用 `StorageKeyRules.build()` 直接落盘，客户端拿不到上传凭证。
-     * 放进来说明「客户端可以自己传一份 PDF 公文」——那是绕过生成链的漏洞。</p>
+     * 放进来说明「客户端可以自己传一份 PDF 公文」——那是绕过生成链的漏洞。
+     * `withdraw` / `reconcile_bill` 同理（财务凭证由服务端生成）。</p>
      *
      * <p>**用户直传白名单必须与 {@link com.faze.infra.storage.StorageKeyRules#ALLOWED_SCENES}
      * 的「用户直传子集」逐项一致**，也要与 APP 侧 `UploadScene`
@@ -38,7 +40,7 @@ public class UploadBO {
      * 而 `StorageKeyRules` 那边看起来是支持该场景的——排查时极易误判成前端问题。</p>
      */
     @NotBlank(message = "场景不能为空")
-    @Pattern(regexp = "^(realname|identity|license|avatar|chat|signature|complaint|feedback)$",
+    @Pattern(regexp = "^(realname|identity|license|avatar|chat|signature|complaint|feedback|case_evidence)$",
             message = "场景不在白名单内")
     private String scene;
 

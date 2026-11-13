@@ -21,8 +21,10 @@ import type { ApiResult } from '@/shared/api/types';
  * 上传场景（后端白名单）。
  *
  * `chat` 是段 2 G6 补的聊天附件场景（图片 / PDF）；
- * `complaint` / `feedback` 是段 7 C5 补的投诉与反馈截图场景。
- * **两边必须逐项一致**（后端 `StorageKeyRules.ALLOWED_SCENES`），少一个就会 400。
+ * `complaint` / `feedback` 是段 7 C5 补的投诉与反馈截图场景；
+ * `case_evidence` 是 2026-11-13 为立案第 4 步「证据材料」补的场景（W11）。
+ * **两边必须逐项一致**（后端 `StorageKeyRules.ALLOWED_SCENES` 的用户直传子集 +
+ * `UploadBO` 的 @Pattern），少一个就会 400。
  */
 export type UploadScene =
   | 'realname'
@@ -30,8 +32,10 @@ export type UploadScene =
   | 'license'
   | 'avatar'
   | 'chat'
+  | 'signature'
   | 'complaint'
-  | 'feedback';
+  | 'feedback'
+  | 'case_evidence';
 
 /** 上传凭证出参（`UploadTokenVO`）。 */
 export type UploadTokenData = {

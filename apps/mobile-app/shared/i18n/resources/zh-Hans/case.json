@@ -43,7 +43,7 @@
       "amountPrefix": "¥",
       "amountUnit": "元",
       "evidence": "证据材料",
-      "evidenceHint": "证据上传在文书中心完成，本页只做材料整理；提交后可在案件进度页补充"
+      "evidenceHint": "至少 1 份，最多 5 份；支持 JPG / PNG / PDF，单个文件不超过 10MB"
     },
     "dispute": {
       "privateLending": "民间借贷",
@@ -76,8 +76,10 @@
       "statementTooLong": "案情陈述不能超过 2000 字",
       "amountInvalid": "争议金额只能填数字，最多两位小数",
       "submitFailed": "提交失败，请检查网络后重试",
-      "resubmitFailed": "补正提交失败，请检查网络后重试"
-    }
+      "resubmitFailed": "补正提交失败，请检查网络后重试",
+      "evidenceRequired": "请至少上传 1 份证据材料"
+    },
+    "evidenceUploadFailed": "证据上传失败，请重试"
   },
   "filingDone": {
     "headerTitle": "提交结果",
