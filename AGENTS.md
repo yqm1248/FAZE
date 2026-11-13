@@ -18,7 +18,7 @@
 | 语言 | **4 种全做**：简体中文 `zh-Hans`、藏文 `bo`、维吾尔文 `ug-Arab-CN`、哈萨克文 `kk-Arab-CN`（中国境内阿拉伯字母版，RTL） |
 | 支付 | 平台账户余额制：界面展示「账户余额」，**充值走微信/支付宝，消费用余额抵扣** |
 | 法条 | **必须有本地法条库**（民法典、民事诉讼法等），AI 只能引用库中存在的条文 |
-| AI | 调用豆包大模型 API + 法条检索增强。**不做向量库**，用 MySQL 全文索引 |
+| AI | DeepSeek API（OpenAI 兼容，SSE 流式；模型 `deepseek-flash`，请求体固定 `thinking.type=disabled`）+ 法条检索增强。**不做向量库**，用 MySQL 全文索引 |
 | 微信小程序 | 不做 |
 
 ### 1.1 已确认的合规决策
@@ -43,7 +43,7 @@
 | 服务端 | Java 17 / Spring Boot **4.0** / MyBatis-Plus **3.5.18.1**（`mybatis-plus-spring-boot4-starter`）/ MySQL 8.0 / Redis 7 |
 | PC 后台 | **RuoYi 3.9.2（强制版本）**：后端 RuoYi-Vue **3.9.2 官方发行版 tag `v3.9.2`**（Spring Boot **4.0.3**）/ 前端 RuoYi-Vue3 **3.9.2**（Vue 3.5.26 / Element Plus 2.13.1） |
 | 实时通信 | 自建 WebSocket（`spring-boot-starter-websocket`）+ 第三方离线推送 |
-| AI | 豆包 API（SSE 流式）+ 本地法条库检索 |
+| AI | DeepSeek API（OpenAI 兼容，SSE 流式；模型 `deepseek-flash`，请求体固定 `thinking.type=disabled`）+ 本地法条库检索 |
 | 文书 | **HTML 模板 + `openhtmltopdf` 1.0.10**（LGPL，内部就是 PDFBox）——**不做 Word 导出**。`openhtmltopdf` 不做 GSUB/GPOS，**含少数民族文字的 PDF 仍不得使用它**（中文场景可用，见《第 4 段工作流》） |
 
 禁用清单见技术路线 **2.4 节**（版本以 `docs/architecture/` 下的最新版为准，当前为 v2.3）。

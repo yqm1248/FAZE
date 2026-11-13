@@ -1,18 +1,18 @@
-# 法泽 FAZE 文档基线 v1.82
+# 法泽 FAZE 文档基线 v1.83
 
 > # 后续一切文档从这里开始
 
 | 项 | 值 |
 | --- | --- |
-| 基线编号 | **v1.82** |
-| 确立日期 | 2026-11-13（第 8 段补漏——bo/ug/kk 补齐 **30 条**缺译使 `.i18n-pending.json` **归零**、应用图标换正式图（新增 `apps/mobile-app/assets/brand/`）、A-17 与三端本地联调**实测通过**；见 §7.85） |
-| 上一版 | v1.81（2026-11-13，第 8 段施工——A 组合规 6 项落地/判定、B-2 术语冻结、A-17 + 深色令牌层、F-2 版本回滚方案；见 §7.84） |
+| 基线编号 | **v1.83** |
+| 确立日期 | 2026-11-13（交接复核——`AGENTS.md` 技术栈表 AI 一栏从「豆包 API」回写成 DeepSeek（OpenAI 兼容 / SSE 流式 / `deepseek-flash` / 请求体固定 `thinking.type=disabled`），消除规则文档与实现的冲突；见 §7.86） |
+| 上一版 | v1.82（2026-11-13，第 8 段补漏——bo/ug/kk 补齐 30 条缺译使 `.i18n-pending.json` 归零、应用图标换正式图、A-17 与三端本地联调实测通过；见 §7.85） |
 | 所在分支 | `UI设计`（v1.2 及以前在 `docs` 分支） |
 | Git 标签 | `v1.13-docs-baseline`（v1.3~v1.10 当时未打标签，见 §7.13；v1.14~v1.32 亦未打标签，见 §7.33 末尾） |
 | 基线资产数 | **56**（49 份 Markdown + 7 份 JSON；v1.49~v1.66 为 45 份，v1.67 登记 48 漏算 1 份，v1.69~v1.74 逐步补到 55，v1.79 补到 56。**v1.82 无新增无删除**——第 8 段的验收证据 `docs/acceptance/seg8/F-1-商店材料清单.md` 与本次新增的 `apps/mobile-app/assets/brand/README.md` **都不是**基线资产，见 §一 第 1456 行的口径） |
 | 本版新增 | **0 份** |
 | 本版删除 | **0 份** |
-| 本版内容变更 | **4 份**（① 事实：`docs/facts/i18n-keys.json`（补 30 条译文后 1890 key / 1976 节点 / 四语言各 100% / pending 0）、`docs/facts/contracts.json`（承诺 444→**448** 条）；② 施工回写：`docs/architecture/法泽FAZE_第8段工作流_v1.0.md` §十一之一 补记 B-1 结清与图标替换；③ 索引：`docs/README.md` 基线号 3 处。另 `docs/CHANGELOG.md` 属叙述。**本文件自身不计入**） |
+| 本版内容变更 | **1 份**（`AGENTS.md`：§1 项目性质表与 §2 技术栈表的 AI 一栏「豆包 API」→「DeepSeek API（OpenAI 兼容，SSE 流式；模型 `deepseek-flash`，请求体固定 `thinking.type=disabled`）」。另 `docs/CHANGELOG.md` 属叙述。**本文件自身不计入**） |
 
 ---
 
@@ -110,9 +110,9 @@
 
 | # | 文件 | 行数 | 字节 | SHA256 前 16 位 |
 |---|---|---|---|---|
-| 1 | `AGENTS.md` | 200 | 19016 | `856afaaefb1e4feb` 📝 |
+| 1 | `AGENTS.md` | 200 | 19190 | `de1bccb5ee2314c9` 📝 |
 | 2 | `README.md` | 127 | 6650 | `e73e69e54d114ac0` |
- | 3 | `docs/README.md` | 363 | 46544 | `666d2e6a8ef32dd8` 📝 | 
+ | 3 | `docs/README.md` | 363 | 46544 | `b3564f799a7c6128` 📝 | 
 
 ### 2.2 架构与实施（★ 核心）
 
@@ -3116,4 +3116,32 @@ v1.81 提交时 `check-baseline` 报告的是 56/56 全绿，但本次重跑发�
 
 根因（事实）：`check-contracts.mjs` 每次运行都会**重写** `docs/facts/contracts.json`，而 v1.81 那次是在基线指纹算完之后才最后一次重写它，顺序错了。**教训**：改完代码 → 先跑 `npm run facts` → **再**算基线指纹 → 最后提交。本版已按这个顺序重跑（`check:facts` 重跑后「一字未变」）。
 
-> **【文档基线 v1.82】** 本文件属于「法泽 FAZE 文档基线」；当前基线版本见文件头 §表「基线编号」。后续一切文档从这里开始。
+## §7.86 v1.83 交接复核：AGENTS.md 的 AI 技术栈回写到实现口径（无新增，内容变更 1 份）
+
+> 触发：2026-11-13 夜间交接复核。交接文档第二轮核查发现 `AGENTS.md` 与实现冲突——文档写「豆包 API」，代码早在 `89e5142` 已切 DeepSeek。按 §4 第 6 条「修改基线内文档后必须重算指纹」，本版只动这一份。
+
+### 一、改了什么
+
+| 位置 | 原文 | 改为 |
+| --- | --- | --- |
+| `AGENTS.md` §1 项目性质表「AI」 | 调用豆包大模型 API + 法条检索增强。**不做向量库**，用 MySQL 全文索引 | DeepSeek API（OpenAI 兼容，SSE 流式；模型 `deepseek-flash`，请求体固定 `thinking.type=disabled`）+ 法条检索增强。**不做向量库**，用 MySQL 全文索引 |
+| `AGENTS.md` §2 技术栈表「AI」 | 豆包 API（SSE 流式）+ 本地法条库检索 | DeepSeek API（OpenAI 兼容，SSE 流式；模型 `deepseek-flash`，请求体固定 `thinking.type=disabled`）+ 本地法条库检索 |
+
+### 二、改的理由
+
+**不是**引 `AGENTS.md` §2 第 5 款——那款只管 RuoYi 版本引用（3.8.7 / 3.5.x / `springboot3` 分支），不涵盖 AI 技术栈。理由是「技术栈表与实现冲突」，依据是代码：
+
+- `AiProperties.java:82` `DEFAULT_MODEL = "deepseek-flash"`；`:73` 注释记「官方在售两个模型：`deepseek-flash` 与 `deepseek-v4-pro`」
+- `ChatRequest.java:61-62` `Thinking.disabled()` → `{"type":"disabled"}`
+- `DoubaoClientImpl.java:263-265` 调用方未设 `thinking` 时兜底 `disabled`
+
+文档写豆包，等于让接手者按错的上游实现。
+
+### 三、核对
+
+- `check-baseline` 前后：仅 #1 `AGENTS.md` 变化 → `200 / 19016 / 856afaaefb1e4feb` **改为** `200 / 19190 / de1bccb5ee2314c9`（行数不变、字节 +174）。
+- 同步更新：`docs/README.md` 基线号 3 处；`docs/CHANGELOG.md` 新增一条。
+
+---
+
+> **【文档基线 v1.83】** 本文件属于「法泽 FAZE 文档基线」；当前基线版本见文件头 §表「基线编号」。后续一切文档从这里开始。

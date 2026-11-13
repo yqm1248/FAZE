@@ -4,6 +4,35 @@
 
 ---
 
+## 2026-11-13（十一）· 交接复核：AGENTS.md 的 AI 技术栈回写 DeepSeek（基线 v1.82 → v1.83）
+
+**一句话**：交接文档第二轮核查发现 `AGENTS.md` 两处技术栈仍写「豆包 API」，与已实现的 DeepSeek 上游冲突；按 `docs/BASELINE.md` §4 第 6 条重算指纹并出基线 **v1.83**（无新增无删除，内容变更 2 份：`AGENTS.md` + `docs/README.md` 基线号）。
+
+**触发**：负责人交接复核。同轮修正的其余内容在桌面 `FAZE-交接文档-2026-11-13.md`（不在仓库内，不产生 commit）；与本 commit 相关的只有「`AGENTS.md` 技术栈与实现冲突」这一条。
+
+### 改了什么
+
+| 位置 | 原文 | 改为 |
+| --- | --- | --- |
+| `AGENTS.md` §1 项目性质表「AI」 | 调用豆包大模型 API + 法条检索增强。**不做向量库**，用 MySQL 全文索引 | DeepSeek API（OpenAI 兼容，SSE 流式；模型 `deepseek-flash`，请求体固定 `thinking.type=disabled`）+ 法条检索增强。**不做向量库**，用 MySQL 全文索引 |
+| `AGENTS.md` §2 技术栈表「AI」 | 豆包 API（SSE 流式）+ 本地法条库检索 | DeepSeek API（OpenAI 兼容，SSE 流式；模型 `deepseek-flash`，请求体固定 `thinking.type=disabled`）+ 本地法条库检索 |
+| `docs/BASELINE.md` | v1.82；`AGENTS.md` 登记 200/19016/`856afaaefb1e4feb`、`docs/README.md` 登记 363/46544/`666d2e6a8ef32dd8` | **v1.83**；`AGENTS.md` 200/**19190**/`de1bccb5ee2314c9`、`docs/README.md` 363/46544/`b3564f799a7c6128`；新增 §7.86 |
+| `docs/README.md` | 基线号 v1.82（3 处） | v1.83 |
+
+### 为什么改
+
+代码早在 `89e5142` 已切 DeepSeek：`AiProperties.java:82` `DEFAULT_MODEL = "deepseek-flash"`、`ChatRequest.java:61-62` `Thinking.disabled()` → `{"type":"disabled"}`、`DoubaoClientImpl.java:263-265` 调用方未设时兜底 `disabled`。`AGENTS.md` 自称「优先级高于任何单次对话中的口头偏好」，却写着旧上游——接手者会按错的实现开工。
+
+**改的理由不是** `AGENTS.md` §2 第 5 款（那款只管 RuoYi 版本引用：3.8.7 / 3.5.x / `springboot3` 分支，不涵盖 AI 技术栈），而是「技术栈表与实现冲突」。
+
+### 核对
+
+- `node scripts/facts/check-baseline.mjs`：改前报 `AGENTS.md` 与 `docs/README.md` 两处不符；改后 **56/56 全绿、exit 0**。
+- `AGENTS.md` 行数仍 200（两行文案替换，字节 +174）；`docs/README.md` 行数/字节不变（v1.82→v1.83 等长），只有指纹变。
+- 落款规则：`AGENTS.md` 落款保持 `【文档基线 v1.0】` 不动（§1.1：落款写首次纳入基线的版本，不随内容变更升级）。
+
+---
+
 ## 2026-11-13（十）· B 类三项落地：结算收入改成成交额、公告真的到得了 APP、立案证据真的传得上去
 
 **一句话**：负责人拍板的三个「必须做」全部落地——结算明细口径统一到成交额并冻结在批次生成时刻；
