@@ -1,8 +1,10 @@
 /**
  * 我的案件列表（设计稿 `design/ui/53-my-cases.html`，段 5 B3）。
  *
- * 职责：底部「案件」tab 的主页——4 个筛选 chips + 案件卡片列表。
- * 调用方：路由壳 `app/(tabs)/case.tsx`（tab 根，无返回箭头）。
+ * 职责：我的案件列表——4 个筛选 chips + 案件卡片列表。
+ * 调用方：路由壳 `app/case-my.tsx`（**二级页，带返回箭头**）；入口在首页「进度查询」宫格
+ *         与「我的」页菜单。注意它**不是**底部 tab 的「案件」——那个 tab 是案例列表
+ *         （`app/(tabs)/case.tsx` → `CaseListPage`，段 5 G2 换的）。
  * 数据来源：`GET /api/v1/app/cases`（`fetchMyCases`），按筛选 chip 重新拉取。
  * 注意：
  *   1. 卡片字段**只有**：案由 + 平台单号 + 状态 pill + 律师头像/姓名 + 「最近事件 · 月-日」。
@@ -176,7 +178,6 @@ export function MyCasesPage() {
     <Screen edges={['top', 'left', 'right']}>
       <AppHeader
         title={t('case.my.title')}
-        showBack={false}
         titleAlign="left"
         trailing={
           <Pressable
