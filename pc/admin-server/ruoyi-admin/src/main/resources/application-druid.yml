@@ -1,4 +1,8 @@
 # 数据源配置
+# 2026-11-13：库口令与 Druid 控制台凭据改成环境变量可覆盖（W13 / 盲测 S51）。
+#   本机不设环境变量时仍用下面的默认值，保证 clone 下来直接能跑；
+#   生产/测试环境必须由部署脚本注入 FAZE_ADMIN_DB_PASSWORD / FAZE_DRUID_PASSWORD。
+#   改动已登记 docs/analysis/ruoyi-patches.md 第 12 条。
 spring:
     datasource:
         type: com.alibaba.druid.pool.DruidDataSource
@@ -7,8 +11,8 @@ spring:
             # 主库数据源
             master:
                 url: jdbc:mysql://localhost:3306/faze_admin?useUnicode=true&characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai
-                username: root
-                password: 123456
+                username: ${FAZE_ADMIN_DB_USER:root}
+                password: '${FAZE_ADMIN_DB_PASSWORD:123456}'
             # 从库数据源
             slave:
                 # 从数据源开关/默认关闭
@@ -43,12 +47,18 @@ spring:
                 enabled: true
             statViewServlet:
                 enabled: true
-                # 设置白名单，不填则允许所有访问
-                allow:
+                # 设置白名单，不填则允许所有访问。
+                # **必须填**：控制台能看到全部 SQL、数据源连接串与会话，等于数据库后门。
+                # 2026-11-13 前这里是空的，任何人打开 /druid/login.html 输 ruoyi/123456 即可进（盲测 S51）。
+                # 多网段/多运维 IP 时用逗号分隔，如 "127.0.0.1,10.0.0.5"。
+                # 生产若不需要，把 enabled 置 false 最干净。
+                allow: ${FAZE_DRUID_ALLOW:127.0.0.1}
                 url-pattern: /druid/*
-                # 控制台管理用户名和密码
-                login-username: ruoyi
-                login-password: 123456
+                # 控制台管理用户名和密码（环境变量覆盖，默认值只用于本机开发）
+                login-username: '${FAZE_DRUID_USER:faze-admin}'
+                login-password: '${FAZE_DRUID_PASSWORD:faze-druid-local-only}'
+                # 关闭「重置全部统计」按钮：它会把监控数据清零，掩盖真实压力
+                resetEnable: false
             filter:
                 stat:
                     enabled: true

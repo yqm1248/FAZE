@@ -84,8 +84,18 @@
 | 10 | 2026-11-13 | `src/store/modules/settings.js` | 默认主题色 `#409EFF`（若依蓝）→ `#4a66ee`（法泽品牌蓝，见 `design/admin/tokens.css` 的 `--brand-primary`、《PC后台UI设计说明》§137） | 全局：所有 `el-button--primary` 与通过 `--el-color-primary` 取色的组件。**已被 localStorage 的 `layout-setting` 存过旧色的浏览器不会自动变**，需清该 key 或在设置面板重选一次 | 改回 `'#409EFF'` |
 | 11 | 2026-11-13 | `src/assets/styles/variables.module.scss` | 主题/侧边栏配色对齐设计稿：`$menuActiveText`/`$menuLightActiveText`/`$--color-primary` → `#4a66ee`；`$menuBg`/`$base-menu-background` `#1a1f2e` → `#22283a`；`$base-sub-menu-background` `#141824` → `#1b2030`；`$menuHover` → `#2c3350`。目的：从登录页左板（`--bg-sidebar: #22283a`）进后台时视觉不断裂 | 侧边栏底色与菜单激活色；所有引用 `$--color-primary` 的样式 | 逐项改回原值（见本条「为什么必须改」列） |
 
-**同批改动的非代码资源**（不算 patch，但影响面一样大，一并列出便于回滚）：
+### #12 后端：Druid 控制台与库口令（2026-11-13，W13 剩余项）
 
+| 项 | 内容 |
+|---|---|
+| 文件 | `pc/admin-server/ruoyi-admin/src/main/resources/application-druid.yml`（**后端**，不在前端根下） |
+| 为什么必须改 | 盲测 S51：`/druid/login.html` 匿名可达（实测 HTTP 200），控制台账号口令是若依默认的 `ruoyi/123456`，`allow` 白名单为空（= 允许所有 IP）。进去能看到全部 SQL、数据源连接串、会话，等于数据库后门；同一个文件里库口令还是明文 `123456` |
+| 改了什么 | ① 库用户名/口令、Druid 控制台用户名/口令、`allow` 全部改成 `${环境变量:本机默认值}` 形式——本机不设变量仍能直接跑，生产由部署脚本注入；② `allow` 默认 `127.0.0.1`（原来空）；③ `resetEnable: false`（原默认 true，「重置全部统计」会掩盖真实压力） |
+| 影响面 | 只影响 `/druid/**` 与数据源连接；**不设环境变量时行为与本机原来完全一致**，所以本地启动方式无需改动 |
+| 生产必须做 | 注入 `FAZE_ADMIN_DB_PASSWORD` / `FAZE_DRUID_PASSWORD`；若不需要控制台，直接把 `statViewServlet.enabled` 设 false 最干净 |
+| 回滚 | `git checkout HEAD -- pc/admin-server/ruoyi-admin/src/main/resources/application-druid.yml` |
+
+**同批改动的非代码资源**（不算 patch，但影响面一样大，一并列出便于回滚）：
 | 资源 | 改动 | 回滚 |
 |---|---|---|
 | `pc/admin-web/.env.development` / `.env.production` / `.env.staging` | `VITE_APP_TITLE` 若依管理系统 → 法泽管理后台（侧边栏左上角与浏览器标签页共用）。**这三个文件此前被 `.gitignore` 的 `.env.*` 规则忽略、且从未入库**，已于同批修 `.gitignore` 加白名单 | 改回 `若依管理系统` |
