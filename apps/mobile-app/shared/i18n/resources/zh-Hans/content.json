@@ -25,7 +25,10 @@
     "emptyDesc": "系统通知、订单提醒、律师回复都会出现在这里。",
     "soon": "通知功能即将开放",
     "lawyerEntry": "去找律师",
-    "backHome": "返回首页"
+    "backHome": "返回首页",
+    "loadMore": "加载更多",
+    "loadingMore": "加载中",
+    "noMore": "没有更多了"
   },
   "messageDetail": {
     "title": "消息详情",
