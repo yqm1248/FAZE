@@ -320,9 +320,12 @@ export function OrderDetailPage() {
       {data !== null && (data.actions.length > 0 || data.reviewed) ? (
         <ActionBar>
           <View style={styles.actionRow}>
+            {/* 动作按钮**全部渲染**，不能只取第一个（工单 W05 / 盲测 M60·O39·L32）：
+                IN_SERVICE 与 REFUND_REJECTED 的服务端 actions 都是 `[enter_chat, refund]`，
+                早先 `.slice(0, 1)` 会把 refund 吃掉，导致**任何状态下都看不到退款按钮**
+                ——「退款功能整体不可用」的表象就是这么来的。pay 单独走下面的主按钮，此处过滤掉。 */}
             {data.actions
               .filter((action) => action !== 'pay')
-              .slice(0, 1)
               .map((action) => (
                 <PrimaryButton
                   key={action}

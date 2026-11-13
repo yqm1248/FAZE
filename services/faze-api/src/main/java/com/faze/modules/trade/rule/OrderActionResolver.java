@@ -69,8 +69,12 @@ public final class OrderActionResolver {
             case COMPLETED -> List.of(ACTION_REVIEW);
             // 退款被驳回后回到可服务状态：还能继续会话、也能再次申请退款
             case REFUND_REJECTED -> List.of(ACTION_ENTER_CHAT, ACTION_REFUND);
-            // PAID 是「等律师接单」，REFUNDING 是「退款审核中」，都不是可点动作
-            case PAID, CANCELLED, REFUNDING, REFUNDED -> List.of();
+            // PAID = 已支付、等律师接单：**可以申请退款**（RefundService 的 APPLICABLE 就是
+            // PAID / IN_SERVICE），这里不给 refund 会让「已支付」订单详情页一个动作按钮都没有
+            // （工单 W05 的第一处断点）。不能给 cancel —— 钱已经扣了，只能走退款。
+            case PAID -> List.of(ACTION_REFUND);
+            // REFUNDING 是退款审核中、REFUNDED 是已退款、CANCELLED 是已取消：都无动作
+            case CANCELLED, REFUNDING, REFUNDED -> List.of();
         };
     }
 

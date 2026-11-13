@@ -11,8 +11,10 @@
  *   2. 设计稿 61 的第 4 组是「消息中心 / 我的收藏 / 关注律师 / 实名认证 / 客服中心 / 设置」；
  *      工作流 E4 原文还点名「意见反馈 / 关于」。两处合并：第 4 组共 8 个入口，
  *      设计稿一个不少、工作流点名的也都进得来（记验收证据 §偏差）。
- *   3. 「退款申请」沿用设计稿：入口指向 `/refund`。该页设计上需要订单 id（从订单详情进），
- *      这里没有 id 时页面走错误态（有页面、不 404），不做假数据填充。
+ *   3. 「退款申请」入口**指向订单列表而不是 `/refund`**（工单 W05 / 盲测 O39）：退款单必须挂在
+ *      某张订单上，`/refund` 缺 `id` 时 `getOrderDetail('')` 会打到 `/api/v1/app/orders/`，
+ *      不匹配 `/{id}` 路由，必然进错误态。用户从订单列表选一张订单、在详情页点「申请退款」
+ *      才是这条链路的真实入口。不要为了「和设计稿一致」把它改回 `/refund`。
  *   4. 四态：纯静态路由聚合，无加载 / 空 / 错误三态；断网也能打开（工作流算做完第 3 条）。
  *   5. 每格文字 ≤4 字：390 宽 4 列每格约 85px，5 字会折行把整行基线带歪（设计稿文件头原话）。
  */
@@ -81,7 +83,7 @@ const FEATURE_GROUPS: readonly FeatureGroup[] = [
       { labelKey: 'profile.allFeatures.myOrders', icon: 'receipt-outline', href: PAGE_ROUTES.orders },
       { labelKey: 'profile.allFeatures.balance', icon: 'wallet-outline', href: PAGE_ROUTES.balance },
       { labelKey: 'profile.allFeatures.recharge', icon: 'add-circle-outline', href: PAGE_ROUTES.recharge },
-      { labelKey: 'profile.allFeatures.refund', icon: 'return-up-back-outline', href: PAGE_ROUTES.refund },
+      { labelKey: 'profile.allFeatures.refund', icon: 'return-up-back-outline', href: PAGE_ROUTES.orders },
     ],
   },
   {

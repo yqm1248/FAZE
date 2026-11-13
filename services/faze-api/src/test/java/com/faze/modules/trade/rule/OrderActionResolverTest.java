@@ -31,9 +31,12 @@ class OrderActionResolverTest {
     }
 
     @Test
-    @DisplayName("PAID：没有可点动作（等律师接单，是状态提示不是按钮）")
-    void paidHasNoAction() {
-        assertTrue(OrderActionResolver.resolve(OrderStatus.PAID, true).isEmpty());
+    @DisplayName("PAID：只能申请退款（钱已扣不能取消，但可以退）")
+    void paidOnlyRefund() {
+        // 2026-11-13 改：PAID 早先返回空列表，导致「已支付」订单详情页一个按钮都没有，
+        // 退款功能整体不可用（工单 W05）。RefundService 的 APPLICABLE 本来就含 PAID。
+        assertEquals(List.of(OrderActionResolver.ACTION_REFUND),
+                OrderActionResolver.resolve(OrderStatus.PAID, true));
     }
 
     @Test
