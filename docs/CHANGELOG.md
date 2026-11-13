@@ -4,6 +4,84 @@
 
 ---
 
+## 2026-11-13（八）· 上游从豆包切到 DeepSeek（顺带修掉一个从未暴露的流式中断 bug）+ 第 0 批 13 条 P0 逐条核查：5 条误报、4 条真修、3 条待拍板
+
+**一句话**：AI 上游由火山方舟豆包改为 DeepSeek，模型取在售最便宜的 `deepseek-flash`；
+为了让它真能跑通，把一个**被 mock 掩盖至今**的流式解析 NPE 挖出来修了（这是所有 508001 中断的真因）；
+另外对盲测报告里的 13 条 P0 做了**逐条验码**，结论是 **5 条早已修好（误报）、4 条真修并实测、3 条必须负责人拍板才能动**。
+
+**触发**：负责人 2026-11-13 原话——「这边不使用豆包的了，这边选择使用DeepSeek的api」
+「选择最便宜的那个模型」「先把这些修了吧，先归类问题，然后准备修」「继续」。
+
+### 一、AI 上游：火山方舟豆包 → DeepSeek（OpenAI 兼容）
+
+| 改了什么 | 文件 | 说明 |
+| --- | --- | --- |
+| 默认 base-url / 模型 | `AiProperties.java` | `https://api.deepseek.com`、`deepseek-flash`；env 键 `FAZE_DEEPSEEK_*` |
+| 配置键改名 | `application.yml` / `application-dev.yml` / `application-prod.yml` | `${FAZE_DEEPSEEK_MODEL:deepseek-flash}` 等 |
+| 请求体加思考开关 | `ChatRequest.java`、`DoubaoClientImpl.java` | 新增 `thinking:{type:"disabled"}`，`@JsonInclude(NON_NULL)` |
+| 兜底模型名 | `PromptAssembler.java` | **真 bug**：`DEFAULT_MODEL` 还是 `doubao-seed-1.6-32k`，一旦 `sys_config` 读不到就会拿豆包名去打 DeepSeek，全量 400。改为 `deepseek-flash` |
+| 种子数据 | `database/seed/seg3_config.sql` | 同上，`sys_config.ai_model` 种子值还是豆包名 → **新环境跑一遍种子 AI 全挂**。改为 `deepseek-flash` |
+| 文案 | `ErrorCode.java`、`FazeProbeProperties.java`、`DoubaoClientStub.java`、`.env.example` | 注释与日志里的「豆包」改成中性表述 |
+
+**为什么没改类名（`DoubaoClient` / `DoubaoClientImpl` / `DoubaoClientStub`）**：接口是 OpenAI 兼容协议，
+换供应商只需改 base-url 与模型名，类名只是历史包袱。改名会波及 20+ 引用与若干文档，
+收益为零、风险不为零——留到以后统一重命名时再动。
+
+**关于「最便宜」这件事，要说清楚**：`deepseek-flash` 的**默认**行为是思考模式，
+实测同一问题 completion 168 token 里 138 是推理，比不思考贵 3 倍以上。
+所以真正省钱的不是选 flash，而是**请求体里固定 `thinking.type=disabled`**（已在
+`DoubaoClientImpl#copyWithStream` 里兜底）。实测单次调用成本（670 in / 427 out，按峰时价）：
+flash 不思考 ≈ ¥0.005，flash 思考 ≈ ¥0.016，pro 不思考 ≈ ¥0.019。
+
+**密钥落点**：只写在 `deploy/.env`（git 忽略，已确认无 BOM、UTF-8、不入库）；`.env.example` 留空键名。
+**该 key 曾出现在聊天记录里，上线前必须轮换。**
+
+### 二、修掉 508001 的真因：流式解析对 null 用 `.map()`
+
+`DoubaoClientImpl#parseChunk` 对 `[DONE]` 与心跳帧返回 `null`，而 Reactor 的 `.map()` 不允许 null
+（会抛 `NullPointerException: The mapper returned a null value`），异常从 `Flux` 冒到
+`AI_SERVICE_DOWN(508001)`。**这个 bug 一直都在，只是此前 AI 全程 mock 走 Stub，从没走到真实流**——
+换真上游后第一次调用就炸。改用 `mapNotNull` 过滤。
+
+### 三、第 0 批 13 条 P0：核查结论（**误报占 38%**）
+
+FIXPLAN 里这 13 条来自对盲测报告的二次归纳，**当时没有逐条验码**。这次逐条读源码 + 实测：
+
+| 结果 | 条数 | 明细 |
+| --- | --- | --- |
+| **误报（早已修好）** | 5 | 充值回调 `JSON.parse`（前端已用 text+http 模式、后端按 content-type 重建报文）、律师端聊天左右反转（实测 31 条非 system 消息 `mine` 100% 互补）、`chat.read` 死循环（`reportedSeqRef` 前进才发包）、立案返回键 Web 失效（`usePreventRemove` + `pushState` 已修）、隐私弹层无「不同意」出口（按钮与分支都在） |
+| **真修并实测** | 4 | 见第四节 |
+| **必须拍板才能动** | 3 | W09 公告进消息中心（后端已通、APP 页仍是静态空态，属于「新建功能」不是修 bug；且定时公告没有扫描发送任务）、W10 结算「收入」口径（「订单收入」Σ成交额 与 「应结金额」Σ律师净收入 恒差平台服务费，验收标准要选一个）、W11 立案第 4 步证据上传（上传场景白名单里根本没有证据场景，只加后端 `@NotEmpty` 会让现有立案全部失败） |
+| 未复现，需实测 | 1 | 律师入驻审核 401006——静态自洽，运行时未复现 |
+
+**方法论结论**：剩余 ~160 张工单**不能按报告顺序直接开工**，必须先验码。这条比修完几条更重要。
+
+### 四、实际修的 4 条
+
+| 问题 | 根因 | 改动 | 验证 |
+| --- | --- | --- | --- |
+| 订单详情的退款按钮永远不出现 | 三处断点串联：`OrderActionResolver` 对 PAID 返回空动作 → 详情页 `.slice(0,1)` 只留第一个 → 「全部功能」页退款入口没带订单 id | `OrderActionResolver` PAID → `[refund]`；去掉 `.slice`；退款入口改跳订单列表 | 单测 8 条通过；接口实测 `completed → ["review"]` |
+| PC 审核影像 60 秒后全部裂图 | 60 秒是安全设计（预签名 URL 有效期），缺的是续签 | 抽屉打开期间每 50 秒静默重取、只换 URL；三处 `#error` 加「重新加载」 | 停留 65 秒后 `exp` 顺延 50 秒、`sig` 变更、`naturalWidth=600` |
+| PC 登录页预填 admin/admin123 | 初始值硬编码 | 清空为 `''` | 登录页两输入框 `value` 均为空 |
+| 服务监控页泄露服务器绝对路径与启动参数 | 直接渲染 `jvm.home` / `userDir` / 全部启动参数 | 路径只显示末级目录；启动参数整格隐藏（可能含 `-Dxx.password=`） | 页面文本不再出现任何盘符 |
+
+### 五、验证
+
+- `mvn -o -Dtest=OrderActionResolverTest test` → Tests run: 8, Failures: 0, BUILD SUCCESS
+- `apps/mobile-app` 的 `npm run verify`（typecheck + eslint + 裸中文 + i18n 门禁）→ exit 0
+- `pc/admin-web` 的 `npx vite build` → exit 0
+- 浏览器实测（CDP，真实尺寸）：上面 4 条各自有前后对比数据
+
+### 六、遗留（不在本次范围）
+
+- W09 / W10 / W11 三条等负责人拍板
+- 第 1 批（时区、金额与时间格式、内部信息上屏、若依残留）、第 2/3 批未开工
+- 部署侧安全问题（Druid 弱口令 + 控制台匿名、`token.secret` 为示例值、Swagger 匿名）已记录未动——
+  改动会连不上库 / 登不进后台，需另行确认
+
+---
+
 ## 2026-11-13（七）· PC 后台品牌化 + 信息架构重整：菜单按设计书分 11 组、登录页重做、换成法泽的图标和名字
 
 **一句话**：PC 后台从「若依管理系统的壳子里塞了一堆法泽页面」变成「法泽管理后台」——
