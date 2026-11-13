@@ -8,6 +8,12 @@
  * 注意：
  *   1. **按钮由服务端的 `actions` 决定，前端不自己写状态判断**：状态机唯一权威在服务端，
  *      客户端再判一遍必然漂移（例如退款被驳回后能不能再申请退款）。
+ *      **唯一例外**是「查看聊天记录」（`CHAT_HISTORY_STATUSES`）：服务端 `actions` 对终态订单
+ *      返回空列表（`OrderActionResolver` 只在 IN_SERVICE / REFUND_REJECTED 给 `enter_chat`），
+ *      但会话本身还在——`POST /app/conversations` 对**已存在**会话不校验购买
+ *      （`ConversationService`「已存在的会话不再校验」）。不补这个只读入口，
+ *      订单一旦退款/完成，历史聊天记录就永久打不开（2026-11-13 实测：60 元订单 30 分钟
+ *      无人接单被系统自动退款后，APP 里再也回不到那个会话，只能靠浏览器改 URL）。
  *   2. 取消是不可逆动作：先弹确认，并把「律师时段会释放、价格保留不了」这句后果写清楚。
  *   3. 未接入的动作（退款/评价/会话在 G4/G5/G6）点了给明确提示，**不留死链、不静默失败**。
  *   4. 费用明细只展示用户侧口径（服务费用 + 应付/实付）；平台服务费对用户是 0，
@@ -92,6 +98,23 @@ const HERO_TONES: Record<string, { bg: string; fg: string }> = {
 
 /** 状态头默认色调（未知状态时用，避免 `?? HERO_TONES.cancelled` 的类型可能为空问题）。 */
 const DEFAULT_HERO_TONE = { bg: color.background.input, fg: color.text.muted };
+
+/**
+ * 订单已终结、但历史会话仍应能查看的状态白名单。
+ *
+ * 只列「一定付过款」的状态：`pending`（没付）和 `cancelled`（未支付即取消）都不在这里——
+ * 这两态下用户与律师之间通常没有会话，放进来点一次就是 404005「未购买咨询服务」。
+ * `in_service` / `refund_rejected` 也在列表里，但服务端 actions 已给 `enter_chat`，
+ * 渲染处用 `!actions.includes('enter_chat')` 去重，不会出现两个入口。
+ */
+const CHAT_HISTORY_STATUSES: ReadonlyArray<string> = [
+  'paid',
+  'in_service',
+  'completed',
+  'refunding',
+  'refunded',
+  'refund_rejected',
+];
 
 /**
  * 渲染状态头（图标 + 标题 + 说明）。
@@ -310,6 +333,16 @@ export function OrderDetailPage() {
     }
   };
 
+  // 「查看聊天记录」入口（文件头注释第 1 条的例外）。
+  // 单独取 `chatLawyerId` 是为了让 TS 在 onPress 闭包里保住非空收窄：
+  // 直接用 `data.lawyerId` 的话，属性收窄进了箭头函数就失效，只能写 `as string`。
+  const chatLawyerId = data === null ? null : data.lawyerId;
+  const canViewChatHistory =
+    data !== null
+    && chatLawyerId !== null
+    && CHAT_HISTORY_STATUSES.includes(data.status)
+    && !data.actions.includes('enter_chat');
+
   return (
     <Screen edges={['top', 'left', 'right', 'bottom']}>
       <AppHeader title={t('trade.order.detailTitle')} />
@@ -317,7 +350,10 @@ export function OrderDetailPage() {
         {(order) => <OrderBody order={order} />}
       </AsyncBoundary>
 
-      {data !== null && (data.actions.length > 0 || data.reviewed) ? (
+      {/* 操作栏的显示条件里必须带上 `canViewChatHistory`：退款/完成且未评价的订单
+          `actions` 是空数组、`reviewed` 是 false，只按这两个条件判断会让操作栏整个不渲染，
+          「查看聊天记录」也就跟着一起消失——那正是这个入口要解决的那个场景。 */}
+      {data !== null && (data.actions.length > 0 || data.reviewed || canViewChatHistory) ? (
         <ActionBar>
           <View style={styles.actionRow}>
             {/* 动作按钮**全部渲染**，不能只取第一个（工单 W05 / 盲测 M60·O39·L32）：
@@ -341,6 +377,16 @@ export function OrderDetailPage() {
                 label={t('trade.order.actViewReview')}
                 variant="outline"
                 onPress={() => router.push(reviewHref(data.id))}
+                style={styles.actionGhost}
+              />
+            ) : null}
+            {/* 「查看聊天记录」：只读入口，见文件头注释第 1 条与 CHAT_HISTORY_STATUSES。
+                服务端已给 enter_chat 时不重复渲染（IN_SERVICE / REFUND_REJECTED）。 */}
+            {canViewChatHistory && chatLawyerId !== null ? (
+              <PrimaryButton
+                label={t('trade.order.actViewChat')}
+                variant="outline"
+                onPress={() => router.push(chatHref(chatLawyerId))}
                 style={styles.actionGhost}
               />
             ) : null}

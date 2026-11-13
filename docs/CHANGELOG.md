@@ -4,6 +4,44 @@
 
 ---
 
+## 2026-11-13（十三）· 订单详情补「查看聊天记录」入口：订单退款/完成后，聊天记录再也进不去
+
+**一句话**：用户付 60 元咨询、聊了几句退出后，在 APP 里**再也找不到那个会话**——不是会话丢了，是订单进入退款/完成等终态后，服务端 `actions` 返回空列表，订单详情页一个按钮都没有，而全仓**没有会话列表页**（`getConversations` 定义了但零调用方）。修复方式是订单详情页对终态订单补一个只读的「查看聊天记录」按钮。
+
+**触发**：负责人真机演示前自己试出来的（2026-11-13 晚）。订单 `OR20261113000710` 21:16 支付、21:46 因「超时无人接单」被系统自动全额退款（`OrderTimeoutPolicy.ACCEPT_TIMEOUT=30min`），退款后订单详情页 `actions=[]`，APP 里无任何入口可回到该会话；浏览器版只能靠手改 URL `?lawyerId=2` 进去，真机上完全无解。
+
+### 改了什么
+
+| 位置 | 改动 |
+| --- | --- |
+| `apps/mobile-app/features/trade/pages/OrderDetailPage.tsx` | 新增 `CHAT_HISTORY_STATUSES` 白名单（`paid` / `in_service` / `completed` / `refunding` / `refunded` / `refund_rejected`）；底部操作栏加「查看聊天记录」按钮，跳 `chatHref(lawyerId)`；`ActionBar` 的显示条件补上 `canViewChatHistory` |
+| 同上 · 文件头注释第 1 条 | 原文写「按钮由服务端的 `actions` 决定，前端不自己写状态判断」，本次是**明确登记的例外**：终态订单服务端不给动作，但会话仍然可读，注释里写清了为什么必须前端补这一处 |
+| `shared/i18n/resources/{zh-Hans,ug-Arab-CN,kk-Arab-CN,bo}/trade.json` | 新增 `trade.order.actViewChat`：查看聊天记录 / سۆھبەت خاتىرىسىنى كۆرۈش / ساۋبات جازباسىن كورۋ / ཁ་བརྗོད་ཀྱི་ཐོ་ལྟ་བ། |
+
+### 为什么这么改
+
+**不用改后端**：`ConversationService.createOrGet` 对**已存在**的会话直接返回、不再校验购买（源码注释：「否则用户退款后连历史聊天记录都打不开」）。所以只要前端能把 `lawyerId` 送到 `/chat`，会话就能打开。实测 `POST /app/conversations {lawyerId:"2"}` → `code=200, conversationId=2`。
+
+**为什么不补会话列表页**：那才是治本（段 8 的「消息列表」一直没做），但演示在即，新页面要路由壳 + 四态 + 四语言文案 + 真机验证，风险高于收益。先用订单详情这个入口兜住，会话列表页另开一轮做。
+
+**为什么白名单不含 `pending` / `cancelled`**：这两个状态没付过款，用户与律师之间通常没有会话，放进来点一次就是 404005「未购买咨询服务」。`in_service` / `refund_rejected` 在服务端已有 `enter_chat`，渲染处用 `!actions.includes('enter_chat')` 去重，不会出现两个入口。
+
+### 核对
+
+- `npm run verify`（`tsc --noEmit` + `eslint .` + `check:raw-text` + `check:i18n`）：**exit 0**，四语言目录同构、缺译登记为空。
+- CDP 实测（390×844）：
+
+| 判据 | 结果 |
+| --- | --- |
+| 已退款订单 47 详情页 | 出现「查看聊天记录」；点击 → URL 变 `/chat?lawyerId=2`，历史消息正常加载 |
+| 已完成订单 45 详情页 | 「查看聊天记录」与「查看评价」同时出现，不冲突 |
+| 四语言按钮文案截断（量按钮容器 `scrollWidth - clientWidth`） | zh / ug / kk / bo 均为 **0px**（容器宽 348px） |
+| Android bundle（Expo Go 走的 `/node_modules/expo-router/entry.bundle?platform=android`） | HTTP **200**，6.2s，产物内含 `actViewChat` —— 真机连上即拿到新代码 |
+
+> 说明：`ActionBar` 原来的显示条件是 `actions.length > 0 || reviewed`，退款且未评价的订单两个条件都不满足，操作栏整个不渲染。这次一并补上 `canViewChatHistory`，否则按钮加了也不会显示——这是同一处缺陷的第二个断点。
+
+---
+
 ## 2026-11-13（十二）· 演示前体检修掉两处 caseflow 显示缺陷（多语言文本被裁、错误 key 拼错）
 
 **一句话**：演示准备体检（CDP 逐屏 + 真实接口）抓到两处只在特定条件下才现形的显示缺陷——维吾尔语下立案页合规说明被裁掉半行、案件 id 缺失时错误提示露出 `⟦error.case.notFound⟧` 原文；各改一行修掉，中文界面零变化。
