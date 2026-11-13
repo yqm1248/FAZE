@@ -6,6 +6,11 @@
  * 注意：
  *   1. `status` 为空时**默认只看 pending**（待审队列）；`draft` 不进队列，
  *      传 draft / 其它非法值一律 401001（契约只开放 PENDING / APPROVED / REJECTED）。
+ *   1.1 **申请人已注销 / 已封禁的申请不进队列**（2026-11-13 修 W06）。
+ *      原因：approve 会先校验申请人 `app_user.status='active'`，非 active 直接 401006；
+ *      而 reject 不做这个校验。于是队列里出现一条「驳回能成功、通过恒失败」的申请——
+ *      盲测 B66/B68 就是这个现象，B69「已注销用户的申请仍在待审核队列」是它的上游。
+ *      队列按申请人状态过滤后，管理员根本点不到那条必然失败的「通过」。
  *   2. 查询参数 `applyType` 本段**没有对应字段**，Controller 不接收、Service 不处理；
  *      接收了却不读会让前端误以为筛选生效（规范 §6.5 的反例）。
  *   3. 审核写库在 AdminLawyerApplicationAuditExecutor（四个动作名要分开注解），
@@ -54,6 +59,15 @@ public class AdminLawyerApplicationService {
     private static final String STATUS_PENDING = "pending";
     private static final String ACTION_APPROVE = "approve";
     private static final Set<String> ALLOWED_STATUS = Set.of("pending", "approved", "rejected");
+    /**
+     * 只看「申请人账号仍可用」的这一批（W06 修复）。
+     *
+     * <p>与 {@code AdminLawyerApplicationAuditExecutor#assertApplicantActive} 保持同一口径：
+     * status 必须是 active 且未软删。approve 会按这个条件拦，队列也按它过滤，
+     * 否则队列里会留一条「点通过必失败」的申请。</p>
+     */
+    private static final String SQL_APPLICANT_ACTIVE =
+            "SELECT id FROM app_user WHERE status = 'active' AND deleted_at IS NULL";
 
     private final LawyerApplicationMapper applicationMapper;
     private final LawyerApplicationLogMapper applicationLogMapper;
@@ -75,6 +89,9 @@ public class AdminLawyerApplicationService {
                 Pages.of(query.getPageNum(), query.getPageSize()),
                 Wrappers.<LawyerApplication>lambdaQuery()
                         .eq(LawyerApplication::getAuditStatus, status)
+                        // 申请人已注销 / 封禁的申请不进队列：approve 必然 401006，reject 却能成功，
+                        // 留着它只会让管理员反复点「通过」失败（W06 / 盲测 B66+B68+B69）。
+                        .inSql(LawyerApplication::getUserId, SQL_APPLICANT_ACTIVE)
                         .ge(query.getBeginTime() != null, LawyerApplication::getCreatedAt, query.getBeginTime())
                         .le(query.getEndTime() != null, LawyerApplication::getCreatedAt, query.getEndTime())
                         .orderByDesc(LawyerApplication::getCreatedAt)
