@@ -4,6 +4,42 @@
 
 ---
 
+## 2026-11-14（三）· 历史图片/PDF 打不开：下载签名 60 秒太短，改为 600 秒
+
+**一句话**：文件消息的 `fileUrl` 是服务端**现签的下载地址**，有效期原定 60 秒。客户端进会话时一次性把整页历史各自签一次名，用户读完文字再去点图片/PDF 时往往已过期，浏览器打不开，APP 统一归因为「无法打开该文件，请稍后重试」——**文件本身完好**。
+
+**触发**：真机上传 PDF 后点不开；同一条消息的签名 URL 直接 `curl` 却返回 `HTTP 200`。
+
+### 证据（实测）
+
+| 观察点 | 结果 |
+| --- | --- |
+| 下载接口 | `HTTP 200`、`Content-Type: application/pdf`、`Content-Length: 2979482`，实际下载 2,979,482 字节 |
+| PDF 结构 | `%PDF-1.4`、1 页、1 个 `/Subtype /Image` XObject（2184×2912 RGB、FlateDecode）、**0 个字体** → 纯扫描件 |
+| 文件完整性 | 头 `%PDF-`、尾 `%%EOF`、字节数与 `file_size` 一致 |
+| 修复前签名 TTL | `exp - now = 60` 秒 |
+| 修复后签名 TTL | `exp - now = 600` 秒（PASS） |
+
+### 改了什么
+
+| 文件 | 性质 | 内容 |
+| --- | --- | --- |
+| `services/faze-api/src/main/resources/application.yml` | 改 | `faze.storage.download-ttl-seconds` **60 → 600**，注释写明原假设为何不成立 |
+| `services/faze-api/.../conversation/service/MessageService.java` | 改 | `signFileUrl` 的 javadoc 同步修正（原文写「签名地址有效期 60 秒，够即时查看与历史翻页当场加载」） |
+
+### 为什么不是前端或文件的问题
+
+`features/conversation/components/MessageFile.tsx:90` 把 `Linking.openURL(uri)` 的结果作为唯一判据——签名过期时浏览器侧打不开，APP 只能归因为「打开失败」。后端 `MessageService.signFileUrl` 把库里的对象 key 换成签名地址，WS 推送与 REST 历史**都走 `toVO`**，所以两条通道拿到的是同一种短命 URL。
+
+**签名仍带 `sig` 次签名、不可猜**，放宽 TTL 只影响链接可重放窗口；生产接云 OSS 后应改为「点击时现签」（见遗留）。
+
+### 遗留
+
+- **更彻底的做法是「点击时重新申请签名」**（新增一个 `GET /app/files/url?key=` 之类的接口），600 秒只是把窗口拉长，用户停留超 10 分钟仍会遇到同样问题。
+- 该问题仅在**真机**暴露：PC 浏览器打开会话时签名刚生成，通常 60 秒内就点了，所以 web 端测试一路绿灯。
+
+---
+
 ## 2026-11-14（二）· 手机附件上传全线失败：服务端签了个 `127.0.0.1` 的上传地址
 
 **一句话**：手机 APK 传图片/PDF 一律提示「附件上传失败，请重试」，根因**既不是前端上传逻辑、也不是文件大小限制**，而是 `deploy/.env` 缺 `FAZE_PUBLIC_BASE_URL`——服务端用 `application.yml` 的默认值 `http://127.0.0.1:8081` 签发了上传地址，手机 PUT 到 `127.0.0.1` 等于 PUT 给它自己。

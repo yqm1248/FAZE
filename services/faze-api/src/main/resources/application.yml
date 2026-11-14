@@ -114,7 +114,12 @@ faze:
     # 段 4 换云 OSS 时只替换 FileStorage 的实现类，本配置项删除
     base-dir: ${FAZE_FILE_BASE_DIR:E:/dshcode/faze-files}
     sign-secret: ${FAZE_FILE_SIGN_SECRET:faze-local-file-sign-secret-0123456789}
-    download-ttl-seconds: 60
+    # 下载签名有效期。原定 60 秒（理由写的是「够即时查看与历史翻页当场加载」），
+    # 2026-11-14 真机实测证明该假设不成立：客户端进会话时一次性拉取历史、每条各自签一次名，
+    # 用户读完文字再点开图片/PDF 往往已过 60 秒，表现为「无法打开该文件，请稍后重试」。
+    # 文件本身完好（HTTP 200、%PDF-/%%EOF、字节数与 file_size 一致均可验证），纯粹是签名过期。
+    # 改为 600 秒。签名仍带 sig 次签名、不可猜，放宽 TTL 只影响链接可重放窗口。
+    download-ttl-seconds: 600
     upload-ttl-seconds: 300
     # 单文件上限 10MB，与 C1 风险项「签名里限 content-length-range」对应
     max-upload-bytes: 10485760
