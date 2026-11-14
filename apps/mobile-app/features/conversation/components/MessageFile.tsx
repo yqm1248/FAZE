@@ -15,8 +15,9 @@
  */
 
 import { Ionicons } from '@expo/vector-icons';
+import * as WebBrowser from 'expo-web-browser';
 import { useState } from 'react';
-import { Linking, Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { useToast } from '@/shared/components/AppToast';
 import { LocalizedText } from '@/shared/components/LocalizedText';
@@ -79,7 +80,16 @@ export function MessageFile({ fileName, fileSize, uri, out }: MessageFileProps) 
   /**
    * 打开文件。
    *
-   * 副作用：调用系统/浏览器打开外链；失败提示，且不改变消息本身。
+   * 副作用：调用应用内浏览器打开外链；失败提示，且不改变消息本身。
+   *
+   * 为什么优先 `WebBrowser.openBrowserAsync` 而不是 `Linking.openURL`：
+   * 后者在 Android 上走 `Intent.ACTION_VIEW`，真机实测对 `http://<局域网IP>:8081/...`
+   * 一律 reject（只弹「无法打开该文件」，不唤起任何应用）。Custom Tabs 直接绑定
+   * 浏览器服务，不经过系统 intent 解析，也不受 Android 11+ 包可见性限制。
+   *
+   * 为什么 `file://` 直接提示：Android 7+ 禁止跨应用共享 `file://` URI，
+   * 「发送中」的本地副本（`localUri`）本来就打不开；等 `chat.ack` 后消息换成
+   * 服务端签名地址再点才有效。
    */
   const open = async (): Promise<void> => {
     if (uri === null || opening) {
@@ -87,7 +97,11 @@ export function MessageFile({ fileName, fileSize, uri, out }: MessageFileProps) 
     }
     setOpening(true);
     try {
-      await Linking.openURL(uri);
+      if (uri.startsWith('file://')) {
+        toast.show(t('conversation.message.openFailed'));
+        return;
+      }
+      await WebBrowser.openBrowserAsync(uri);
     } catch {
       toast.show(t('conversation.message.openFailed'));
     } finally {

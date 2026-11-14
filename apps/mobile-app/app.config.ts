@@ -82,6 +82,10 @@ const config: ExpoConfig = {
     // 因此连不上 `http://192.168.43.186:8081`。加此项为整包放行。
     // **仅限演示与内网联调**：上线前域名 + HTTPS 就位后必须删除本项，不能带进正式版。
     ['expo-build-properties', { android: { usesCleartextTraffic: true } }],
+    // 应用内打开外部链接（Chrome Custom Tabs）。聊天里的图片/PDF 用它打开：
+    // 不依赖系统对 `ACTION_VIEW` 的解析，因此不受 Android 11+ 包可见性（<queries>）限制。
+    // 2026-11-14 实测：`Linking.openURL(http://...)` 在真机上一律 reject（弹「无法打开该文件」）。
+    'expo-web-browser',
   ],
   experiments: {
     typedRoutes: true,
