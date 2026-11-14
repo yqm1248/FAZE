@@ -15,8 +15,9 @@
  *   2. **按 conversationId 直达，不按 lawyerId**：`chatHref(lawyerId)` 走的是「创建或获取」，
  *      列表里会话已经存在，用 `chatByConversationHref` 才对——少一次建会话，而且退款后的
  *      会话也能进（服务端对已存在会话不校验购买）。
- *   3. 头像是 `peerAvatarUrl`，**可能为 null**（演示律师就没有头像）→ 用姓名首字兜底，
- *      与订单详情页的律师头像口径一致。
+ *   3. 头像是 `peerAvatarUrl`，**可能为 null**（演示律师就没有头像）→ 用姓名首字兜底。
+ *      **它是对象 key 不是 URL**：不能直接塞给 `<Image source={{ uri }}>`（必然加载失败），
+ *      必须经 `UserAvatar` 调 `GET /app/upload/url` 换短时地址（与「我的」页头像同一套逻辑）。
  *   4. **页码分页不是游标**（`pageNum` / `pageSize` / `hasMore`）：必须做「加载更多」，
  *      否则第 21 条以后的会话永远看不到。加载更多失败只 toast，不清空已加载的数据。
  *   5. 四态齐全：加载（骨架）/ 空（还没有咨询记录 + 去找律师）/ 错误（重试）/ 正常。
@@ -30,10 +31,11 @@
 
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { FlatList, Image, Pressable, RefreshControl, StyleSheet, View } from 'react-native';
+import { FlatList, Pressable, RefreshControl, StyleSheet, View } from 'react-native';
 
 import { getConversations } from '@/features/conversation/api/conversations';
 import type { ConversationItem } from '@/features/conversation/api/conversations';
+import { UserAvatar } from '@/features/profile/components/UserAvatar';
 import type { AppError } from '@/shared/api/types';
 import { AppHeader } from '@/shared/components/AppHeader';
 import { EmptyState } from '@/shared/components/EmptyState';
@@ -274,7 +276,8 @@ export function ConversationsPage() {
                         {name.slice(0, 1)}
                       </LocalizedText>
                     ) : (
-                      <Image source={{ uri: item.peerAvatarUrl }} style={styles.avatarImage} />
+                      // peerAvatarUrl 是对象 key（不是 URL）：交给 UserAvatar 换短时地址再显示
+                      <UserAvatar avatarKey={item.peerAvatarUrl} size={size.avatarSmall} />
                     )}
                     {unread ? (
                       <View style={styles.badge} testID={`conversations-unread-${item.id}`}>
@@ -350,11 +353,6 @@ const styles = StyleSheet.create({
     backgroundColor: color.brand.primarySoft,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  avatarImage: {
-    width: size.avatarSmall,
-    height: size.avatarSmall,
-    borderRadius: radius.pill,
   },
   avatarText: {
     ...typography.bodyLarge,

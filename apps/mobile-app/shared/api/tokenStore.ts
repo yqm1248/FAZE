@@ -33,46 +33,95 @@ export type Session = {
 const isWeb = Platform.OS === 'web';
 
 /**
+ * 内存镜像：最近一次**成功**读到的值。
+ *
+ * 为什么需要它：底层存储偶发读取失败（Android Keystore 在改锁屏密码、系统升级、
+ * 存储损坏时会抛）不应该被降级成「没登录」——那会把用户踢到登录页，比报错更难理解。
+ * 有镜像时以镜像为准，只有镜像也没有才返回 null（首次启动 / 真没存过）。
+ *
+ * 注意：**只在读成功时更新镜像**，写入失败不回填，避免把没落盘的值伪装成已持久化。
+ */
+const memoryCache = new Map<string, string>();
+
+/** 底层存储是否已经出现过异常（用于只记一次日志，避免刷爆控制台）。 */
+let storageBroken = false;
+
+/**
  * 读取一个键。
  *
+ * 契约：**永不抛异常**。存储层任何异常都归一成「镜像有就用镜像，没有就 null」。
+ * 这样单点存储故障最坏表现是「要求重新登录」，而不是「整个 App 停在骨架屏」。
+ *
  * @param key 键名（取自 `STORAGE_KEYS`）
- * @returns 值；不存在时返回 null
+ * @returns 值；不存在或读取失败且无镜像时返回 null
  */
 async function readItem(key: string): Promise<string | null> {
-  if (isWeb) {
-    return globalThis.localStorage?.getItem(key) ?? null;
+  try {
+    const value = isWeb
+      ? (globalThis.localStorage?.getItem(key) ?? null)
+      : await SecureStore.getItemAsync(key);
+    if (value !== null) {
+      memoryCache.set(key, value);
+      return value;
+    }
+    // 读成功但没有值：以存储为准，顺手清镜像——否则外部清空存储后，镜像会把旧会话「复活」。
+    memoryCache.delete(key);
+    return null;
+  } catch (error) {
+    if (!storageBroken) {
+      storageBroken = true;
+      // 只打一次：真机上这条是新问题（2026-11-15 全 App 骨架）的定位入口。
+      console.warn('[tokenStore] 安全存储读取失败，降级到内存镜像', key, error);
+    }
+    return memoryCache.get(key) ?? null;
   }
-  return SecureStore.getItemAsync(key);
 }
 
 /**
  * 写入一个键。
  *
+ * 契约：**永不抛异常**。写失败只记日志——写不进去的后果是「下次启动要重登」，
+ * 不该让正在进行的业务请求直接崩掉。
+ *
  * @param key   键名
  * @param value 值（非空）
  */
 async function writeItem(key: string, value: string): Promise<void> {
-  if (isWeb) {
-    globalThis.localStorage?.setItem(key, value);
-    return;
+  try {
+    if (isWeb) {
+      globalThis.localStorage?.setItem(key, value);
+    } else {
+      await SecureStore.setItemAsync(key, value, {
+        // 只在本机解锁后可读，不参与 iCloud/Google 自动备份迁移。
+        keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
+      });
+    }
+    memoryCache.set(key, value);
+  } catch (error) {
+    console.warn('[tokenStore] 安全存储写入失败（本次会话仅内存有效）', key, error);
+    memoryCache.set(key, value);
   }
-  await SecureStore.setItemAsync(key, value, {
-    // 只在本机解锁后可读，不参与 iCloud/Google 自动备份迁移。
-    keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
-  });
 }
 
 /**
  * 删除一个键（不存在时无副作用）。
  *
+ * 契约：**永不抛异常**。删除失败时**必须**同时清掉内存镜像，否则会「登出了但镜像还在」，
+ * 下一次读又把旧会话读回来。
+ *
  * @param key 键名
  */
 async function deleteItem(key: string): Promise<void> {
-  if (isWeb) {
-    globalThis.localStorage?.removeItem(key);
-    return;
+  memoryCache.delete(key);
+  try {
+    if (isWeb) {
+      globalThis.localStorage?.removeItem(key);
+    } else {
+      await SecureStore.deleteItemAsync(key);
+    }
+  } catch (error) {
+    console.warn('[tokenStore] 安全存储删除失败', key, error);
   }
-  await SecureStore.deleteItemAsync(key);
 }
 
 /**

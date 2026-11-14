@@ -105,6 +105,13 @@ export type LawyerProfilePayload = {
   bio?: string;
   specialties?: string[];
   lawFirm?: string;
+  /**
+   * 头像**对象 key**（`uploadFile('avatar', ...)` 返回的 `data`），不是可访问 URL。
+   *
+   * 服务端会校验 key 归属（`private/avatar/{yyyyMM}/{app_user.id}/...`）；
+   * 回显时 `WorkbenchProfile.avatarUrl` 也是 key，必须过 `UserAvatar` 换短时地址。
+   */
+  avatarUrl?: string;
 };
 
 /** 收款账户（后端 WithdrawAccountVO）。 */

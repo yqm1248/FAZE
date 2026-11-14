@@ -246,6 +246,41 @@ export async function downloadFromUrl(url: string, fileName: string): Promise<bo
 }
 
 /**
+ * 准备一次请求的鉴权信息与请求头。
+ *
+ * 单独抽出来是为了**把「可能抛异常的所有 await」收进一个函数**，让 `sendOnce`
+ * 可以用一个 `null` 判据把存储故障归一成 `{ ok:false }`，而不是让异常穿到渲染层。
+ *
+ * @param options   请求选项
+ * @param requestId 逻辑请求 id
+ * @returns 会话与请求头；存储/拼头异常时返回 null（调用方归一成 network 错误）
+ */
+async function prepareAuth(
+  options: RequestOptions,
+  requestId: string,
+): Promise<{ session: Awaited<ReturnType<typeof readSession>>; headers: Record<string, string> } | null> {
+  try {
+    const session = await readSession();
+    const accessToken = options.auth !== false && session !== null ? session.accessToken : null;
+    // text 通道的 Content-Type：默认表单（渠道回调报文就是表单串）；JSON 通道传 undefined，
+    // buildHeaders 回落到 application/json —— 既有调用不传 bodyMode，行为与改动前一致。
+    const textContentType = options.bodyMode === 'text'
+      ? options.contentType ?? 'application/x-www-form-urlencoded;charset=UTF-8'
+      : undefined;
+    const headers = await buildHeaders(
+      requestId,
+      accessToken,
+      options.body !== undefined,
+      options.headers,
+      textContentType,
+    );
+    return { session, headers };
+  } catch {
+    return null;
+  }
+}
+
+/**
  * 实际发送一次（含 401 重放）。
  *
  * @param path        接口路径
@@ -260,16 +295,19 @@ async function sendOnce<T>(
   requestId: string,
   alreadyRetried: boolean,
 ): Promise<ApiResult<T>> {
-  const session = await readSession();
+  // 读会话与拼请求头**都必须包在 try 里**：`readSession` / `buildHeaders` 底层走 SecureStore，
+  // 存储异常时会抛。本函数声明返回 `ApiResult`，契约上就不该 throw——一旦抛出去，
+  // 页面 `load()` 的 `await` 会直接炸掉，`setPhase('error')` 被跳过，phase 永久停在 'loading'
+  // （2026-11-15 P0「全 App 无限骨架」就是这条链）。
+  const prepared = await prepareAuth(options, requestId);
+  if (prepared === null) {
+    // 存储/拼头异常：归一成 network 错误（页面已有「加载失败 + 重试」分支），绝不向上抛。
+    return { ok: false, error: networkError() };
+  }
+  const { session, headers } = prepared;
   const useAuth = options.auth !== false && session !== null;
-  const accessToken = useAuth ? session.accessToken : null;
+  const accessToken = session === null ? null : session.accessToken;
 
-  // text 通道的 Content-Type：默认表单（渠道回调报文就是表单串）；JSON 通道传 undefined，
-  // buildHeaders 回落到 application/json —— 既有调用不传 bodyMode，行为与改动前一致。
-  const textContentType = options.bodyMode === 'text'
-    ? options.contentType ?? 'application/x-www-form-urlencoded;charset=UTF-8'
-    : undefined;
-  const hasBody = options.body !== undefined;
   // 请求体编码：默认 JSON；text 通道原样发字符串（JSON.stringify 会把表单串包成 JSON 字符串，
   // 服务端按表单解析必然验签失败）。
   const body: string | undefined = options.body === undefined
@@ -277,7 +315,6 @@ async function sendOnce<T>(
     : options.bodyMode === 'text'
       ? String(options.body)
       : JSON.stringify(options.body);
-  const headers = await buildHeaders(requestId, accessToken, hasBody, options.headers, textContentType);
   const url = BASE_URL + (path.startsWith('/') ? path : `/${path}`);
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), options.timeoutMs ?? DEFAULT_TIMEOUT_MS);
@@ -424,15 +461,51 @@ export function refreshSessionOnce(): Promise<boolean> {
   return refreshing;
 }
 
+/** 刷新总时限（毫秒）。**比 fetch 的 15 秒更短**：刷新是卡在请求链最前端的门，
+ *  它迟迟不返回会让所有页面一起停在骨架屏，宁可早点放弃、让页面落到错误态。 */
+const REFRESH_TIMEOUT_MS = 10_000;
+
 /**
- * 真正执行一次刷新。
+ * 真正执行一次刷新（带总时限兜底）。
+ *
+ * 为什么必须有时限：`readSession` / `buildHeaders` / `writeSession` 底层是 SecureStore，
+ * 某些设备状态下会**既不返回也不抛**（Promise 永久 pending）。此时 `refreshing` 被赋成
+ * 这个永不 settle 的 Promise，`.finally` 永不执行 → 之后**每一个** 401 请求都 `await`
+ * 它 → 全 App 骨架；且只有杀进程（模块重载）才能恢复（2026-11-15 P0 的现场）。
+ *
+ * `Promise.race` 保证本函数**一定会 settle**——这是单飞（⑥）成立的前提。
+ *
+ * @returns 是否成功
+ */
+async function doRefresh(): Promise<boolean> {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  try {
+    return await Promise.race([
+      doRefreshInner(),
+      new Promise<boolean>((resolve) => {
+        timeoutId = setTimeout(() => resolve(false), REFRESH_TIMEOUT_MS);
+      }),
+    ]);
+  } catch {
+    // 兜底：doRefreshInner 内部已各自 try/catch，这里防的是竞态中的意外抛出。
+    return false;
+  } finally {
+    // 刷新正常返回时清掉兜底定时器，避免每次刷新留一个 10 秒的空定时器。
+    if (timeoutId !== null) {
+      clearTimeout(timeoutId);
+    }
+  }
+}
+
+/**
+ * 刷新会话的实际实现。
  *
  * 用裸 `fetch` 而不是 `request()`：避免「刷新失败 → 再触发刷新」的递归。
  * 刷新接口本身返回 401 时直接判失败，**不再尝试刷新**。
  *
  * @returns 是否成功
  */
-async function doRefresh(): Promise<boolean> {
+async function doRefreshInner(): Promise<boolean> {
   const session = await readSession();
   if (session === null) {
     return false;

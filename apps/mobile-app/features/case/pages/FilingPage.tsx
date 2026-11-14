@@ -466,7 +466,10 @@ export function FilingPage() {
     }
     // 新建流程原样：把「材料已提交」页要展示的 4 行信息一起传过去：这些值本页刚填过，
     // 比再发一次详情请求更可靠（弱网下提交成功但详情拉不到会让用户看到空白页）。
+    // `caseId` 是额外必传项：「查看案件进度」要拿它直达 `/case-progress?caseId=`；
+    // 少了它只能退回「我的案件」列表，等于多一次点击（2026-11-15 修复 #1）。
     const doneParams = new URLSearchParams({
+      caseId: res.data.id,
       caseNo: res.data.caseNo,
       caseType,
       submittedAt: res.data.submittedAt,

@@ -11,6 +11,9 @@
  *      （B2 第 2 条），不许改写。
  *   3. 返回键不能回到已提交的表单：`FilingPage` 用 `replace` 进来，这里两个出口也都用
  *      `replace`，否则用户按返回会看到一份仍然填满的表单，误以为没提交成功。
+ *   4. 「查看案件进度」必须带 `caseId` 直达 `/case-progress`；**缺 `caseId` 时退到
+ *      `/case-my`（我的案件）而不是 `/case`（底部「案例」tab）**——后者会让用户以为
+ *      刚提交的案件不存在（2026-11-15 修复 #1）。
  *
  * testID 清单：filingDone-screen / filingDone-caseNo / filingDone-copy / filingDone-numberNote /
  *              filingDone-info / filingDone-timeline / filingDone-viewProgress / filingDone-backHome
@@ -85,6 +88,7 @@ export function FilingDonePage() {
   const { t } = useI18n();
   const router = useRouter();
   const params = useLocalSearchParams<{
+    caseId?: string;
     caseNo?: string;
     caseType?: string;
     submittedAt?: string;
@@ -95,6 +99,7 @@ export function FilingDonePage() {
   /** 取字符串参数（路由参数可能是 string[]，统一收敛）。 */
   const param = (value: string | undefined): string => (typeof value === 'string' ? value : '');
 
+  const caseId = param(params.caseId);
   const caseNo = param(params.caseNo);
   const caseType = param(params.caseType);
   const submittedAt = param(params.submittedAt);
@@ -118,6 +123,23 @@ export function FilingDonePage() {
     }
     await Clipboard.setStringAsync(caseNo);
     setCopied(true);
+  };
+
+  /**
+   * 打开「案件进度」。
+   *
+   * 有 `caseId` 时直达 `/case-progress?caseId=`；缺失时退到 `/case-my`（我的案件列表），
+   * 让用户至少能看到刚提交的案件并点进进度页。
+   * 副作用：`router.replace` 离开本页（不回退到已提交的表单）。
+   */
+  const openProgress = (): void => {
+    if (caseId === '') {
+      // 兜底：**不许**静默跳底部「案例」tab——那里是案由浏览页，不含「我的案件」，
+      // 用户会以为刚提交的案件丢了（这就是修复前的 bug）。
+      router.replace(PAGE_ROUTES.caseMy);
+      return;
+    }
+    router.replace(`${String(PAGE_ROUTES.caseProgress)}?caseId=${encodeURIComponent(caseId)}`);
   };
 
   const typeKey = CASE_TYPE_KEYS[caseType];
@@ -218,7 +240,7 @@ export function FilingDonePage() {
           <PrimaryButton
             testID="filingDone-viewProgress"
             label={t('case.filingDone.viewProgress')}
-            onPress={() => router.replace(PAGE_ROUTES.case)}
+            onPress={openProgress}
           />
           <Pressable
             testID="filingDone-backHome"

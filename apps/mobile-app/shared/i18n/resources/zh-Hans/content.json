@@ -28,7 +28,8 @@
     "backHome": "返回首页",
     "loadMore": "加载更多",
     "loadingMore": "加载中",
-    "noMore": "没有更多了"
+    "noMore": "没有更多了",
+    "lawyerConsultations": "客户咨询"
   },
   "messageDetail": {
     "title": "消息详情",

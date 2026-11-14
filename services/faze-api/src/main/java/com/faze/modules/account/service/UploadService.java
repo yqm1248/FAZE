@@ -7,10 +7,17 @@
  * 注意：
  *   1. **key 一律由服务端生成**，客户端只提交 scene + 文件名（只用来取扩展名）。
  *      让客户端传路径是存储层最经典的漏洞来源。
- *   2. 下载地址做**归属校验**：key 里的 userId 必须等于当前用户。
+ *   2. 下载地址做**归属校验**：key 里的 userId 必须等于当前用户（**头像场景例外，见第 4 条**）。
  *      没有这一步，任何登录用户改一个 key 就能下载别人的身份证影像。
  *   3. 段 1 只有「本人看自己的影像」这一种场景；审核员看别人的影像走 PC 管理端
  *      （F2），那条路的鉴权与审计在 F 组单独做，不要在这里开口子。
+ *   4. **头像 key 允许跨用户签发**（`downloadUrl` 对 `private/avatar/` 前缀跳过属主校验）：
+ *      会话列表 / 律师列表详情 / 订单详情都要显示「对方」的头像，属主校验会把对端头像
+ *      一律打成 403。key 由业务接口下发且带 UUID（不可枚举），桶仍私有、地址仍现签，
+ *      放行的只是「签发」不是「公开读」。
+ *      **这只是读侧例外**：写侧（如 `WorkbenchServiceImpl.updateProfile`）仍必须校验归属，
+ *      只能改自己的头像；`realname` / `identity` / `license` / `signature` / `chat` /
+ *      `case_evidence` / `complaint` / `feedback` 等隐私或证据场景**绝不能照抄这个例外**。
  */
 package com.faze.modules.account.service;
 
@@ -36,6 +43,15 @@ import org.springframework.stereotype.Service;
 public class UploadService {
 
     private static final DateTimeFormatter YYYY_MM = DateTimeFormatter.ofPattern("yyyyMM");
+
+    /**
+     * 头像对象 key 的前缀。
+     *
+     * <p>**只允许这一个场景跨用户签发下载地址**（见 {@link #downloadUrl(String, Long)}）。
+     * 刻意写成单个常量而不是「场景白名单集合」：集合式写法太容易被后来人顺手扩充，
+     * 而这张表里每一项都可能变成越权读取。</p>
+     */
+    private static final String AVATAR_KEY_PREFIX = "private/avatar/";
 
     private final FileStorage fileStorage;
 
@@ -81,9 +97,9 @@ public class UploadService {
      * <p>前置：调用方已通过 `/api/v1/admin/**` 的 ROLE_ADMIN 鉴权，且会把这次访问
      * 写进 operation_log（见 A-04 / A-05 的详情接口）。</p>
      *
-     * <p>与 {@link #downloadUrl(String, Long)} 的差异只有一个：**不校验 key 归属**。
-     * 管理员必须能看别人提交的证件影像，否则审核无法进行；代价是把「谁能看」
-     * 完全交给调用路径的鉴权，所以本方法只能被管理端 Service 调用，
+     * <p>与 {@link #downloadUrl(String, Long)} 的差异：本方法对**任何场景**都不校验 key 归属
+     * （C 端那条只在 avatar 场景放行）。管理员必须能看别人提交的证件影像，否则审核无法进行；
+     * 代价是把「谁能看」完全交给调用路径的鉴权，所以本方法只能被管理端 Service 调用，
      * **不得**暴露给 C 端任何 Controller。</p>
      *
      * @param key 对象 key；null/空白时返回 null（草稿可能还没上传）
@@ -104,20 +120,38 @@ public class UploadService {
     /**
      * 生成短时下载地址。
      *
-     * <p>前置：key 合法且属于当前用户。</p>
+     * <p>前置：key 合法，且满足下列之一：</p>
+     * <ul>
+     *   <li>`private/avatar/` 场景：**允许跨用户**签发。头像是对外展示信息——会话列表、
+     *       律师列表/详情、订单详情本来就要显示「对方」的头像；key 由业务接口下发、
+     *       含 `UUID.randomUUID()` 不可枚举；桶仍私有、地址仍每次现签，放行的是「签发」
+     *       而不是把文件变成公开 URL。</li>
+     *   <li>其余场景：**必须属于当前用户**（key 里的 userId == 当前 userId）。</li>
+     * </ul>
+     *
+     * <p><b>绝不能照抄 avatar 例外的场景</b>：`realname` / `identity` / `license`（证件影像）、
+     * `signature`（手写签名）、`chat`（聊天附件）、`case_evidence`（立案证据）、
+     * `complaint` / `feedback`（投诉反馈凭证）——这些是隐私或证据类材料，跨用户读取就是越权。
+     * 头像能例外，只因为它**本身就是公开给别人看的**，与上述场景性质不同。</p>
      *
      * @param key    对象 key
      * @param userId 当前用户
      * @return 下载地址与有效期
-     * @throws BusinessException 401001 key 非法 / 403 不是本人的文件
+     * @throws BusinessException 401001 key 非法 / 403 不是本人的文件（avatar 场景不抛 403）
      */
     public FileStorage.PresignedUrl downloadUrl(String key, Long userId) {
+        // 任务 1：格式校验先行——非法 key 直接 401001，不进入任何归属判断。
         if (!StorageKeyRules.isValid(key)) {
             throw new BusinessException(ErrorCode.COMMON_PARAM_INVALID);
         }
-        Long owner = StorageKeyRules.ownerOf(key);
-        if (owner == null || !owner.equals(userId)) {
-            throw new BusinessException(ErrorCode.COMMON_FORBIDDEN);
+        // 任务 2：归属校验。**只有 avatar 场景例外**（读侧需求，见方法头注释）；
+        // 其余场景一律必须属主本人：realname / identity / license / signature / chat /
+        // case_evidence / complaint / feedback 等隐私与证据类材料不得照抄本例外。
+        if (!key.startsWith(AVATAR_KEY_PREFIX)) {
+            Long owner = StorageKeyRules.ownerOf(key);
+            if (owner == null || !owner.equals(userId)) {
+                throw new BusinessException(ErrorCode.COMMON_FORBIDDEN);
+            }
         }
         return fileStorage.presignDownload(key);
     }

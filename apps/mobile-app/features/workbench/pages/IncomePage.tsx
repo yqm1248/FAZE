@@ -44,6 +44,7 @@ import { useI18n } from '@/shared/i18n';
 import type { MessageKey } from '@/shared/i18n';
 import { formatAmount } from '@/shared/i18n/datetime';
 import { useRefreshOnFocus } from '@/shared/hooks/useRefreshOnFocus';
+import { NETWORK_ERROR_KEY } from '@/shared/api/errorCodes';
 import type { AppError } from '@/shared/api/types';
 import { color, radius, size, spacing, typography } from '@/shared/theme';
 import { centsFromServer } from '@/shared/utils/money';
@@ -177,11 +178,28 @@ export function IncomePage() {
       if (!isRefresh && !silent) {
         setPhase('loading');
       }
-      const [overviewRes, flowsRes, withdrawalsRes] = await Promise.all([
-        fetchIncomeOverview(next),
-        fetchIncomeFlows(next, null),
-        fetchWithdrawals(1, 10),
-      ]);
+      // **整个主体包 try/catch**：底部 `request()` 已契约上不抛，但页面自身仍可能抛
+      // （例如 `Promise.all` 中某个分支未来加入非网络逻辑）。一旦抛出去，`setPhase('error')`
+      // 就被跳过，phase 永久停在 'loading' —— 用户看到的就是「几条白色横杠」永不结束
+      // （2026-11-15 P0 的现场表现）。
+      let overviewRes: Awaited<ReturnType<typeof fetchIncomeOverview>>;
+      let flowsRes: Awaited<ReturnType<typeof fetchIncomeFlows>>;
+      let withdrawalsRes: Awaited<ReturnType<typeof fetchWithdrawals>>;
+      try {
+        [overviewRes, flowsRes, withdrawalsRes] = await Promise.all([
+          fetchIncomeOverview(next),
+          fetchIncomeFlows(next, null),
+          fetchWithdrawals(1, 10),
+        ]);
+      } catch {
+        if (!silent) {
+          // 用统一常量而不是硬编码 key：文案 keys 全仓只有 `errorCodes.ts` 一处定义。
+          setError({ kind: 'network', msgKey: NETWORK_ERROR_KEY, traceId: null });
+          setPhase('error');
+        }
+        setRefreshing(false);
+        return;
+      }
       if (!overviewRes.ok) {
         if (silent) {
           return;
@@ -234,14 +252,20 @@ export function IncomePage() {
     }
     setLoadingMore(true);
     flowsPagedRef.current = true;
-    const res = await fetchIncomeFlows(range, cursor);
-    setLoadingMore(false);
-    if (!res.ok) {
-      return;
+    // try/finally 保证「加载更多」的按钮不会永久转圈（同 #8 的死锁模式：状态置真后异常跳过复位）。
+    try {
+      const res = await fetchIncomeFlows(range, cursor);
+      if (!res.ok) {
+        return;
+      }
+      setFlows((prev) => [...prev, ...res.data.list]);
+      setCursor(res.data.nextCursor);
+      setHasMore(res.data.hasMore);
+    } catch {
+      // 静默：已有列表不该因为「再加载一页」失败而被清空，用户可以再点一次。
+    } finally {
+      setLoadingMore(false);
     }
-    setFlows((prev) => [...prev, ...res.data.list]);
-    setCursor(res.data.nextCursor);
-    setHasMore(res.data.hasMore);
   };
 
   return (

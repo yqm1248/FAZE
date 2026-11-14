@@ -146,29 +146,53 @@ export function WithdrawPanel({ visible, availableCents, onClose, onDone }: With
   const expectedCents = amountCents === null ? 0 : amountCents - feeCents;
 
   /**
-   * 拉规则与收款账户。
+   * 拉规则与收款账户（面板打开时一次）。
+   *
+   * **必须有 try/catch**：两条请求虽已契约上不抛（`request()` 永不 throw），但这里仍兜一层——
+   * 面板卡在"永远转圈"是本问题（2026-11-15 问题 7）最不可接受的形态。
+   * 用 `cancelled` 标记防止「面板已关闭，晚到的响应又 setState」。
+   *
+   * @param isCancelled 父级卸载/重开后的判据
    */
-  const loadPanel = useCallback(async (): Promise<void> => {
-    const [configRes, accountRes] = await Promise.all([
-      fetchWithdrawConfig(),
-      fetchWithdrawAccount(),
-    ]);
-    if (configRes.ok) {
-      setConfig(configRes.data);
+  const loadPanel = useCallback(async (isCancelled: () => boolean): Promise<void> => {
+    try {
+      const [configRes, accountRes] = await Promise.all([
+        fetchWithdrawConfig(),
+        fetchWithdrawAccount(),
+      ]);
+      if (isCancelled()) {
+        return;
+      }
+      if (configRes.ok) {
+        setConfig(configRes.data);
+      }
+      if (accountRes.ok) {
+        setAccount(accountRes.data);
+      }
+    } catch {
+      if (!isCancelled()) {
+        setErrorText(t('workbench.income.withdrawFailed'));
+      }
     }
-    if (accountRes.ok) {
-      setAccount(accountRes.data);
-    }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     if (!visible) {
       return;
     }
+    // 打开弹层时**无脑复位全部异步态**：`Modal` 的 visible 只是显隐，组件并不卸载，
+    // 上一次卡住的 `binding`/`submitting` 会一路留在 state 里——这正是
+    // 「关掉重进还显示『提交中』且按钮点不动」的机制（2026-11-15 问题 7）。
     setErrorText(null);
     setAmountText('');
+    setBinding(false);
+    setSubmitting(false);
     withdrawIdem.reset();
-    void loadPanel();
+    let cancelled = false;
+    void loadPanel(() => cancelled);
+    return () => {
+      cancelled = true;
+    };
   }, [visible, loadPanel, withdrawIdem]);
 
   /** 全部提现：把可提现余额填进输入框。 */
@@ -194,16 +218,23 @@ export function WithdrawPanel({ visible, availableCents, onClose, onDone }: With
       return;
     }
     setSubmitting(true);
-    const res = await applyWithdraw(String(amountCents), withdrawIdem.key);
-    setSubmitting(false);
-    if (!res.ok) {
+    // try/finally 是硬要求：`setSubmitting(false)` 一旦被异常跳过，按钮就永久「提交中」，
+    // 且组件挂在 `Modal` 上不卸载，关掉重进也救不回来（问题 7 的同型死锁）。
+    try {
+      const res = await applyWithdraw(String(amountCents), withdrawIdem.key);
+      if (!res.ok) {
+        setErrorText(t('workbench.income.withdrawFailed'));
+        return;
+      }
+      // 成功 → 换新键：下次提现是新操作，不能复用旧键（否则服务端回放上一次的结果）
+      withdrawIdem.reset();
+      onDone();
+      onClose();
+    } catch {
       setErrorText(t('workbench.income.withdrawFailed'));
-      return;
+    } finally {
+      setSubmitting(false);
     }
-    // 成功 → 换新键：下次提现是新操作，不能复用旧键（否则服务端回放上一次的结果）
-    withdrawIdem.reset();
-    onDone();
-    onClose();
   };
 
   /** 保存收款账户（F4）。 */
@@ -218,19 +249,25 @@ export function WithdrawPanel({ visible, availableCents, onClose, onDone }: With
       return;
     }
     setBinding(true);
-    const res = await updateWithdrawAccount({
-      bankName: bindForm.bankName.trim(),
-      accountName: bindForm.accountName.trim(),
-      bankAccount: bindForm.bankAccount.trim(),
-    });
-    setBinding(false);
-    if (!res.ok) {
+    // 同上：`setBinding(false)` 必须在 finally 里，否则一次失败就永久卡「提交中」+ 按钮禁用。
+    try {
+      const res = await updateWithdrawAccount({
+        bankName: bindForm.bankName.trim(),
+        accountName: bindForm.accountName.trim(),
+        bankAccount: bindForm.bankAccount.trim(),
+      });
+      if (!res.ok) {
+        setErrorText(t('workbench.income.bindFailed'));
+        return;
+      }
+      const accountRes = await fetchWithdrawAccount();
+      if (accountRes.ok) {
+        setAccount(accountRes.data);
+      }
+    } catch {
       setErrorText(t('workbench.income.bindFailed'));
-      return;
-    }
-    const accountRes = await fetchWithdrawAccount();
-    if (accountRes.ok) {
-      setAccount(accountRes.data);
+    } finally {
+      setBinding(false);
     }
   };
 

@@ -22,13 +22,18 @@
  *   7. `testID`：`ai-chat-input` / `ai-chat-send` / `ai-chat-clear` / `ai-chat-history` /
  *      `ai-msg-<index>` / `ai-law-ref-<index>` / `ai-quota-text` / `ai-stop-button` /
  *      `ai-retry-button` / `ai-transfer-button` / `offline-bar`（121 E2E 用）。
+ *   8. **键盘避让**（真机问题 #4 的连带修复）：Android 16 起 edge-to-edge 强制开启，窗口不随
+ *      键盘缩放，`KeyboardAvoidingView` 的 Android 分支（按 `endCoordinates.screenY` 算遮挡）
+ *      在那里恒为 0。所以本页与聊天页同方案：iOS 用 `KeyboardAvoidingView`，
+ *      Android 用 `useAndroidKeyboardHeight` 把 IME 高度加进输入区底部内边距。
  */
 
 import * as Clipboard from 'expo-clipboard';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   FlatList,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -36,6 +41,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAiQuota } from '@/features/ai/hooks/useAiQuota';
 import { useAiStream } from '@/features/ai/hooks/useAiStream';
@@ -75,6 +81,47 @@ function bubbleContentOf(message: ChatMessage, t: (key: MessageKey) => string): 
 }
 
 /**
+ * Android 上「键盘高度改用 IME insets 计算」的最低 API level（与聊天页同一口径）。
+ *
+ * Android 11（API 30）起 `WindowInsets.Type.ime()` 可用、edge-to-edge 下窗口不再随键盘缩放；
+ * 更早版本由系统 `adjustResize` 缩放窗口，页面不能再手动抬升（否则双重留白）。
+ */
+const ANDROID_IME_INSET_MIN_API = 30;
+
+/**
+ * Android 键盘弹起时占用的高度（DIP，不含系统导航栏）；其他平台恒为 0。
+ *
+ * 与 `features/conversation/pages/ChatPage.tsx` 同名同实现，原因见该文件同名 hook 的注释：
+ * RN 的 `KeyboardAvoidingView` 在 Android 上靠 `endCoordinates.screenY` 算遮挡，而该值在
+ * edge-to-edge（Android 16 起强制）下不随键盘变化；同一个 `keyboardDidShow` 事件里的
+ * `endCoordinates.height` 是 IME inset 直接算的，可靠。两份实现是「本轮改动范围只有这两个
+ * 文件」的代价，后续可抽到 `shared/hooks/`。
+ *
+ * @returns 键盘本体高度；订阅在组件卸载时移除
+ */
+function useAndroidKeyboardHeight(): number {
+  const [height, setHeight] = useState(0);
+
+  useEffect(() => {
+    if (Platform.OS !== 'android' || Number(Platform.Version) < ANDROID_IME_INSET_MIN_API) {
+      return undefined;
+    }
+    const show = Keyboard.addListener('keyboardDidShow', (event) => {
+      setHeight(event.endCoordinates.height);
+    });
+    const hide = Keyboard.addListener('keyboardDidHide', () => {
+      setHeight(0);
+    });
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
+
+  return height;
+}
+
+/**
  * AI 对话页。
  *
  * 副作用：进页读配额与 AI 开关；发送时提交问题并订阅 SSE；长按复制写剪贴板。
@@ -85,6 +132,10 @@ export function AiChatPage() {
   const { t } = useI18n();
   const toast = useToast();
   const router = useRouter();
+  /** 底部安全区（导航栏 / Home Indicator）。`Screen` 不取 bottom edge，由输入区自己承担。 */
+  const insets = useSafeAreaInsets();
+  /** Android 键盘高度（iOS 恒 0，交给 `KeyboardAvoidingView`）。 */
+  const keyboardHeight = useAndroidKeyboardHeight();
   const [input, setInput] = useState('');
   const [clearVisible, setClearVisible] = useState(false);
 
@@ -177,7 +228,13 @@ export function AiChatPage() {
 
       <KeyboardAvoidingView
         style={styles.body}
+        // Android 分支不用：edge-to-edge 下它算不出遮挡（见 `useAndroidKeyboardHeight`），
+        // 抬升由 composer 的 paddingBottom 完成；`enabled` 同步关掉，省掉无谓的 setState。
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        enabled={Platform.OS === 'ios'}
+        // 与聊天页同式：顶部让出 insets.top、底部安全区由 composer 自己留 insets.bottom，
+        // 所以 offset 取 `top - bottom`，输入框才会落在键盘上沿上方。
+        keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top - insets.bottom : 0}
       >
         {!online || reconnecting ? (
           <OfflineBar
@@ -263,7 +320,15 @@ export function AiChatPage() {
           />
         )}
 
-        <View style={styles.composer}>
+        <View
+          style={[
+            styles.composer,
+            // 覆盖 `styles.composer` 的 paddingVertical 底边：底部留白 = 原内边距 + 安全区 +
+            // 键盘高度（Android）；iOS 的键盘抬升交给上面的 KeyboardAvoidingView，
+            // 这里只保留安全区（键盘收起时）与设计内边距。
+            { paddingBottom: spacing.md + insets.bottom + keyboardHeight },
+          ]}
+        >
           {quota.remaining !== null ? (
             <LocalizedText testID="ai-quota-text" numberOfLines={1} style={styles.quotaText}>
               {t('ai.chat.quotaRemaining', { n: quota.remaining })}

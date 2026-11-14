@@ -39,7 +39,8 @@ public class LawyerProfileServiceImpl implements LawyerProfileService {
     private final JsonMapper jsonMapper;
 
     @Override
-    public void updateProfile(Long lawyerId, String bio, List<String> specialties, String lawFirm) {
+    public void updateProfile(Long lawyerId, String bio, List<String> specialties, String lawFirm,
+                              String avatarUrl) {
         if (lawyerId == null) {
             return;
         }
@@ -58,13 +59,19 @@ public class LawyerProfileServiceImpl implements LawyerProfileService {
             patch.setSpecialties(jsonMapper.writeValueAsString(specialties));
             touched = true;
         }
+        if (avatarUrl != null) {
+            // 存的是对象 key（private/avatar/...），不是可直接访问的 URL：
+            // 客户端显示前必须调 GET /app/upload/url 换短时地址。
+            patch.setAvatarUrl(avatarUrl);
+            touched = true;
+        }
         if (!touched) {
             return;
         }
         patch.setUpdatedAt(LocalDateTime.now(ZoneOffset.UTC));
         lawyerMapper.updateById(patch);
-        log.info("律师资料已更新 lawyerId={} 改了简介={} 改了专长={} 改了律所={}",
-                lawyerId, bio != null, specialties != null, lawFirm != null);
+        log.info("律师资料已更新 lawyerId={} 改了简介={} 改了专长={} 改了律所={} 改了头像={}",
+                lawyerId, bio != null, specialties != null, lawFirm != null, avatarUrl != null);
     }
 
     @Override

@@ -62,6 +62,19 @@ const config: ExpoConfig = {
       backgroundColor: '#FFFFFF',
     },
     edgeToEdgeEnabled: true,
+    // 键盘弹起时让系统「缩放窗口」而不是「平移窗口」。`pan` 会把整页内容往上推，
+    // 顶栏（AppHeader）可能被推出屏幕、输入区仍压在键盘下；`resize` 才是聊天页要的语义。
+    //
+    // 两个必须知道的边界（2026-11-15 核查）：
+    //   1. **这不是本问题的修复手段**。Expo 的默认值本来就是 `resize`
+    //      （`@expo/config-types` 的 `Android.softwareKeyboardLayoutMode` 注释：
+    //      "Defaults to `resize`"），显式写出来只是把约定固化、可审；
+    //   2. Android 16（API 36）起 **edge-to-edge 强制开启**（同上类型注释：
+    //      "This feature can't be disabled anymore"），窗口不再随键盘缩放。
+    //      所以键盘避让必须在页面侧自己做，见
+    //      `features/conversation/pages/ChatPage.tsx` 与 `features/ai/pages/AiChatPage.tsx`
+    //      的 `useAndroidKeyboardHeight`（按 IME insets 抬升输入区）。
+    softwareKeyboardLayoutMode: 'resize',
   },
   web: {
     bundler: 'metro',

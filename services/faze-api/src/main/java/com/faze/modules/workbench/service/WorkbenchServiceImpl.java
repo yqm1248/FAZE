@@ -4,7 +4,8 @@
  * 数据来源：document（经 DocumentQueryService / DocDeliveryService 跨域）、
  *          conversation（经 ConversationQueryService / ConversationService / MessageService）、
  *          account（LawyerQueryService / AccountQueryService / LawyerProfileService）、
- *          trade（LawyerIncomeQueryService）、ops（SysConfigQueryService）。
+ *          trade（LawyerIncomeQueryService）、ops（SysConfigQueryService）、
+ *          infra/storage（StorageKeyRules 校验头像 key 的格式与归属）。
  * 注意：
  *   1. **归属条件进 SQL**：所有查询都以「先按当前用户解析出 lawyer.id」开始，再按 lawyer_id 过滤。
  *   2. **金额口径以 balance_flow 为准**，`lawyer_balance` 只作缓存展示（§八.1 第 1 条）。
@@ -12,12 +13,15 @@
  *      全页不出现「冻结」字样，与设计稿一致）。
  *   4. **不缓存律师价格**：段 2 的律师详情/列表都是直接查库，改价后用户端下一次请求即新价
  *      （D4 第 7 条的验收就是靠这个，不需要缓存失效逻辑）。
+ *   5. **头像写的是对象 key 不是 URL**（`lawyer.avatar_url`），写前必须校验归属；
+ *      key 里的 userId 是 `app_user.id`，比对时用 `lawyer.getUserId()`，别用 `lawyer.getId()`。
  */
 package com.faze.modules.workbench.service;
 
 import com.faze.common.exception.BusinessException;
 import com.faze.common.exception.ErrorCode;
 import com.faze.common.pojo.PageResult;
+import com.faze.infra.storage.StorageKeyRules;
 import com.faze.modules.account.entity.Lawyer;
 import com.faze.modules.account.service.AccountQueryService;
 import com.faze.modules.account.service.LawyerProfileService;
@@ -82,6 +86,9 @@ public class WorkbenchServiceImpl implements WorkbenchService {
 
     /** 「本月」的窗口天数。 */
     private static final int MONTH_DAYS = 30;
+
+    /** 头像对象 key 的前缀（`StorageKeyRules.build` 生成，场景白名单里的 `avatar`）。 */
+    private static final String AVATAR_KEY_PREFIX = "private/avatar/";
 
     private final LawyerQueryService lawyerQueryService;
     private final AccountQueryService accountQueryService;
@@ -328,9 +335,14 @@ public class WorkbenchServiceImpl implements WorkbenchService {
         if (bo.getSpecialties() != null && bo.getSpecialties().size() > SPECIALTY_MAX_COUNT) {
             throw new BusinessException(ErrorCode.COMMON_PARAM_INVALID, "专长最多选 6 个");
         }
+        // 头像 key 的归属必须先校验：只校验格式等于允许把别人的头像 key 挂到自己资料上。
+        // 不传（null）表示不改，跳过——partial update。
+        if (bo.getAvatarUrl() != null) {
+            assertOwnedAvatarKey(bo.getAvatarUrl(), lawyer.getUserId());
+        }
         // 姓名 / 执业证号 / 地区 / 审核状态不在入参里，根本没有被改的可能（LawyerProfileServiceImpl 的白名单）
         lawyerProfileService.updateProfile(lawyer.getId(), bo.getBio(), bo.getSpecialties(),
-                bo.getLawFirm());
+                bo.getLawFirm(), bo.getAvatarUrl());
     }
 
     @Override
@@ -410,6 +422,29 @@ public class WorkbenchServiceImpl implements WorkbenchService {
     private Lawyer requireLawyer(Long userId) {
         return lawyerQueryService.findByUserId(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.COMMON_FORBIDDEN, "当前用户不是律师"));
+    }
+
+    /**
+     * 校验头像对象 key 合法、场景是头像、且属于本人。
+     *
+     * <p><b>归属比对用 `app_user.id`（`lawyer.getUserId()`），不是 `lawyer.id`</b>：
+     * `StorageKeyRules.build("avatar", userId, ...)` 生成 key 时传的是「当前登录用户主键」，
+     * 即 `private/avatar/{yyyyMM}/{app_user.id}/{uuid}.{ext}`；律师账号的登录主键也是
+     * `app_user.id`（`lawyer.user_id` 才是律师表主键）。用 `lawyer.id` 比对会把本人的 key
+     * 误判成越权。写法与 `RealnameService.assertOwnedKey` 一致：先格式/场景，后归属。</p>
+     *
+     * @param key    头像对象 key（`private/avatar/...`）
+     * @param userId 当前用户 app_user.id
+     * @throws BusinessException 401001 格式或场景不对 / 403 不属于本人
+     */
+    private void assertOwnedAvatarKey(String key, Long userId) {
+        if (!StorageKeyRules.isValid(key) || !key.startsWith(AVATAR_KEY_PREFIX)) {
+            throw new BusinessException(ErrorCode.COMMON_PARAM_INVALID);
+        }
+        Long owner = StorageKeyRules.ownerOf(key);
+        if (owner == null || !owner.equals(userId)) {
+            throw new BusinessException(ErrorCode.COMMON_FORBIDDEN);
+        }
     }
 
     /**

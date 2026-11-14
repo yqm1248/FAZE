@@ -9,26 +9,34 @@
  *      就算构造请求也改不了（D5 第 3 条的验收就是这么验的）。
  *   2. 简介 ≤200 字（带计数）、专长最多 6 个；超限在页面内提示，不弹 alert。
  *   3. 改专长**不触发重新审核**（专长是展示标签，不是资质）。
- *   4. 头像更换走段 1 的 OSS 直传，段 5 只做入口占位（原生端相册/相机属段 8）。
+ *   4. 头像走段 1 的**三段式上传**（`uploadFile('avatar')` → `PUT /app/workbench/profile`
+ *      提交对象 key → 重读资料），与个人资料编辑页同一套链路；
+ *      `lawyer.avatar_url` 存的是**对象 key 不是 URL**，显示必须经 `UserAvatar` 换短时地址。
  *   5. 四态：加载 / 错误（重试）/ 正常。
  *
  * testID 清单：profile-screen / profile-loading / profile-error / profile-retry /
  *              profile-name / profile-license / profile-bio / profile-bioCounter /
  *              profile-specialty-{index} / profile-lawFirm / profile-audit /
- *              profile-save / profile-error-text / profile-saved / profile-avatar
+ *              profile-save / profile-error-text / profile-saved / profile-avatar /
+ *              profile-avatar-error
  */
 
 import { useCallback, useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
+import { uploadFile } from '@/features/account/api/upload';
+import { UserAvatar } from '@/features/profile/components/UserAvatar';
 import { fetchWorkbenchProfile, updateLawyerProfile } from '@/features/workbench/api/client';
 import type { WorkbenchProfile } from '@/features/workbench/api/client';
 import { AppHeader } from '@/shared/components/AppHeader';
 import { ErrorState } from '@/shared/components/ErrorState';
+import { FilePickerButton } from '@/shared/components/FilePickerButton';
+import type { PickedFile } from '@/shared/components/FilePickerButton';
 import { LoadingState } from '@/shared/components/LoadingState';
 import { LocalizedText } from '@/shared/components/LocalizedText';
 import { PrimaryButton } from '@/shared/components/PrimaryButton';
 import { Screen } from '@/shared/components/Screen';
+import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
 import { useI18n } from '@/shared/i18n';
 import type { MessageKey } from '@/shared/i18n';
 import type { AppError } from '@/shared/api/types';
@@ -61,6 +69,7 @@ const SPECIALTY_OPTIONS: { value: string; key: MessageKey }[] = [
  */
 export function LawyerProfilePage() {
   const { t } = useI18n();
+  const errorText = useErrorMessage();
   const [phase, setPhase] = useState<'loading' | 'success' | 'error'>('loading');
   const [error, setError] = useState<AppError | null>(null);
   const [profile, setProfile] = useState<WorkbenchProfile | null>(null);
@@ -68,12 +77,20 @@ export function LawyerProfilePage() {
   const [lawFirm, setLawFirm] = useState('');
   const [specialties, setSpecialties] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
   const [formError, setFormError] = useState<MessageKey | null>(null);
   const [saved, setSaved] = useState(false);
 
-  /** 读资料。 */
-  const load = useCallback(async (): Promise<void> => {
-    setPhase('loading');
+  /**
+   * 读资料。
+   *
+   * @param showLoading 是否整页置加载态；头像上传后重读用 false（保留已渲染的表单，避免闪骨架）
+   */
+  const load = useCallback(async (showLoading = true): Promise<void> => {
+    if (showLoading) {
+      setPhase('loading');
+    }
     const res = await fetchWorkbenchProfile();
     if (!res.ok) {
       setError(res.error);
@@ -91,6 +108,41 @@ export function LawyerProfilePage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  /**
+   * 上传头像并立即落库（三段式：申请凭证 → 直传 → 写律师资料）。
+   *
+   * 副作用：把图片写到服务端存储、更新 `lawyer.avatar_url`（存对象 key）、静默重读资料。
+   *
+   * @param file 选中的图片（原生与 Web 统一形状）
+   */
+  const handleAvatar = async (file: PickedFile): Promise<void> => {
+    setAvatarError(null);
+    setFormError(null);
+    setSaved(false);
+    setAvatarUploading(true);
+    try {
+      const uploaded = await uploadFile('avatar', {
+        fileName: file.fileName,
+        size: file.size,
+        contentType: file.contentType,
+        body: file.blob,
+      });
+      if (!uploaded.ok) {
+        setAvatarError(errorText(uploaded.error));
+        return;
+      }
+      const result = await updateLawyerProfile({ avatarUrl: uploaded.data });
+      if (!result.ok) {
+        setAvatarError(errorText(result.error));
+        return;
+      }
+      // 服务端存的是对象 key，重读后由 UserAvatar 换短时地址显示
+      await load(false);
+    } finally {
+      setAvatarUploading(false);
+    }
+  };
 
   /** 切换某个专长。 */
   const toggleSpecialty = (value: string): void => {
@@ -151,10 +203,35 @@ export function LawyerProfilePage() {
         {phase === 'success' ? (
           <ScrollView contentContainerStyle={styles.scroll}>
             <View style={styles.avatarBlock} testID="profile-avatar">
-              <View style={styles.avatar} />
-              <LocalizedText numberOfLines={1} style={styles.avatarHint}>
-                {t('workbench.profile.avatarHint')}
-              </LocalizedText>
+              <FilePickerButton
+                onPick={(file) => {
+                  void handleAvatar(file);
+                }}
+                disabled={avatarUploading}
+              >
+                <View style={styles.avatarInner}>
+                  <UserAvatar avatarKey={profile?.avatarUrl ?? null} size={size.avatarMedium} />
+                  <View style={styles.avatarHintRow}>
+                    {avatarUploading ? (
+                      <ActivityIndicator size="small" color={color.brand.primary} />
+                    ) : null}
+                    <LocalizedText numberOfLines={1} style={styles.avatarHint}>
+                      {avatarUploading
+                        ? t('profile.editProfile.avatarUploading')
+                        : t('workbench.profile.avatarHint')}
+                    </LocalizedText>
+                  </View>
+                </View>
+              </FilePickerButton>
+              {avatarError !== null ? (
+                <LocalizedText
+                  numberOfLines={2}
+                  style={styles.errorText}
+                  testID="profile-avatar-error"
+                >
+                  {avatarError}
+                </LocalizedText>
+              ) : null}
             </View>
 
             <LocalizedText numberOfLines={1} style={styles.sectionTitle}>
@@ -285,11 +362,14 @@ const styles = StyleSheet.create({
   stateWrap: { paddingHorizontal: spacing.xl },
   scroll: { paddingHorizontal: spacing.xl, paddingTop: spacing.sm, paddingBottom: spacing.xxxl },
   avatarBlock: { alignItems: 'center', gap: spacing.xs, paddingVertical: spacing.md },
-  avatar: {
-    width: size.avatarMedium,
-    height: size.avatarMedium,
-    borderRadius: radius.pill,
-    backgroundColor: color.background.input,
+  avatarInner: { alignItems: 'center', gap: spacing.xs },
+  avatarHintRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
   },
   avatarHint: { ...typography.caption, color: color.brand.primary },
   sectionTitle: {

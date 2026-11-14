@@ -23,6 +23,12 @@
  *      律师端与用户端共用本页，不能再用 `senderRole === 'lawyer'` 判方向（写死用户视角，
  *      律师端会全反）；也不能用 senderId 与当前用户 id 比较（分域 id，常 false）。
  *      一律 `mine === true` 判断，缺失时降级为「对方消息」（左侧）。
+ *   7. **键盘避让**（真机问题 #2/#3）：Android 16 起 edge-to-edge 强制开启，窗口不随键盘
+ *      缩放，`KeyboardAvoidingView` 的 Android 分支（基于 `endCoordinates.screenY`）在
+ *      edge-to-edge 下算不出遮挡高度。所以本页：iOS 用 `KeyboardAvoidingView`，
+ *      Android 用 `Keyboard` 事件拿 IME 高度、加到输入区底部内边距上；
+ *      `Screen` 的 `bottom` edge 因此去掉，底部安全区改由输入区自己的 padding 承担，
+ *      避免「SafeAreaView padding + 键盘 padding」双重留白。
  */
 
 import { Ionicons } from '@expo/vector-icons';
@@ -30,8 +36,19 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  View,
+} from 'react-native';
 import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { uploadFile } from '@/features/account/api/upload';
 import {
@@ -69,6 +86,16 @@ const PAGE_SIZE = 20;
 
 /** 输入状态节流（毫秒）：3 秒无输入自动消失（设计稿与工作流一致）。 */
 const TYPING_IDLE_MS = 3000;
+
+/**
+ * Android 上「键盘高度改用 IME insets 计算」的最低 API level。
+ *
+ * Android 11（API 30）起 `WindowInsets.Type.ime()` 可用，edge-to-edge 下窗口不再被
+ * `adjustResize` 缩小；RN 的 `ReactRootView.checkForKeyboardEvents` 也从 API 30 起改用
+ * IME insets 计算键盘高度（更早版本用「屏幕高 - 可见区域底」，即窗口确实被缩放）。
+ * 低于该版本时系统自己会缩放窗口，页面若再手动抬升会双重留白。
+ */
+const ANDROID_IME_INSET_MIN_API = 30;
 
 /** 快捷问句（设计稿 quick-ask 三条；提交的是文本，显示走 i18n）。 */
 const QUICK_KEYS: ReadonlyArray<MessageKey> = [
@@ -139,6 +166,51 @@ type PendingMessage = {
 };
 
 /**
+ * Android 键盘弹起时占用的高度（DIP，不含系统导航栏）；其他平台恒为 0。
+ *
+ * 为什么不用 `KeyboardAvoidingView` 的 Android 分支：RN 0.81 的 Android 实现监听
+ * `keyboardDidShow` 并用 `endCoordinates.screenY` 算遮挡
+ * （`react-native/Libraries/Components/Keyboard/KeyboardAvoidingView.js` 的
+ * `_relativeKeyboardHeight`）。Android 的 `screenY` 取自
+ * `getWindowVisibleDisplayFrame().bottom`（`ReactRootView.checkForKeyboardEvents`），
+ * 只有窗口被键盘缩放时它才等于键盘上沿；Android 16 起 edge-to-edge 强制开启、窗口不再
+ * 随键盘缩放，该值恒为屏幕底，于是算出的遮挡是 0（输入区被键盘压住，即真机问题 #2）。
+ * 同一个方法里 `height = imeInsets.bottom - barInsets.bottom` 是 IME inset 直接算的，
+ * 不依赖窗口缩放，所以这里取 `endCoordinates.height`，加到输入区的底部内边距上。
+ *
+ * **只在 API 30+ 生效**：RN 自己也是从 API 30（Android 11）起改用 IME insets 计算键盘高度
+ * （更早的版本走 `checkForKeyboardEventsLegacy`，用「屏幕高 - 可见区域底」，说明那时窗口
+ * 确实会被 `adjustResize` 缩小）。若在旧版本上再抬一次，会变成「系统抬一次 + 我们再抬一次」
+ * 的双重留白。旧版本照旧依赖系统缩放即可。
+ *
+ * 本页与 `features/ai/pages/AiChatPage.tsx` 各有一份：两个页面分属不同 feature，
+ * 本轮修复的允许改动范围只到这两个文件，不新增共享文件（抽公共 hook 见遗留项）。
+ *
+ * @returns 键盘本体高度；订阅在组件卸载时移除
+ */
+function useAndroidKeyboardHeight(): number {
+  const [height, setHeight] = useState(0);
+
+  useEffect(() => {
+    if (Platform.OS !== 'android' || Number(Platform.Version) < ANDROID_IME_INSET_MIN_API) {
+      return undefined;
+    }
+    const show = Keyboard.addListener('keyboardDidShow', (event) => {
+      setHeight(event.endCoordinates.height);
+    });
+    const hide = Keyboard.addListener('keyboardDidHide', () => {
+      setHeight(0);
+    });
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
+
+  return height;
+}
+
+/**
  * 聊天页。
  *
  * 副作用：建/取会话 → 拉首屏历史 → 连 WS；页面卸载关闭连接。
@@ -153,6 +225,10 @@ export function ChatPage() {
   const { t } = useI18n();
   const router = useRouter();
   const toast = useToast();
+  /** 底部安全区（导航栏 / Home Indicator）。`Screen` 不再取 `bottom` edge，由输入区自己承担。 */
+  const insets = useSafeAreaInsets();
+  /** Android 键盘高度（iOS 恒 0，交给 `KeyboardAvoidingView`）。 */
+  const keyboardHeight = useAndroidKeyboardHeight();
 
   const [phase, setPhase] = useState<'loading' | 'error' | 'ready'>('loading');
   const [error, setError] = useState<AppError | null>(null);
@@ -656,7 +732,9 @@ export function ChatPage() {
   const needPurchase = error !== null && error.kind === 'business' && error.code === 404005;
 
   return (
-    <Screen edges={['top', 'left', 'right', 'bottom']}>
+    // 不取 `bottom` edge：底部安全区与键盘会让位叠两层。改由 `composerWrap` 的
+    // `paddingBottom = insets.bottom + keyboardHeight` 一次性承担（见文件头第 7 条）。
+    <Screen edges={['top', 'left', 'right']}>
       <AppHeader title={headerTitle} />
       {socketStatus === 'offline' ? (
         <View style={styles.banner}>
@@ -708,7 +786,18 @@ export function ChatPage() {
       ) : null}
 
       {phase === 'ready' ? (
-        <View style={styles.body}>
+        <KeyboardAvoidingView
+          style={styles.body}
+          // Android 分支传 undefined：edge-to-edge 下它算不出遮挡（见 `useAndroidKeyboardHeight`），
+          // 抬升由 composerWrap 的 paddingBottom 完成。`enabled` 同步关掉，省掉无谓的 setState。
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          enabled={Platform.OS === 'ios'}
+          // iOS 的 `keyboardVerticalOffset` 负责把 KAV 的「父容器坐标」对齐到「屏幕坐标」：
+          // 顶部让出 insets.top（SafeAreaView），而底部安全区已由 composerWrap 自己留出
+          // insets.bottom，所以 offset 取 `top - bottom` 才能让输入框正好落在键盘上沿上方
+          // （留 `spacing.sm` 间距）。用 `top + bottom` 会多留一段键盘高度的空白。
+          keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top - insets.bottom : 0}
+        >
           <ScrollView
             ref={scrollRef}
             contentContainerStyle={styles.list}
@@ -807,7 +896,7 @@ export function ChatPage() {
             ) : null}
           </ScrollView>
 
-          <View style={styles.composerWrap}>
+          <View style={[styles.composerWrap, { paddingBottom: insets.bottom + keyboardHeight }]}>
             {uploading ? (
               <View style={styles.uploadingRow}>
                 <ActivityIndicator size="small" color={color.brand.primary} />
@@ -852,7 +941,7 @@ export function ChatPage() {
               </Pressable>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       ) : null}
 
       <AttachSheet

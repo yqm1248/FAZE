@@ -4,7 +4,8 @@
  * 职责：拉取当前用户的站内信（公告 / 订单提醒 / 工单回复 / 安全提醒），按时间倒序展示，
  *       点击未读项标记已读，支持「加载更多」与下拉刷新语义的静默刷新。
  * 调用方：路由壳 `app/messages.tsx`；入口在首页快捷入口与「我的」页。
- * 数据来源：`GET /api/v1/app/notifications`（游标分页）、`POST .../{id}/read`。
+ * 数据来源：`GET /api/v1/app/notifications`（游标分页）、`POST .../{id}/read`；
+ *           角色分流另读 `GET /api/v1/app/account/profile`（复用 `getProfile`）。
  * 注意：
  *   1. **后端是游标分页不是页码分页**：记「最后一条 id」而不是页码；服务端用 `id < cursor`。
  *   2. 「加载更多」按钮只在还有下一页时出现；返回空数组即视为到底。
@@ -12,6 +13,13 @@
  *      等接口回来才变化会让用户以为没点中。
  *   4. 四态齐全：加载（骨架）/ 空（保留原空态与「去找律师」）/ 错误（ErrorState + 重试）/ 正常。
  *   5. 不做「全部已读」：后端没有批量已读接口，前端软删/批量循环调单条都会放大请求，先不做。
+ *   6. **角色分流（2026-11-15 修复 #6）**：「我的咨询」是**用户端**会话（对端是律师）；
+ *      律师还需要「客户咨询」（对端是客户，走 `/workbench-consultations`），
+ *      否则律师在消息中心找不到别人咨询他的会话。角色取 profile 的 `roles`（与「我的」页同口径），
+ *      **拉取失败静默降级为不显示律师入口**——不能因为角色查不到就让站内信列表报错。
+ *   7. 未读聚合有意不做：站内信未读与会话未读是两个口径，且 `workbench/conversations`
+ *      没有未读汇总接口，前端自己拉全量会话统计会随会话数线性放大请求；本轮只在入口条
+ *      留导航，不显示未读数（2026-11-15 负责人确认不加消息 tab / 不加红点）。
  */
 
 import { Ionicons } from '@expo/vector-icons';
@@ -19,6 +27,7 @@ import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
+import { getProfile } from '@/features/profile/api/profile';
 import type { AppError } from '@/shared/api/types';
 import { AppHeader } from '@/shared/components/AppHeader';
 import { useToast } from '@/shared/components/AppToast';
@@ -29,6 +38,7 @@ import { LocalizedText } from '@/shared/components/LocalizedText';
 import { PrimaryButton } from '@/shared/components/PrimaryButton';
 import { Screen } from '@/shared/components/Screen';
 import { useI18n } from '@/shared/i18n';
+import { useAsyncResource } from '@/shared/hooks/useAsyncResource';
 import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
 import { useRefreshOnFocus } from '@/shared/hooks/useRefreshOnFocus';
 import { messageDetailHref, PAGE_ROUTES } from '@/shared/navigation/routes';
@@ -96,6 +106,16 @@ export function MessagesPage() {
   const errorText = useErrorMessage();
   const [state, setState] = useState<ListState>({ phase: 'loading' });
   const [loadingMore, setLoadingMore] = useState(false);
+
+  /*
+   * 角色分流用的 profile。
+   * 复用「我的」页同款 `getProfile` + `useAsyncResource`（不另造 fetch）：
+   * 只读 `roles` 决定律师入口显不显示。**失败静默降级**——这里只认 success 分支，
+   * 不 toast、不渲染错误态，站内信列表不受影响（任务 #6 验收点 4）。
+   */
+  const profileResource = useAsyncResource(getProfile);
+  const isLawyer =
+    profileResource.state.phase === 'success' && profileResource.state.data.roles.includes('lawyer');
 
   /**
    * 拉第一页（首屏与错误态重试共用）。
@@ -237,6 +257,12 @@ export function MessagesPage() {
           会话列表没有独立一级入口（底部 5 tab 已定稿），而用户找「那个律师对话」时
           第一站是消息中心，所以这里放在最顶——**任何状态下都显示**（不依赖站内信是否加载成功，
           它只是导航）。未读数不在这里算：站内信未读与会话未读是两个口径，混在一起会互相打架。
+
+          律师分流（2026-11-15 修复 #6）：「我的咨询」对端是律师（用户视角）；
+          律师看「别人咨询我」的会话是另一个接口与另一个页面（`/workbench-consultations`），
+          所以 roles 含 lawyer 时**额外**渲染第二条入口，而不是替换上面那条——
+          律师本人也可能作为普通用户咨询别的律师。未读数同「我的咨询」不在这里算：
+          `workbench/conversations` 没有未读汇总接口，本页不做未读聚合。
         */}
         <Pressable
           testID="messages-conversations-entry"
@@ -255,6 +281,27 @@ export function MessagesPage() {
           </View>
           <DirectionalIcon name="chevron-forward" size={18} color={color.text.muted} />
         </Pressable>
+
+        {/* 律师专属：「客户咨询」→ 律师端工作台会话页（对端是客户）。 */}
+        {isLawyer ? (
+          <Pressable
+            testID="messages-lawyer-consultations-entry"
+            accessibilityRole="button"
+            accessibilityLabel={t('content.messages.lawyerConsultations')}
+            onPress={() => router.push(PAGE_ROUTES.workbenchConsultations)}
+            style={({ pressed }) => [styles.convEntry, pressed ? styles.convEntryPressed : null]}
+          >
+            <View style={styles.convEntryIcon}>
+              <Ionicons name="people-outline" size={22} color={color.brand.primary} />
+            </View>
+            <View style={styles.convEntryBody}>
+              <LocalizedText numberOfLines={1} style={styles.convEntryTitle}>
+                {t('content.messages.lawyerConsultations')}
+              </LocalizedText>
+            </View>
+            <DirectionalIcon name="chevron-forward" size={18} color={color.text.muted} />
+          </Pressable>
+        ) : null}
 
         {state.phase === 'loading' ? <LoadingState rows={5} /> : null}
 
