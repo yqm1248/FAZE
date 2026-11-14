@@ -20,7 +20,9 @@ import com.faze.common.pojo.PageResult;
 import com.faze.modules.content.service.ArticleService;
 import com.faze.modules.content.vo.ArticleCardVO;
 import com.faze.modules.content.vo.ArticleDetailVO;
+import com.faze.security.LoginUser;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -74,8 +76,11 @@ public class ArticleController {
     public R<ArticleDetailVO> detail(@PathVariable Long id,
                                      @RequestParam(required = false) String lang,
                                      @RequestHeader(value = HEADER_LANG, required = false)
-                                     String acceptLang) {
-        return R.ok(articleService.detail(id, resolveLang(lang, acceptLang)));
+                                     String acceptLang,
+                                     @AuthenticationPrincipal LoginUser loginUser) {
+        // 游客走 `/pub` 前缀时 Security 放行，loginUser 为 null，此时 favorited 恒 false。
+        return R.ok(articleService.detail(id, resolveLang(lang, acceptLang),
+                loginUser == null ? null : loginUser.getUserId()));
     }
 
     /**

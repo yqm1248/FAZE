@@ -67,6 +67,10 @@
     "metaLine": "{{source}} · {{year}} · {{count}} قېتىم ئوقۇلدى",
     "metaNoYear": "{{source}} · {{count}} قېتىم ئوقۇلدى"
   },
+  "article": {
+    "favorite": "ساقلاش",
+    "favorited": "ساقلاندى"
+  },
   "search": {
     "title": "ئىزدەش",
     "placeholder": "ئاچقۇچلۇق سۆزنى كىرگۈزۈڭ",

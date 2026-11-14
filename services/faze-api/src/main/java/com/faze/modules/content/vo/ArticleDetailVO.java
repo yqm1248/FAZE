@@ -47,4 +47,12 @@ public class ArticleDetailVO {
 
     /** 是否发生了语言降级。 */
     private boolean langFallback;
+
+    /**
+     * 当前用户是否已收藏。
+     *
+     * <p>未登录（游客走 `/pub` 前缀）恒为 false；登录用户按 `social_action` 的
+     * `favorite` + `article` 记录判定。</p>
+     */
+    private Boolean favorited;
 }

@@ -34,6 +34,7 @@ import com.faze.modules.content.mapper.ArticleTranslationMapper;
 import com.faze.modules.content.vo.ArticleBlockVO;
 import com.faze.modules.content.vo.ArticleCardVO;
 import com.faze.modules.content.vo.ArticleDetailVO;
+import com.faze.modules.trade.service.SocialActionService;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -70,6 +71,13 @@ public class ArticleService implements ArticleQueryService {
     private final ArticleBlockConverter articleBlockConverter;
     private final LawItemMapper lawItemMapper;
     private final FileStorage fileStorage;
+    /**
+     * 收藏状态查询。
+     *
+     * <p>走 trade 域的 `SocialActionService`，不注入别域 Mapper —— 与
+     * `CaseLibraryQueryServiceImpl` 的做法一致（《后端代码规范》§2.3）。</p>
+     */
+    private final SocialActionService socialActionService;
 
     /**
      * 分页查询文章列表（只返回已发布）。
@@ -145,12 +153,13 @@ public class ArticleService implements ArticleQueryService {
     /**
      * 查文章详情（只返回已发布）。
      *
-     * @param id   文章主键
-     * @param lang 请求语言
+     * @param id     文章主键
+     * @param lang   请求语言
+     * @param userId 当前登录用户主键（可空；游客为 null，此时 favorited 恒 false）
      * @return 详情（正文为块数组）
      * @throws BusinessException 401004 文章不存在或未上架
      */
-    public ArticleDetailVO detail(Long id, String lang) {
+    public ArticleDetailVO detail(Long id, String lang, Long userId) {
         String targetLang = normalizeLang(lang);
         Article article = id == null ? null : articleMapper.selectOne(Wrappers.<Article>lambdaQuery()
                 .eq(Article::getId, id)
@@ -179,6 +188,9 @@ public class ArticleService implements ArticleQueryService {
         enrichLawContent(blocks);
         vo.setBlocks(blocks);
         vo.setLangFallback(!LANG_ZH.equals(targetLang) && bodyFallback);
+        // 收藏状态：跨域调 trade 域的 service（不注入别域 Mapper）。游客 userId 为 null 时恒 false。
+        vo.setFavorited(socialActionService.isFavorited(userId,
+                SocialActionService.TARGET_ARTICLE, article.getId()));
         return vo;
     }
 

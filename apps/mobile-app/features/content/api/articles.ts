@@ -87,6 +87,8 @@ export type ArticleDetail = {
   blocks: ArticleBlock[];
   /** 是否语言降级。 */
   langFallback: boolean;
+  /** 当前用户是否已收藏（游客恒 false）。 */
+  favorited?: boolean;
 };
 
 /** 文章分页结果。 */

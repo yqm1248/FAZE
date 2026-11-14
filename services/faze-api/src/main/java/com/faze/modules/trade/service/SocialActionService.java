@@ -41,6 +41,9 @@ public class SocialActionService {
     /** 目标：案例库。 */
     public static final String TARGET_CASE_LIBRARY = "case_library";
 
+    /** 目标：文章。 */
+    public static final String TARGET_ARTICLE = "article";
+
     private final SocialActionMapper socialActionMapper;
 
     /**

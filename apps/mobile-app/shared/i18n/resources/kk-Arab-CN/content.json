@@ -67,6 +67,10 @@
     "metaLine": "{{source}} · {{year}} · {{count}} رەت وقىلدى",
     "metaNoYear": "{{source}} · {{count}} رەت وقىلدى"
   },
+  "article": {
+    "favorite": "ساقتاۋ",
+    "favorited": "ساقتالدى"
+  },
   "search": {
     "title": "ىزدەۋ",
     "placeholder": "تۇيىن سوزدى ەنگىزىڭىز",

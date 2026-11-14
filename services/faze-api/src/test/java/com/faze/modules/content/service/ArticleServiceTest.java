@@ -27,6 +27,7 @@ import com.faze.modules.content.mapper.ArticleMapper;
 import com.faze.modules.content.mapper.ArticleTranslationMapper;
 import com.faze.modules.content.vo.ArticleCardVO;
 import com.faze.modules.content.vo.ArticleDetailVO;
+import com.faze.modules.trade.service.SocialActionService;
 import java.util.List;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.BeforeAll;
@@ -71,6 +72,9 @@ class ArticleServiceTest {
     @Mock
     private FileStorage fileStorage;
 
+    @Mock
+    private SocialActionService socialActionService;
+
     private ArticleService articleService;
 
     /**
@@ -88,7 +92,7 @@ class ArticleServiceTest {
     void setUp() {
         ArticleBlockConverter converter = new ArticleBlockConverter(JsonMapper.builder().build());
         articleService = new ArticleService(articleMapper, articleTranslationMapper, converter,
-                lawItemMapper, fileStorage);
+                lawItemMapper, fileStorage, socialActionService);
     }
 
     /**
@@ -173,7 +177,7 @@ class ArticleServiceTest {
         item.setContent("禁止高利放贷，借款的利率不得违反国家有关规定。");
         when(lawItemMapper.selectBatchIds(any())).thenReturn(List.of(item));
 
-        ArticleDetailVO vo = articleService.detail(ARTICLE_ID, "zh-Hans");
+        ArticleDetailVO vo = articleService.detail(ARTICLE_ID, "zh-Hans", null);
 
         assertEquals(2, vo.getBlocks().size());
         assertEquals("paragraph", vo.getBlocks().get(0).getType());
@@ -192,7 +196,7 @@ class ArticleServiceTest {
         when(articleMapper.selectOne(any(Wrapper.class))).thenReturn(null);
 
         BusinessException ex = assertThrows(BusinessException.class,
-                () -> articleService.detail(ARTICLE_ID, "zh-Hans"));
+                () -> articleService.detail(ARTICLE_ID, "zh-Hans", null));
 
         assertEquals(ErrorCode.COMMON_NOT_FOUND, ex.getErrorCode());
     }
@@ -211,7 +215,7 @@ class ArticleServiceTest {
         translation.setContent(null);
         when(articleTranslationMapper.selectOne(any(Wrapper.class))).thenReturn(translation);
 
-        ArticleDetailVO vo = articleService.detail(ARTICLE_ID, "ug-Arab-CN");
+        ArticleDetailVO vo = articleService.detail(ARTICLE_ID, "ug-Arab-CN", null);
 
         assertEquals("ئۇيغۇرچە ماۋزۇ", vo.getTitle());
         assertTrue(vo.isLangFallback());

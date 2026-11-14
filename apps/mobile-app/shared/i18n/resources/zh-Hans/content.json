@@ -67,6 +67,10 @@
     "metaLine": "{{source}} · {{year}} · {{count}} 次阅读",
     "metaNoYear": "{{source}} · {{count}} 次阅读"
   },
+  "article": {
+    "favorite": "收藏",
+    "favorited": "已收藏"
+  },
   "search": {
     "title": "搜索",
     "placeholder": "请输入关键词",

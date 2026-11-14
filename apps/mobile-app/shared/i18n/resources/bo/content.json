@@ -67,6 +67,10 @@
     "metaLine": "{{source}} · {{year}} · {{count}} ཐེངས་བཀླགས།",
     "metaNoYear": "{{source}} · {{count}} ཐེངས་བཀླགས།"
   },
+  "article": {
+    "favorite": "ཉར་བ།",
+    "favorited": "ཉར་ཟིན།"
+  },
   "search": {
     "title": "བཤེར་བ།",
     "placeholder": "ལྡེ་ཚིག་འཇུག་རོགས།",

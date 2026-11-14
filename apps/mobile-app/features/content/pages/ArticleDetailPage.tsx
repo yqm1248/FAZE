@@ -19,10 +19,11 @@
 import { Image } from 'expo-image';
 import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { getArticle } from '@/features/content/api/articles';
 import type { ArticleBlock, ArticleDetail } from '@/features/content/api/articles';
+import { toggleArticleFavorite } from '@/features/content/api/favorite';
 import type { AppError } from '@/shared/api/types';
 import { AppCard } from '@/shared/components/AppCard';
 import { AppHeader } from '@/shared/components/AppHeader';
@@ -32,11 +33,15 @@ import { LocalizedText } from '@/shared/components/LocalizedText';
 import { LtrText } from '@/shared/components/LtrText';
 import { Screen } from '@/shared/components/Screen';
 import { TagChip } from '@/shared/components/TagChip';
+import { useOptimisticToggle } from '@/shared/hooks/useOptimisticToggle';
 import { useI18n } from '@/shared/i18n';
-import { color, radius, spacing, typography } from '@/shared/theme';
+import { color, radius, shadow, size, spacing, typography } from '@/shared/theme';
 import { formatServerDate } from '@/shared/utils/serverTime';
 
 import { categoryLabel } from '../utils/categoryLabel';
+
+/** 底部操作栏高度（正文要留出这段 paddingBottom，否则最后一行被压住）。 */
+const FOOTER_HEIGHT = 72;
 
 /**
  * 文章详情页。
@@ -52,6 +57,8 @@ export function ArticleDetailPage() {
   const [phase, setPhase] = useState<'loading' | 'error' | 'ready'>('loading');
   const [article, setArticle] = useState<ArticleDetail | null>(null);
   const [error, setError] = useState<AppError | null>(null);
+  /** 收藏真值（受控）：初始来自详情接口，之后由乐观切换维护。 */
+  const [favorited, setFavorited] = useState(false);
 
   /** 拉详情。 */
   const load = useCallback(async (): Promise<void> => {
@@ -64,6 +71,7 @@ export function ArticleDetailPage() {
     }
     setError(null);
     setArticle(result.data);
+    setFavorited(result.data.favorited === true);
     setPhase('ready');
   }, [articleId]);
 
@@ -73,6 +81,17 @@ export function ArticleDetailPage() {
 
   // 分类原值来自接口（中文），必须过一层翻译，否则非中文界面会显示中文 chip。
   const categoryText = categoryLabel(article?.category ?? null, t);
+
+  /**
+   * 收藏 / 取消收藏：翻转、失败回滚、防重入统一由 `useOptimisticToggle` 处理。
+   *
+   * `articleId` 为空时（无 id 参数）按钮不可用，避免打到 `/articles//favorite`。
+   */
+  const favorite = useOptimisticToggle({
+    value: favorited,
+    onChange: setFavorited,
+    apply: (next) => toggleArticleFavorite(articleId, next),
+  });
 
   const empty = article !== null && article.blocks.length === 0;
 
@@ -96,7 +115,8 @@ export function ArticleDetailPage() {
       ) : null}
 
       {phase === 'ready' && article !== null ? (
-        <ScrollView contentContainerStyle={styles.body}>
+        <View style={styles.readyWrap}>
+          <ScrollView contentContainerStyle={styles.body}>
           {article.langFallback ? (
             <View style={styles.fallback}>
               <LocalizedText numberOfLines={2} style={styles.fallbackText}>
@@ -127,7 +147,29 @@ export function ArticleDetailPage() {
           )}
 
           <LocalizedText numberOfLines={4} style={styles.disclaimer}>{t('content.detail.disclaimer')}</LocalizedText>
-        </ScrollView>
+          </ScrollView>
+
+          <View style={[styles.footer, shadow.cardRaised]}>
+            <Pressable
+              testID="article-favorite"
+              accessibilityRole="button"
+              accessibilityState={{ selected: favorited, disabled: favorite.busy }}
+              onPress={() => void favorite.toggle()}
+              style={({ pressed }) => [
+                styles.favoriteBtn,
+                favorited ? styles.favoriteBtnActive : null,
+                pressed ? styles.pressed : null,
+              ]}
+            >
+              <LocalizedText
+                numberOfLines={1}
+                style={favorited ? styles.favoriteTextActive : styles.favoriteText}
+              >
+                {favorited ? t('content.article.favorited') : t('content.article.favorite')}
+              </LocalizedText>
+            </Pressable>
+          </View>
+        </View>
       ) : null}
     </Screen>
   );
@@ -199,10 +241,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.lg,
   },
+  readyWrap: { flex: 1 },
   body: {
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.md,
-    paddingBottom: spacing.xxxl,
+    // 正文底部留出底部操作栏的高度，否则最后一段会被收藏按钮压住
+    paddingBottom: FOOTER_HEIGHT + spacing.xl,
     gap: spacing.md,
   },
   fallback: {
@@ -304,4 +348,34 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
     lineHeight: 18,
   },
+  footer: {
+    position: 'absolute',
+    // RTL：用 start/end 而不是 left/right，避免与 I18nManager 的自动镜像叠加成「翻两遍」
+    start: 0,
+    end: 0,
+    bottom: 0,
+    height: FOOTER_HEIGHT,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.sm,
+    backgroundColor: color.background.surface,
+    borderTopWidth: size.hairline,
+    borderTopColor: color.border.divider,
+  },
+  favoriteBtn: {
+    flex: 1,
+    height: 44,
+    borderRadius: radius.lg,
+    borderWidth: size.hairline,
+    borderColor: color.border.subtle,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  favoriteBtnActive: {
+    borderColor: color.brand.primary,
+  },
+  favoriteText: { ...typography.bodySmall, color: color.text.secondary },
+  favoriteTextActive: { ...typography.bodySmall, color: color.brand.primary },
+  pressed: { opacity: 0.7 },
 });
