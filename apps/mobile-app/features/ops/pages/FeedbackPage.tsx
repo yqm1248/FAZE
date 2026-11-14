@@ -15,7 +15,8 @@
  *   3. 联系方式填了就必须是合法手机号（后端 `^$|^1[3-9]\d{9}$`）。**边输边校验**，
  *      而不是等提交才报错——用户填了 11 位发现格式不对会以为是系统坏了。
  *   4. 截图 `scene` 用 `feedback`（本轮新增到后端 `StorageKeyRules` 白名单）；
- *      `WebFileButton` 只在 Web 生效，原生端点了没反应（已知边界，已记 §十一）。
+ *      选图组件统一用 `FilePickerButton`（Web 走 `<input type=file>`、原生走
+ *      `expo-image-picker`）。原 `WebFileButton` 在原生端点了没反应，2026-11-14 已替换。
  *   5. 反馈**不强调工单号**：稿面只承诺「每条都会有人看，不承诺逐条回复」。
  */
 
@@ -31,7 +32,8 @@ import { LocalizedText } from '@/shared/components/LocalizedText';
 import { PrimaryButton } from '@/shared/components/PrimaryButton';
 import { Screen } from '@/shared/components/Screen';
 import { useToast } from '@/shared/components/AppToast';
-import { WebFileButton } from '@/shared/components/WebFileButton';
+import { FilePickerButton } from '@/shared/components/FilePickerButton';
+import type { PickedFile } from '@/shared/components/FilePickerButton';
 import { useI18n } from '@/shared/i18n';
 import type { MessageKey } from '@/shared/i18n';
 import { uploadFile } from '@/features/account/api/upload';
@@ -86,19 +88,19 @@ export function FeedbackPage() {
   /**
    * 选择一张截图并上传。
    *
-   * @param file 浏览器 File 对象
+   * @param file 选中的文件（原生与 Web 统一形状）
    */
   const handlePickImage = useCallback(
-    async (file: File) => {
+    async (file: PickedFile) => {
       if (images.length >= IMAGE_MAX) {
         return;
       }
       setUploading(true);
       const result = await uploadFile('feedback', {
-        fileName: file.name,
+        fileName: file.fileName,
         size: file.size,
-        contentType: file.type,
-        body: file,
+        contentType: file.contentType,
+        body: file.blob,
       });
       setUploading(false);
       if (!result.ok) {
@@ -230,7 +232,7 @@ export function FeedbackPage() {
           </View>
 
           <View style={styles.uploadRow}>
-            <WebFileButton
+            <FilePickerButton
               disabled={uploading || images.length >= IMAGE_MAX}
               onPick={(file) => {
                 void handlePickImage(file);
@@ -248,7 +250,7 @@ export function FeedbackPage() {
                     : t('ops.feedback.uploadDone', { count: String(images.length) })}
                 </LocalizedText>
               </View>
-            </WebFileButton>
+            </FilePickerButton>
           </View>
         </AppCard>
 

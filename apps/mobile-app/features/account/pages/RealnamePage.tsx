@@ -37,7 +37,8 @@ import { LocalizedText } from '@/shared/components/LocalizedText';
 import { PrimaryButton } from '@/shared/components/PrimaryButton';
 import { Screen } from '@/shared/components/Screen';
 import { StatusHero } from '@/shared/components/StatusHero';
-import { WebFileButton } from '@/shared/components/WebFileButton';
+import { FilePickerButton } from '@/shared/components/FilePickerButton';
+import type { PickedFile } from '@/shared/components/FilePickerButton';
 import { useI18n } from '@/shared/i18n';
 import { useAsyncResource } from '@/shared/hooks/useAsyncResource';
 import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
@@ -96,18 +97,17 @@ export function RealnamePage() {
    * 副作用：写服务端存储；成功后拉预览地址。
    *
    * @param side 正面 / 反面
-   * @param file 浏览器选中的文件
+   * @param file 选中的文件（原生与 Web 统一形状）
    */
-  const handlePick = async (side: Side, file: File) => {
+  const handlePick = async (side: Side, file: PickedFile) => {
     setError(null);
     const setPhoto = side === 'front' ? setFront : setBack;
     setPhoto((previous) => ({ ...previous, uploading: true }));
     const uploaded = await uploadFile('realname', {
-      fileName: file.name,
+      fileName: file.fileName,
       size: file.size,
-      // 浏览器给不出类型时按 jpeg 兜底（后端仍会二次校验）
-      contentType: file.type === '' ? 'image/jpeg' : file.type,
-      body: file,
+      contentType: file.contentType,
+      body: file.blob,
     });
     if (!uploaded.ok) {
       setPhoto((previous) => ({ ...previous, uploading: false }));
@@ -174,7 +174,7 @@ export function RealnamePage() {
    * @returns 上传按钮 + 预览
    */
   const renderPhoto = (side: Side, photo: PhotoState, label: string) => (
-    <WebFileButton
+    <FilePickerButton
       onPick={(file) => {
         void handlePick(side, file);
       }}
@@ -201,7 +201,7 @@ export function RealnamePage() {
               : t('profile.realname.uploadDone')}
         </LocalizedText>
       </View>
-    </WebFileButton>
+    </FilePickerButton>
   );
 
   /**

@@ -14,8 +14,8 @@
  *      订单问题 → `order`。后端还有一条约束：**非 `platform` 时必须带 `targetId`**。
  *      设计稿的「服务问题」指响应超时/服务与描述不符，属平台侧，所以不要求订单。
  *   3. 截图走三段式上传，`scene` 用 `complaint`（本轮新增到后端 `StorageKeyRules` 白名单）。
- *      选图组件 `WebFileButton` **只在 Web 生效**（Expo 依赖里没有 image-picker，
- *      而本段验收方式是浏览器）——原生端点了没反应，属已知边界，已记段 7 §十一。
+ *      选图组件统一用 `FilePickerButton`（Web 走 `<input type=file>`、原生走
+ *      `expo-image-picker`）。原 `WebFileButton` 在原生端点了没反应，2026-11-14 已替换。
  *   4. 提交成功**必须显示单号**：用户找客服时报单号最快定位。后端 `ticketNo` 可能为 null
  *      （工单降级），所以成功态要备两套文案。
  *   5. 「处理结果通知到」显示的是**脱敏手机号**（`phoneMasked`），不做可编辑——
@@ -34,7 +34,8 @@ import { LocalizedText } from '@/shared/components/LocalizedText';
 import { PrimaryButton } from '@/shared/components/PrimaryButton';
 import { Screen } from '@/shared/components/Screen';
 import { useToast } from '@/shared/components/AppToast';
-import { WebFileButton } from '@/shared/components/WebFileButton';
+import { FilePickerButton } from '@/shared/components/FilePickerButton';
+import type { PickedFile } from '@/shared/components/FilePickerButton';
 import { formatDate, formatDateTime } from '@/shared/i18n/datetime';
 import { useI18n } from '@/shared/i18n';
 import type { MessageKey } from '@/shared/i18n';
@@ -114,19 +115,19 @@ export function ComplaintPage() {
   /**
    * 选择一张截图并上传。
    *
-   * @param file 浏览器 File 对象
+   * @param file 选中的文件（原生与 Web 统一形状）
    */
   const handlePickImage = useCallback(
-    async (file: File) => {
+    async (file: PickedFile) => {
       if (images.length >= IMAGE_MAX) {
         return;
       }
       setUploading(true);
       const result = await uploadFile('complaint', {
-        fileName: file.name,
+        fileName: file.fileName,
         size: file.size,
-        contentType: file.type,
-        body: file,
+        contentType: file.contentType,
+        body: file.blob,
       });
       setUploading(false);
       if (!result.ok) {
@@ -384,7 +385,7 @@ export function ComplaintPage() {
 
           {/* 截图上传 */}
           <View style={styles.uploadRow}>
-            <WebFileButton
+            <FilePickerButton
               disabled={uploading || images.length >= IMAGE_MAX}
               onPick={(file) => {
                 void handlePickImage(file);
@@ -402,7 +403,7 @@ export function ComplaintPage() {
                     : t('ops.complaint.uploadDone', { count: String(images.length) })}
                 </LocalizedText>
               </View>
-            </WebFileButton>
+            </FilePickerButton>
           </View>
           <LocalizedText numberOfLines={3} style={styles.fieldTip}>
             {t('ops.complaint.uploadTip')}

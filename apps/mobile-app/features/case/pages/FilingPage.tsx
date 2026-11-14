@@ -52,7 +52,8 @@ import { LoadingState } from '@/shared/components/LoadingState';
 import { LocalizedText } from '@/shared/components/LocalizedText';
 import { PrimaryButton } from '@/shared/components/PrimaryButton';
 import { Screen } from '@/shared/components/Screen';
-import { WebFileButton } from '@/shared/components/WebFileButton';
+import { FilePickerButton } from '@/shared/components/FilePickerButton';
+import type { PickedFile } from '@/shared/components/FilePickerButton';
 import { getDownloadUrl, uploadFile } from '@/features/account/api/upload';
 import { useI18n } from '@/shared/i18n';
 import { useIdempotencyKey } from '@/shared/hooks/useIdempotencyKey';
@@ -361,19 +362,19 @@ export function FilingPage() {
    * 副作用：以 `case_evidence` 场景上传；成功后追加对象 key，并异步取短时签名地址做缩略图。
    * 上传失败只 toast，不改变已上传列表——让用户能重试单张而不是整批重来。
    *
-   * @param file 浏览器 File 对象
+   * @param file 选中的文件（原生与 Web 统一形状）
    */
   const handlePickEvidence = useCallback(
-    async (file: File): Promise<void> => {
+    async (file: PickedFile): Promise<void> => {
       if (evidenceKeys.length >= EVIDENCE_MAX) {
         return;
       }
       setEvidenceUploading(true);
       const uploaded = await uploadFile('case_evidence', {
-        fileName: file.name,
+        fileName: file.fileName,
         size: file.size,
-        contentType: file.type,
-        body: file,
+        contentType: file.contentType,
+        body: file.blob,
       });
       setEvidenceUploading(false);
       if (!uploaded.ok) {
@@ -770,7 +771,8 @@ export function FilingPage() {
                 </View>
               ))}
               {evidenceKeys.length < EVIDENCE_MAX ? (
-                <WebFileButton
+                <FilePickerButton
+                  kind="file"
                   disabled={evidenceUploading}
                   onPick={(file) => {
                     void handlePickEvidence(file);
@@ -786,7 +788,7 @@ export function FilingPage() {
                       {t('case.filing.field.evidence')}
                     </LocalizedText>
                   </View>
-                </WebFileButton>
+                </FilePickerButton>
               ) : null}
             </View>
             <LocalizedText numberOfLines={3} style={styles.evidenceHint}>

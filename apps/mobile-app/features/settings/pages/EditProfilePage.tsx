@@ -30,7 +30,8 @@ import { FormField } from '@/shared/components/FormField';
 import { LocalizedText } from '@/shared/components/LocalizedText';
 import { PrimaryButton } from '@/shared/components/PrimaryButton';
 import { Screen } from '@/shared/components/Screen';
-import { WebFileButton } from '@/shared/components/WebFileButton';
+import { FilePickerButton } from '@/shared/components/FilePickerButton';
+import type { PickedFile } from '@/shared/components/FilePickerButton';
 import { useI18n } from '@/shared/i18n';
 import { useAsyncResource } from '@/shared/hooks/useAsyncResource';
 import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
@@ -89,17 +90,17 @@ export function EditProfilePage() {
    *
    * 副作用：写文件到存储、更新 `app_user.avatar_url`、重新拉资料。
    *
-   * @param file 浏览器选中的文件
+   * @param file 选中的文件（原生与 Web 统一形状）
    */
-  const handleAvatar = async (file: File) => {
+  const handleAvatar = async (file: PickedFile) => {
     setError(null);
     setAvatarUploading(true);
     try {
       const uploaded = await uploadFile('avatar', {
-        fileName: file.name,
+        fileName: file.fileName,
         size: file.size,
-        contentType: file.type === '' ? 'image/jpeg' : file.type,
-        body: file,
+        contentType: file.contentType,
+        body: file.blob,
       });
       if (!uploaded.ok) {
         setError(errorText(uploaded.error));
@@ -167,7 +168,7 @@ export function EditProfilePage() {
               <View style={styles.body}>
                 <View style={styles.avatarBlock}>
                   <UserAvatar avatarKey={currentAvatarKey} size={88} />
-                  <WebFileButton
+                  <FilePickerButton
                     onPick={(file) => {
                       void handleAvatar(file);
                     }}
@@ -180,7 +181,7 @@ export function EditProfilePage() {
                           : t('profile.editProfile.avatarChange')}
                       </LocalizedText>
                     </View>
-                  </WebFileButton>
+                  </FilePickerButton>
                 </View>
 
                 <View style={styles.card}>

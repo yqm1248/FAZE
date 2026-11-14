@@ -51,7 +51,8 @@ import { LocalizedText } from '@/shared/components/LocalizedText';
 import { PrimaryButton } from '@/shared/components/PrimaryButton';
 import { Screen } from '@/shared/components/Screen';
 import { StatusHero } from '@/shared/components/StatusHero';
-import { WebFileButton } from '@/shared/components/WebFileButton';
+import { FilePickerButton } from '@/shared/components/FilePickerButton';
+import type { PickedFile } from '@/shared/components/FilePickerButton';
 import { useI18n } from '@/shared/i18n';
 import { useAsyncResource } from '@/shared/hooks/useAsyncResource';
 import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
@@ -151,17 +152,16 @@ export function EnterpriseAuthPage() {
    *
    * 副作用：写服务端存储；成功后拉预览地址。
    *
-   * @param file 浏览器选中的文件
+   * @param file 选中的文件（原生与 Web 统一形状）
    */
-  const handlePickLicense = async (file: File) => {
+  const handlePickLicense = async (file: PickedFile) => {
     setError(null);
     setLicense((previous) => ({ ...previous, uploading: true }));
     const uploaded = await uploadFile('license', {
-      fileName: file.name,
+      fileName: file.fileName,
       size: file.size,
-      // 浏览器给不出类型时按 jpeg 兜底（后端仍会二次校验）
-      contentType: file.type === '' ? 'image/jpeg' : file.type,
-      body: file,
+      contentType: file.contentType,
+      body: file.blob,
     });
     if (!uploaded.ok) {
       setLicense((previous) => ({ ...previous, uploading: false }));
@@ -286,7 +286,7 @@ export function EnterpriseAuthPage() {
             {t('profile.enterprise.creditCodeTip')}
           </LocalizedText>
 
-          <WebFileButton
+          <FilePickerButton
             onPick={(file) => {
               void handlePickLicense(file);
             }}
@@ -313,7 +313,7 @@ export function EnterpriseAuthPage() {
                     : t('profile.enterprise.uploadDone')}
               </LocalizedText>
             </View>
-          </WebFileButton>
+          </FilePickerButton>
           <LocalizedText numberOfLines={3} style={styles.fieldTip}>
             {t('profile.enterprise.licenseTip')}
           </LocalizedText>
