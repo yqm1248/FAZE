@@ -34,12 +34,13 @@ import { AppHeader } from '@/shared/components/AppHeader';
 import { useToast } from '@/shared/components/AppToast';
 import { ActionBar, useActionBarSpace } from '@/shared/components/ActionBar';
 import { AsyncBoundary } from '@/shared/components/AsyncBoundary';
+import { FilePickerButton } from '@/shared/components/FilePickerButton';
+import type { PickedFile } from '@/shared/components/FilePickerButton';
 import { FormField } from '@/shared/components/FormField';
 import { LocalizedText } from '@/shared/components/LocalizedText';
 import { PrimaryButton } from '@/shared/components/PrimaryButton';
 import { Screen } from '@/shared/components/Screen';
 import { StatusHero } from '@/shared/components/StatusHero';
-import { WebFileButton } from '@/shared/components/WebFileButton';
 import { useI18n } from '@/shared/i18n';
 import type { MessageKey } from '@/shared/i18n';
 import { useAsyncResource } from '@/shared/hooks/useAsyncResource';
@@ -131,15 +132,15 @@ export function LawyerJoinPage() {
    *
    * @param file 浏览器选中的文件
    */
-  const handleLicense = async (file: File) => {
+  const handleLicense = async (file: PickedFile) => {
     setError(null);
     setUploading(true);
     try {
       const uploaded = await uploadFile('license', {
-        fileName: file.name,
+        fileName: file.fileName,
         size: file.size,
-        contentType: file.type === '' ? 'image/jpeg' : file.type,
-        body: file,
+        contentType: file.contentType,
+        body: file.blob,
       });
       if (!uploaded.ok) {
         setError(t('lawyer.join.uploadFailed'));
@@ -378,7 +379,7 @@ export function LawyerJoinPage() {
                     <LocalizedText numberOfLines={1} style={styles.fieldLabel}>
                       {t('lawyer.join.licenseImageLabel')}
                     </LocalizedText>
-                    <WebFileButton
+                    <FilePickerButton
                       onPick={(file) => {
                         void handleLicense(file);
                       }}
@@ -406,7 +407,7 @@ export function LawyerJoinPage() {
                               : t('lawyer.join.uploadDone')}
                         </LocalizedText>
                       </View>
-                    </WebFileButton>
+                    </FilePickerButton>
                   </View>
                 ) : null}
 

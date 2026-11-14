@@ -30,6 +30,9 @@
     "description": "该页面可能已调整，请返回首页继续使用。",
     "backHome": "回到首页"
   },
+  "permission": {
+    "photoDenied": "无法访问相册，请在系统设置中允许 FAZE 访问相册"
+  },
   "tab": {
     "home": "首页",
     "lawyer": "律师",
