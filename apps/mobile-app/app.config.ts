@@ -74,6 +74,14 @@ const config: ExpoConfig = {
     ['expo-secure-store', { configureAndroidBackup: true }],
     'expo-font',
     'expo-localization',
+    // 允许明文 HTTP：preview / 内网联调包连的是 `http://<局域网IPv4>:8081`，没有 TLS。
+    // Android 自 targetSdk ≥ 28 起默认**禁止**明文请求，未显式放行时包内每个请求都会被
+    // OkHttp 层拦掉（`CLEARTEXT communication to <ip> not permitted by network security policy`），
+    // 表现是「网络是通的、浏览器能打开接口，但 APP 一直报网络错误」。
+    // 2026-11-14 实测：构建 016d4461 的 APK 里 `usesCleartextTraffic` 为未设置、`targetSdkVersion=36`，
+    // 因此连不上 `http://192.168.43.186:8081`。加此项为整包放行。
+    // **仅限演示与内网联调**：上线前域名 + HTTPS 就位后必须删除本项，不能带进正式版。
+    ['expo-build-properties', { android: { usesCleartextTraffic: true } }],
   ],
   experiments: {
     typedRoutes: true,
