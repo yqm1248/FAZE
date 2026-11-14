@@ -96,6 +96,38 @@ if ($env:FAZE_DB_URL -notmatch '/faze(\?|$)') {
 $port = if ($env:FAZE_API_PORT) { $env:FAZE_API_PORT } else { '8081' }
 $env:FAZE_API_PORT = $port
 
+# ── 2.5 对外基地址：未显式配置时自动探测本机局域网 IPv4 ────────────────────
+# 为什么必须有：本地目录存储（LocalFileStorage）签发上传/下载 URL 时要拼绝对地址。
+#   不配时 application.yml 的默认值是 http://127.0.0.1:8081 —— 浏览器在 PC 上没问题，
+#   但**手机拿到 127.0.0.1 会指向手机自己**，表现是「附件上传失败，请重试」：
+#   申请凭证成功、PUT 必然失败、file_record 一条记录都没有（2026-11-14 实测）。
+# 优先级：deploy\.env 的显式配置 > 本段自动探测 > application.yml 默认值。
+# 探测口径：按默认路由的网卡取地址，跳过回环、链路本地（169.254）、FakeIP（198.18）——
+#   FlClash 等代理工具的 TUN 网卡会占默认路由，但它不是对外可达地址，必须排除。
+if ([string]::IsNullOrWhiteSpace($env:FAZE_PUBLIC_BASE_URL)) {
+    $probe = $null
+    try {
+        $routes = Get-NetRoute -DestinationPrefix '0.0.0.0/0' -ErrorAction SilentlyContinue |
+                  Sort-Object RouteMetric
+        foreach ($rt in $routes) {
+            $addr = Get-NetIPAddress -InterfaceIndex $rt.InterfaceIndex -AddressFamily IPv4 -ErrorAction SilentlyContinue |
+                    Where-Object { $_.IPAddress -notmatch '^(127\.|169\.254\.|198\.18\.)' } |
+                    Select-Object -First 1
+            if ($addr) { $probe = $addr.IPAddress; break }
+        }
+    } catch {
+        $probe = $null
+    }
+    if ($probe) {
+        $env:FAZE_PUBLIC_BASE_URL = "http://${probe}:$port"
+        Write-Step "未配置 FAZE_PUBLIC_BASE_URL，自动探测本机局域网地址：$env:FAZE_PUBLIC_BASE_URL"
+    } else {
+        Write-Fail '无法自动探测局域网 IPv4。请在 deploy\.env 显式设置 FAZE_PUBLIC_BASE_URL（形如 http://<本机IP>:8081），否则手机端附件上传与文件下载必然失败。'
+    }
+} else {
+    Write-Step "FAZE_PUBLIC_BASE_URL（显式配置）：$env:FAZE_PUBLIC_BASE_URL"
+}
+
 # ── 3. 环境检查 ───────────────────────────────────────────────────────────
 $mvn = Get-Command mvn -ErrorAction SilentlyContinue
 if (-not $mvn) {
