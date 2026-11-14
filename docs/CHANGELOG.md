@@ -4,6 +4,92 @@
 
 ---
 
+## 2026-11-15（六）· 远端访问：frp 公网隧道替代热点内网地址
+
+**一句话**：伊犁等地无法访问本机后端——原 APK 里写死的是热点内网 `192.168.43.186:8081`，出了热点就不存在。改为经阿里云 frps 中转的公网地址 `http://47.108.116.94:18081`，实测登录 / 上传 / 下载 / WebSocket 全通。
+
+### 为什么直连做不到（实测，不是推测）
+
+| 路径 | 结论 | 依据 |
+| --- | --- | --- |
+| IPv4 端口映射 | 不可行 | 电脑在手机热点后、手机在运营商 CGNAT 后，**两层 NAT，两层都无法配置映射** |
+| IPv6 直连 | 理论可行但不稳定 | WLAN 有公网 IPv6 `2409:8962:2bd2:bde2:*`，但前缀随基站 / 重连变化，热点是否放行入站未验证，对方还必须有 IPv6 |
+| 公网 IP | 不可行 | 手机热点没有公网 IPv4 |
+
+旁证：本机出网公网 IP 实测为 `111.55.147.193`，与更早记录的 `111.55.147.217` 不同——**移动网络的出口 IP 本身会变**，所以任何写死 IP 的直连方案都不可靠。
+
+### 架构
+
+```
+手机（伊犁）→ http://47.108.116.94:18081
+            → 阿里云 frps :7000（控制通道）+ :18081（对外）
+            → 本机 frpc → 127.0.0.1:8081（faze-api）
+```
+
+| 组件 | 位置 | 说明 |
+| --- | --- | --- |
+| frps v0.61.1 | 服务器 `/usr/local/frp/` | systemd `frps.service`，`active` + `enabled`（开机自启） |
+| frps 配置 | `/usr/local/frp/frps.toml` | `auth.token` 认证 + `allowPorts` 只放行 18081 |
+| frpc v0.61.1 | 本机 `E:\FAZE-frp\`（仓库外，不进 git） | 日志 `E:\FAZE-frp\frpc.log` |
+| 自启 | `E:\FAZE-frp\start-frpc.vbs` → 启动文件夹 | **登录时**启动；当前会话非管理员，注册系统计划任务被拒 |
+
+### 实测（从公网地址跑完整链路，等价于远端手机视角）
+
+| 步骤 | 结果 |
+| --- | --- |
+| `GET /api/v1/pub/ping` | **200**，**30ms** |
+| 短信登录 | 200 ok |
+| 申请上传凭证 | 200，`uploadUrl` host = `47.108.116.94:18081` ✅ |
+| `PUT` 上传 | **204**，文件确实落盘 |
+| 下载地址 + 读回 | 200，35 字节原样返回 |
+| `WebSocket /ws/chat` | **OPEN**（frp TCP 透明转发，无需额外配置） |
+
+### 改了什么
+
+| 文件 | 改动 |
+| --- | --- |
+| `deploy/.env`（gitignore，不入库） | `FAZE_PUBLIC_BASE_URL` → `http://47.108.116.94:18081` |
+| `apps/mobile-app/eas.json` | `preview.env.EXPO_PUBLIC_API_BASE_URL` → 公网地址 |
+| `deploy/.env.example` | 补三种填法（内网 / frp 公网 / 正式域名）与链路说明 |
+
+### 构建产物（2026-11-15 00:20 完成）
+
+| 项 | 值 |
+| --- | --- |
+| EAS Build ID | `26727ce9-33dd-4ab7-b190-16e5aa333266` |
+| commit | `3bf2e37` |
+| 耗时 | 约 11 分钟（00:09 启动 → 00:20 完成，排队 <1 分钟） |
+| APK 大小 | **111.19 MB**（116,587,824 字节） |
+| 直链 | `https://expo.dev/artifacts/eas/Q9MCA4w_YouGa-HwS0aXFZYeqgPDZhTWuBLPF7RxeQ0.apk` |
+
+**包内验证**（`tmp/verify-apk.ps1`，PASS=7 / FAIL=0）：
+
+| 检查项 | 结果 |
+| --- | --- |
+| `assets/app.config` → `extra.apiBaseUrl` | `http://47.108.116.94:18081` ✅ |
+| 是否 LAN / 回环地址 | 否 ✅ |
+| `android.usesCleartextTraffic` | `true` ✅ |
+| `AndroidManifest` package | `com.faze.app` ✅ |
+| 结构（`classes.dex` / `resources.arsc` / bundle） | 完整，5 个 dex ✅ |
+
+> **验证位置踩坑记录**：`extra.apiBaseUrl` 不在 `assets/index.android.bundle` 里——Expo 把 `app.config.ts` 序列化成 `assets/app.config`（JSON），bundle 里只有读取它的代码。**首次在 Hermes bundle 里搜地址得到的是假阴性**，白排查一轮。以后验地址一律读 `assets/app.config`。
+
+### 排障要点（下次别再走弯路）
+
+1. **本机到公网的 TCP 探测结果不可信**：实测 `12345`、`54321` 这类肯定没监听的端口也返回「OPEN」，本机 TUN / 代理层劫持了出站连接。判断端口是否放行要**在服务器上自测**（`/dev/tcp/<公网IP>/<端口>`），或直接看两端 frp 日志。
+2. **「连接失败」有两种成因、现象相同**：① 防火墙 / 安全组未放行；② 本机代理干扰。区分办法是在服务器抓包或看 frps 是否收到 login。
+3. **服务器是轻量应用服务器 + 宝塔面板**，80 上跑 `jinxiuyunduan.cn`、888 是 phpMyAdmin、还有 4 个 docker 容器。本次**只加了 7000/18081 的放行和独立的 `/usr/local/frp` 目录，未改动现有任何业务配置**。
+4. **VBScript 文件必须纯 ASCII + CRLF**：首次用 UTF-8 中文注释写启动脚本，GBK 解析时字节数错位吃掉行尾换行，导致第 2 行被第 1 行注释吞掉，报「缺少对象: 'WshShell'」。修复后为 199 字节、非 ASCII 字节数 0、CR/LF 各 3。
+
+### 遗留
+
+- 本地存储路径**不写 `file_record`**（与 OSS 路径行为不一致），`file_record` 最新记录仍停在 11-13 的 `id=256`。非本次引入，独立挂账。
+- **18081 对 `0.0.0.0/0` 开放**，演示结束后应关闭，或在轻量服务器防火墙限制来源 IP。
+- frpc 目前只在**用户登录 Windows 后**自启，未做到开机自启（需管理员权限注册计划任务）。
+- 服务器 root 密码曾在对话中明文出现，建议改用已装好的密钥登录（`/root/.ssh/authorized_keys`）后关闭密码认证。
+
+---
+
 ## 2026-11-14（四）· 进入会话停在最顶部：`onScroll` 在内容未撑满一屏时误判「已离开底部」
 
 **一句话**：聊天页打开后停在最早的消息，用户要手动往下滑很久才看到最新一条。根因是 `atBottomRef`（决定内容变化时要不要自动贴底）在首次 `onScroll` 时被误置为 `false`——那一刻消息还没渲染完，`scrollHeight` 小于视口，位置 0 被判成「用户翻上去了」，之后再也不贴底。
