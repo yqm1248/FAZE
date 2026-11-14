@@ -31,6 +31,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 
 import { uploadFile } from '@/features/account/api/upload';
 import {
@@ -169,6 +170,79 @@ export function ChatPage() {
   const [attachVisible, setAttachVisible] = useState(false);
 
   const scrollRef = useRef<ScrollView | null>(null);
+  /**
+   * 视图是否停留在底部附近。
+   *
+   * 用途：决定「内容尺寸/布局变化时要不要自动贴底」。
+   * 进入会话时为 true，保证第一眼看到的是最新消息；用户往上翻历史会置为 false，
+   * 此时对方发来新消息不再把视图强行拽回底部。
+   * （原实现是无条件 `scrollToEnd`：进会话靠它贴底，但代价是翻历史时被新消息拽走。）
+   */
+  const atBottomRef = useRef(true);
+
+  /**
+   * 内容尺寸或布局变化时贴底（仅当视图仍在底部附近）。
+   *
+   * 只在「用户本来就在底部」时执行，所以翻历史时不会被拽走。
+   *
+   * @returns void
+   */
+  const scrollToBottomIfNeeded = useCallback((): void => {
+    if (atBottomRef.current) {
+      scrollRef.current?.scrollToEnd({ animated: false });
+    }
+  }, []);
+
+  /**
+   * 记录滚动位置是否在底部附近。
+   *
+   * 阈值 48px：容忍图片/文件卡片异步加载造成的高度抖动，避免「明明在底部却被判为离开底部」。
+   *
+   * @param event 滚动事件
+   * @returns void
+   */
+  const handleScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>): void => {
+    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+    // 内容还没超过一屏时不存在「离开底部」这个概念：此时 onScroll 也会因位置 0 触发，
+    // 若直接按距离判断会被误判成「用户翻上去了」，导致后续内容变高时不再贴底
+    // （2026-11-14 实测：进入会话停在顶部，scrollTop=0、距离底部 3641px）。
+    if (contentSize.height <= layoutMeasurement.height + 48) {
+      atBottomRef.current = true;
+      return;
+    }
+    const distanceToBottom = contentSize.height - (contentOffset.y + layoutMeasurement.height);
+    atBottomRef.current = distanceToBottom <= 48;
+  }, []);
+
+  /** 首次进入是否已完成「贴底定位」（每次进页面只做一次）。 */
+  const didInitialScrollRef = useRef(false);
+
+  /**
+   * 进入会话时贴底，第一眼就看到最新消息。
+   *
+   * 为什么不是「滚一次」：图片/文件卡片是**异步**加载的，加载完内容高度才是真实值，
+   * 只滚一次会被后到的高度变化顶回上方。这里在首帧后连滚 5 次（0~1000ms），
+   * 覆盖绝大多数异步加载；之后再靠 `onContentSizeChange` + `atBottomRef` 维持贴底。
+   *
+   * 为什么不能只靠 `onContentSizeChange`：Android 上它首次常常不触发，iOS/Web 也有时序差异。
+   */
+  useEffect(() => {
+    if (phase !== 'ready' || messages.length === 0 || didInitialScrollRef.current) {
+      return;
+    }
+    didInitialScrollRef.current = true;
+    const timers = [0, 120, 320, 650, 1000].map((ms) =>
+      setTimeout(() => {
+        scrollRef.current?.scrollToEnd({ animated: false });
+      }, ms),
+    );
+    return () => {
+      for (const timer of timers) {
+        clearTimeout(timer);
+      }
+    };
+  }, [phase, messages.length]);
+
   /** 已上报的最大 seq：只增不减，用来止住「上报 → 对方回执 → 再上报」的回环。 */
   const reportedSeqRef = useRef(0);
   /** 上传中的同步守卫：state 更新有一帧延迟，连点会进两次上传。 */
@@ -410,6 +484,8 @@ export function ChatPage() {
     setDraft('');
     setTyping(false);
     setTimeout(() => {
+      // 自己发消息一定回到最新：即使刚才在翻历史，也要跟着自己刚发的那条走。
+      atBottomRef.current = true;
       scrollRef.current?.scrollToEnd({ animated: true });
     }, 50);
   };
@@ -531,6 +607,8 @@ export function ChatPage() {
         },
       ]);
       setTimeout(() => {
+        // 附件发出后同样回到最新：自己刚发的东西必须在视野内。
+        atBottomRef.current = true;
         scrollRef.current?.scrollToEnd({ animated: true });
       }, 50);
     } catch {
@@ -631,9 +709,15 @@ export function ChatPage() {
 
       {phase === 'ready' ? (
         <View style={styles.body}>
-          <ScrollView ref={scrollRef} contentContainerStyle={styles.list} onContentSizeChange={() => {
-            scrollRef.current?.scrollToEnd({ animated: false });
-          }}>
+          <ScrollView
+            ref={scrollRef}
+            contentContainerStyle={styles.list}
+            /* 进入会话要停在最新消息：onLayout 兜住 Android 上 onContentSizeChange 首次不触发的场景 */
+            onLayout={scrollToBottomIfNeeded}
+            onContentSizeChange={scrollToBottomIfNeeded}
+            onScroll={handleScroll}
+            scrollEventThrottle={16}
+          >
             {hasMore ? (
               <Pressable
                 onPress={() => {

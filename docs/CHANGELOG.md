@@ -4,6 +4,41 @@
 
 ---
 
+## 2026-11-14（四）· 进入会话停在最顶部：`onScroll` 在内容未撑满一屏时误判「已离开底部」
+
+**一句话**：聊天页打开后停在最早的消息，用户要手动往下滑很久才看到最新一条。根因是 `atBottomRef`（决定内容变化时要不要自动贴底）在首次 `onScroll` 时被误置为 `false`——那一刻消息还没渲染完，`scrollHeight` 小于视口，位置 0 被判成「用户翻上去了」，之后再也不贴底。
+
+### 实测（CDP 直接读 ScrollView 容器）
+
+| | `scrollTop` | `scrollHeight` | `clientHeight` | 距底部 |
+| --- | --- | --- | --- | --- |
+| 修复前 | `0` | `4370` | `729` | **`3641px`** |
+| 修复后 | `3640.67` | `4370` | `729` | **`0.33px`** |
+
+### 改了什么（`apps/mobile-app/features/conversation/pages/ChatPage.tsx`）
+
+| 改动 | 内容 |
+| --- | --- |
+| `handleScroll` | 内容高度未超过视口（+48px 容差）时直接保持 `atBottomRef=true`，不按距离判「离开底部」 |
+| 新增首次贴底 `useEffect` | `phase==='ready' && messages.length>0` 时连滚 5 次（0/120/320/650/1000ms），覆盖图片/文件卡片**异步加载**造成的高度变化；只做一次，靠 `didInitialScrollRef` 守卫 |
+| `ScrollView` | `onLayout` + `onContentSizeChange` 都走 `scrollToBottomIfNeeded`；新增 `onScroll` + `scrollEventThrottle=16` 维护 `atBottomRef` |
+| 发送文本/附件 | 显式置 `atBottomRef=true` 再 `scrollToEnd`，保证自己刚发的东西在视野内 |
+
+### 顺带修掉的老问题
+
+原实现是**无条件** `onContentSizeChange → scrollToEnd`：进会话靠它贴底，但代价是**用户往上翻历史时，对方一发新消息就把视图拽回底部**。现在只在「本来就在底部」时才贴底。
+
+### 核对
+
+- `npx tsc --noEmit`：exit 0；`npx eslint features/conversation/pages/ChatPage.tsx`：exit 0。
+- CDP 实测（8090，重启后重新进入 `/chat?conversationId=2`）：见上表，距底部 0.33px。
+
+### 遗留
+
+修复在 **8090 web 端**已实测；**手机装机包是 `628a41e0` / commit `2d274e9`，需重新构建才生效**。
+
+---
+
 ## 2026-11-14（三）· 历史图片/PDF 打不开：下载签名 60 秒太短，改为 600 秒
 
 **一句话**：文件消息的 `fileUrl` 是服务端**现签的下载地址**，有效期原定 60 秒。客户端进会话时一次性把整页历史各自签一次名，用户读完文字再去点图片/PDF 时往往已过期，浏览器打不开，APP 统一归因为「无法打开该文件，请稍后重试」——**文件本身完好**。
