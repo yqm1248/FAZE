@@ -19,7 +19,7 @@
       },
       "channel": "preview",
       "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "http://192.168.43.186:8081",
+        "EXPO_PUBLIC_API_BASE_URL": "http://47.108.116.94:18081",
         "EXPO_PUBLIC_ENABLE_DEV_ROUTES": "false"
       }
     },
