@@ -19,7 +19,7 @@
 
 import { usePathname, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { getLawyers } from '@/features/lawyer/api/lawyers';
 import type { LawyerCard } from '@/features/lawyer/api/lawyers';
@@ -95,9 +95,13 @@ function LawyerItem({ lawyer, onPress }: { lawyer: LawyerCard; onPress: () => vo
       style={({ pressed }) => [styles.card, pressed ? styles.pressed : null]}
     >
       <View style={styles.avatar}>
-        <LocalizedText numberOfLines={1} style={styles.avatarText}>
-          {(lawyer.realName ?? t('lawyer.browse.defaultName')).slice(0, 1)}
-        </LocalizedText>
+        {lawyer.avatarUrl === null ? (
+          <LocalizedText numberOfLines={1} style={styles.avatarText}>
+            {(lawyer.realName ?? t('lawyer.browse.defaultName')).slice(0, 1)}
+          </LocalizedText>
+        ) : (
+          <Image source={{ uri: lawyer.avatarUrl }} style={styles.avatarImage} resizeMode="cover" />
+        )}
       </View>
       <View style={styles.cardBody}>
         <View style={styles.cardHead}>
@@ -431,6 +435,11 @@ const styles = StyleSheet.create({
   avatarText: {
     ...typography.bodyLarge,
     color: color.brand.primary,
+  },
+  avatarImage: {
+    width: 48,
+    height: 48,
+    borderRadius: radius.pill,
   },
   cardBody: {
     flex: 1,

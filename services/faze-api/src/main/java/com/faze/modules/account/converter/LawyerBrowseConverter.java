@@ -8,9 +8,13 @@
  *   2. 解析失败**不抛异常**：脏数据（历史自由输入、人工改库）不该让列表打不开，记 warn 即可。
  *   3. 与 `AdminLawyerConverter#parseSpecialties` 保持同一口径（JsonMapper + TypeReference），
  *      但两者分属不同域，不互相依赖——管理端出参字段与 C 端不同，合并会变成万能转换器。
+ *   4. **头像存的是私有 OSS key，不能直接给客户端**：C 端拿 key 拼不出可访问地址
+ *      （手机走 frp，127.0.0.1 不可达）。所以出参前换成 `FileStorage` 签发的短时签名 URL；
+ *      签名失败（key 非法/存储不可用）降级为 null 并 warn，前端回退显示姓名首字。
  */
 package com.faze.modules.account.converter;
 
+import com.faze.infra.storage.FileStorage;
 import com.faze.modules.account.entity.Lawyer;
 import com.faze.modules.account.vo.LawyerCardVO;
 import com.faze.modules.account.vo.LawyerDetailVO;
@@ -32,6 +36,9 @@ public class LawyerBrowseConverter {
 
     private final JsonMapper jsonMapper;
 
+    /** 文件存储：把头像私有 key 换成签名 URL（C 端拿 key 无法自己签名）。 */
+    private final FileStorage fileStorage;
+
     /**
      * 律师行 → 列表卡片。
      *
@@ -42,7 +49,7 @@ public class LawyerBrowseConverter {
         LawyerCardVO vo = new LawyerCardVO();
         vo.setId(lawyer.getId());
         vo.setRealName(lawyer.getRealName());
-        vo.setAvatarUrl(lawyer.getAvatarUrl());
+        vo.setAvatarUrl(signAvatar(lawyer.getAvatarUrl()));
         vo.setLawFirm(lawyer.getLawFirm());
         vo.setRegion(lawyer.getRegion());
         vo.setPracticeYears(lawyer.getPracticeYears());
@@ -68,7 +75,7 @@ public class LawyerBrowseConverter {
         LawyerDetailVO vo = new LawyerDetailVO();
         vo.setId(lawyer.getId());
         vo.setRealName(lawyer.getRealName());
-        vo.setAvatarUrl(lawyer.getAvatarUrl());
+        vo.setAvatarUrl(signAvatar(lawyer.getAvatarUrl()));
         vo.setLawFirm(lawyer.getLawFirm());
         vo.setRegion(lawyer.getRegion());
         vo.setPracticeYears(lawyer.getPracticeYears());
@@ -86,6 +93,26 @@ public class LawyerBrowseConverter {
         vo.setServiceDocOn(lawyer.getServiceDocOn());
         vo.setFollowed(followed);
         return vo;
+    }
+
+    /**
+     * 把头像私有 key 换成短时签名 URL。
+     *
+     * @param ossKey 头像 OSS key（可空）
+     * @return 签名 URL；key 为空或签名失败返回 null（前端回退显示首字）
+     */
+    private String signAvatar(String ossKey) {
+        if (!StringUtils.hasText(ossKey)) {
+            return null;
+        }
+        try {
+            return fileStorage.presignDownload(ossKey).url();
+        } catch (RuntimeException e) {
+            // 历史脏数据（存的是完整 URL 或非法 key）不该让律师列表 500
+            log.warn("律师头像签名失败，降级为无头像 keyLength={} error={}",
+                    ossKey.length(), e.getClass().getSimpleName());
+            return null;
+        }
     }
 
     /**

@@ -21,7 +21,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import {
   followLawyer,
@@ -270,9 +270,17 @@ export function LawyerDetailPage() {
                 <AppCard style={styles.profileCard}>
                   <View style={styles.profileTop}>
                     <View style={styles.avatar}>
-                      <LocalizedText numberOfLines={1} style={styles.avatarText}>
-                        {(lawyer.realName ?? t('lawyer.browse.defaultName')).slice(0, 1)}
-                      </LocalizedText>
+                      {lawyer.avatarUrl === null ? (
+                        <LocalizedText numberOfLines={1} style={styles.avatarText}>
+                          {(lawyer.realName ?? t('lawyer.browse.defaultName')).slice(0, 1)}
+                        </LocalizedText>
+                      ) : (
+                        <Image
+                          source={{ uri: lawyer.avatarUrl }}
+                          style={styles.avatarImage}
+                          resizeMode="cover"
+                        />
+                      )}
                     </View>
                     <View style={styles.profileIntro}>
                       <LocalizedText numberOfLines={1} style={styles.profileName}>
@@ -478,6 +486,11 @@ const styles = StyleSheet.create({
     backgroundColor: color.brand.primarySoft,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  avatarImage: {
+    width: 56,
+    height: 56,
+    borderRadius: radius.pill,
   },
   avatarText: {
     ...typography.h2,
