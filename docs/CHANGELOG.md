@@ -4,6 +4,189 @@
 
 ---
 
+## 2026-11-16 · `7161660` + `c5b83a9` · 提现自激死循环（真根因）+ 收入页三处异常
+
+**一句话**：`573d8d2` 的键盘避让只是次要原因；真正的毛病是 `WithdrawPanel` 的 effect 自己触发自己，每 20～30 ms 跑一轮，用户点下去的任何动作都被下一轮 `setState` 抹掉。同晚收入页又因为 `frozen_cents` 一字段两义、流水没按类型过滤，冒出 0 元行和别人的订单号。
+
+### 1. 提现「保存收款账户」没反应：effect 自激（`7161660`）
+
+`useIdempotencyKey` 返回 `useMemo(() => ({ key, reset }), [key, reset])` 的新对象。effect 的依赖里有这个对象，同时在 effect 体内调用 `reset()`：
+
+```
+reset() 改 key → useMemo 返回新对象 → 依赖变化 → effect 重跑 → 再 reset()
+```
+
+闭环成立后每轮都会执行 `setErrorText(null)` / `setAmountText('')` / `setBinding(false)`，于是：
+
+| 用户看到 | 实际发生 |
+| --- | --- |
+| 点「保存」没反应 | 点击产生的 `PUT /withdraw-account` 发不出去 |
+| 红字校验提示一闪就没 | 下一轮 `setErrorText(null)` 清掉 |
+| 「提交中」立刻恢复可点 | 下一轮 `setBinding(false)` 打回 |
+
+实测证据：2026-11-15 08:36 真机日志单分钟 **7479 个 trace**、每秒约 **420 轮**（约 840 个 HTTP 请求）；同日另一份日志里三个 `setState` 时间戳相差 28 ms / 20 ms，且**零条** `PUT /withdraw-account`。
+
+修法：effect 依赖改为解构出来的 `reset`（`useCallback([prefix])`，引用稳定），不再依赖整个对象；`submit()` 成功后原有的 `reset()` 保持不变。
+
+### 2. 收入页三处异常（`c5b83a9`）
+
+| # | 现象 | 根因 |
+| --- | --- | --- |
+| A | 流水里多出两条 ¥0.00 的「文书代写 / 其他收入」 | `incomeFlows` 没按 `biz_type` 过滤，把 `income_unfreeze` / `freeze` 也算进收入流水 |
+| B | 其中一条显示成别人的订单 `OR20261106000511` | `freeze.biz_id=6` 是**提现单 id**，被当成订单 id 去 `orders` 查，命中 `lawyer_id=2` 的订单 —— 跨用户订单号泄露 |
+| C | 提交提现后「待结算」变成提现金额 | `pendingSettleCents` 直接下发 `frozen_cents`，而 `frozen` 同时含「收入未满 7 天」和「提现申请冻结」两种语义 |
+
+修复：
+
+- `LawyerIncomeQueryServiceImpl.incomeFlows` 加 `.eq(BalanceFlow::getBizType, "income")`
+- 新增 `pendingSettleCents()`：`biz_type='income' AND frozen_until > now` 的 `delta_cents` 之和，不再复用 `frozen_cents`
+- `WorkbenchServiceImpl` 补订单号时只对 `income` 类型取 `biz_id`（防御同型关联）
+- `IncomePage` 文件头注释同步成新口径，并写明「不要把 `frozenCents` 当待结算」
+
+验证（真实 C 端接口 `GET /api/v1/app/workbench/income`，6/6 通过）：
+
+```
+availableCents=5100  frozenCents=0  pendingSettleCents=0  totalIncomeCents=5100
+流水仅 1 条：bizType=income  deltaCents=5100  orderNo=OR20261115000003
+非收入行 0 条、0 元行 0 条
+```
+
+### 构建产物
+
+| 项 | 值 |
+| --- | --- |
+| EAS Build ID | `939de799-aefe-4b60-a806-62b22e71c18b` |
+| commit | `7161660` |
+| artifact | 116,593,820 字节 |
+| 状态 | 已下载到 `E:\dshcode\faze-builds\faze-preview-7161660.apk`，本地验收通过，未生成二维码 |
+
+### 挂账
+
+- 收入页缺「提现处理中」金额项：提现冻结时用户看到「可提现 0 / 待结算 0」，钱只在提现记录里可见。修复要加 `withdrawFrozenCents` + 收入页第三行 + 重新打包。
+- `useKeyboardHeight()` 在 `ChatPage` / `AiChatPage` / `WithdrawPanel` / `CaseProgressPage` 各一份，应抽到 `shared/hooks/`。
+
+---
+
+## 2026-11-15 · `dea50cb` · 案件推进弹层「填完备注点确认没反应」
+
+**一句话**：与提现面板同型 —— `Modal` 不随软键盘 resize，备注框（多行）带起键盘后，底部「确认推进」按钮被压在键盘下面，用户点不到。
+
+### 根因
+
+`app.config.ts` 的 `softwareKeyboardLayoutMode: 'resize'` 只作用于 Activity 层，管不到 `Modal` 覆盖层。普通表单都靠它工作，两处 `Modal` 表单（提现、案件推进）都漏了。
+
+### 改动
+
+| 文件 | 改动 |
+| --- | --- |
+| `features/case/pages/CaseProgressPage.tsx` | 新增 `useKeyboardHeight()`（Android API 30+ 取 IME inset，iOS 同用）；`modalBackdrop` 按键盘高度加 `paddingBottom`，把贴底 sheet 抬到键盘上方 |
+
+### 验证
+
+`tsc --noEmit` exit 0、`eslint` 该文件 exit 0。
+
+### 构建产物
+
+| 项 | 值 |
+| --- | --- |
+| EAS Build ID | `ecd16b50-2d1b-4998-bf92-1f63c34b16e6` |
+| commit | `dea50cb` |
+| artifact | 116,593,800 字节 |
+| 状态 | **未交付**，已被 `939de799`（`7161660`，其父提交即本提交）覆盖 |
+
+---
+
+## 2026-11-15 · `573d8d2` · 提现面板补键盘避让与点击穿透（第一次修，未解决）
+
+**一句话**：这一版判断错了主因。改对了三处真实缺陷，但「保存收款账户没反应」的真根因是 effect 自激死循环（见 `7161660`），所以装了这一版仍然复现。
+
+### 当时的两条判断与事后结论
+
+| # | 判断 | 事后结论 |
+| --- | --- | --- |
+| 1 | `Modal` 不随键盘 resize，键盘盖住卡片下半部分（红字 + 保存按钮） | **成立**，是真实缺陷，但不是主因 |
+| 2 | `ScrollView` 缺 `keyboardShouldPersistTaps="handled"`，键盘弹起时第一次点击只收键盘、不触发 `onPress` | **成立**，同上 |
+
+### 改动
+
+- 新增 `useKeyboardHeight()`（Android API 30+ 取 IME 高度，iOS 同用），`mask` 按键盘高度加 `paddingBottom`
+- 卡片 `maxHeight` 80% → 100%，并加 `flexShrink: 1`
+- `ScrollView` 补 `keyboardShouldPersistTaps="handled"` + `ref`
+- 新增 `showError()`：写错误文案后滚到底，避免红字落在可视区外
+
+### 教训
+
+真根因（`7161660`）的关键证据是**日志频率** —— 同一秒内反复 `setState`。这一版只看了布局和静态截图，没有先量「点击后到底发出几个请求」。**下次遇到「点了完全没反应」，先量请求数与事件频率，再看布局。**
+
+---
+
+## 2026-11-15 · `2a12001` · 首轮问题清单 8 项
+
+**一句话**：用户验收提的 8 条，7 条改代码、1 条核对为脏数据不改。
+
+### 逐条
+
+| # | 问题 | 处理 |
+| --- | --- | --- |
+| 1 | 立案完成页进不了案件进度 | 带上 `caseId` 跳转，缺失时兜底「我的案件」 |
+| 2 | 聊天输入区被键盘挡 | iOS 用 `KeyboardAvoidingView`，Android 用 IME inset 手动抬升 |
+| 3 | AI 聊天同上 | 同上 |
+| 4 | 提现数额对不上 | 核对为人工改库留下的脏数据，**不改代码** |
+| 5 | 律师头像跨用户可见 | 写侧加归属校验；读侧仅放行 `private/avatar/` 前缀 |
+| 6 | 消息中心缺「客户咨询」入口 | 按 `roles` 分流，律师多一条入口（四语言文案） |
+| 7 | 提现面板状态残留 | 打开时复位；`submit` / `saveAccount` 改 `try-finally` |
+| 8 | 弱网下白屏 / 卡死 | 四层容错：`tokenStore` 容错 + `request()` 永不 throw + refresh 总时限 + `IncomePage` try-catch |
+
+### 门禁
+
+`tsc --noEmit` / `eslint` / `check-raw-text` / `check-i18n` 四道全绿。
+
+---
+
+## 2026-11-14 · `4a597fa`…`db7e381` · 手机上所有上传入口点不动、点 PDF 没反应、文章没有收藏
+
+**一句话**：三组真机缺陷，都不是「按钮丢了」，而是原生端从未接通过。
+
+### 1. 上传入口在原生端全灭（`4a597fa` + `db7e381`）
+
+`WebFileButton` 在 `Platform.OS !== 'web'` 时只渲染 `children`，点击无反应 —— 它自己的文件头注释第 1 条就写着「接原生时换成图像选择器」。
+
+新增 `shared/components/FilePickerButton.tsx`：
+
+- **web**：`<input type="file">`，行为与原来一致
+- **原生**：`expo-image-picker`（`kind=image`）/ `expo-document-picker`（`kind=file`），用 XHR 把 `file://` URI 读成 Blob（RN 的 `fetch` 不支持 `file://`，直接 fetch 会 reject）
+- 统一回调 `PickedFile { blob, fileName, contentType, size }`，Web 与原生共用同一条三段式上传链路
+
+7 个入口分两次替换：`4a597fa` 只换用户报告的律师入驻（执业证），`db7e381` 一次性替换其余 6 个（立案证据 / 实名认证 / 企业营业执照 / 投诉截图 / 反馈截图 / 头像），并删除已无调用方的 `WebFileButton.tsx`。
+
+i18n 复用 `conversation.composer.permissionDenied` 的译法，未新造翻译。
+
+### 2. 点 PDF 完全没反应（`b3df2c0`）
+
+两个独立原因：
+
+1. 已发送消息走 `Linking.openURL(http://...)`，在 Android 上 reject
+2. 「发送中」的本地副本用 `file:///...`，Android 7+ 禁止跨应用共享 `file://`，必然抛 `ActivityNotFoundException`
+
+改为 `expo-web-browser` 的 `openBrowserAsync`（Chrome Custom Tabs）：直接绑定浏览器服务，不经过系统 intent 解析，也不受 Android 11+ 包可见性限制；`uri` 以 `file://` 开头时直接给提示，不再尝试 `openURL`。`app.config.ts` 注册插件。
+
+已排除的假设（避免下次重复排查）：不是签名过期（`71fbd48` 已改 600 秒，签名 URL 直接 curl 返回 200 / 2,979,482 字节 / `%PDF-`…`%%EOF` 完整）；不是 `<queries>` 缺失（APK 二进制里确有 queries 节点，但只有选文件相关 action，不含 `ACTION_VIEW` + http）；不是 URL 错误。
+
+### 3. 文章没有收藏（`ebb6b8f`）
+
+排查结论：不是按钮丢了，是**从来没实现过** —— 案例详情有收藏接口，文章只有两个 GET，既没写接口也没 `favorited` 字段。
+
+- 后端：`SocialActionService` 加 `TARGET_ARTICLE = "article"`（复用 `social_action` 表，不新建收藏表）；新建 `AppArticleFavoriteController`，`POST/DELETE /api/v1/app/articles/{id}/favorite`。**只挂 `/app` 不挂 `/pub`** —— `ArticleController` 同时挂两处（游客首页也要看文章），收藏是必须登录的写操作，挂 `/pub` 等于对游客开放写接口
+- 前端：底部固定操作栏 + 收藏按钮，走 `useOptimisticToggle`（失败回滚、防重入）；正文 `paddingBottom` 改为 `FOOTER_HEIGHT + spacing.xl`，避免最后一段被按钮压住
+
+验证：`false → POST 200 → true → DELETE 200 → false`；按钮文本「收藏」→「已收藏」；「我的收藏」列表出现该文章（`articleCount=1`），取消后清除（测试数据已清理）。
+
+### 门禁与构建
+
+`tsc --noEmit` / `eslint` / `check-i18n` 全绿，`mvn test-compile` exit 0。这三组改动都含原生依赖（`expo-image-picker` / `expo-document-picker` / `expo-web-browser`），**必须重新构建 APK 才能在手机上验证**。
+
+---
+
 ## 2026-11-15（六）· 远端访问：frp 公网隧道替代热点内网地址
 
 **一句话**：伊犁等地无法访问本机后端——原 APK 里写死的是热点内网 `192.168.43.186:8081`，出了热点就不存在。改为经阿里云 frps 中转的公网地址 `http://47.108.116.94:18081`，实测登录 / 上传 / 下载 / WebSocket 全通。
