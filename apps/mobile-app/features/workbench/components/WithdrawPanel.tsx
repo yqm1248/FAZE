@@ -182,6 +182,16 @@ export function WithdrawPanel({ visible, availableCents, onClose, onDone }: With
    * 所以打开时 `reset()` 换新键；失败重试仍复用同一个键（复用才能让服务端认出是重试）。
    */
   const withdrawIdem = useIdempotencyKey('lawyer-withdraw');
+  /**
+   * 只解构出 `reset` 单独放进 effect 依赖数组，**不要**把整个 `withdrawIdem` 放进去。
+   *
+   * 原因：`useIdempotencyKey` 返回的是 `useMemo(() => ({ key, reset }), [key, reset])` 的
+   * 新对象——`reset()` 一改 key，对象引用就换新。若 effect 依赖整个对象、又在这个 effect
+   * 里调 `reset()`，就是「reset → 新对象 → 依赖变化 → effect 重跑 → 再 reset」的自激死循环
+   * （2026-11-16 真机实测每秒约 420 轮、840 个 HTTP 请求，用户侧表现为「点保存毫无反应」）。
+   * `reset` 本身是 `useCallback([prefix])`、prefix 是字面量，引用稳定，放进依赖数组安全。
+   */
+  const resetWithdrawIdem = withdrawIdem.reset;
   const [bindForm, setBindForm] = useState({ bankName: '', accountName: '', bankAccount: '' });
   const [binding, setBinding] = useState(false);
 
@@ -240,6 +250,12 @@ export function WithdrawPanel({ visible, availableCents, onClose, onDone }: With
     }
   }, [t, showError]);
 
+  /**
+   * 面板打开时复位全部异步态，并拉一次规则与收款账户。
+   *
+   * 依赖数组里只放稳定的 `resetWithdrawIdem`（不是整个 `withdrawIdem` 对象）：
+   * 放整个对象会被本 effect 里的 reset 自己触发成死循环，见上方 `resetWithdrawIdem` 注释。
+   */
   useEffect(() => {
     if (!visible) {
       return;
@@ -251,13 +267,13 @@ export function WithdrawPanel({ visible, availableCents, onClose, onDone }: With
     setAmountText('');
     setBinding(false);
     setSubmitting(false);
-    withdrawIdem.reset();
+    resetWithdrawIdem();
     let cancelled = false;
     void loadPanel(() => cancelled);
     return () => {
       cancelled = true;
     };
-  }, [visible, loadPanel, withdrawIdem]);
+  }, [visible, loadPanel, resetWithdrawIdem]);
 
   /** 全部提现：把可提现余额填进输入框。 */
   const fillAll = (): void => {
