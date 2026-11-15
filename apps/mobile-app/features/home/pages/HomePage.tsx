@@ -51,6 +51,34 @@ import { formatServerDate } from '@/shared/utils/serverTime';
 /** 首页「每日学法」展示条数。 */
 const DAILY_LEARNING_LIMIT = 3;
 
+/** 每日学法轮换周期（天）：文章库按 3 组轮换，一组展示一天。 */
+const DAILY_ROTATION_DAYS = 3;
+
+/** 一次拉取的文章上限（轮换需要全量分组；公开列表接口上限 100）。 */
+const DAILY_FETCH_SIZE = 100;
+
+/**
+ * 从全部已发布文章里挑出「当天」展示的 3 条（每日学法轮换）。
+ *
+ * 规则：全量按 id 升序均分成 3 组（40 篇 → 14/13/13），以北京时间当天日期取模选组，
+ * 每组内取前 3 条。同一天内刷新内容稳定，每 3 天循环一次。
+ *
+ * @param all 全部已发布文章
+ * @returns 当天展示的文章（不超过 DAILY_LEARNING_LIMIT 条）
+ */
+function pickDailyArticles(all: ArticleCard[]): ArticleCard[] {
+  if (all.length <= DAILY_LEARNING_LIMIT) {
+    return all;
+  }
+  const ordered = [...all].sort((left, right) => Number(left.id) - Number(right.id));
+  const groupSize = Math.ceil(ordered.length / DAILY_ROTATION_DAYS);
+  const shanghaiMs = Date.now() + 8 * 60 * 60 * 1000;
+  const dayIndex = Math.floor(shanghaiMs / 86_400_000);
+  const groupIndex = dayIndex % DAILY_ROTATION_DAYS;
+  const group = ordered.slice(groupIndex * groupSize, groupIndex * groupSize + groupSize);
+  return group.slice(0, DAILY_LEARNING_LIMIT);
+}
+
 /** 起诉状模板的 code 前缀（与文书模板页同一口径）。 */
 const LAWSUIT_CODE_PREFIX = 'LAWSUIT-';
 
@@ -140,7 +168,7 @@ export function HomePage() {
     if (!silent) {
       setPhase('loading');
     }
-    const result = await getArticles({ pageNum: 1, pageSize: DAILY_LEARNING_LIMIT });
+    const result = await getArticles({ pageNum: 1, pageSize: DAILY_FETCH_SIZE });
     if (!result.ok) {
       if (silent) {
         return;
@@ -148,7 +176,7 @@ export function HomePage() {
       setPhase('error');
       return;
     }
-    setArticles(result.data.list);
+    setArticles(pickDailyArticles(result.data.list));
     setPhase('ready');
   }, []);
 
