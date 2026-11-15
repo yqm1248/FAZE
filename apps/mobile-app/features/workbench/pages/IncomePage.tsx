@@ -6,8 +6,12 @@
  * 数据来源：`GET /app/workbench/income?range=` + `GET /app/workbench/income/flows`。
  * 注意：
  *   1. **金额口径必须一致**：可提现 = `availableCents`（lawyer_balance.available_cents），
- *      待结算 = `frozenCents`（7 天退款期内）。两者**互斥不相含**，全页不出现「冻结」字样
- *      （代码注释里写明 = frozen_cents，页面文案用「待结算」）。
+ *      待结算 = `pendingSettleCents`（**仍在冻结期内的收入**，服务端按
+ *      `biz_type='income' 且 frozen_until > now` 现算）。两者**互斥不相含**。
+ *      **绝不能用 `frozenCents` 当待结算**：那个字段同时含「收入未满 7 天」和
+ *      「提现申请冻结」，用户一提交提现，「待结算」就会变回提现金额，看起来像钱被退回
+ *      （2026-11-16 线上问题，已改为服务端下发 `pendingSettleCents`）。
+ *      全页不出现「冻结」字样（页面文案用「待结算」）。
  *   2. 明细**每行必须有订单号**（§零之二 第 18 项）：用户要能逐笔追到订单。
  *   3. 规则卡里「15%」与「7 天」**不写死**：15% 由服务端 `platform_fee_rate` 决定、
  *      7 天由 `settlement.freeze_days` 决定，页面只写规则句式，具体天数从文案变量来

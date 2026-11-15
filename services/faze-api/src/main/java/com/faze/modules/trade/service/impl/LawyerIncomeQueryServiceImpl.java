@@ -22,6 +22,7 @@ import com.faze.modules.trade.mapper.LawyerBalanceMapper;
 import com.faze.modules.trade.mapper.OrdersMapper;
 import com.faze.modules.trade.service.LawyerIncomeQueryService;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -94,6 +95,24 @@ public class LawyerIncomeQueryServiceImpl implements LawyerIncomeQueryService {
     }
 
     @Override
+    public long pendingSettleCents(Long lawyerId) {
+        if (lawyerId == null) {
+            return 0L;
+        }
+        QueryWrapper<BalanceFlow> wrapper = new QueryWrapper<BalanceFlow>()
+                .select("COALESCE(SUM(delta_cents), 0) AS total")
+                .eq("owner_type", OWNER_LAWYER)
+                .eq("owner_id", lawyerId)
+                .eq("biz_type", BIZ_INCOME)
+                .gt("frozen_until", LocalDateTime.now(ZoneOffset.UTC));
+        List<Object> values = balanceFlowMapper.selectObjs(wrapper);
+        if (values.isEmpty() || values.get(0) == null) {
+            return 0L;
+        }
+        return toLong(values.get(0));
+    }
+
+    @Override
     public List<BalanceFlow> incomeFlows(Long lawyerId, LocalDateTime from, Long beforeId, int limit) {
         if (lawyerId == null || limit < 1) {
             return List.of();
@@ -101,6 +120,10 @@ public class LawyerIncomeQueryServiceImpl implements LawyerIncomeQueryService {
         var wrapper = Wrappers.<BalanceFlow>lambdaQuery()
                 .eq(BalanceFlow::getOwnerType, OWNER_LAWYER)
                 .eq(BalanceFlow::getOwnerId, lawyerId)
+                // 只取收入流水。freeze / income_unfreeze / withdraw 的 biz_id 指向提现单或
+                // 另一条流水，不是订单 id；混进来后上层会拿它去 orders 查，命中无关订单
+                // （2026-11-16 线上曾因此把别人的订单号显示给律师）。
+                .eq(BalanceFlow::getBizType, BIZ_INCOME)
                 .orderByDesc(BalanceFlow::getId);
         if (from != null) {
             wrapper.ge(BalanceFlow::getCreatedAt, from);
@@ -175,7 +198,17 @@ public class LawyerIncomeQueryServiceImpl implements LawyerIncomeQueryService {
             return 0L;
         }
         Object raw = values.get(0);
-        long value = raw instanceof Number number ? number.longValue() : Long.parseLong(raw.toString());
+        long value = toLong(raw);
         return absolute ? Math.abs(value) : value;
+    }
+
+    /**
+     * 把 `selectObjs` 返回的单列值转成 long（不同驱动可能给 Number 或 String）。
+     *
+     * @param raw 列值
+     * @return 整数值
+     */
+    private static long toLong(Object raw) {
+        return raw instanceof Number number ? number.longValue() : Long.parseLong(raw.toString());
     }
 }

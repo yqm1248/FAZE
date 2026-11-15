@@ -90,6 +90,15 @@ public class WorkbenchServiceImpl implements WorkbenchService {
     /** 头像对象 key 的前缀（`StorageKeyRules.build` 生成，场景白名单里的 `avatar`）。 */
     private static final String AVATAR_KEY_PREFIX = "private/avatar/";
 
+    /**
+     * 收入流水的 `biz_type`。
+     *
+     * <p>**只有这个类型的 `biz_id` 才是订单 id**。`freeze` / `income_unfreeze` / `withdraw`
+     * 的 `biz_id` 指向提现单或另一条流水，拿去 `orders` 表查会命中无关订单
+     * （2026-11-16 线上曾因此把别人的订单号显示给当前律师）。</p>
+     */
+    private static final String BIZ_INCOME = "income";
+
     private final LawyerQueryService lawyerQueryService;
     private final AccountQueryService accountQueryService;
     private final LawyerProfileService lawyerProfileService;
@@ -253,8 +262,10 @@ public class WorkbenchServiceImpl implements WorkbenchService {
         vo.setOrderCount(lawyerIncomeQueryService.incomeOrderCount(lawyer.getId(), from));
         vo.setAvailableCents(available);
         vo.setFrozenCents(frozen);
-        // 页面文案叫「待结算」：就是 frozen_cents，两者互斥不相含（D3 第 4 条）
-        vo.setPendingSettleCents(frozen);
+        // 页面文案叫「待结算」：口径必须是「仍在冻结期内的收入」。
+        // **不能直接下发 frozen_cents** —— 它同时含「提现申请冻结」，用户一提交提现，
+        // 「待结算」就会变回提现金额，看起来像钱被退回（2026-11-16 线上问题）。
+        vo.setPendingSettleCents(lawyerIncomeQueryService.pendingSettleCents(lawyer.getId()));
         vo.setTotalWithdrawCents(lawyerIncomeQueryService.withdrawSumCents(lawyer.getId(), null));
         return vo;
     }
@@ -271,7 +282,9 @@ public class WorkbenchServiceImpl implements WorkbenchService {
         boolean hasMore = rows.size() > size;
         List<BalanceFlow> page = hasMore ? rows.subList(0, size) : rows;
 
-        Set<Long> orderIds = page.stream().map(BalanceFlow::getBizId)
+        Set<Long> orderIds = page.stream()
+                .filter(flow -> BIZ_INCOME.equals(flow.getBizType()))
+                .map(BalanceFlow::getBizId)
                 .filter(java.util.Objects::nonNull).collect(Collectors.toSet());
         Map<Long, Orders> orders = lawyerIncomeQueryService.ordersByIds(orderIds);
 
@@ -284,7 +297,8 @@ public class WorkbenchServiceImpl implements WorkbenchService {
             row.setBalanceAfter(flow.getBalanceAfter());
             row.setRemark(flow.getRemark());
             row.setCreatedAt(flow.getCreatedAt());
-            Orders order = flow.getBizId() == null ? null : orders.get(flow.getBizId());
+            Orders order = BIZ_INCOME.equals(flow.getBizType()) && flow.getBizId() != null
+                    ? orders.get(flow.getBizId()) : null;
             if (order != null) {
                 // 每行必须有订单号（§零之二 第 18 项）：用户能逐笔追到订单
                 row.setOrderNo(order.getOrderNo());

@@ -61,6 +61,18 @@ public interface LawyerIncomeQueryService {
     int incomeOrderCount(Long lawyerId, LocalDateTime from);
 
     /**
+     * 汇总「仍在冻结期内」的收入（`biz_type = income` 且 `frozen_until > now` 的 `delta_cents` 之和）。
+     *
+     * <p>这是页面上「待结算」的真实口径。**不能用 `lawyer_balance.frozen_cents` 代替**：
+     * 那个字段同时承载「收入未满 7 天」与「提现申请冻结」两种语义，直接拿来当待结算，
+     * 用户提现后就会看到「待结算」又变回提现金额（2026-11-16 线上问题）。</p>
+     *
+     * @param lawyerId 律师主键
+     * @return 待结算金额（分）
+     */
+    long pendingSettleCents(Long lawyerId);
+
+    /**
      * 取律师的流水明细（按 id 倒序，游标分页）。
      *
      * @param lawyerId 律师主键
