@@ -19,8 +19,8 @@
  *              bind-bank-name / bind-account-name / bind-card-no / bind-submit
  */
 
-import { useCallback, useEffect, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Keyboard, Modal, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import {
   applyWithdraw,
@@ -113,6 +113,51 @@ function calcFee(amountCents: number, rateText: string): number {
   return Math.floor((amountCents * numerator) / denominator);
 }
 
+/** Android 11（API 30）起 RN 改用 IME insets 上报键盘高度；更早版本靠系统缩放窗口。 */
+const ANDROID_IME_INSET_MIN_API = 30;
+
+/**
+ * 键盘弹起时占用的高度（DIP）；键盘收起时为 0。
+ *
+ * **为什么本组件必须自己做键盘避让**：这是 `Modal` 里的居中卡片，Modal 不随键盘 resize
+ * （`softwareKeyboardLayoutMode` 管的是 Activity 窗口，管不到 Modal 的覆盖层）。
+ * 三个输入框填完后键盘会盖住卡片下半部分——错误提示和「保存收款账户」按钮都在那一块，
+ * 用户点按钮实际点在键盘上，界面毫无反应，只能点卡片顶部的「关闭」。
+ * 这正是 2026-11-15 二次反馈「保存收款账户点了没反应」的现场。
+ *
+ * 不用 `KeyboardAvoidingView` 的 Android 分支：RN 0.81 在 Android 上按
+ * `endCoordinates.screenY` 算遮挡，edge-to-edge 下窗口不缩放该值恒为屏幕底，算出 0。
+ * 详细推导见 `features/conversation/pages/ChatPage.tsx` 的 `useAndroidKeyboardHeight`。
+ *
+ * 平台差异：iOS 的 `keyboardDidShow` 同样可靠，一并启用；Android 只在 API 30+ 启用，
+ * 旧版本系统本来就会缩放窗口，再抬一次会变成双重留白。
+ *
+ * 副作用：订阅键盘显隐事件，组件卸载时移除。
+ *
+ * @returns 键盘本体高度
+ */
+function useKeyboardHeight(): number {
+  const [height, setHeight] = useState(0);
+
+  useEffect(() => {
+    if (Platform.OS === 'android' && Number(Platform.Version) < ANDROID_IME_INSET_MIN_API) {
+      return undefined;
+    }
+    const show = Keyboard.addListener('keyboardDidShow', (event) => {
+      setHeight(event.endCoordinates.height);
+    });
+    const hide = Keyboard.addListener('keyboardDidHide', () => {
+      setHeight(0);
+    });
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
+
+  return height;
+}
+
 /**
  * 渲染提现面板。
  *
@@ -123,6 +168,8 @@ function calcFee(amountCents: number, rateText: string): number {
  */
 export function WithdrawPanel({ visible, availableCents, onClose, onDone }: WithdrawPanelProps) {
   const { t } = useI18n();
+  const keyboardHeight = useKeyboardHeight();
+  const scrollRef = useRef<ScrollView>(null);
   const [config, setConfig] = useState<WithdrawConfig | null>(null);
   const [account, setAccount] = useState<WithdrawAccount | null>(null);
   const [amountText, setAmountText] = useState('');
@@ -144,6 +191,23 @@ export function WithdrawPanel({ visible, availableCents, onClose, onDone }: With
   const amountCents = yuanTextToCents(amountText);
   const feeCents = amountCents === null ? 0 : calcFee(amountCents, feeRate);
   const expectedCents = amountCents === null ? 0 : amountCents - feeCents;
+
+  /**
+   * 显示错误并把它滚进可视区。
+   *
+   * 键盘弹起时卡片可用高度变小，红字出现在输入框下方、可能在可视区之外——
+   * 用户看不到任何反馈就会认为「点了没反应」。延迟一帧再滚，否则用的是红字出现前的内容高度。
+   *
+   * 副作用：写入 `errorText` 并调用 `ScrollView.scrollToEnd`。
+   *
+   * @param text 已翻译的错误文案
+   */
+  const showError = useCallback((text: string): void => {
+    setErrorText(text);
+    setTimeout(() => {
+      scrollRef.current?.scrollToEnd({ animated: true });
+    }, 60);
+  }, []);
 
   /**
    * 拉规则与收款账户（面板打开时一次）。
@@ -171,10 +235,10 @@ export function WithdrawPanel({ visible, availableCents, onClose, onDone }: With
       }
     } catch {
       if (!isCancelled()) {
-        setErrorText(t('workbench.income.withdrawFailed'));
+        showError(t('workbench.income.withdrawFailed'));
       }
     }
-  }, [t]);
+  }, [t, showError]);
 
   useEffect(() => {
     if (!visible) {
@@ -204,17 +268,17 @@ export function WithdrawPanel({ visible, availableCents, onClose, onDone }: With
   const submit = async (): Promise<void> => {
     setErrorText(null);
     if (amountCents === null || amountCents <= 0) {
-      setErrorText(t('workbench.income.withdrawAmountInvalid'));
+      showError(t('workbench.income.withdrawAmountInvalid'));
       return;
     }
     if (amountCents < minAmountCents) {
-      setErrorText(t('workbench.income.withdrawAmountBelowMin', {
+      showError(t('workbench.income.withdrawAmountBelowMin', {
         min: formatCents(minAmountCents),
       }));
       return;
     }
     if (amountCents > available) {
-      setErrorText(t('workbench.income.withdrawAmountExceeds'));
+      showError(t('workbench.income.withdrawAmountExceeds'));
       return;
     }
     setSubmitting(true);
@@ -223,7 +287,7 @@ export function WithdrawPanel({ visible, availableCents, onClose, onDone }: With
     try {
       const res = await applyWithdraw(String(amountCents), withdrawIdem.key);
       if (!res.ok) {
-        setErrorText(t('workbench.income.withdrawFailed'));
+        showError(t('workbench.income.withdrawFailed'));
         return;
       }
       // 成功 → 换新键：下次提现是新操作，不能复用旧键（否则服务端回放上一次的结果）
@@ -231,7 +295,7 @@ export function WithdrawPanel({ visible, availableCents, onClose, onDone }: With
       onDone();
       onClose();
     } catch {
-      setErrorText(t('workbench.income.withdrawFailed'));
+      showError(t('workbench.income.withdrawFailed'));
     } finally {
       setSubmitting(false);
     }
@@ -245,7 +309,7 @@ export function WithdrawPanel({ visible, availableCents, onClose, onDone }: With
       || bindForm.accountName.trim() === ''
       || bindForm.bankAccount.trim() === ''
     ) {
-      setErrorText(t('workbench.income.bindFailed'));
+      showError(t('workbench.income.bindFailed'));
       return;
     }
     setBinding(true);
@@ -257,7 +321,7 @@ export function WithdrawPanel({ visible, availableCents, onClose, onDone }: With
         bankAccount: bindForm.bankAccount.trim(),
       });
       if (!res.ok) {
-        setErrorText(t('workbench.income.bindFailed'));
+        showError(t('workbench.income.bindFailed'));
         return;
       }
       const accountRes = await fetchWithdrawAccount();
@@ -265,7 +329,7 @@ export function WithdrawPanel({ visible, availableCents, onClose, onDone }: With
         setAccount(accountRes.data);
       }
     } catch {
-      setErrorText(t('workbench.income.bindFailed'));
+      showError(t('workbench.income.bindFailed'));
     } finally {
       setBinding(false);
     }
@@ -275,7 +339,7 @@ export function WithdrawPanel({ visible, availableCents, onClose, onDone }: With
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={styles.mask}>
+      <View style={[styles.mask, { paddingBottom: keyboardHeight > 0 ? keyboardHeight + spacing.md : 0 }]}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityRole="button" />
         <View style={[styles.card, shadow.cardRaised]} testID="withdraw-panel">
           <View style={styles.head}>
@@ -295,7 +359,12 @@ export function WithdrawPanel({ visible, availableCents, onClose, onDone }: With
             </Pressable>
           </View>
 
-          <ScrollView contentContainerStyle={styles.body}>
+          <ScrollView
+            ref={scrollRef}
+            contentContainerStyle={styles.body}
+            keyboardShouldPersistTaps="handled"
+            testID="withdraw-scroll"
+          >
             {!bound ? (
               <>
                 <LocalizedText numberOfLines={3} style={styles.hint}>
@@ -429,7 +498,11 @@ const styles = StyleSheet.create({
   card: {
     width: '100%',
     maxWidth: 380,
-    maxHeight: '80%',
+    // 不用 `maxHeight: '80%'`：键盘弹起时父容器靠 `paddingBottom` 让出键盘位置，
+    // 固定百分比不会跟着缩，卡片下半部分仍会被键盘盖住。`100% + flexShrink` 才能让
+    // 卡片缩进「屏幕高 - 键盘高」这块真正可用的区域，内部 ScrollView 负责滚动。
+    maxHeight: '100%',
+    flexShrink: 1,
     borderRadius: radius.lg,
     backgroundColor: color.background.surface,
     paddingHorizontal: spacing.xl,
