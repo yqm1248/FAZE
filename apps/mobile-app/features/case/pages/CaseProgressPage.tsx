@@ -36,7 +36,17 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import type { Href } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Keyboard,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  View,
+} from 'react-native';
 
 import {
   advanceCaseProgress,
@@ -108,6 +118,50 @@ const TYPE_KEYS: Record<string, MessageKey> = {
  */
 const RESUBMIT_LIMIT = 3;
 
+/** Android 11（API 30）起 RN 改用 IME insets 上报键盘高度；更早版本靠系统缩放窗口。 */
+const ANDROID_IME_INSET_MIN_API = 30;
+
+/**
+ * 键盘弹起时占用的高度（DIP）；键盘收起时为 0。
+ *
+ * **为什么登记弹层需要它**：「推进案件」弹层是贴底 sheet，Modal 不随键盘 resize
+ * （`softwareKeyboardLayoutMode` 管不到 Modal 覆盖层）。备注框是多行输入，一带起键盘，
+ * 底部「确认推进」按钮就被键盘压住——用户点不到，表现就是「点了没反应」，
+ * 与 2026-11-15 提现面板的问题完全同型。
+ *
+ * 不用 `KeyboardAvoidingView` 的 Android 分支：RN 0.81 在 Android 上按
+ * `endCoordinates.screenY` 算遮挡，edge-to-edge 下窗口不缩放该值恒为屏幕底，算出 0。
+ * 详细推导见 `features/conversation/pages/ChatPage.tsx` 的 `useAndroidKeyboardHeight`。
+ *
+ * **挂账**：本函数在 `ChatPage` / `AiChatPage` / `WithdrawPanel` / 本文件各有一份，
+ * 应抽到 `shared/hooks/` 统一，2026-11-15 本轮为避免扩大改动面暂不抽取。
+ *
+ * 副作用：订阅键盘显隐事件，组件卸载时移除。
+ *
+ * @returns 键盘本体高度
+ */
+function useKeyboardHeight(): number {
+  const [height, setHeight] = useState(0);
+
+  useEffect(() => {
+    if (Platform.OS === 'android' && Number(Platform.Version) < ANDROID_IME_INSET_MIN_API) {
+      return undefined;
+    }
+    const show = Keyboard.addListener('keyboardDidShow', (event) => {
+      setHeight(event.endCoordinates.height);
+    });
+    const hide = Keyboard.addListener('keyboardDidHide', () => {
+      setHeight(0);
+    });
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
+
+  return height;
+}
+
 /**
  * 把 UTC 时间转成「YYYY-MM-DD HH:mm」本地展示。
  *
@@ -139,6 +193,7 @@ export function CaseProgressPage() {
   const { t } = useI18n();
   const toast = useToast();
   const router = useRouter();
+  const keyboardHeight = useKeyboardHeight();
   const params = useLocalSearchParams<{ caseId?: string }>();
   const caseId = typeof params.caseId === 'string' ? params.caseId : '';
 
@@ -491,7 +546,10 @@ export function CaseProgressPage() {
         animationType="slide"
         onRequestClose={() => setAdvanceOpen(false)}
       >
-        <View style={styles.modalBackdrop} testID="caseProgress-advance-modal">
+        <View
+          style={[styles.modalBackdrop, { paddingBottom: keyboardHeight }]}
+          testID="caseProgress-advance-modal"
+        >
           <View style={styles.modalSheet}>
             <LocalizedText numberOfLines={1} style={styles.modalTitle}>
               {t('case.progress.advanceTitle')}
