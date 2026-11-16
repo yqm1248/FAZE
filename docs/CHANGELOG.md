@@ -4,6 +4,33 @@
 
 ---
 
+## 2026-11-16（二）· 修「刚发出的 PDF 点开报无法打开」：chat.ack 没回传签名地址
+
+**现象**：在会话里发送 PDF 后紧接着点开卡片，弹「无法打开该文件，请稍后重试」；退出会话重进、同一张卡片却能打开。
+
+**根因（两层）**：
+
+1. 服务端 `chat.ack` 只回 `clientMsgId / messageId / seq / createdAt`，**不带附件地址**；
+2. 前端 `ChatPage.onAck` 把本地 `localUri`（`file:///...pdf`）当 `fileUrl` 填进确认消息。Android 7+ 禁止跨应用共享 `file://`，`MessageFile` 对这个前缀本来就是直接弹提示、不唤起任何应用。
+
+所以从收到 ack 到「退出重进（重新拉历史、服务端现签 URL）」之间，这条附件必然打不开。
+
+**改法**：
+
+- 后端 `ChatSendHandler`：`chat.ack` 增加 `fileUrl`（现签下载地址）/ `fileName` / `fileSize`；`MessageService.signFileUrl` 由 `private` 改 `public` 供其调用（签名失败仍返回 null，不阻断 ack）。
+- 前端 `ChatAck` 类型补三个可选字段；`ChatPage.onAck` 优先用 `ack.fileUrl`，本地 URI 只做兜底。
+
+**实测**：Node + `ws` 连 `/ws/chat?token=...`，发一条 `msgType=file` 消息，收到的 `chat.ack` 为：
+
+- `fileUrl` = 187 字符签名地址（`http://47.108.116.94:18081/api/v1/pub/file/get?key=...&exp=...&sig=...`）
+- `fileName` = `ack-check.pdf`、`fileSize` = `57161`
+
+测试消息已即时 `chat.recall` 撤回，会话未留脏数据。
+
+**生效范围**：后端已重启生效；前端改动必须**重新打包 APK** 才在手机上生效，旧包（3a612e2）仍会走本地 URI 分支。
+
+**未改**：历史消息的签名地址有效期仍是 600 秒（`faze.storage.download-ttl-seconds`）。进会话后停留超过 10 分钟再点旧附件，仍会因签名过期拿不到文件（浏览器显示 403 空白页，不是 App 弹提示）。本轮按用户意见不动 TTL。
+
 ## 2026-11-16（二）· 演示律师 10 位上线：9 位新律师走正规入驻链路创建、张三改名、两位旧律师软删
 
 **一句话**：演示前「找律师」页只有 2 位没有头像的测试律师 + 1 位叫「测试律师张三」的账号，页面上看不到像真实律师的人。本轮按用户提供的 9 张形象照，走「注册 → 上传执照 → 提交入驻 → 后台审核 → 补资料 → 设价格 → 设在线状态」的正规链路创建 9 位律师，把「测试律师张三」改名为「张三」，软删两位无头像旧律师，最终 10 位律师全部有头像、有评分、有评价记录。

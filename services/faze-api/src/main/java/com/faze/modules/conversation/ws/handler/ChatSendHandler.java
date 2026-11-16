@@ -64,6 +64,13 @@ public class ChatSendHandler implements ChatTypeHandler {
         ack.put("createdAt", outcome.message().getCreatedAt() == null
                 ? OffsetDateTime.now(ZoneOffset.UTC).toString()
                 : outcome.message().getCreatedAt().toString());
+        // 附件消息必须把签名下载地址带回 ack：库里存的是对象 key，客户端手里只有本地
+        // file:// URI，而 Android 7+ 禁止跨应用共享 file://——刚发出的 PDF/图片点开时
+        // 会弹「无法打开该文件，请稍后重试」，要等退出重进（重新拉历史）才恢复。
+        // 2026-11-16 实测修复，详见 MessageService#signFileUrl 的注释。
+        ack.put("fileUrl", messageService.signFileUrl(outcome.message().getFileUrl()));
+        ack.put("fileName", outcome.message().getFileName());
+        ack.put("fileSize", outcome.message().getFileSize());
         sender.send(context.session(), "chat.ack", ack);
 
         // 2) 再推对端（幂等命中不推，避免对端看到重复消息）

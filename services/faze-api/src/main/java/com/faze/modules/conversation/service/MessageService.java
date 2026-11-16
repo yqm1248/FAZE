@@ -381,10 +381,14 @@ public class MessageService {
      * 但真机上并不成立——进会话时一次性签好整页历史，用户读完文字再去点图片/PDF 常常已过期，
      * 表现为「无法打开该文件，请稍后重试」，而文件本身完好。已改为 600 秒。</p>
      *
+     * <p>**2026-11-16**：改为 public，供 {@code ws/handler/ChatSendHandler} 在 {@code chat.ack}
+     * 里回传。否则发送端 ack 时手里只有本地 {@code file://} URI（Android 7+ 打不开），
+     * 用户刚把 PDF 发出去就点，必然弹「无法打开该文件，请稍后重试」。</p>
+     *
      * @param raw OSS key（或已是 http(s) 地址）
      * @return 签名地址；空值或签名失败返回 null
      */
-    private String signFileUrl(String raw) {
+    public String signFileUrl(String raw) {
         if (!StringUtils.hasText(raw)) {
             return null;
         }

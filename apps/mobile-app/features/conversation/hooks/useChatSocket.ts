@@ -41,6 +41,18 @@ export type ChatAck = {
   seq: string;
   /** 落库时间。 */
   createdAt: string;
+  /**
+   * 附件签名下载地址（图片/文件消息才有；纯文本为 null）。
+   *
+   * <p>为什么必须由服务端回传：库里存的是对象 key，客户端确认前手里只有本地
+   * `file://` URI，而 Android 7+ 禁止跨应用共享 file://——一直接用本地 URI 的话，
+   * 刚发出的 PDF 点开必弹「无法打开该文件」，要退出重进才有签名地址。</p>
+   */
+  fileUrl?: string | null;
+  /** 附件文件名（服务端口径）。 */
+  fileName?: string | null;
+  /** 附件字节数（服务端 Long，JSON 里是 number）。 */
+  fileSize?: number | null;
 };
 
 /** 已读回执（`chat.read`）。 */

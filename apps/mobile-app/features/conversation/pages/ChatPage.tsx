@@ -382,8 +382,9 @@ export function ChatPage() {
         setPending((current) => current.filter((item) => item.clientMsgId !== message.clientMsgId));
       },
       onAck: (ack) => {
-        // 服务端确认：把「发送中」替换成真实消息（类型/内容取自本地 pending；
-        // 附件先用本地 URI 显示/打开，下次拉历史会拿到服务端签名地址）
+        // 服务端确认：把「发送中」替换成真实消息（类型/内容取自本地 pending）。
+        // 附件地址**必须用服务端回传的签名地址**：本地只有 file:// URI，Android 7+
+        // 禁止跨应用共享，拿它去开会弹「无法打开该文件」，要退出重进才恢复。
         setPending((current) => current.filter((item) => item.clientMsgId !== ack.clientMsgId));
         setMessages((existing) => {
           if (existing.some((item) => item.id === ack.messageId)) {
@@ -403,10 +404,15 @@ export function ChatPage() {
             mine: true,
             msgType: local.kind,
             content: local.content === '' ? null : local.content,
-            fileUrl: local.localUri ?? null,
-            fileName: local.fileName ?? null,
+            fileUrl: ack.fileUrl ?? local.localUri ?? null,
+            fileName: ack.fileName ?? local.fileName ?? null,
             // 附件大小在 pending 里是 number 字节；确认消息要转回服务端的字符串口径
-            fileSize: local.fileSize === undefined ? null : String(local.fileSize),
+            fileSize:
+              ack.fileSize === null || ack.fileSize === undefined
+                ? local.fileSize === undefined
+                  ? null
+                  : String(local.fileSize)
+                : String(ack.fileSize),
             recalled: false,
             readByPeer: false,
             createdAt: ack.createdAt,
